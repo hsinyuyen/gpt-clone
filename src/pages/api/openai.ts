@@ -15,6 +15,42 @@ const configuration = new Configuration({
 // OpenAI instance creation
 const openai = new OpenAIApi(configuration);
 
+// Retry function with exponential backoff
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> {
+  let lastError: any;
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+
+      // Only retry on network errors
+      const isRetryable =
+        error.code === 'ECONNRESET' ||
+        error.code === 'ETIMEDOUT' ||
+        error.code === 'ENOTFOUND' ||
+        error.message?.includes('socket hang up') ||
+        error.response?.status >= 500;
+
+      if (!isRetryable || i === maxRetries - 1) {
+        throw error;
+      }
+
+      // Exponential backoff
+      const delay = baseDelay * Math.pow(2, i);
+      console.log(`Retry attempt ${i + 1}/${maxRetries} after ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -27,11 +63,13 @@ export default async function handler(
   const body = req.body;
   const messages = (body?.messages || []) as ChatCompletionRequestMessage[];
   const model = (body?.model || DEFAULT_OPENAI_MODEL) as OpenAIModel;
+  const systemPrompt = body?.systemPrompt as string | undefined;
 
   try {
+    const defaultPrompt = "你是一個友善且有幫助的 AI 助手。請用繁體中文回答問題。";
     const promptMessage: ChatCompletionRequestMessage = {
       role: "system",
-      content: "You are ChatGPT. Respond to the user like you normally would.",
+      content: systemPrompt || defaultPrompt,
     };
     const initialMessages: ChatCompletionRequestMessage[] = messages.splice(
       0,
@@ -44,11 +82,13 @@ export default async function handler(
         content: message.content,
       }));
 
-    const completion = await openai.createChatCompletion({
-      model: model.id,
-      temperature: 0.5,
-      messages: [promptMessage, ...initialMessages, ...latestMessages],
-    });
+    const completion = await retryWithBackoff(() =>
+      openai.createChatCompletion({
+        model: model.id,
+        temperature: 0.5,
+        messages: [promptMessage, ...initialMessages, ...latestMessages],
+      })
+    );
 
     const responseMessage = completion.data.choices[0].message?.content.trim();
 
@@ -56,13 +96,24 @@ export default async function handler(
       res
         .status(400)
         .json({ error: "Unable get response from OpenAI. Please try again." });
+      return;
     }
 
     res.status(200).json({ message: responseMessage });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      error: "An error occurred during ping to OpenAI. Please try again.",
-    });
+  } catch (error: any) {
+    console.error("OpenAI API error:", error.message || error);
+
+    // Provide more specific error messages
+    let errorMessage = "發生錯誤，請稍後再試";
+
+    if (error.code === 'ECONNRESET' || error.message?.includes('socket hang up')) {
+      errorMessage = "網路連線中斷，請重新嘗試";
+    } else if (error.response?.status === 429) {
+      errorMessage = "請求太頻繁，請稍等一下再試";
+    } else if (error.response?.status === 401) {
+      errorMessage = "API 金鑰無效";
+    }
+
+    res.status(500).json({ error: errorMessage });
   }
 }

@@ -2,19 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Terminal Theme Variables - Amber Classic CRT */
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  --terminal-bg: #0d0a06;
+  --terminal-primary: #d4a056;
+  --terminal-primary-dim: #a67c3d;
+  --terminal-primary-glow: rgba(212, 160, 86, 0.3);
+  --terminal-secondary: #8b6914;
+  --terminal-accent: #e8c88a;
+  --terminal-highlight: #fff3d4;
+  --terminal-red: #cc6644;
+  --terminal-border: rgba(212, 160, 86, 0.3);
+  --zhuyin-font-size: 1rem;
   height: 100%;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+/* Base styles */
+* {
+  font-family: 'Courier New', 'Monaco', 'Consolas', monospace;
 }
 
 #__next {
@@ -23,8 +28,205 @@
 
 body {
   height: 100%;
+  background: var(--terminal-bg);
+  color: var(--terminal-primary);
 }
 
+/* CRT Screen Effect - Subtle */
+.terminal-screen {
+  position: relative;
+  background: linear-gradient(
+    to bottom,
+    var(--terminal-bg) 0%,
+    #0f0c08 50%,
+    var(--terminal-bg) 100%
+  );
+}
+
+.terminal-screen::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.08),
+    rgba(0, 0, 0, 0.08) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Scanline animation - Subtle */
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
+.terminal-scanline::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(212, 160, 86, 0.02),
+    transparent
+  );
+  animation: scanline 10s linear infinite;
+  pointer-events: none;
+  z-index: 11;
+}
+
+/* Glowing text effect - Reduced */
+.glow-text {
+  text-shadow:
+    0 0 2px var(--terminal-primary-glow),
+    0 0 4px var(--terminal-primary-glow);
+}
+
+.glow-text-accent {
+  color: var(--terminal-accent);
+  text-shadow:
+    0 0 2px rgba(232, 200, 138, 0.3);
+}
+
+.glow-text-highlight {
+  color: var(--terminal-highlight);
+  text-shadow:
+    0 0 2px rgba(255, 243, 212, 0.3);
+}
+
+/* Terminal border */
+.terminal-border {
+  border: 1px solid var(--terminal-primary-dim);
+  box-shadow:
+    0 0 3px var(--terminal-primary-glow),
+    inset 0 0 3px rgba(212, 160, 86, 0.05);
+}
+
+/* Blinking cursor */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.terminal-cursor {
+  display: inline-block;
+  width: 10px;
+  height: 1.2em;
+  background: var(--terminal-primary);
+  animation: blink 1s infinite;
+  vertical-align: middle;
+  margin-left: 2px;
+}
+
+/* Terminal input */
+.terminal-input {
+  background: transparent;
+  border: none;
+  color: var(--terminal-primary);
+  caret-color: var(--terminal-primary);
+  font-family: inherit;
+}
+
+.terminal-input::placeholder {
+  color: var(--terminal-primary-dim);
+  opacity: 0.6;
+}
+
+.terminal-input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Terminal button */
+.terminal-btn {
+  background: transparent;
+  border: 1px solid var(--terminal-primary-dim);
+  color: var(--terminal-primary);
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.terminal-btn:hover {
+  background: var(--terminal-primary);
+  color: var(--terminal-bg);
+  box-shadow: 0 0 8px var(--terminal-primary-glow);
+}
+
+.terminal-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.terminal-btn:disabled:hover {
+  background: transparent;
+  color: var(--terminal-primary);
+  box-shadow: none;
+}
+
+/* Message styling */
+.terminal-message {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(212, 160, 86, 0.1);
+}
+
+/* Flicker effect - Very subtle */
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  97% { opacity: 0.98; }
+  98% { opacity: 1; }
+}
+
+.terminal-flicker {
+  animation: flicker 8s infinite;
+}
+
+/* Status bar */
+.terminal-status {
+  font-size: 0.75rem;
+  color: var(--terminal-primary-dim);
+  border-top: 1px solid var(--terminal-primary-dim);
+  padding: 4px 8px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--terminal-bg);
+  border-left: 1px solid var(--terminal-border);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--terminal-primary-dim);
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--terminal-primary);
+}
+
+/* React scroll components */
 .react-scroll-to-bottom--css-uzqrz-79elbk {
   position: relative;
 }
@@ -38,4 +240,136 @@ body {
 textarea:focus {
   outline: none;
   box-shadow: none;
+}
+
+/* Zhuyin vertical styling */
+.zhuyin-char {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: flex-start;
+  margin: 0 2px;
+  line-height: 1.8;
+}
+
+.zhuyin-char .char {
+  font-size: var(--zhuyin-font-size, 1em);
+  color: var(--terminal-primary);
+}
+
+.zhuyin-char .zhuyin-wrapper {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  margin-left: 1px;
+}
+
+.zhuyin-char .zhuyin-text {
+  writing-mode: vertical-rl;
+  font-size: calc(var(--zhuyin-font-size, 1em) * 0.5);
+  color: var(--terminal-accent);
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.zhuyin-char .zhuyin-tone {
+  font-size: calc(var(--zhuyin-font-size, 1em) * 0.5);
+  color: var(--terminal-highlight);
+  margin-left: 1px;
+  line-height: 1;
+}
+
+/* Boot sequence animation */
+@keyframes bootUp {
+  0% { opacity: 0; transform: scale(0.98); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.boot-animation {
+  animation: bootUp 0.4s ease-out;
+}
+
+/* Matrix rain effect - Warm tone */
+.matrix-bg {
+  background-image:
+    radial-gradient(ellipse at center, #12100a 0%, var(--terminal-bg) 100%);
+}
+
+/* Legacy variable mappings for components */
+:root {
+  --terminal-green: var(--terminal-primary);
+  --terminal-green-dim: var(--terminal-primary-dim);
+  --terminal-green-glow: var(--terminal-primary-glow);
+  --terminal-amber: var(--terminal-accent);
+  --terminal-cyan: var(--terminal-highlight);
+}
+
+/* Avatar Animations */
+@keyframes avatar-idle {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+@keyframes avatar-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes avatar-float {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  25% { transform: translateY(-4px) rotate(0deg); }
+  50% { transform: translateY(0) rotate(1deg); }
+  75% { transform: translateY(-4px) rotate(0deg); }
+}
+
+@keyframes avatar-shake {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(-2px) rotate(-2deg); }
+  50% { transform: translateX(2px) rotate(2deg); }
+  75% { transform: translateX(-2px) rotate(-1deg); }
+}
+
+.animate-avatar-idle {
+  animation: avatar-idle 2s ease-in-out infinite;
+}
+
+.animate-avatar-bounce {
+  animation: avatar-bounce 0.6s ease-in-out infinite;
+}
+
+.animate-avatar-float {
+  animation: avatar-float 3s ease-in-out infinite;
+}
+
+.animate-avatar-shake {
+  animation: avatar-shake 0.3s ease-in-out infinite;
+}
+
+/* Voice Recorder Animations */
+@keyframes voice-wave {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}
+
+@keyframes voice-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
+}
+
+@keyframes voice-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.voice-wave {
+  animation: voice-wave 0.8s ease-in-out infinite;
+  transform-origin: bottom;
+}
+
+.voice-pulse {
+  animation: voice-pulse 1s ease-in-out infinite;
+}
+
+.voice-spinner {
+  animation: voice-spin 1s linear infinite;
+  display: inline-block;
 }
