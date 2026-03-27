@@ -1146,12 +1146,17 @@ const Chat = (props: ChatProps) => {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 sm:gap-4 text-xs">
-            {/* 金幣顯示 */}
+          <div className="flex items-center gap-2 sm:gap-3 text-xs">
             <div data-tutorial="coin-display">
               <CoinDisplay className="border border-[var(--terminal-primary-dim)] px-2 py-1 rounded" />
             </div>
-
+            <button
+              onClick={() => window.location.href = "/shop"}
+              className="terminal-btn text-xs py-1 px-2"
+              data-tutorial="sidebar-shop"
+            >
+              SHOP
+            </button>
             <button
               onClick={() => setZhuyinMode(!zhuyinMode)}
               className={`terminal-btn text-xs py-1 px-2 ${

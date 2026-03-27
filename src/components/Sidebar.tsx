@@ -11,7 +11,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
-  const { zhuyinMode, setZhuyinMode, fontSize, setFontSize } = useZhuyin();
+  const { fontSize, setFontSize } = useZhuyin();
   const { user, logout } = useAuth();
   const { memory } = useMemory();
   const { conversations, currentConversation, createNewConversation, selectConversation, deleteConversation } = useConversation();
@@ -43,10 +43,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
   const isAdmin = user && ADMIN_USERNAMES.includes(user.username.toLowerCase());
 
   const menuItems = [
-    { id: "new", label: "NEW_SESSION", shortcut: "Ctrl+N", action: handleNewSession },
     { id: "memory", label: "MEMORY_BANK", shortcut: "Ctrl+M", action: () => setIsMemoryPanelOpen(true), badge: memory?.topicSummaries.length },
-    { id: "zhuyin", label: `ZHUYIN_MODE [${zhuyinMode ? "ON" : "OFF"}]`, shortcut: "Ctrl+Z", action: () => setZhuyinMode(!zhuyinMode), active: zhuyinMode },
-    { id: "shop", label: "AVATAR_SHOP", shortcut: "Ctrl+S", action: () => window.location.href = "/shop", dataTutorial: "sidebar-shop" },
     ...(isAdmin ? [{ id: "admin", label: "ADMIN_PANEL", shortcut: "Ctrl+A", action: () => window.location.href = "/admin" }] : []),
   ];
 
@@ -110,7 +107,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
               onClick={item.action}
               data-tutorial={(item as any).dataTutorial || undefined}
               className={`w-full text-left px-2 py-1.5 text-xs transition-colors flex items-center justify-between group ${
-                item.active
+                (item as any).active
                   ? "text-[var(--terminal-bg)] bg-[var(--terminal-green)]"
                   : "text-[var(--terminal-green)] hover:bg-[var(--terminal-green)] hover:text-[var(--terminal-bg)]"
               }`}
@@ -120,7 +117,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
                 {item.label}
                 {item.badge !== undefined && item.badge > 0 && (
                   <span className={`text-[10px] px-1 ${
-                    item.active
+                    (item as any).active
                       ? "bg-[var(--terminal-bg)] text-[var(--terminal-green)]"
                       : "bg-[var(--terminal-green)] text-[var(--terminal-bg)]"
                   }`}>
@@ -145,6 +142,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
 
           {showSessions && (
             <div className="px-2 pb-2 space-y-1">
+              <button
+                onClick={handleNewSession}
+                className="w-full text-left px-2 py-1.5 text-xs transition-colors flex items-center gap-2 text-[var(--terminal-cyan)] hover:bg-[var(--terminal-green)] hover:text-[var(--terminal-bg)] border border-dashed border-[var(--terminal-green-dim)] hover:border-solid hover:border-[var(--terminal-green)]"
+              >
+                <span>+</span>
+                <span>NEW_SESSION</span>
+              </button>
               {conversations.length === 0 ? (
                 <div className="text-[10px] text-[var(--terminal-green-dim)] px-2 py-4 text-center">
                   尚無對話記錄

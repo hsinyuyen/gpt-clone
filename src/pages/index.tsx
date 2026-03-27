@@ -9,6 +9,7 @@ import useAnalytics from "@/hooks/useAnalytics";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConversation } from "@/contexts/ConversationContext";
 import { ActiveScript } from "@/types/Script";
+import ActivityOverlay from "@/components/ActivityOverlay";
 
 export default function Home() {
   const [isComponentVisible, setIsComponentVisible] = useState(false);
@@ -166,6 +167,9 @@ export default function Home() {
 
   return (
     <main className="overflow-hidden w-full h-screen relative flex bg-[var(--terminal-bg)]">
+      {/* Activity Mode Overlay */}
+      <ActivityOverlay />
+
       {/* Mobile Sidebar Overlay */}
       {isComponentVisible ? (
         <MobileSiderbar toggleComponentVisibility={toggleComponentVisibility} />

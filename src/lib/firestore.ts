@@ -8,11 +8,13 @@ import {
   query,
   where,
   getDocs,
+  onSnapshot,
 } from "./firebase";
 import { storage, ref, uploadString, getDownloadURL } from "./firebase";
 import { User } from "@/types/User";
 import { UserMemory } from "@/types/Memory";
 import { Conversation, ConversationMessage } from "@/types/Conversation";
+import { ActivityState, UserActivityRecord } from "@/types/Activity";
 
 // ============ Users ============
 
@@ -115,6 +117,58 @@ export async function deleteConversationDoc(convId: string): Promise<void> {
   await deleteDoc(doc(db, "conversations", convId));
 }
 
+// ============ Activities ============
+
+const ACTIVITY_DOC = doc(db, "settings", "activity");
+
+export async function getGlobalActivityState(): Promise<ActivityState> {
+  const snap = await getDoc(ACTIVITY_DOC);
+  if (!snap.exists()) {
+    return { activeActivityId: null, activatedAt: null, activatedBy: null };
+  }
+  return snap.data() as ActivityState;
+}
+
+export async function setGlobalActivityState(state: ActivityState): Promise<void> {
+  await setDoc(ACTIVITY_DOC, state);
+}
+
+export function onActivityStateChange(
+  callback: (state: ActivityState) => void
+): () => void {
+  return onSnapshot(
+    ACTIVITY_DOC,
+    (snap) => {
+      if (snap.exists()) {
+        callback(snap.data() as ActivityState);
+      } else {
+        callback({ activeActivityId: null, activatedAt: null, activatedBy: null });
+      }
+    },
+    (error) => {
+      console.warn("Activity state listener error:", error);
+      callback({ activeActivityId: null, activatedAt: null, activatedBy: null });
+    }
+  );
+}
+
+export async function getUserActivityRecords(
+  userId: string
+): Promise<UserActivityRecord[]> {
+  const snap = await getDocs(collection(db, "users", userId, "activities"));
+  return snap.docs.map((d) => d.data() as UserActivityRecord);
+}
+
+export async function saveUserActivityRecord(
+  userId: string,
+  record: UserActivityRecord
+): Promise<void> {
+  await setDoc(
+    doc(db, "users", userId, "activities", record.activityId),
+    record
+  );
+}
+
 // ============ Avatar Storage ============
 
 /**
@@ -145,4 +199,24 @@ export async function uploadAvatarFrames(
   }
 
   return urls;
+}
+
+/**
+ * Upload a base64 image to Firebase Storage and return its public download URL.
+ * Used for story creator activity to get a URL that Seedance API can access.
+ */
+export async function uploadStoryImage(
+  base64Data: string,
+  filename: string = "story_image.png"
+): Promise<string> {
+  const path = `story-images/${Date.now()}_${filename}`;
+  const storageRef = ref(storage, path);
+
+  if (base64Data.startsWith("data:")) {
+    await uploadString(storageRef, base64Data, "data_url");
+  } else {
+    await uploadString(storageRef, base64Data, "base64");
+  }
+
+  return await getDownloadURL(storageRef);
 }

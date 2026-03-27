@@ -7,6 +7,7 @@ import { CoinProvider } from '@/contexts/CoinContext'
 import { ConversationProvider } from '@/contexts/ConversationContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import CoinRewardListener from '@/components/CoinRewardListener'
+import { ActivityProvider } from '@/contexts/ActivityContext'
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
@@ -16,9 +17,11 @@ export default function App({ Component, pageProps }: AppProps) {
           <ConversationProvider>
             <ThemeProvider>
               <CoinRewardListener>
-                <ZhuyinProvider>
-                  <Component {...pageProps} />
-                </ZhuyinProvider>
+                <ActivityProvider>
+                  <ZhuyinProvider>
+                    <Component {...pageProps} />
+                  </ZhuyinProvider>
+                </ActivityProvider>
               </CoinRewardListener>
             </ThemeProvider>
           </ConversationProvider>

@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAllUsers, getCoinState, saveCoinState, CoinState } from "@/lib/firestore";
+import { getAllUsers, getCoinState, saveCoinState, CoinState, getGlobalActivityState, setGlobalActivityState } from "@/lib/firestore";
 import { User } from "@/types/User";
+import { ActivityState } from "@/types/Activity";
+import { ACTIVITIES } from "@/data/activityRegistry";
 
 interface UserRow {
   user: User;
@@ -23,6 +25,12 @@ export default function AdminPage() {
   const [bonusReason, setBonusReason] = useState("課堂獎勵");
   const [actionMsg, setActionMsg] = useState("");
   const [accessBypass, setAccessBypass] = useState(false);
+  const [activityState, setActivityState] = useState<ActivityState>({
+    activeActivityId: null,
+    activatedAt: null,
+    activatedBy: null,
+  });
+  const [activityLoading, setActivityLoading] = useState(false);
 
   const isAdmin = user && (ADMIN_USERNAMES.includes(user.username.toLowerCase()) || accessBypass);
 
@@ -59,6 +67,7 @@ export default function AdminPage() {
     }
     if (user && isAdmin) {
       loadUsers();
+      getGlobalActivityState().then(setActivityState);
     }
   }, [user, isLoading, isAdmin, router, loadUsers]);
 
@@ -255,6 +264,70 @@ export default function AdminPage() {
         </div>
         {actionMsg && (
           <div className="mt-2 text-sm text-yellow-400">{actionMsg}</div>
+        )}
+      </div>
+
+      {/* Activity Controls */}
+      <div className="border border-[var(--terminal-cyan)] bg-[var(--terminal-cyan)]/5 p-4 mb-6">
+        <div className="text-[var(--terminal-cyan)] text-sm font-bold mb-3">◉ 活動模式控制</div>
+
+        {activityState.activeActivityId ? (
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-[var(--terminal-accent)] animate-pulse">● ACTIVE</span>
+              <span className="text-sm">
+                {ACTIVITIES.find((a) => a.id === activityState.activeActivityId)?.name || activityState.activeActivityId}
+              </span>
+              <span className="text-xs text-[var(--terminal-primary-dim)]">
+                | 啟動者: {activityState.activatedBy} | 時間: {activityState.activatedAt ? new Date(activityState.activatedAt).toLocaleString("zh-TW") : ""}
+              </span>
+            </div>
+            <button
+              onClick={async () => {
+                setActivityLoading(true);
+                await setGlobalActivityState({ activeActivityId: null, activatedAt: null, activatedBy: null });
+                setActivityState({ activeActivityId: null, activatedAt: null, activatedBy: null });
+                setActivityLoading(false);
+              }}
+              disabled={activityLoading}
+              className="px-4 py-1 text-sm font-bold border-2 border-red-400 text-red-400 hover:bg-red-400 hover:text-black disabled:opacity-30 transition-colors"
+            >
+              停止活動
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {ACTIVITIES.map((activity) => (
+              <div
+                key={activity.id}
+                className="flex items-center justify-between border border-[var(--terminal-primary-dim)]/30 p-3"
+              >
+                <div>
+                  <div className="text-sm">{activity.name}</div>
+                  <div className="text-xs text-[var(--terminal-primary-dim)]">
+                    {activity.description} | 獎勵: +{activity.coinReward} ◆
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    setActivityLoading(true);
+                    const newState: ActivityState = {
+                      activeActivityId: activity.id,
+                      activatedAt: new Date().toISOString(),
+                      activatedBy: user?.username || "admin",
+                    };
+                    await setGlobalActivityState(newState);
+                    setActivityState(newState);
+                    setActivityLoading(false);
+                  }}
+                  disabled={activityLoading}
+                  className="px-4 py-1 text-sm font-bold border-2 border-[var(--terminal-cyan)] text-[var(--terminal-cyan)] hover:bg-[var(--terminal-cyan)] hover:text-black disabled:opacity-30 transition-colors"
+                >
+                  啟動
+                </button>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

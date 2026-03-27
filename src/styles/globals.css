@@ -373,3 +373,161 @@ textarea:focus {
   animation: voice-spin 1s linear infinite;
   display: inline-block;
 }
+
+/* ========== Story Creator Activity Animations ========== */
+
+/* Step transitions */
+.step-transition {
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.step-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.step-hidden {
+  opacity: 0;
+  transform: translateX(30px);
+  position: absolute;
+  pointer-events: none;
+  width: 100%;
+}
+
+/* Slide up entrance */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-up {
+  animation: slideUp 0.5s ease-out forwards;
+}
+
+/* Card selected bounce */
+@keyframes cardBounce {
+  0%, 100% { transform: scale(1.05); }
+  50% { transform: scale(1.08); }
+}
+
+.card-selected {
+  animation: cardBounce 0.6s ease-in-out;
+}
+
+/* Card glow overlay */
+.card-glow-overlay {
+  background: radial-gradient(
+    circle at center,
+    rgba(212, 160, 86, 0.2) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+/* Step indicator active pulse */
+@keyframes stepPulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--terminal-primary-glow); }
+  50% { box-shadow: 0 0 0 6px transparent; }
+}
+
+.step-active {
+  animation: stepPulse 2s ease-in-out infinite;
+}
+
+.step-completed {
+  box-shadow: 0 0 4px var(--terminal-primary-glow);
+}
+
+/* Dropdown filled animation */
+@keyframes dropdownPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.dropdown-filled {
+  animation: dropdownPop 0.3s ease-out;
+}
+
+/* Typewriter effect for preview text */
+@keyframes fadeInChar {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.typewriter-text {
+  animation: fadeInChar 0.5s ease-out;
+}
+
+/* Generating spinner */
+@keyframes genSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes genSpinReverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+.generating-spin {
+  animation: genSpin 2s linear infinite;
+}
+
+.generating-spin-reverse {
+  animation: genSpinReverse 1.5s linear infinite;
+}
+
+/* Generating pulse */
+@keyframes genPulse {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.5); opacity: 1; }
+}
+
+.generating-pulse {
+  animation: genPulse 1.2s ease-in-out infinite;
+}
+
+/* Progress bar glow */
+.progress-glow {
+  box-shadow: 0 0 6px var(--terminal-primary-glow);
+}
+
+/* Sparkle dots */
+@keyframes sparkleFall {
+  0% { transform: translateY(-10px); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+
+.sparkle-dot {
+  position: absolute;
+  top: 0;
+  width: 3px;
+  height: 3px;
+  background: var(--terminal-primary);
+  border-radius: 50%;
+  box-shadow: 0 0 4px var(--terminal-primary-glow);
+  animation: sparkleFall 3s ease-in infinite;
+}
+
+/* Complete button glow */
+@keyframes completeGlow {
+  0%, 100% { box-shadow: 0 0 4px var(--terminal-primary-glow); }
+  50% { box-shadow: 0 0 12px var(--terminal-primary-glow), 0 0 20px rgba(212, 160, 86, 0.15); }
+}
+
+.complete-btn-glow {
+  animation: completeGlow 2s ease-in-out infinite;
+}
+
+/* Step content base */
+.step-content {
+  padding: 0.5rem 0;
+}
+
+/* Pop score animation for mini-game */
+@keyframes popScore {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-30px) scale(1.5); }
+}

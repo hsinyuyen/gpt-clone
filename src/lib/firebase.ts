@@ -9,6 +9,7 @@ import {
   query,
   where,
   getDocs,
+  onSnapshot,
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -28,6 +29,6 @@ const db = getFirestore(app);
 import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 const storage = getStorage(app);
 
-export { db, doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs };
+export { db, doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs, onSnapshot };
 export { storage, ref, uploadString, getDownloadURL };
 export default db;
