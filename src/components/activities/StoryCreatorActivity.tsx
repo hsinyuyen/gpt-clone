@@ -13,6 +13,226 @@ import DungeonQuizGame from "./DungeonQuizGame";
 import StoryRecap from "./StoryRecap";
 
 // ============================================================
+// Intro Splash Screen
+// ============================================================
+const IntroSplash: React.FC<{ onDone: () => void }> = ({ onDone }) => {
+  const [phase, setPhase] = useState(0);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Particle system on canvas
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const W = canvas.width;
+    const H = canvas.height;
+
+    interface Spark {
+      x: number; y: number; vx: number; vy: number;
+      life: number; maxLife: number; size: number; color: string;
+    }
+
+    const sparks: Spark[] = [];
+    const colors = ["#d4a056", "#e8c88a", "#fff3d4", "#cc6644", "#8b6914", "#7c3aed"];
+
+    let frame = 0;
+    let raf = 0;
+
+    const loop = () => {
+      frame++;
+      ctx.fillStyle = "rgba(13,10,6,0.15)";
+      ctx.fillRect(0, 0, W, H);
+
+      // Spawn sparks
+      if (frame < 120) {
+        for (let i = 0; i < 5; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 2 + Math.random() * 6;
+          sparks.push({
+            x: W / 2, y: H / 2,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 60 + Math.random() * 40,
+            maxLife: 60 + Math.random() * 40,
+            size: 2 + Math.random() * 4,
+            color: colors[Math.floor(Math.random() * colors.length)],
+          });
+        }
+      }
+
+      // Continuous ambient sparkles
+      if (Math.random() < 0.3) {
+        sparks.push({
+          x: Math.random() * W, y: Math.random() * H,
+          vx: (Math.random() - 0.5) * 0.5, vy: -0.5 - Math.random(),
+          life: 40 + Math.random() * 30, maxLife: 40 + Math.random() * 30,
+          size: 1 + Math.random() * 2,
+          color: colors[Math.floor(Math.random() * colors.length)],
+        });
+      }
+
+      // Update & draw sparks
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        s.x += s.vx;
+        s.y += s.vy;
+        s.vy += 0.02;
+        s.vx *= 0.99;
+        s.life--;
+
+        if (s.life <= 0) { sparks.splice(i, 1); continue; }
+
+        const alpha = s.life / s.maxLife;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = s.color;
+
+        // Star shape
+        ctx.beginPath();
+        const spikes = 4;
+        for (let j = 0; j < spikes * 2; j++) {
+          const r = j % 2 === 0 ? s.size : s.size * 0.4;
+          const a = (j * Math.PI) / spikes - Math.PI / 2;
+          const px = s.x + Math.cos(a) * r;
+          const py = s.y + Math.sin(a) * r;
+          j === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // Glow
+        ctx.shadowColor = s.color;
+        ctx.shadowBlur = s.size * 2;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+      ctx.globalAlpha = 1;
+
+      raf = requestAnimationFrame(loop);
+    };
+
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  // Phase progression
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setPhase(1), 300),   // "Welcome to"
+      setTimeout(() => setPhase(2), 1200),  // "AI"
+      setTimeout(() => setPhase(3), 1800),  // Movie Director title
+      setTimeout(() => setPhase(4), 3000),  // Subtitle
+      setTimeout(() => setPhase(5), 4500),  // Button appears
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-[10001] flex flex-col items-center justify-center overflow-hidden"
+      style={{ background: "var(--terminal-bg)" }}
+    >
+      {/* Particle canvas */}
+      <canvas
+        ref={canvasRef}
+        width={600}
+        height={400}
+        className="absolute inset-0 w-full h-full"
+        style={{ opacity: 0.8 }}
+      />
+
+      {/* Text layers */}
+      <div className="relative z-10 text-center px-4">
+        {/* Welcome */}
+        <div
+          className={`transition-all duration-700 ${
+            phase >= 1 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+          }`}
+        >
+          <span className="text-[var(--terminal-primary-dim)] text-sm md:text-base tracking-[0.3em] uppercase">
+            Welcome to
+          </span>
+        </div>
+
+        {/* AI */}
+        <div
+          className={`transition-all duration-500 mt-2 ${
+            phase >= 2 ? "opacity-100 scale-100" : "opacity-0 scale-50"
+          }`}
+        >
+          <span
+            className="text-[var(--terminal-primary)] text-6xl md:text-8xl font-black glow-text"
+            style={{
+              textShadow: "0 0 20px var(--terminal-primary-glow), 0 0 40px var(--terminal-primary-glow), 0 0 80px rgba(212,160,86,0.15)",
+              letterSpacing: "0.15em",
+            }}
+          >
+            AI
+          </span>
+        </div>
+
+        {/* Movie Director */}
+        <div
+          className={`transition-all duration-700 mt-1 ${
+            phase >= 3 ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-4 scale-95"
+          }`}
+        >
+          <span
+            className="text-[var(--terminal-accent)] text-2xl md:text-4xl font-bold tracking-[0.2em]"
+            style={{
+              textShadow: "0 0 10px rgba(232,200,138,0.4)",
+            }}
+          >
+            電影大導演
+          </span>
+        </div>
+
+        {/* Decorative line */}
+        <div
+          className={`mx-auto mt-4 h-px bg-gradient-to-r from-transparent via-[var(--terminal-primary)] to-transparent transition-all duration-1000 ${
+            phase >= 3 ? "w-48 md:w-64 opacity-100" : "w-0 opacity-0"
+          }`}
+        />
+
+        {/* Subtitle */}
+        <div
+          className={`transition-all duration-700 mt-4 ${
+            phase >= 4 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+          }`}
+        >
+          <span className="text-[var(--terminal-primary-dim)] text-xs md:text-sm tracking-wider">
+            用 AI 創造屬於你的故事影片
+          </span>
+        </div>
+
+        {/* Start button */}
+        <div
+          className={`transition-all duration-500 mt-8 ${
+            phase >= 5 ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+          }`}
+        >
+          <button
+            onClick={onDone}
+            className="terminal-btn px-10 py-4 text-base tracking-wider hover:bg-[var(--terminal-primary)] hover:text-[var(--terminal-bg)] transition-all duration-300 complete-btn-glow"
+          >
+            {">"} 開始創作
+          </button>
+        </div>
+      </div>
+
+      {/* Corner decorations */}
+      <div className="absolute top-4 left-4 text-[var(--terminal-primary-dim)] text-[10px] opacity-50">
+        {">"} SYSTEM_READY
+      </div>
+      <div className="absolute bottom-4 right-4 text-[var(--terminal-primary-dim)] text-[10px] opacity-50">
+        v2.0 // STORY_ENGINE
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
 // Types
 // ============================================================
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
@@ -574,6 +794,7 @@ const StoryCreatorActivity: React.FC<ActivityComponentProps> = ({
   activity,
   onComplete,
 }) => {
+  const [showIntro, setShowIntro] = useState(true);
   const [step, setStep] = useState<Step>(1);
   const [selectedGenre, setSelectedGenre] = useState<GenreOption | null>(null);
   const [blanks, setBlanks] = useState<Record<string, string>>({});
@@ -814,6 +1035,9 @@ const StoryCreatorActivity: React.FC<ActivityComponentProps> = ({
 
   return (
     <div className="flex flex-col h-full">
+      {/* Intro splash */}
+      {showIntro && <IntroSplash onDone={() => setShowIntro(false)} />}
+
       <StepIndicator current={step} />
 
       <div className="flex-1 overflow-y-auto relative">
