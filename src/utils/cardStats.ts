@@ -182,11 +182,35 @@ export function getRarityColor(rarity: string): string {
 
 export function getRarityLabel(rarity: string): string {
   switch (rarity) {
-    case 'legendary': return '★★★★';
-    case 'epic': return '★★★';
-    case 'rare': return '★★';
-    default: return '★';
+    case 'legendary': return '傳說';
+    case 'epic': return '史詩';
+    case 'rare': return '稀有';
+    default: return '普通';
   }
+}
+
+/**
+ * Yu-Gi-Oh level stars (1-12). This is the card's summon level — it determines
+ * tribute requirements in the duel engine:
+ *   Level 1-4 → no tribute
+ *   Level 5-6 → 1 tribute
+ *   Level 7+  → 2 tributes
+ *
+ * Do NOT confuse with PlayerCard.level (upgrade level 1-10) or rarity.
+ */
+export function getLevelStars(level: number): string {
+  const n = Math.max(1, Math.min(12, level || 1));
+  return '★'.repeat(n);
+}
+
+/**
+ * Tribute requirement for a given Yu-Gi-Oh level. Mirrors duelEngine logic
+ * so the collection UI can warn players before they take a card to battle.
+ */
+export function getTributeCost(level: number): number {
+  if (level >= 7) return 2;
+  if (level >= 5) return 1;
+  return 0;
 }
 
 export function getElementEmoji(element: string): string {

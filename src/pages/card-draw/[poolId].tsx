@@ -9,7 +9,7 @@ import DrawAnimation from '@/components/cards/DrawAnimation';
 import { ALL_POOLS } from '@/data/cards/pools';
 import { CARD_MAP } from '@/data/cards/pools';
 import { CardDefinition, CardRarity } from '@/types/Card';
-import { getRarityColor, getRarityLabel, getElementEmoji } from '@/utils/cardStats';
+import { getRarityColor, getRarityLabel, getElementEmoji, getLevelStars, getTributeCost } from '@/utils/cardStats';
 
 const RARITY_ORDER: CardRarity[] = ['legendary', 'epic', 'rare', 'common'];
 
@@ -333,7 +333,15 @@ function FeaturedCardTile({
         </span>
         <span className="bg-black/70 px-1 rounded">{getElementEmoji(card.element)}</span>
       </div>
+      {getTributeCost(card.level || 1) > 0 && (
+        <div className="absolute top-6 left-1 text-[9px] font-bold bg-orange-900/90 text-orange-300 px-1 rounded">
+          祭{getTributeCost(card.level || 1)}
+        </div>
+      )}
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent px-2 py-2">
+        <div className="text-[9px] text-yellow-400 leading-none mb-0.5 truncate" title={`Level ${card.level || 1}`}>
+          {getLevelStars(card.level || 1)}
+        </div>
         <div className="text-xs font-bold text-white truncate">
           {hero && <span style={{ color: accent }}>★ </span>}
           {card.name}
@@ -365,7 +373,15 @@ function PoolCardRow({ card }: { card: CardDefinition }) {
         </span>
         <span className="bg-black/70 px-1 rounded">{getElementEmoji(card.element)}</span>
       </div>
+      {getTributeCost(card.level || 1) > 0 && (
+        <div className="absolute top-6 left-1 text-[9px] font-bold bg-orange-900/90 text-orange-300 px-1 rounded">
+          祭{getTributeCost(card.level || 1)}
+        </div>
+      )}
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent px-2 py-1.5">
+        <div className="text-[9px] text-yellow-400 leading-none mb-0.5 truncate" title={`Level ${card.level || 1}`}>
+          {getLevelStars(card.level || 1)}
+        </div>
         <div className="text-xs font-bold text-white truncate">{card.name}</div>
         <div className="text-[9px] text-white/60">
           ATK {card.baseAtk} · DEF {card.baseDef}

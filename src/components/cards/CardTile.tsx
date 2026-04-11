@@ -1,6 +1,6 @@
 // Single card display component (terminal/retro style)
 import { CardDefinition, PlayerCard } from '@/types/Card';
-import { getRarityColor, getRarityLabel, getElementEmoji, scaledStat } from '@/utils/cardStats';
+import { getRarityColor, getRarityLabel, getElementEmoji, scaledStat, getLevelStars, getTributeCost } from '@/utils/cardStats';
 
 interface CardTileProps {
   definition: CardDefinition;
@@ -15,6 +15,9 @@ export default function CardTile({ definition, playerCard, onClick, selected, co
   const rarityColor = getRarityColor(definition.rarity);
   const rarityLabel = getRarityLabel(definition.rarity);
   const elementEmoji = getElementEmoji(definition.element);
+  const cardLevel = definition.level || 1;
+  const levelStars = getLevelStars(cardLevel);
+  const tributes = getTributeCost(cardLevel);
 
   const borderColor = selected
     ? 'border-[var(--terminal-color)]'
@@ -51,6 +54,12 @@ export default function CardTile({ definition, playerCard, onClick, selected, co
               <span>{elementEmoji}</span>
               {playerCard && <span className="text-gray-400">Lv.{level}</span>}
             </div>
+            <div className="text-[10px] text-yellow-400 truncate" title={`Level ${cardLevel}${tributes > 0 ? ` · 需 ${tributes} 祭品` : ''}`}>
+              {levelStars}
+              {tributes > 0 && (
+                <span className="ml-1 text-orange-400">· 祭{tributes}</span>
+              )}
+            </div>
           </div>
         </div>
       </button>
@@ -65,9 +74,17 @@ export default function CardTile({ definition, playerCard, onClick, selected, co
       }`}
     >
       {/* Card header */}
-      <div className="flex justify-between items-start mb-2">
+      <div className="flex justify-between items-start mb-1">
         <span className={`text-xs ${rarityColor}`}>{rarityLabel}</span>
         <span className="text-xs">{elementEmoji}</span>
+      </div>
+
+      {/* Summon level stars (Yu-Gi-Oh level — determines tribute cost) */}
+      <div className="flex items-center justify-between text-[10px] mb-1" title={`Level ${cardLevel}${tributes > 0 ? ` · 召喚需 ${tributes} 祭品` : ''}`}>
+        <span className="text-yellow-400 truncate">{levelStars}</span>
+        {tributes > 0 && (
+          <span className="text-orange-400 font-bold ml-1 flex-shrink-0">祭 ×{tributes}</span>
+        )}
       </div>
 
       {/* Card art / emoji */}

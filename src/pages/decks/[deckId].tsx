@@ -11,7 +11,7 @@ import {
   CardRarity,
   CardElement,
 } from "@/types/Card";
-import { getRarityColor, getRarityLabel, getElementEmoji } from "@/utils/cardStats";
+import { getRarityColor, getRarityLabel, getElementEmoji, getLevelStars, getTributeCost } from "@/utils/cardStats";
 
 export default function DeckEditorPage() {
   const router = useRouter();
@@ -320,6 +320,19 @@ export default function DeckEditorPage() {
                       >
                         {getRarityLabel(def.rarity)}
                       </div>
+                      {/* Tribute cost badge — warns player about summon cost */}
+                      {getTributeCost(def.level || 1) > 0 && (
+                        <div
+                          className="absolute top-0.5 right-0.5 text-[8px] font-bold bg-orange-900/90 text-orange-300 px-1 rounded"
+                          title={`Level ${def.level} · 需 ${getTributeCost(def.level || 1)} 祭品`}
+                        >
+                          祭{getTributeCost(def.level || 1)}
+                        </div>
+                      )}
+                      {/* Level stars overlay */}
+                      <div className="absolute bottom-[14px] left-0 right-0 text-center text-[8px] text-yellow-400 leading-none truncate px-1" title={`Level ${def.level || 1}`}>
+                        {getLevelStars(def.level || 1)}
+                      </div>
                       {/* Name */}
                       <div className="absolute bottom-0 left-0 right-0 bg-black/80 text-[9px] text-white truncate px-1 py-0.5 text-center">
                         {def.name}
@@ -482,6 +495,19 @@ export default function DeckEditorPage() {
                             ×{pc.duplicateCount + 1}
                           </div>
                         )}
+                        {/* Tribute cost badge */}
+                        {getTributeCost(def.level || 1) > 0 && (
+                          <div
+                            className="absolute top-6 left-1 text-[8px] font-bold bg-orange-900/90 text-orange-300 px-1 rounded"
+                            title={`Level ${def.level} · 需 ${getTributeCost(def.level || 1)} 祭品`}
+                          >
+                            祭{getTributeCost(def.level || 1)}
+                          </div>
+                        )}
+                        {/* Level stars */}
+                        <div className="absolute bottom-[14px] left-0 right-0 text-center text-[8px] text-yellow-400 leading-none truncate px-1" title={`Level ${def.level || 1}`}>
+                          {getLevelStars(def.level || 1)}
+                        </div>
                         {/* Name + level */}
                         <div className="absolute bottom-0 left-0 right-0 bg-black/80 text-[9px] text-white truncate px-1 py-0.5 text-center">
                           {def.name}

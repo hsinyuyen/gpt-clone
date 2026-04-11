@@ -1,7 +1,7 @@
 // Card detail modal - full card info with stats, abilities, level up
 import { useState } from 'react';
 import { CardDefinition, PlayerCard } from '@/types/Card';
-import { getRarityColor, getRarityLabel, getElementEmoji, scaledStat, xpToNextLevel } from '@/utils/cardStats';
+import { getRarityColor, getRarityLabel, getElementEmoji, scaledStat, xpToNextLevel, getLevelStars, getTributeCost } from '@/utils/cardStats';
 import { useCards } from '@/contexts/CardContext';
 import { useCoin } from '@/contexts/CoinContext';
 
@@ -55,9 +55,26 @@ export default function CardDetail({ definition, playerCard, onClose }: CardDeta
         </div>
 
         {/* Rarity & Element */}
-        <div className="flex gap-4 mb-5">
+        <div className="flex gap-4 mb-3 flex-wrap">
           <span className={`${rarityColor} text-base font-bold`}>{getRarityLabel(definition.rarity)} {definition.rarity.toUpperCase()}</span>
           <span className="text-base">{getElementEmoji(definition.element)} {definition.element}</span>
+        </div>
+
+        {/* Summon level (Yu-Gi-Oh) — determines tribute cost */}
+        <div className="mb-5 p-3 bg-black/40 rounded border border-gray-700 flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <div className="text-[10px] text-gray-500 uppercase tracking-wider">召喚等級 · Summon Level</div>
+            <div className="text-yellow-400 text-lg leading-none mt-1">{getLevelStars(definition.level || 1)}</div>
+            <div className="text-xs text-gray-400 mt-1">Level {definition.level || 1}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[10px] text-gray-500 uppercase tracking-wider">召喚條件</div>
+            {(() => {
+              const t = getTributeCost(definition.level || 1);
+              if (t === 0) return <div className="text-green-400 font-bold">直接召喚</div>;
+              return <div className="text-orange-400 font-bold">需 {t} 張祭品</div>;
+            })()}
+          </div>
         </div>
 
         {/* Card image */}
@@ -81,7 +98,7 @@ export default function CardDetail({ definition, playerCard, onClose }: CardDeta
         {playerCard && (
           <div className="mb-5 p-4 bg-black/50 rounded border border-gray-700">
             <div className="flex justify-between text-base mb-2">
-              <span className="font-bold" style={{ color: 'var(--terminal-color)' }}>等級 {level}</span>
+              <span className="font-bold" style={{ color: 'var(--terminal-color)' }}>強化等級 Lv.{level}</span>
               <span className="text-gray-400">
                 {level >= 10 ? 'MAX' : `${playerCard.xp} / ${xpNeeded} XP`}
               </span>
