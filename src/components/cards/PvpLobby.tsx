@@ -12,12 +12,13 @@ interface PvpLobbyProps {
 
 export default function PvpLobby({ onJoinRoom }: PvpLobbyProps) {
   const { user } = useAuth();
-  const { collection } = useCards();
+  const { collection, activeDeck, setActiveDeck } = useCards();
   const [rooms, setRooms] = useState<PvpBattleRoom[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showDeckPicker, setShowDeckPicker] = useState(false);
 
-  const getActiveDeckIds = (): string[] => collection?.activeDeckCardIds || [];
+  const getActiveDeckIds = (): string[] => activeDeck?.cardIds || [];
 
   const fetchRooms = async () => {
     setRefreshing(true);
@@ -36,7 +37,7 @@ export default function PvpLobby({ onJoinRoom }: PvpLobbyProps) {
     if (!user) return;
     const deckIds = getActiveDeckIds();
     if (deckIds.length === 0) {
-      alert('你的牌組是空的！請先到收藏頁面設定牌組。');
+      alert('你的牌組是空的！請先到牌組管理設定牌組。');
       return;
     }
     setIsCreating(true);
@@ -60,7 +61,7 @@ export default function PvpLobby({ onJoinRoom }: PvpLobbyProps) {
     if (!user) return;
     const deckIds = getActiveDeckIds();
     if (deckIds.length === 0) {
-      alert('你的牌組是空的！請先到收藏頁面設定牌組。');
+      alert('你的牌組是空的！請先到牌組管理設定牌組。');
       return;
     }
 
@@ -83,6 +84,58 @@ export default function PvpLobby({ onJoinRoom }: PvpLobbyProps) {
 
   return (
     <div className="p-4">
+      {/* Active deck bar */}
+      <div className="mb-4 p-3 border border-gray-700 rounded bg-gray-900/40">
+        <div className="flex items-center justify-between">
+          <div className="text-sm">
+            <span className="text-gray-400">出戰牌組：</span>
+            <span className="text-white font-bold ml-1">
+              {activeDeck?.name || '（未選擇）'}
+            </span>
+            <span className="text-gray-400 text-xs ml-2">
+              ({activeDeck?.cardIds.length || 0} 張)
+            </span>
+          </div>
+          <button
+            onClick={() => setShowDeckPicker((v) => !v)}
+            className="px-3 py-1 text-xs border border-gray-600 rounded hover:border-[var(--terminal-color)] hover:text-[var(--terminal-color)] transition-colors"
+          >
+            🗂️ 換牌組
+          </button>
+        </div>
+        {showDeckPicker && collection && (
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {collection.decks.map((deck) => {
+              const isActive = deck.id === collection.activeDeckId;
+              const isEmpty = deck.cardIds.length === 0;
+              return (
+                <button
+                  key={deck.id}
+                  onClick={() => {
+                    if (isEmpty) return;
+                    setActiveDeck(deck.id);
+                    setShowDeckPicker(false);
+                  }}
+                  disabled={isEmpty}
+                  className={`p-2 text-left border rounded transition-colors ${
+                    isActive
+                      ? 'border-[var(--terminal-color)] bg-[var(--terminal-color)]/10'
+                      : 'border-gray-700 hover:border-gray-500'
+                  } ${isEmpty ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <div className="text-sm font-bold text-white truncate">
+                    {isActive && '● '}{deck.name}
+                  </div>
+                  <div className="text-[10px] text-gray-400">
+                    {deck.cardIds.length} 張{isEmpty && ' · 空牌組'}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-bold" style={{ color: 'var(--terminal-color)' }}>
           ⚔️ PvP 對戰大廳

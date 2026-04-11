@@ -178,10 +178,38 @@ export interface PlayerCard {
   isInDeck: boolean;
 }
 
+/**
+ * A named, independent deck owned by a player.
+ *
+ * - `cardIds` is an ordered list of card IDs (max 20); duplicates allowed only
+ *   if the player owns multiple copies (we just track "picked from collection"
+ *   here — duplicate handling is per-cardId and enforced by the editor).
+ * - `coverCardId` is the card whose art is used as the deck's thumbnail;
+ *   if undefined, the first card in `cardIds` is used.
+ */
+export interface SavedDeck {
+  id: string;
+  name: string;
+  description?: string;
+  cardIds: string[];
+  coverCardId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PlayerCardCollection {
   userId: string;
   cards: PlayerCard[];
-  activeDeckCardIds: string[];
+  /** Multiple independent decks. First deck is created automatically. */
+  decks: SavedDeck[];
+  /** ID of the deck currently selected for battles. */
+  activeDeckId?: string;
+  /**
+   * @deprecated Use `decks` + `activeDeckId` instead. Kept for backward
+   * compatibility with old documents saved before the multi-deck system.
+   * Migration logic in CardContext reads this on load to seed the first deck.
+   */
+  activeDeckCardIds?: string[];
   totalDraws: number;
   pityCounter: number;
   lastDrawAt?: string;

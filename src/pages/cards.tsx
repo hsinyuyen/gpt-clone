@@ -1,34 +1,22 @@
-// Card collection page - view cards, manage deck, strengthen
-import { useEffect, useState } from 'react';
+// Card collection page - view cards, strengthen
+// Deck management has moved to the /decks dashboard.
+import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCards } from '@/contexts/CardContext';
-import { useCoin } from '@/contexts/CoinContext';
 import CoinDisplay from '@/components/CoinDisplay';
 import CardGrid from '@/components/cards/CardGrid';
-import { CARD_MAP } from '@/data/cards/pools';
-
-type Tab = 'collection' | 'deck';
 
 export default function CardsPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
-  const { collection, isLoading: cardsLoading, updateDeck, getCardDef } = useCards();
-  const { coins } = useCoin();
-  const [activeTab, setActiveTab] = useState<Tab>('collection');
-  const [selectedDeckIds, setSelectedDeckIds] = useState<string[]>([]);
+  const { collection, isLoading: cardsLoading, getCardDef, activeDeck } = useCards();
 
   useEffect(() => {
     if (!authLoading && !user) {
       router.replace('/login');
     }
   }, [user, authLoading, router]);
-
-  useEffect(() => {
-    if (collection) {
-      setSelectedDeckIds(collection.activeDeckCardIds);
-    }
-  }, [collection]);
 
   if (authLoading || cardsLoading || !user) {
     return (
@@ -38,29 +26,12 @@ export default function CardsPage() {
     );
   }
 
-  const collectionCards = (collection?.cards || []).map((pc) => ({
-    definition: getCardDef(pc.cardId)!,
-    playerCard: pc,
-  })).filter((c) => c.definition);
-
-  const deckCards = collectionCards.filter((c) =>
-    selectedDeckIds.includes(c.definition.id)
-  );
-
-  const handleDeckToggle = (cardId: string) => {
-    setSelectedDeckIds((prev) => {
-      if (prev.includes(cardId)) {
-        return prev.filter((id) => id !== cardId);
-      }
-      if (prev.length >= 20) return prev;
-      return [...prev, cardId];
-    });
-  };
-
-  const handleSaveDeck = () => {
-    updateDeck(selectedDeckIds);
-    alert('牌組已儲存！');
-  };
+  const collectionCards = (collection?.cards || [])
+    .map((pc) => ({
+      definition: getCardDef(pc.cardId)!,
+      playerCard: pc,
+    }))
+    .filter((c) => c.definition);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -79,14 +50,21 @@ export default function CardsPage() {
               🃏 卡牌收藏
             </h1>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <CoinDisplay />
             <button
               onClick={() => router.push('/card-draw')}
               className="px-3 py-1 text-sm border-2 rounded font-bold transition-colors hover:bg-[var(--terminal-color)] hover:text-black"
               style={{ borderColor: 'var(--terminal-color)', color: 'var(--terminal-color)' }}
             >
-              抽卡
+              🎰 抽卡
+            </button>
+            <button
+              onClick={() => router.push('/decks')}
+              className="px-3 py-1 text-sm border-2 rounded font-bold transition-colors hover:bg-[var(--terminal-color)] hover:text-black"
+              style={{ borderColor: 'var(--terminal-color)', color: 'var(--terminal-color)' }}
+            >
+              🗂️ 牌組
             </button>
             <button
               onClick={() => router.push('/battle')}
@@ -99,57 +77,30 @@ export default function CardsPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="max-w-6xl mx-auto px-4 pt-4">
-        <div className="flex gap-4 mb-4">
-          {[
-            { id: 'collection' as Tab, label: `📦 收藏 (${collectionCards.length})` },
-            { id: 'deck' as Tab, label: `🗂️ 牌組 (${selectedDeckIds.length}/20)` },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 text-sm rounded-t border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? 'border-[var(--terminal-color)]'
-                  : 'border-transparent text-gray-500 hover:text-gray-300'
-              }`}
-              style={activeTab === tab.id ? { color: 'var(--terminal-color)' } : undefined}
-            >
-              {tab.label}
-            </button>
-          ))}
+      <div className="max-w-6xl mx-auto px-4 py-4">
+        {/* Active deck strip */}
+        <div className="mb-4 flex items-center justify-between p-3 border border-gray-700 rounded bg-gray-900/40">
+          <div className="text-sm">
+            <span className="text-gray-400">出戰牌組：</span>
+            <span className="text-white font-bold ml-1">
+              {activeDeck?.name || '（尚未設定）'}
+            </span>
+            <span className="text-gray-400 text-xs ml-2">
+              ({activeDeck?.cardIds.length || 0} 張)
+            </span>
+          </div>
+          <button
+            onClick={() => router.push('/decks')}
+            className="px-3 py-1 text-xs border border-gray-600 rounded hover:border-[var(--terminal-color)] hover:text-[var(--terminal-color)] transition-colors"
+          >
+            管理牌組 →
+          </button>
         </div>
 
-        {/* Collection Tab */}
-        {activeTab === 'collection' && (
-          <CardGrid cards={collectionCards} />
-        )}
-
-        {/* Deck Tab */}
-        {activeTab === 'deck' && (
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <p className="text-sm text-gray-400">
-                點選卡牌來加入/移除牌組（最多 20 張）
-              </p>
-              <button
-                onClick={handleSaveDeck}
-                className="px-4 py-1 text-sm border-2 rounded font-bold transition-colors hover:bg-[var(--terminal-color)] hover:text-black"
-                style={{ borderColor: 'var(--terminal-color)', color: 'var(--terminal-color)' }}
-              >
-                💾 儲存牌組
-              </button>
-            </div>
-            <CardGrid
-              cards={collectionCards}
-              selectionMode
-              selectedCardIds={selectedDeckIds}
-              onCardSelect={handleDeckToggle}
-              maxSelection={20}
-            />
-          </div>
-        )}
+        <div className="text-sm text-gray-400 mb-3">
+          📦 我的收藏 ({collectionCards.length} 張)
+        </div>
+        <CardGrid cards={collectionCards} />
       </div>
     </div>
   );

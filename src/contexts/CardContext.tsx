@@ -8,9 +8,9 @@ import {
   CardImageMap,
 } from "@/lib/firestore";
 import {
-  PlayerCard,
   PlayerCardCollection,
   CardDefinition,
+  SavedDeck,
 } from "@/types/Card";
 import { ALL_CARDS, CARD_MAP, getActivePools } from "@/data/cards/pools";
 import { BASIC_POOL_CARDS } from "@/data/cards/basic-pool";
@@ -22,6 +22,47 @@ import {
 } from "@/utils/gacha";
 import { xpToNextLevel } from "@/utils/cardStats";
 
+export const MAX_DECK_SIZE = 20;
+export const MAX_DECKS = 8;
+
+function makeId(prefix: string): string {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+/**
+ * Migrate legacy PlayerCardCollection docs that only have `activeDeckCardIds`.
+ * Creates a first SavedDeck from those IDs and sets it as active.
+ */
+function migrateCollection(raw: PlayerCardCollection): PlayerCardCollection {
+  if (raw.decks && raw.decks.length > 0) {
+    // Already in the new format — just make sure activeDeckId is valid.
+    if (!raw.activeDeckId || !raw.decks.find((d) => d.id === raw.activeDeckId)) {
+      return { ...raw, activeDeckId: raw.decks[0].id };
+    }
+    return raw;
+  }
+
+  const legacyIds = raw.activeDeckCardIds || [];
+  const firstDeck: SavedDeck = {
+    id: makeId("deck"),
+    name: "我的主力",
+    description: "從舊牌組自動建立",
+    cardIds: legacyIds.slice(0, MAX_DECK_SIZE),
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+  };
+
+  return {
+    ...raw,
+    decks: [firstDeck],
+    activeDeckId: firstDeck.id,
+  };
+}
+
 interface CardContextType {
   collection: PlayerCardCollection | null;
   isLoading: boolean;
@@ -30,27 +71,49 @@ interface CardContextType {
   drawSingle: (poolId: string) => Promise<CardDefinition | null>;
   drawMulti: (poolId: string) => Promise<CardDefinition[]>;
   strengthenWithCoins: (cardId: string) => boolean;
-  updateDeck: (cardIds: string[]) => void;
+
+  // Multi-deck API
+  /** Get the deck currently selected for battle, or undefined if none. */
+  activeDeck: SavedDeck | undefined;
+  /** Create a new empty deck, returns the new deck ID. Returns null if at max decks. */
+  createDeck: (name: string) => string | null;
+  /** Delete a deck. Refuses to delete the last remaining deck. */
+  deleteDeck: (deckId: string) => void;
+  /** Rename / update description / cover card. */
+  updateDeckMeta: (deckId: string, patch: Partial<Pick<SavedDeck, "name" | "description" | "coverCardId">>) => void;
+  /** Replace the cardIds for a deck. */
+  updateDeckCards: (deckId: string, cardIds: string[]) => void;
+  /** Select a deck as the one used for PvE / PvP battles. */
+  setActiveDeck: (deckId: string) => void;
+  /** Copy an existing deck into a new one. */
+  duplicateDeck: (deckId: string) => string | null;
+
   refreshCollection: () => Promise<void>;
 }
 
 const CardContext = createContext<CardContextType | null>(null);
 
+const NOOP_VALUE: CardContextType = {
+  collection: null,
+  isLoading: true,
+  cardImageMap: {},
+  getCardDef: () => undefined,
+  drawSingle: async () => null,
+  drawMulti: async () => [],
+  strengthenWithCoins: () => false,
+  activeDeck: undefined,
+  createDeck: () => null,
+  deleteDeck: () => {},
+  updateDeckMeta: () => {},
+  updateDeckCards: () => {},
+  setActiveDeck: () => {},
+  duplicateDeck: () => null,
+  refreshCollection: async () => {},
+};
+
 export const useCards = (): CardContextType => {
   const context = useContext(CardContext);
-  if (!context) {
-    return {
-      collection: null,
-      isLoading: true,
-      cardImageMap: {},
-      getCardDef: () => undefined,
-      drawSingle: async () => null,
-      drawMulti: async () => [],
-      strengthenWithCoins: () => false,
-      updateDeck: () => {},
-      refreshCollection: async () => {},
-    };
-  }
+  if (!context) return NOOP_VALUE;
   return context;
 };
 
@@ -79,14 +142,28 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     getCardCollection(user.id).then((data) => {
       if (data) {
-        setCollection(data);
+        const migrated = migrateCollection(data);
+        setCollection(migrated);
+        // Persist migration if it changed anything
+        if (migrated !== data) {
+          saveCardCollection(user.id, migrated);
+        }
       } else {
-        // New player: generate starter deck
+        // New player: generate starter collection + starter deck
         const starterCards = generateStarterDeck(BASIC_POOL_CARDS);
+        const starterDeck: SavedDeck = {
+          id: makeId("deck"),
+          name: "我的主力",
+          description: "初始牌組",
+          cardIds: starterCards.slice(0, MAX_DECK_SIZE).map((c) => c.cardId),
+          createdAt: nowIso(),
+          updatedAt: nowIso(),
+        };
         const newCollection: PlayerCardCollection = {
           userId: user.id,
           cards: starterCards,
-          activeDeckCardIds: starterCards.slice(0, 20).map((c) => c.cardId),
+          decks: [starterDeck],
+          activeDeckId: starterDeck.id,
           totalDraws: 0,
           pityCounter: 0,
         };
@@ -119,11 +196,14 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [cardImageUrls]
   );
 
-  const getCardDefFn = useCallback((cardId: string) => {
-    const def = CARD_MAP.get(cardId);
-    if (!def) return undefined;
-    return hydrateImage(def);
-  }, [hydrateImage]);
+  const getCardDefFn = useCallback(
+    (cardId: string) => {
+      const def = CARD_MAP.get(cardId);
+      if (!def) return undefined;
+      return hydrateImage(def);
+    },
+    [hydrateImage]
+  );
 
   const drawSingle = useCallback(
     async (poolId: string): Promise<CardDefinition | null> => {
@@ -145,7 +225,7 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cards: newCards,
         totalDraws: collection.totalDraws + 1,
         pityCounter: newPityCounter,
-        lastDrawAt: new Date().toISOString(),
+        lastDrawAt: nowIso(),
       };
       save(updated);
       return hydrateImage(card);
@@ -181,7 +261,7 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cards: newCards,
         totalDraws: collection.totalDraws + cards.length,
         pityCounter: newPityCounter,
-        lastDrawAt: new Date().toISOString(),
+        lastDrawAt: nowIso(),
       };
       save(updated);
       return cards.map(hydrateImage);
@@ -201,7 +281,7 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const spent = spendCoins(cost, `強化卡牌`);
       if (!spent) return false;
 
-      const xpGain = cost * 2; // 1 coin = 2 XP
+      const xpGain = cost * 2;
       const newXp = card.xp + xpGain;
       const needed = xpToNextLevel(card.level);
       const shouldLevelUp = needed > 0 && newXp >= needed;
@@ -222,18 +302,101 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [collection, canAfford, spendCoins, save]
   );
 
-  const updateDeck = useCallback(
-    (cardIds: string[]) => {
-      if (!collection) return;
-      const updatedCards = collection.cards.map((c) => ({
-        ...c,
-        isInDeck: cardIds.includes(c.cardId),
-      }));
+  // === Multi-deck API ===
+
+  const activeDeck = collection?.decks.find((d) => d.id === collection.activeDeckId);
+
+  const createDeck = useCallback(
+    (name: string): string | null => {
+      if (!collection) return null;
+      if (collection.decks.length >= MAX_DECKS) return null;
+      const newDeck: SavedDeck = {
+        id: makeId("deck"),
+        name: name.trim() || `牌組 ${collection.decks.length + 1}`,
+        cardIds: [],
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      };
       save({
         ...collection,
-        cards: updatedCards,
-        activeDeckCardIds: cardIds,
+        decks: [...collection.decks, newDeck],
+        activeDeckId: collection.activeDeckId || newDeck.id,
       });
+      return newDeck.id;
+    },
+    [collection, save]
+  );
+
+  const deleteDeck = useCallback(
+    (deckId: string) => {
+      if (!collection) return;
+      if (collection.decks.length <= 1) return; // refuse to leave player with zero decks
+      const remaining = collection.decks.filter((d) => d.id !== deckId);
+      const newActive =
+        collection.activeDeckId === deckId ? remaining[0].id : collection.activeDeckId;
+      save({
+        ...collection,
+        decks: remaining,
+        activeDeckId: newActive,
+      });
+    },
+    [collection, save]
+  );
+
+  const updateDeckMeta = useCallback(
+    (deckId: string, patch: Partial<Pick<SavedDeck, "name" | "description" | "coverCardId">>) => {
+      if (!collection) return;
+      save({
+        ...collection,
+        decks: collection.decks.map((d) =>
+          d.id === deckId ? { ...d, ...patch, updatedAt: nowIso() } : d
+        ),
+      });
+    },
+    [collection, save]
+  );
+
+  const updateDeckCards = useCallback(
+    (deckId: string, cardIds: string[]) => {
+      if (!collection) return;
+      const clamped = cardIds.slice(0, MAX_DECK_SIZE);
+      save({
+        ...collection,
+        decks: collection.decks.map((d) =>
+          d.id === deckId ? { ...d, cardIds: clamped, updatedAt: nowIso() } : d
+        ),
+      });
+    },
+    [collection, save]
+  );
+
+  const setActiveDeck = useCallback(
+    (deckId: string) => {
+      if (!collection) return;
+      if (!collection.decks.find((d) => d.id === deckId)) return;
+      save({ ...collection, activeDeckId: deckId });
+    },
+    [collection, save]
+  );
+
+  const duplicateDeck = useCallback(
+    (deckId: string): string | null => {
+      if (!collection) return null;
+      if (collection.decks.length >= MAX_DECKS) return null;
+      const source = collection.decks.find((d) => d.id === deckId);
+      if (!source) return null;
+      const copy: SavedDeck = {
+        ...source,
+        id: makeId("deck"),
+        name: `${source.name} (複製)`,
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      };
+      save({
+        ...collection,
+        decks: [...collection.decks, copy],
+      });
+      return copy.id;
     },
     [collection, save]
   );
@@ -241,7 +404,7 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshCollection = useCallback(async () => {
     if (!user) return;
     const data = await getCardCollection(user.id);
-    if (data) setCollection(data);
+    if (data) setCollection(migrateCollection(data));
   }, [user]);
 
   return (
@@ -254,7 +417,13 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
         drawSingle,
         drawMulti,
         strengthenWithCoins,
-        updateDeck,
+        activeDeck,
+        createDeck,
+        deleteDeck,
+        updateDeckMeta,
+        updateDeckCards,
+        setActiveDeck,
+        duplicateDeck,
         refreshCollection,
       }}
     >

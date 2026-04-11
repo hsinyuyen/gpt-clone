@@ -26,11 +26,12 @@ type Phase = 'opponent-select' | 'deck-preview' | 'dueling' | 'result';
 export default function BattlePage() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
-  const { collection, getCardDef, cardImageMap, refreshCollection } = useCards();
+  const { collection, getCardDef, cardImageMap, refreshCollection, activeDeck, setActiveDeck } = useCards();
   const { addCoins } = useCoin();
 
   const [phase, setPhase] = useState<Phase>('opponent-select');
   const [selectedOpponent, setSelectedOpponent] = useState<PveOpponent | null>(null);
+  const [showDeckPicker, setShowDeckPicker] = useState(false);
   const [duelState, setDuelState] = useState<DuelState | null>(null);
   const [isPlayerTurn, setIsPlayerTurn] = useState(true);
   const [showTutorial, setShowTutorial] = useState(false);
@@ -79,14 +80,17 @@ export default function BattlePage() {
   }, [phase, duelState]);
 
   const startDuel = useCallback(() => {
-    if (!collection || !selectedOpponent) return;
+    if (!collection || !selectedOpponent || !activeDeck) return;
 
-    const deckCards = collection.cards.filter((c) =>
-      collection.activeDeckCardIds.includes(c.cardId)
-    );
+    // Expand active deck ids into PlayerCard instances. A single cardId may
+    // appear multiple times in a deck — expand each occurrence so the duel
+    // engine sees the correct count.
+    const deckCards = activeDeck.cardIds
+      .map((id) => collection.cards.find((c) => c.cardId === id))
+      .filter((c): c is NonNullable<typeof c> => Boolean(c));
 
     if (deckCards.length === 0) {
-      alert('你的牌組是空的！請先到收藏頁面設定牌組。');
+      alert('你的牌組是空的！請先到牌組管理設定牌組。');
       return;
     }
 
@@ -96,7 +100,7 @@ export default function BattlePage() {
     setDuelState(afterDraw);
     setPhase('dueling');
     setIsPlayerTurn(true);
-  }, [collection, selectedOpponent, cardImageMap]);
+  }, [collection, selectedOpponent, cardImageMap, activeDeck]);
 
   // Run AI turn — step-by-step playback so the player can see each action
   const runAiTurn = useCallback((initialState: DuelState) => {
@@ -356,16 +360,81 @@ export default function BattlePage() {
             <h2 className="text-sm text-gray-400 mb-2">{">>>"}對手: {selectedOpponent.name}</h2>
             <p className="text-xs text-gray-500 mb-4">{selectedOpponent.description}</p>
 
-            <h3 className="text-sm mb-2" style={{ color: 'var(--terminal-color)' }}>
-              你的牌組 ({collection?.activeDeckCardIds.length || 0} 張)
-            </h3>
+            {/* Active deck header with picker */}
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm" style={{ color: 'var(--terminal-color)' }}>
+                出戰牌組：
+                <span className="ml-2 text-white font-bold">
+                  {activeDeck?.name || '（未選擇）'}
+                </span>
+                <span className="ml-2 text-gray-400 text-xs">
+                  ({activeDeck?.cardIds.length || 0} 張)
+                </span>
+              </h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowDeckPicker((v) => !v)}
+                  className="px-3 py-1 text-xs border border-gray-600 rounded hover:border-[var(--terminal-color)] hover:text-[var(--terminal-color)] transition-colors"
+                >
+                  🗂️ 換牌組
+                </button>
+                <button
+                  onClick={() => router.push('/decks')}
+                  className="px-3 py-1 text-xs border border-gray-600 rounded text-gray-400 hover:text-white transition-colors"
+                >
+                  編輯牌組
+                </button>
+              </div>
+            </div>
+
+            {/* Deck picker popover */}
+            {showDeckPicker && collection && (
+              <div className="mb-4 p-3 border border-gray-700 rounded bg-gray-900/60">
+                <div className="text-xs text-gray-400 mb-2">選擇要使用的牌組</div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {collection.decks.map((deck) => {
+                    const isActive = deck.id === collection.activeDeckId;
+                    const isEmpty = deck.cardIds.length === 0;
+                    return (
+                      <button
+                        key={deck.id}
+                        onClick={() => {
+                          if (isEmpty) return;
+                          setActiveDeck(deck.id);
+                          setShowDeckPicker(false);
+                        }}
+                        disabled={isEmpty}
+                        className={`p-2 text-left border rounded transition-colors ${
+                          isActive
+                            ? 'border-[var(--terminal-color)] bg-[var(--terminal-color)]/10'
+                            : 'border-gray-700 hover:border-gray-500'
+                        } ${isEmpty ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <div className="text-sm font-bold text-white truncate">
+                          {isActive && '● '}{deck.name}
+                        </div>
+                        <div className="text-[10px] text-gray-400">
+                          {deck.cardIds.length} 張{isEmpty && ' · 空牌組'}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-6">
-              {(collection?.activeDeckCardIds || []).map((cardId) => {
+              {(activeDeck?.cardIds || []).map((cardId, i) => {
                 const def = getCardDef(cardId);
                 const pc = collection?.cards.find((c) => c.cardId === cardId);
                 if (!def) return null;
-                return <CardTile key={cardId} definition={def} playerCard={pc} compact />;
+                return <CardTile key={`${cardId}_${i}`} definition={def} playerCard={pc} compact />;
               })}
+              {(!activeDeck || activeDeck.cardIds.length === 0) && (
+                <div className="col-span-full text-center text-sm text-gray-500 py-6 border border-dashed border-gray-700 rounded">
+                  牌組為空，請先到「牌組管理」加入卡牌
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3 justify-center">
@@ -377,7 +446,8 @@ export default function BattlePage() {
               </button>
               <button
                 onClick={startDuel}
-                className="px-8 py-2 border-2 rounded font-bold text-lg transition-all hover:scale-105 hover:bg-[var(--terminal-color)] hover:text-black"
+                disabled={!activeDeck || activeDeck.cardIds.length === 0}
+                className="px-8 py-2 border-2 rounded font-bold text-lg transition-all hover:scale-105 hover:bg-[var(--terminal-color)] hover:text-black disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-transparent disabled:hover:text-[var(--terminal-color)]"
                 style={{ borderColor: 'var(--terminal-color)', color: 'var(--terminal-color)' }}
               >
                 ⚔️ 開始決鬥！
