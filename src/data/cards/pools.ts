@@ -4,11 +4,13 @@ import { CardPool, CardDefinition } from '@/types/Card';
 import { validateCards } from '@/utils/effectCatalog';
 import { BASIC_POOL_CARDS } from './basic-pool';
 import { HIGHTECH_CITY_CARDS } from './hightech-city';
+import { SWORD_SHIELD_POOL_CARDS } from './sword-shield-pool';
 
 // All card definitions combined
 export const ALL_CARDS: CardDefinition[] = [
   ...BASIC_POOL_CARDS,
   ...HIGHTECH_CITY_CARDS,
+  ...SWORD_SHIELD_POOL_CARDS,
 ];
 
 // Module-load validation: any card whose effects are not in the catalog
@@ -98,10 +100,47 @@ export const HIGHTECH_CITY_POOL: CardPool = {
   guaranteedRare: true,
 };
 
+export const SWORD_SHIELD_POOL: CardPool = {
+  id: 'sword-shield',
+  name: '刀盾柴之團',
+  description: '圓滾滾的橘粉柴犬戰士舉起刀與盾出征，歡樂又熱血的冒險集結！',
+  tagline: '柴犬勇者・刀盾集結',
+  lore: '傳說森林深處的柴犬村,有一位天生圓滾滾的橘粉小柴犬,從小就夢想成為最強刀盾戰士。他揮舞著過大的劍與盾,帶著整個柴之團踏上冒險 —— 用可愛與勇氣守護夥伴！',
+  theme: {
+    gradientFrom: '#c2410c',
+    gradientTo: '#fb923c',
+    accent: '#fde68a',
+  },
+  type: 'event',
+  isActive: true,
+  startDate: '2026-04-01',
+  endDate: '2026-06-30',
+  cardIds: SWORD_SHIELD_POOL_CARDS.map((c) => c.id),
+  // 盾牌柴犬勇者 為主打招牌
+  featuredCardIds: [
+    'ss_19', // 盾牌柴犬勇者 (主打)
+    'ss_20', // 刀盾雙絕・柴之極
+    'ss_15', // 黃金盾騎士犬
+    'ss_16', // 烈焰劍聖柴
+    'ss_17', // 盾擊突擊犬
+  ],
+  rates: {
+    common: 0.58,
+    rare: 0.27,
+    epic: 0.12,
+    legendary: 0.03,
+  },
+  singleDrawCost: 5,
+  multiDrawCost: 45,
+  multiDrawCount: 10,
+  guaranteedRare: true,
+};
+
 // All available pools
 export const ALL_POOLS: CardPool[] = [
   BASIC_POOL,
   HIGHTECH_CITY_POOL,
+  SWORD_SHIELD_POOL,
 ];
 
 // Get active pools
