@@ -79,29 +79,6 @@ export default function BattlePage() {
     }
   }, [phase, duelState]);
 
-  const startDuel = useCallback(() => {
-    if (!collection || !selectedOpponent || !activeDeck) return;
-
-    // Expand active deck ids into PlayerCard instances. A single cardId may
-    // appear multiple times in a deck — expand each occurrence so the duel
-    // engine sees the correct count.
-    const deckCards = activeDeck.cardIds
-      .map((id) => collection.cards.find((c) => c.cardId === id))
-      .filter((c): c is NonNullable<typeof c> => Boolean(c));
-
-    if (deckCards.length === 0) {
-      alert('你的牌組是空的！請先到牌組管理設定牌組。');
-      return;
-    }
-
-    const state = initPveDuel(deckCards, selectedOpponent, cardImageMap);
-    // Auto-advance through draw phase for first turn
-    const afterDraw = advancePhase(state); // draw → main
-    setDuelState(afterDraw);
-    setPhase('dueling');
-    setIsPlayerTurn(true);
-  }, [collection, selectedOpponent, cardImageMap, activeDeck]);
-
   // Run AI turn — step-by-step playback so the player can see each action
   const runAiTurn = useCallback((initialState: DuelState) => {
     setIsPlayerTurn(false);
@@ -191,6 +168,37 @@ export default function BattlePage() {
     aiTimerRef.current = setTimeout(step, 800);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const startDuel = useCallback(() => {
+    if (!collection || !selectedOpponent || !activeDeck) return;
+
+    // Expand active deck ids into PlayerCard instances. A single cardId may
+    // appear multiple times in a deck — expand each occurrence so the duel
+    // engine sees the correct count.
+    const deckCards = activeDeck.cardIds
+      .map((id) => collection.cards.find((c) => c.cardId === id))
+      .filter((c): c is NonNullable<typeof c> => Boolean(c));
+
+    if (deckCards.length === 0) {
+      alert('你的牌組是空的！請先到牌組管理設定牌組。');
+      return;
+    }
+
+    const state = initPveDuel(deckCards, selectedOpponent, cardImageMap);
+    setPhase('dueling');
+
+    if (state.firstPlayer === 'player') {
+      // Player goes first — auto-advance their draw phase straight into main.
+      const afterDraw = advancePhase(state); // draw → main
+      setDuelState(afterDraw);
+      setIsPlayerTurn(true);
+    } else {
+      // Enemy goes first — show coin-flip log briefly, then hand off to AI.
+      setDuelState(state);
+      setIsPlayerTurn(false);
+      runAiTurn(state);
+    }
+  }, [collection, selectedOpponent, cardImageMap, activeDeck, runAiTurn]);
 
   // Player summons a monster
   const handleSummon = useCallback((

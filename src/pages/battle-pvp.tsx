@@ -65,14 +65,17 @@ export default function BattlePvpPage() {
       room.player2DeckCardIds,
       cardImageMap
     );
-    // First player auto-draws (skip draw phase on turn 1)
+    // Auto-advance the first player's draw phase (skip draw click on turn 1).
+    // initPvpDuel coin-flips firstPlayer; in real-state terms, 'player' = player1
+    // and 'enemy' = player2.
     const afterDraw = advancePhase(initial);
+    const firstPlayerId = afterDraw.firstPlayer === 'player' ? room.player1Id : room.player2Id;
 
     const updated: PvpBattleRoom = {
       ...room,
       battleState: afterDraw,
       status: 'battling',
-      currentTurnPlayerId: room.player1Id,
+      currentTurnPlayerId: firstPlayerId,
       lastActionAt: new Date().toISOString(),
     };
     savePvpRoom(sanitize(updated));

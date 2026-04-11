@@ -45,6 +45,7 @@ export type EffectTarget =
   | 'random_opponent_monster'
   | 'weakest_opponent_monster'
   | 'strongest_opponent_monster'
+  | 'attacker_monster'             // [on_attacked only] the monster currently attacking us
   | 'opponent_lp'
   | 'own_lp';
 
@@ -277,6 +278,8 @@ export interface DuelState {
   maxTurns: number;
   currentPhase: DuelPhase;
   currentPlayer: 'player' | 'enemy';
+  /** Decided by coin flip in initDuel. The first player cannot attack on turn 1. */
+  firstPlayer: 'player' | 'enemy';
 
   player: PlayerField;
   enemy: PlayerField;

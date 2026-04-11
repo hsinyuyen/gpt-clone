@@ -30,7 +30,8 @@ function runEffectsFor(
   state: DuelState,
   owner: 'player' | 'enemy',
   sourceMonster: FieldMonster | null,
-  effects: CardEffectDef[]
+  effects: CardEffectDef[],
+  attackerMonster?: FieldMonster | null
 ): DuelLogEntry[] {
   const logs: DuelLogEntry[] = [];
   if (effects.length === 0) return logs;
@@ -46,6 +47,7 @@ function runEffectsFor(
       sourceMonster,
       ownerField,
       opponentField,
+      attackerMonster,
       log: (message, type = 'effect') => {
         logs.push({ turn: state.turn, actor: owner, message, type });
       },
@@ -88,9 +90,10 @@ export function processOnAttackEffects(
 export function processOnAttackedEffects(
   state: DuelState,
   owner: 'player' | 'enemy',
-  defender: FieldMonster
+  defender: FieldMonster,
+  attacker: FieldMonster | null
 ): DuelLogEntry[] {
-  return runEffectsFor(state, owner, defender, effectsOf(defender, 'on_attacked'));
+  return runEffectsFor(state, owner, defender, effectsOf(defender, 'on_attacked'), attacker);
 }
 
 export function processOnDestroyEffects(
@@ -137,13 +140,41 @@ export function hasBuff(monster: FieldMonster, action: EffectAction): boolean {
 
 function tickBuffs(monster: FieldMonster): void {
   // Permanent (continuous) buffs are never ticked down.
-  monster.turnBuffs = monster.turnBuffs
-    .map((b) =>
-      b.turnsRemaining >= PERMANENT_BUFF
-        ? b
-        : { ...b, turnsRemaining: b.turnsRemaining - 1 }
-    )
-    .filter((b) => b.turnsRemaining > 0);
+  // Non-permanent stat buffs must REVERSE their stat change on expiry,
+  // otherwise duration becomes meaningless (the original applyStatBuff
+  // already mutated currentAtk/currentDef directly).
+  const next: typeof monster.turnBuffs = [];
+  for (const b of monster.turnBuffs) {
+    if (b.turnsRemaining >= PERMANENT_BUFF) {
+      next.push(b);
+      continue;
+    }
+    const remaining = b.turnsRemaining - 1;
+    if (remaining > 0) {
+      next.push({ ...b, turnsRemaining: remaining });
+      continue;
+    }
+    // Buff expires this tick — reverse stat changes for stat buffs.
+    switch (b.action) {
+      case 'boost_atk':
+        monster.currentAtk = Math.max(0, monster.currentAtk - b.value);
+        break;
+      case 'weaken_atk':
+        monster.currentAtk = monster.currentAtk + b.value;
+        break;
+      case 'boost_def':
+        monster.currentDef = Math.max(0, monster.currentDef - b.value);
+        break;
+      case 'weaken_def':
+        monster.currentDef = monster.currentDef + b.value;
+        break;
+      // Flag buffs (piercing/direct_attack/double_attack/protect) and other
+      // actions don't have a stat to revert — just drop the record.
+      default:
+        break;
+    }
+  }
+  monster.turnBuffs = next;
 }
 
 // === FieldMonster factory ================================================

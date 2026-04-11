@@ -6,6 +6,7 @@ import { useCards } from '@/contexts/CardContext';
 import { useCoin } from '@/contexts/CoinContext';
 import CoinDisplay from '@/components/CoinDisplay';
 import DrawAnimation from '@/components/cards/DrawAnimation';
+import CardDetail from '@/components/cards/CardDetail';
 import { ALL_POOLS } from '@/data/cards/pools';
 import { CARD_MAP } from '@/data/cards/pools';
 import { CardDefinition, CardRarity } from '@/types/Card';
@@ -28,6 +29,7 @@ export default function PoolDetailPage() {
   const [drawnCards, setDrawnCards] = useState<CardDefinition[] | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [rarityFilter, setRarityFilter] = useState<CardRarity | 'all'>('all');
+  const [selectedCard, setSelectedCard] = useState<CardDefinition | null>(null);
 
   if (isLoading || !user) {
     return (
@@ -238,10 +240,20 @@ export default function PoolDetailPage() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
               {heroCard && (
-                <FeaturedCardTile card={heroCard} hero accent={theme.accent} />
+                <FeaturedCardTile
+                  card={heroCard}
+                  hero
+                  accent={theme.accent}
+                  onClick={() => setSelectedCard(heroCard)}
+                />
               )}
               {otherFeatured.slice(0, 4).map((c) => (
-                <FeaturedCardTile key={c.id} card={c} accent={theme.accent} />
+                <FeaturedCardTile
+                  key={c.id}
+                  card={c}
+                  accent={theme.accent}
+                  onClick={() => setSelectedCard(c)}
+                />
               ))}
             </div>
           </section>
@@ -280,7 +292,11 @@ export default function PoolDetailPage() {
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                   {cards.map((card) => (
-                    <PoolCardRow key={card.id} card={card} />
+                    <PoolCardRow
+                      key={card.id}
+                      card={card}
+                      onClick={() => setSelectedCard(card)}
+                    />
                   ))}
                 </div>
               </div>
@@ -292,6 +308,14 @@ export default function PoolDetailPage() {
       {drawnCards && (
         <DrawAnimation cards={drawnCards} onComplete={() => setDrawnCards(null)} />
       )}
+
+      {selectedCard && (
+        <CardDetail
+          definition={selectedCard}
+          playerCard={collection?.cards.find((c) => c.cardId === selectedCard.id)}
+          onClose={() => setSelectedCard(null)}
+        />
+      )}
     </div>
   );
 }
@@ -302,17 +326,21 @@ function FeaturedCardTile({
   card,
   hero,
   accent,
+  onClick,
 }: {
   card: CardDefinition;
   hero?: boolean;
   accent: string;
+  onClick?: () => void;
 }) {
   const { cardImageMap } = useCards();
   const img = card.imageUrl || cardImageMap[card.id] || '';
 
   return (
-    <div
-      className={`relative aspect-[3/4] rounded-lg overflow-hidden border-2 ${
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative aspect-[3/4] rounded-lg overflow-hidden border-2 cursor-pointer hover:scale-[1.02] transition-transform text-left ${
         hero ? 'md:col-span-1 md:row-span-1' : ''
       }`}
       style={{
@@ -350,16 +378,20 @@ function FeaturedCardTile({
           ATK {card.baseAtk} · DEF {card.baseDef}
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 
-function PoolCardRow({ card }: { card: CardDefinition }) {
+function PoolCardRow({ card, onClick }: { card: CardDefinition; onClick?: () => void }) {
   const { cardImageMap } = useCards();
   const img = card.imageUrl || cardImageMap[card.id] || '';
 
   return (
-    <div className="relative aspect-[3/4] rounded-lg border border-gray-700 bg-gray-900 overflow-hidden hover:border-gray-400 transition-colors">
+    <button
+      type="button"
+      onClick={onClick}
+      className="relative aspect-[3/4] rounded-lg border border-gray-700 bg-gray-900 overflow-hidden hover:border-gray-400 hover:scale-[1.03] transition-all cursor-pointer text-left w-full"
+    >
       {img ? (
         <img src={img} alt={card.name} className="absolute inset-0 w-full h-full object-cover" />
       ) : (
@@ -387,6 +419,6 @@ function PoolCardRow({ card }: { card: CardDefinition }) {
           ATK {card.baseAtk} · DEF {card.baseDef}
         </div>
       </div>
-    </div>
+    </button>
   );
 }

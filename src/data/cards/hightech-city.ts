@@ -718,7 +718,7 @@ export const HIGHTECH_CITY_CARDS: CardDefinition[] = [
         trigger: 'on_attacked',
         action: 'weaken_atk',
         value: 15,
-        target: 'opponent_monster',
+        target: 'attacker_monster',
       },
     ],
     effectText: '召喚時本回合此卡不會被戰鬥破壞。每回合結束時回復 60 點生命值。被攻擊時降低攻擊怪獸 15 點攻擊力。',

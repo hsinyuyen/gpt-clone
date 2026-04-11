@@ -27,6 +27,8 @@ export const STARTING_LP = 500;
 const MAX_TURNS = 40;
 const MONSTER_ZONES = 5;
 const STARTING_HAND = 5;
+/** Target deck size for PvE enemies — small teams get padded by cycling. */
+const PVE_DECK_SIZE = 20;
 
 // === Initialization ===
 
@@ -40,13 +42,17 @@ export function initDuel(
   const playerHand = shuffledPlayer.splice(0, STARTING_HAND);
   const enemyHand = shuffledEnemy.splice(0, STARTING_HAND);
 
+  // Coin flip — heads = player goes first, tails = enemy goes first.
+  const firstPlayer: 'player' | 'enemy' = Math.random() < 0.5 ? 'player' : 'enemy';
+
   const state: DuelState = {
     id: `duel_${Date.now()}`,
     status: 'dueling',
     turn: 1,
     maxTurns: MAX_TURNS,
     currentPhase: 'draw',
-    currentPlayer: 'player',
+    currentPlayer: firstPlayer,
+    firstPlayer,
     player: {
       lp: STARTING_LP,
       monsters: Array(MONSTER_ZONES).fill(null),
@@ -70,6 +76,8 @@ export function initDuel(
   };
 
   state.log.push(makeLog(state, 'player', 'info', '決鬥開始！'));
+  state.log.push(makeLog(state, firstPlayer, 'info',
+    `🪙 擲硬幣決定先攻：${firstPlayer === 'player' ? '你' : '對手'} 先攻！（先攻第一回合不能攻擊）`));
   return state;
 }
 
@@ -100,6 +108,17 @@ export function initPveDuel(
         ? { ...def, imageUrl: cardImageMap[def.id] }
         : def;
       enemyDeck.push(withImage);
+    }
+  }
+
+  // PvE opponents only define a small "team" (3-5 cards). Pad the deck by
+  // cycling those cards so the AI has draws beyond the opening hand.
+  if (enemyDeck.length > 0 && enemyDeck.length < PVE_DECK_SIZE) {
+    const base = [...enemyDeck];
+    let i = 0;
+    while (enemyDeck.length < PVE_DECK_SIZE) {
+      enemyDeck.push(base[i % base.length]);
+      i++;
     }
   }
 
@@ -137,6 +156,7 @@ export function swapDuelState(state: DuelState): DuelState {
     player: state.enemy,
     enemy: state.player,
     currentPlayer: state.currentPlayer === 'player' ? 'enemy' : 'player',
+    firstPlayer: state.firstPlayer === 'player' ? 'enemy' : 'player',
   };
 }
 
@@ -165,7 +185,8 @@ export function advancePhase(state: DuelState): DuelState {
 
     newState.currentPlayer = newState.currentPlayer === 'player' ? 'enemy' : 'player';
     newState.currentPhase = 'draw';
-    if (newState.currentPlayer === 'player') {
+    // A "turn" cycles when control returns to whoever went first.
+    if (newState.currentPlayer === newState.firstPlayer) {
       newState.turn++;
     }
 
@@ -308,6 +329,11 @@ export function declareAttack(
   if (attacker.position !== 'attack') return newState;
   if (attacker.hasAttacked && !hasBuff(attacker, 'double_attack')) return newState;
 
+  // First player cannot attack on turn 1 (Yu-Gi-Oh standard rule).
+  if (newState.turn === 1 && attackerOwner === newState.firstPlayer) {
+    return newState;
+  }
+
   // On-attack effects
   const attackLogs = processOnAttackEffects(newState, attackerOwner, attacker);
   newState.log.push(...attackLogs);
@@ -338,7 +364,7 @@ export function declareAttack(
   }
 
   // Defender on_attacked effects (e.g. reflect damage, return-to-hand, weaken attacker)
-  const attackedLogs = processOnAttackedEffects(newState, defenderOwner, defender);
+  const attackedLogs = processOnAttackedEffects(newState, defenderOwner, defender, attacker);
   newState.log.push(...attackedLogs);
 
   // on_attacked effects may have removed the defender (e.g. return_to_hand) — re-check
@@ -466,6 +492,10 @@ export function chooseDuelAiAction(state: DuelState): DuelAiAction {
   }
 
   if (state.currentPhase === 'battle') {
+    // First player cannot attack on turn 1.
+    if (state.turn === 1 && state.firstPlayer === 'enemy') {
+      return { type: 'end_phase' };
+    }
     for (let i = 0; i < MONSTER_ZONES; i++) {
       const m = field.monsters[i];
       if (!m || !m.faceUp || m.position !== 'attack') continue;

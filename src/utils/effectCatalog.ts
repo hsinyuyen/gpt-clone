@@ -38,6 +38,8 @@ export interface EffectContext {
   sourceMonster: FieldMonster | null;
   ownerField: PlayerField;
   opponentField: PlayerField;
+  /** The monster currently attacking us — only set inside on_attacked. */
+  attackerMonster?: FieldMonster | null;
   log: (message: string, type?: DuelLogEntry['type']) => void;
 }
 
@@ -124,6 +126,7 @@ const CATALOG: Record<EffectAction, CatalogEntry> = {
       'random_opponent_monster',
       'weakest_opponent_monster',
       'strongest_opponent_monster',
+      'attacker_monster',
     ],
     valueRange: [5, 25],
     handler: (ctx) => applyStatBuff(ctx, 'weaken_atk', -1),
@@ -138,6 +141,7 @@ const CATALOG: Record<EffectAction, CatalogEntry> = {
       'random_opponent_monster',
       'weakest_opponent_monster',
       'strongest_opponent_monster',
+      'attacker_monster',
     ],
     valueRange: [5, 25],
     handler: (ctx) => applyStatBuff(ctx, 'weaken_def', -1),
@@ -195,10 +199,11 @@ const CATALOG: Record<EffectAction, CatalogEntry> = {
       'random_opponent_monster',
       'weakest_opponent_monster',
       'strongest_opponent_monster',
+      'attacker_monster',
     ],
     valueRange: [1, 1],
-    handler: ({ effect, sourceMonster, ownerField, opponentField, log }) => {
-      const targets = resolveTargets(effect.target, sourceMonster, ownerField, opponentField);
+    handler: ({ effect, sourceMonster, ownerField, opponentField, attackerMonster, log }) => {
+      const targets = resolveTargets(effect.target, sourceMonster, ownerField, opponentField, attackerMonster);
       for (const m of targets) {
         if (!m) continue;
         const idx = opponentField.monsters.indexOf(m);
@@ -342,7 +347,8 @@ function resolveTargets(
   target: EffectTarget,
   source: FieldMonster | null,
   ownerField: PlayerField,
-  opponentField: PlayerField
+  opponentField: PlayerField,
+  attacker?: FieldMonster | null
 ): (FieldMonster | null)[] {
   switch (target) {
     case 'self':
@@ -380,6 +386,11 @@ function resolveTargets(
       alive.sort((a, b) => b.currentAtk - a.currentAtk);
       return [alive[0]];
     }
+    case 'attacker_monster':
+      // Only meaningful inside on_attacked. Falls back to first opponent
+      // monster if attacker context is missing (defensive — shouldn't happen).
+      if (attacker) return [attacker];
+      return resolveTargets('opponent_monster', source, ownerField, opponentField);
     case 'opponent_lp':
     case 'own_lp':
       return []; // LP actions handled directly in their handlers
@@ -394,8 +405,8 @@ function applyStatBuff(
   action: 'boost_atk' | 'boost_def' | 'weaken_atk' | 'weaken_def',
   sign: 1 | -1
 ): void {
-  const { effect, sourceMonster, ownerField, opponentField, log } = ctx;
-  const targets = resolveTargets(effect.target, sourceMonster, ownerField, opponentField);
+  const { effect, sourceMonster, ownerField, opponentField, attackerMonster, log } = ctx;
+  const targets = resolveTargets(effect.target, sourceMonster, ownerField, opponentField, attackerMonster);
   const delta = sign * effect.value;
   // continuous effects are permanent, others default to 1 turn (or duration)
   const duration = effect.trigger === 'continuous' ? PERMANENT_BUFF : effect.duration || 1;

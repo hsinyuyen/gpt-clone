@@ -138,27 +138,35 @@ export default function CardDetail({ definition, playerCard, onClose }: CardDeta
           ))}
         </div>
 
-        {/* Abilities */}
-        <div className="mb-5">
-          <h3 className="text-lg font-bold mb-3" style={{ color: 'var(--terminal-color)' }}>技能</h3>
-          {definition.abilities.map((ability) => (
-            <div key={ability.id} className="p-3 mb-3 bg-black/50 rounded border border-gray-700">
-              <div className="flex justify-between items-center">
-                <span className="text-base font-bold" style={{ color: 'var(--terminal-color)' }}>{ability.name}</span>
-                <div className="flex gap-2 text-sm text-gray-400">
-                  {ability.damage > 0 && <span className="text-red-400">DMG {ability.damage}</span>}
-                  {ability.cooldown > 0 && <span>CD {ability.cooldown}</span>}
-                </div>
+        {/* Card effects — only special effects used in battle.
+            Normal attacks are not shown: the duel system only supports
+            basic attack + triggered YGO effects, so the legacy abilities
+            list would be misleading. */}
+        {(definition.effectText || (definition.ygoEffects && definition.ygoEffects.length > 0)) && (
+          <div className="mb-5">
+            <h3 className="text-lg font-bold mb-3" style={{ color: 'var(--terminal-color)' }}>✨ 卡片效果</h3>
+
+            {definition.effectText && (
+              <div className="mb-3 p-3 bg-purple-900/20 border border-purple-700 rounded">
+                <p className="text-sm text-purple-200 leading-relaxed">{definition.effectText}</p>
               </div>
-              <p className="text-sm text-gray-300 mt-2 leading-relaxed">{ability.description}</p>
-              {ability.effect && (
-                <div className="text-sm text-purple-400 mt-2">
-                  效果: {ability.effect.type} +{ability.effect.value} ({ability.effect.duration} 回合)
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+            )}
+
+            {definition.ygoEffects && definition.ygoEffects.length > 0 && (
+              <div className="space-y-2">
+                {definition.ygoEffects.map((effect) => (
+                  <div key={effect.id} className="p-3 bg-black/50 border border-purple-800 rounded">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-base font-bold text-purple-300">{effect.name}</span>
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">{effect.trigger}</span>
+                    </div>
+                    <p className="text-sm text-gray-300 leading-relaxed">{effect.description}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Synergy */}
         {definition.synergyBonus && (

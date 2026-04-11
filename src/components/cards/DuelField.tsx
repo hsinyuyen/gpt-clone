@@ -9,6 +9,13 @@ import {
 } from '@/types/Card';
 import { getRarityColor } from '@/utils/cardStats';
 import { canNormalSummon, getTributesNeeded } from '@/utils/duelEngine';
+import { hasBuff } from '@/utils/effectEngine';
+
+// A monster can still declare an attack if it has the `double_attack` flag buff,
+// matching the engine check in declareAttack().
+function canStillAttack(monster: FieldMonster): boolean {
+  return !monster.hasAttacked || hasBuff(monster, 'double_attack');
+}
 
 interface DuelFieldProps {
   state: DuelState;
@@ -369,7 +376,7 @@ function MonsterZone({
           ? 'border-[var(--terminal-color)] ring-2 ring-[var(--terminal-color)] scale-110 z-10 shadow-[0_0_16px_var(--terminal-color)]'
           : isTarget
           ? 'border-red-500 ring-2 ring-red-400 shadow-[0_0_12px_rgba(239,68,68,0.5)]'
-          : monster.canAttack && !monster.hasAttacked && !isEnemy
+          : monster.canAttack && canStillAttack(monster) && !isEnemy
           ? 'border-green-500 shadow-[0_0_8px_rgba(34,197,94,0.3)]'
           : 'border-gray-600'
       } ${isDefense ? 'rotate-90' : ''} ${isFaceDown ? 'bg-indigo-900/60' : 'bg-gray-900'}`}
@@ -719,7 +726,7 @@ export default function DuelField({
     }
 
     // Select attacker
-    if (isBattlePhase && monster && monster.faceUp && monster.position === 'attack' && !monster.hasAttacked) {
+    if (isBattlePhase && monster && monster.faceUp && monster.position === 'attack' && canStillAttack(monster)) {
       setSelectedMonster(idx);
       setAttackMode(true);
       setSelectedHandCard(null);
