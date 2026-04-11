@@ -17,28 +17,17 @@ import { useCoin, COIN_VALUES } from "@/contexts/CoinContext";
 import { useConversation } from "@/contexts/ConversationContext";
 import generateSystemPrompt from "@/utils/generateSystemPrompt";
 import { ActiveScript, UserAvatar, AvatarPersonality } from "@/types/Script";
-import { uploadAvatarFrames } from "@/lib/firestore";
+import { uploadAvatarFrames, uploadStoryAudio } from "@/lib/firestore";
+import { getScript } from "@/scripts";
+import type { ScriptDefinition, ParseResult } from "@/scripts/types";
+import type { StoryPhase } from "@/hooks/useStoryHelper";
+import { useStoryHelper } from "@/hooks/useStoryHelper";
+import StorySlideshow from "./StorySlideshow";
 import {
-  generateAvatarCreatorPrompt,
   generateQuestionnairePrompt,
-  parseAvatarFromResponse,
-  parseStartGenerationFromResponse,
-  parseStudentInfoFromResponse,
-  AVATAR_CREATOR_SYSTEM_PROMPT,
-} from "@/data/avatarQuestions";
-import {
-  StoryPhase,
-  StoryInfo,
-  generateStoryHelperPrompt,
-  generatePollinationsUrl,
-  generateCharacterImagePrompt,
-  generateSceneImagePrompt,
-  parseStorySettingFromResponse,
-  parseCharactersFromResponse,
-  parsePlotFromResponse,
-  parseStoryCompleteFromResponse,
-  getStoryFallbackReplies,
-} from "@/data/storyScript";
+  generateForceStartGenerationPrompt,
+  generateForceAvatarReadyPrompt,
+} from "@/scripts/create-avatar";
 
 interface ChatProps {
   toggleComponentVisibility: () => void;
@@ -62,6 +51,40 @@ interface PendingAvatar {
   error?: string;
   generationProgress?: number; // 0-100
 }
+
+// Archived story player — uses stored audio URLs from Firebase Storage
+const ArchivedStoryPlayer: React.FC<{
+  title: string;
+  info: string;
+  panels: { imageUrl: string; text: string; audioUrl?: string }[];
+}> = ({ title, info, panels }) => {
+  // Convert audio URLs to the format StorySlideshow expects
+  // StorySlideshow uses audioBase64, but we can also support URL-based audio
+  const slideshowPanels = panels.map((p) => ({
+    imageUrl: p.imageUrl,
+    text: p.text,
+    audioUrl: p.audioUrl,
+  }));
+
+  return (
+    <div>
+      <div className="px-4 py-3 border-b border-[var(--terminal-primary)] bg-[var(--terminal-primary)]/5">
+        <div className="text-[var(--terminal-primary)] text-base font-bold glow-text mb-1">
+          {title}
+        </div>
+        <div className="text-[var(--terminal-primary-dim)] text-xs">{info}</div>
+      </div>
+      {slideshowPanels.length > 0 && (
+        <StorySlideshow
+          panels={slideshowPanels}
+          storyTitle={title}
+          roundNumber={0}
+          onComplete={() => {}}
+        />
+      )}
+    </div>
+  );
+};
 
 // 腳本階段（更細緻的流程控制）
 type ScriptPhase =
@@ -108,16 +131,23 @@ const Chat = (props: ChatProps) => {
   const [isGeneratingInBackground, setIsGeneratingInBackground] = useState(false);
   const [scriptTurnCount, setScriptTurnCount] = useState(0);
   const [quickReplies, setQuickReplies] = useState<string[]>([]);
+  const [showInputGuide, setShowInputGuide] = useState(false);
   const [generatingTurnCount, setGeneratingTurnCount] = useState(0);
   const generationPromiseRef = useRef<Promise<any> | null>(null);
   const hasStartedGeneration = useRef(false);
   const FORCE_AVATAR_READY_TURNS = 5; // Force AVATAR_READY after 5 turns in generating phase
 
-  // Story helper state
-  const [storyPhase, setStoryPhase] = useState<StoryPhase>("intro");
-  const [storyInfo, setStoryInfo] = useState<Partial<StoryInfo>>({});
-  const [storyImages, setStoryImages] = useState<{ url: string; caption: string }[]>([]);
-  const storyScriptInitialized = useRef(false);
+  // Story helper state (managed by hook)
+  // First time: 3 rounds free. After that (paid): 1 round only.
+  const isStoryPaid = (() => {
+    try {
+      const saved = localStorage.getItem("completedScripts");
+      return saved ? (JSON.parse(saved) as string[]).includes("story-helper") : false;
+    } catch { return false; }
+  })();
+  const story = useStoryHelper(isStoryPaid ? 1 : 3);
+  const storyPhase = story.storyPhase;
+  const storyScriptInitialized = story.initialized;
   const { zhuyinMode, setZhuyinMode } = useZhuyin();
   const { user, updateUser } = useAuth();
   const { addCoins, coins } = useCoin();
@@ -128,7 +158,12 @@ const Chat = (props: ChatProps) => {
     shouldTriggerExtraction,
     incrementMessageCount,
   } = useMemory();
-  const { archiveConversation } = useConversation();
+  const {
+    archiveConversation,
+    currentConversation,
+    updateConversationMessages,
+    createNewConversation,
+  } = useConversation();
   const { trackEvent } = useAnalytics();
   const textAreaRef = useAutoResizeTextArea();
   const bottomOfChatRef = useRef<HTMLDivElement>(null);
@@ -146,101 +181,90 @@ const Chat = (props: ChatProps) => {
   } = useSpeechRecognition();
 
   const selectedModel = DEFAULT_OPENAI_MODEL;
+  const prevConversationIdRef = useRef<string | null>(null);
 
-  // 當腳本啟動時，自動開始對話
+  // Get current script definition from registry
+  const currentScript = activeScript ? getScript(activeScript) : undefined;
+
+  // Sync with ConversationContext: load messages when switching sessions
   useEffect(() => {
-    if (activeScript === "create-avatar" && !scriptInitialized.current) {
-      scriptInitialized.current = true;
-      // 重置所有狀態
-      setConversation([]);
+    if (activeScript) return; // Scripts manage their own conversation state
+    const newId = currentConversation?.id || null;
+    if (newId === prevConversationIdRef.current) return;
+    prevConversationIdRef.current = newId;
+
+    if (currentConversation && currentConversation.messages.length > 0) {
+      // Load existing conversation
+      const loaded = currentConversation.messages.map((m) => ({
+        content: m.content,
+        role: m.role === "user" ? "user" : "system",
+      }));
+      setConversation(loaded);
       setShowEmptyChat(false);
+    } else {
+      // New or empty conversation
+      setConversation([]);
+      setShowEmptyChat(true);
+    }
+    setQuickReplies([]);
+    setMessage("");
+    setErrorMessage("");
+  }, [currentConversation?.id, activeScript]);
+
+  // 當腳本啟動時，自動開始對話（統一處理所有腳本）
+  useEffect(() => {
+    if (!activeScript || !currentScript) {
+      scriptInitialized.current = false;
+      storyScriptInitialized.current = false;
+      return;
+    }
+
+    // Use per-script ref to prevent double init
+    const initRef = activeScript === "create-avatar" ? scriptInitialized : storyScriptInitialized;
+    if (initRef.current) return;
+    initRef.current = true;
+
+    // Reset common state
+    setConversation([]);
+    setShowEmptyChat(false);
+    setScriptTurnCount(0);
+    setQuickReplies([]);
+
+    // Reset script-specific state
+    if (activeScript === "create-avatar") {
       setPendingAvatar(null);
-      setScriptPhase("intro"); // 從課程介紹開始
+      setScriptPhase("intro");
       setCollectedInfo({});
       setCollectedStudentInfo({});
       setAvatarPersonality(null);
-      setScriptTurnCount(0);
       setGeneratingTurnCount(0);
-      setQuickReplies([]);
       hasStartedGeneration.current = false;
-
-      // 發送初始訊息讓 AI 開始引導
-      setTimeout(() => {
-        sendScriptInitMessage();
-      }, 500);
+    } else if (activeScript === "story-helper") {
+      story.reset();
     }
 
-    if (!activeScript) {
-      scriptInitialized.current = false;
-      storyScriptInitialized.current = false;
-    }
+    // Send init message
+    setTimeout(() => {
+      sendScriptInitMessage(currentScript);
+    }, 500);
   }, [activeScript]);
 
-  // 故事腳本啟動
-  useEffect(() => {
-    if (activeScript === "story-helper" && !storyScriptInitialized.current) {
-      storyScriptInitialized.current = true;
-      setConversation([]);
-      setShowEmptyChat(false);
-      setStoryPhase("intro");
-      setStoryInfo({});
-      setStoryImages([]);
-      setScriptTurnCount(0);
-      setQuickReplies([]);
-
-      setTimeout(() => {
-        sendStoryInitMessage();
-      }, 500);
-    }
-  }, [activeScript]);
-
-  const sendStoryInitMessage = async () => {
+  const sendScriptInitMessage = async (script: ScriptDefinition) => {
     setIsLoading(true);
     setConversation([{ content: null, role: "system" }]);
 
     try {
-      let introPrompt = generateStoryHelperPrompt("intro", {});
+      let introPrompt = script.getInitPrompt({});
       if (user?.kidMode) {
-        introPrompt += "\n\n## 重要：幼兒模式\n你的每次回覆必須在30個中文字以內，用最簡單的詞彙。\n注意：JSON 資料標記不算在30字限制內，請完整輸出。";
+        const markers = script.getKidModeMarkers();
+        introPrompt += `\n\n## 重要：幼兒模式\n你的每次回覆必須在30個中文字以內，用最簡單的詞彙，不要用複雜的句子。\n注意：JSON 資料標記（如 ${markers} 等）不算在30字限制內，請完整輸出。`;
       }
 
       const response = await fetch(`/api/openai`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [{ content: "開始故事創作", role: "user" }],
-          model: selectedModel,
-          systemPrompt: introPrompt,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setConversation([{ content: data.message, role: "system" }]);
-        generateQuickReplies(data.message);
-      }
-    } catch (error: any) {
-      setErrorMessage(`ERROR: ${error.message}`);
-    }
-    setIsLoading(false);
-  };
-
-  const sendScriptInitMessage = async () => {
-    setIsLoading(true);
-    setConversation([{ content: null, role: "system" }]);
-
-    try {
-      // 使用 intro 階段的 prompt 來介紹課程
-      let introPrompt = generateAvatarCreatorPrompt("intro", {});
-      if (user?.kidMode) {
-        introPrompt += "\n\n## 重要：幼兒模式\n你的每次回覆必須在30個中文字以內，用最簡單的詞彙，不要用複雜的句子。";
-      }
-
-      const response = await fetch(`/api/openai`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [{ content: "開始課程", role: "user" }],
+          messages: [{ content: script.getInitUserMessage(), role: "user" }],
           model: selectedModel,
           systemPrompt: introPrompt,
         }),
@@ -259,6 +283,53 @@ const Chat = (props: ChatProps) => {
 
   const isKidMode = user?.kidMode ?? true;
   const FORCE_GENERATION_TURNS = 10;
+
+  // Script progress calculation (uses registry)
+  const getScriptProgress = (): number => {
+    if (!activeScript || !currentScript) return 0;
+    const currentPhaseForProgress = activeScript === "create-avatar" ? scriptPhase : storyPhase;
+    // Special case: avatar_ready with image = 100%
+    if (activeScript === "create-avatar" && scriptPhase === "avatar_ready" && pendingAvatar && !pendingAvatar.isGenerating && pendingAvatar.imageUrl) {
+      return 100;
+    }
+    return currentScript.getProgress(currentPhaseForProgress, scriptTurnCount);
+  };
+
+  const scriptProgress = getScriptProgress();
+
+  // Auto-complete script when max turns reached
+  useEffect(() => {
+    if (!activeScript || !currentScript) return;
+    const currentPhaseVal = activeScript === "create-avatar" ? scriptPhase : storyPhase;
+    if (scriptTurnCount >= currentScript.maxTurns && currentPhaseVal !== "complete") {
+      if (activeScript === "create-avatar") {
+        setScriptPhase("complete");
+        setTimeout(() => {
+          setConversation([]);
+          setShowEmptyChat(true);
+          setQuickReplies([]);
+          setScriptPhase("appearance");
+          setPendingAvatar(null);
+          setCollectedInfo({});
+          setAvatarPersonality(null);
+          setScriptTurnCount(0);
+          setGeneratingTurnCount(0);
+          hasStartedGeneration.current = false;
+          onScriptComplete?.();
+        }, 1500);
+      } else if (activeScript === "story-helper") {
+        story.setStoryPhase("complete");
+        setTimeout(() => {
+          setConversation([]);
+          setShowEmptyChat(true);
+          setQuickReplies([]);
+          story.reset();
+          setScriptTurnCount(0);
+          onScriptComplete?.();
+        }, 1500);
+      }
+    }
+  }, [scriptTurnCount, activeScript, scriptPhase, storyPhase]);
 
   // Generate quick replies via a second API call
   const generateQuickReplies = async (aiMessage: string) => {
@@ -293,25 +364,14 @@ const Chat = (props: ChatProps) => {
     setQuickReplies(getFallbackReplies());
   };
 
-  // Fallback quick replies
+  // Fallback quick replies (uses registry)
   const getFallbackReplies = (): string[] => {
-    if (activeScript === "create-avatar") {
-      if (scriptPhase === "intro") return ["準備好了！", "開始吧！"];
-      if (scriptPhase === "appearance") {
-        if (!collectedInfo.characterType) return ["機器人", "小貓咪", "恐龍", "精靈"];
-        if (!collectedInfo.color) return ["藍色", "紅色", "綠色", "彩虹色"];
-        if (!collectedInfo.name) return ["小星", "阿寶", "酷比", "自己取名"];
-        return ["不用配件", "帽子", "披風", "眼鏡"];
-      }
-      if (scriptPhase === "generating" || scriptPhase === "personality") {
-        if (!collectedInfo.speakingStyle) return ["活潑開朗", "溫柔體貼", "酷酷的", "搞笑幽默"];
-        if (!collectedInfo.specialAbility) return ["講故事", "解數學", "聊天陪伴", "鼓勵我"];
-        return ["不用口頭禪", "讚啦！", "沒問題！", "交給我！"];
-      }
-      return [];
-    }
-    if (activeScript === "story-helper") {
-      return getStoryFallbackReplies(storyPhase, storyInfo);
+    if (currentScript) {
+      const phase = activeScript === "create-avatar" ? scriptPhase : storyPhase;
+      const state = activeScript === "create-avatar"
+        ? { collectedInfo }
+        : { rerollCount: story.rerollCount, maxRerolls: story.maxRerolls, completedRounds: story.completedRounds };
+      return currentScript.getFallbackReplies(phase, state);
     }
     return ["告訴我更多", "換個話題", "幫我解釋", "謝謝"];
   };
@@ -323,22 +383,42 @@ const Chat = (props: ChatProps) => {
     }
   }, [message, textAreaRef]);
 
+  // Track whether user has manually scrolled up
+  const userScrolledUp = useRef(false);
+
   const scrollToBottom = useCallback(() => {
+    if (userScrolledUp.current) return; // Don't force scroll if user scrolled up
     const container = scrollContainerRef.current;
     if (container) {
       container.scrollTop = container.scrollHeight;
     }
   }, []);
 
-  // Scroll on conversation change, pending avatar
+  // Detect user scrolling up
   useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      // If user is within 100px of bottom, consider them "at bottom"
+      userScrolledUp.current = distanceFromBottom > 100;
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Scroll on conversation change (new message added)
+  useEffect(() => {
+    userScrolledUp.current = false; // Reset on new message
     requestAnimationFrame(scrollToBottom);
   }, [conversation, pendingAvatar, scrollToBottom]);
 
-  // Continuous scroll during streaming — poll until streaming finishes
+  // Scroll during streaming — poll but respect user scroll
   useEffect(() => {
     if (isLoading) {
-      // While loading (waiting for API), scroll to show spinner
+      userScrolledUp.current = false;
       scrollToBottom();
       return;
     }
@@ -632,6 +712,243 @@ const Chat = (props: ChatProps) => {
     setIsLoading(false);
   };
 
+  // Handle story quick reply actions that don't need an AI call
+  const handleStoryQuickAction = async (msg: string): Promise<boolean> => {
+    const phase = storyPhase;
+
+    if (phase === "choose_world") {
+      const worldMap: Record<string, string> = {
+        "魔法森林": "magic forest",
+        "外太空": "outer space",
+        "海底世界": "underwater",
+        "機械都市": "cyber city",
+        "恐龍島": "dinosaur island",
+      };
+      const world = worldMap[msg] || msg;
+      setConversation((prev) => [
+        ...prev,
+        { content: msg, role: "user" },
+        { content: `${msg}！接下來選你的角色，先選外觀風格！`, role: "system" },
+      ]);
+      story.setWorld(world, msg);
+      addCoins(COIN_VALUES.ANSWER_TYPE, `故事創作:選世界`);
+      setTimeout(() => {
+        setQuickReplies(["帥氣的", "漂亮的", "威猛的", "神秘的", "可愛的"]);
+      }, 300);
+      return true;
+    }
+
+    if (phase === "choose_appearance") {
+      setConversation((prev) => [
+        ...prev,
+        { content: msg, role: "user" },
+        { content: `${msg}角色！是男生、女生、還是...？`, role: "system" },
+      ]);
+      story.setAppearance(msg);
+      setTimeout(() => {
+        setQuickReplies(["男生", "女生", "動物", "機器人", "精靈"]);
+      }, 300);
+      return true;
+    }
+
+    if (phase === "choose_gender") {
+      setConversation((prev) => [
+        ...prev,
+        { content: msg, role: "user" },
+        { content: `最後，選一個職業吧！`, role: "system" },
+      ]);
+      story.setGender(msg);
+      setTimeout(() => {
+        setQuickReplies(["魔法師", "戰士", "弓箭手", "忍者", "美人魚"]);
+      }, 300);
+      return true;
+    }
+
+    if (phase === "choose_class") {
+      setConversation((prev) => [
+        ...prev,
+        { content: msg, role: "user" },
+        { content: `正在生成你的角色...`, role: "system" },
+      ]);
+      story.setCharacterClass(msg);
+      setTimeout(() => {
+        setQuickReplies(["就決定是你了！", "換一個"]);
+      }, 300);
+      return true;
+    }
+
+    if (phase === "preview_character") {
+      if (msg === "換一個" || msg === "換一個角色") {
+        const nextCount = story.rerollCount + 1;
+        story.rerollCharacter();
+        const remaining = story.maxRerolls - nextCount;
+        setConversation((prev) => [
+          ...prev,
+          { content: msg, role: "user" },
+          { content: `換一個新造型！${remaining > 0 ? `（還可以換 ${remaining} 次）` : "（最後一次囉！）"}`, role: "system" },
+        ]);
+        setTimeout(() => {
+          if (remaining > 0) {
+            setQuickReplies(["就決定是你了！", "換一個"]);
+          } else {
+            setQuickReplies(["就決定是你了！"]);
+          }
+        }, 300);
+        return true;
+      }
+      // Confirm character
+      story.confirmCharacter();
+      setConversation((prev) => [
+        ...prev,
+        { content: msg, role: "user" },
+        { content: "角色確定！選一個故事類型吧！", role: "system" },
+      ]);
+      setTimeout(() => {
+        setQuickReplies(["衝突冒險", "團隊合作", "交新朋友", "解開謎題", "拯救夥伴"]);
+      }, 300);
+      return true;
+    }
+
+    if (phase === "choose_event") {
+      story.setEvent(msg, msg);
+      setConversation((prev) => [
+        ...prev,
+        { content: msg, role: "user" },
+        { content: "好的！正在為你創作故事和插圖，請稍等...", role: "system" },
+      ]);
+      addCoins(COIN_VALUES.ANSWER_TYPE, `故事創作:選事件`);
+      // Now we DO need an AI call for generating_story
+      setIsLoading(true);
+      generateStoryboard();
+      return true;
+    }
+
+    if (phase === "pick_favorite") {
+      const match = msg.match(/故事\s*(\d)/);
+      const roundIndex = match ? parseInt(match[1]) - 1 : 0;
+      const chosen = story.pickFavorite(roundIndex);
+      if (chosen) {
+        addCoins(20, "完成故事創作");
+
+        // Upload audio to Firebase Storage, then archive with URLs
+        const storyId = `story_${Date.now()}`;
+        const audioFiles = chosen.panels
+          .map((p, i) => p.audioBase64 ? { base64: p.audioBase64, index: i } : null)
+          .filter((f): f is { base64: string; index: number } => f !== null);
+
+        let audioUrls = new Map<number, string>();
+        if (user && audioFiles.length > 0) {
+          try {
+            audioUrls = await uploadStoryAudio(user.id, storyId, audioFiles);
+          } catch (e) {
+            console.error("Failed to upload story audio:", e);
+          }
+        }
+
+        const storyMessages = chosen.panels.map((panel, i) => {
+          const audioUrl = audioUrls.get(i);
+          return {
+            content: `[STORY_PANEL]\n[IMG]${panel.imageUrl}[/IMG]\n${audioUrl ? `[AUDIO_URL]${audioUrl}[/AUDIO_URL]\n` : ""}${panel.text}`,
+            role: "system" as const,
+            timestamp: new Date().toISOString(),
+          };
+        });
+        const headerMsg = {
+          content: `[STORY_HEADER]${chosen.storyTitle}[/STORY_HEADER]\n世界：${chosen.worldLabel} | 角色：${chosen.appearance}${chosen.gender}${chosen.characterClass} | 事件：${chosen.eventLabel}`,
+          role: "system" as const,
+          timestamp: new Date().toISOString(),
+        };
+        archiveConversation(`故事：${chosen.storyTitle}`, [headerMsg, ...storyMessages]);
+
+        setConversation((prev) => [
+          ...prev,
+          { content: msg, role: "user" },
+          { content: `你選了「${chosen.storyTitle}」！已經幫你存起來囉！`, role: "system" },
+        ]);
+
+        setTimeout(() => {
+          setConversation([]);
+          setShowEmptyChat(true);
+          setQuickReplies([]);
+          story.reset();
+          setScriptTurnCount(0);
+          storyScriptInitialized.current = false;
+          onScriptComplete?.();
+        }, 2000);
+      }
+      return true;
+    }
+
+    return false;
+  };
+
+  // Handle slideshow "繼續" button
+  const handleSlideshowDone = () => {
+    const isLastRound = story.currentRound >= story.totalRounds;
+    story.onSlideshowComplete(); // This updates round counter and phase
+
+    if (isLastRound) {
+      setConversation((prev) => [
+        ...prev,
+        { content: "3 個故事都完成了！你最喜歡哪一個？", role: "system" },
+      ]);
+      setTimeout(() => {
+        setQuickReplies(["故事 1", "故事 2", "故事 3"]);
+      }, 300);
+    } else {
+      const nextRound = story.currentRound + 1;
+      setConversation((prev) => [
+        ...prev,
+        { content: `第 ${story.currentRound} 個故事完成！來創作第 ${nextRound} 個吧！選一個世界！`, role: "system" },
+      ]);
+      setTimeout(() => {
+        setQuickReplies(["魔法森林", "外太空", "海底世界", "機械都市", "恐龍島"]);
+      }, 300);
+    }
+  };
+
+  // Generate storyboard via AI call
+  const generateStoryboard = async () => {
+    try {
+      const prompt = currentScript!.generatePrompt("generating_story", {
+        currentRound: story.currentRound,
+        totalRounds: story.totalRounds,
+        world: story.currentRoundData.worldLabel,
+        eventType: story.currentRoundData.eventLabel,
+        characterPrompt: story.currentRoundData.characterPrompt,
+        appearance: story.currentRoundData.appearance,
+        gender: story.currentRoundData.gender,
+        characterClass: story.currentRoundData.characterClass,
+      });
+
+      const response = await fetch("/api/openai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [{ content: "生成故事", role: "user" }],
+          model: selectedModel,
+          systemPrompt: prompt,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Parse the STORYBOARD_READY tag
+        const parseResults = currentScript!.parseResponse(data.message);
+        for (const result of parseResults) {
+          if (result.tag === "STORYBOARD_READY") {
+            await story.generateStory(result.data as any);
+            break;
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error("Storyboard generation error:", error);
+      setErrorMessage("故事生成失敗，請再試一次");
+    }
+    setIsLoading(false);
+  };
+
   const sendMessage = async (e: any, overrideMessage?: string) => {
     e.preventDefault();
 
@@ -645,8 +962,19 @@ const Chat = (props: ChatProps) => {
     }
 
     trackEvent("send.message", { message: msg });
-    setIsLoading(true);
     setQuickReplies([]); // Hide quick replies while loading
+    setShowInputGuide(false);
+
+    // Story helper: handle phase-specific quick reply actions (no AI call needed)
+    if (activeScript === "story-helper") {
+      const handled = await handleStoryQuickAction(msg);
+      if (handled) {
+        setMessage("");
+        return;
+      }
+    }
+
+    setIsLoading(true);
 
     // Track script turns
     const newTurnCount = activeScript ? scriptTurnCount + 1 : 0;
@@ -662,31 +990,30 @@ const Chat = (props: ChatProps) => {
     setMessage("");
     setShowEmptyChat(false);
 
-    // 決定當前使用的階段（處理 intro → 下一階段的轉換）
-    let currentPhase = scriptPhase;
-    let currentStoryPhase = storyPhase;
-    if (activeScript === "create-avatar" && scriptPhase === "intro") {
-      currentPhase = "appearance";
-      setScriptPhase("appearance");
-      console.log("階段轉換: intro → appearance");
-    }
-    if (activeScript === "story-helper" && storyPhase === "intro") {
-      currentStoryPhase = "setting";
-      setStoryPhase("setting");
-      console.log("故事階段轉換: intro → setting");
+    // 決定當前使用的階段（處理 intro → 下一階段的轉換，uses registry）
+    let currentPhase: string = scriptPhase;
+    let currentStoryPhase: string = storyPhase;
+    if (currentScript) {
+      const nextPhase = currentScript.getPhaseAfterIntro();
+      if (activeScript === "create-avatar" && scriptPhase === "intro") {
+        currentPhase = nextPhase;
+        setScriptPhase(nextPhase as ScriptPhase);
+        console.log(`階段轉換: intro → ${nextPhase}`);
+      }
+      if (activeScript === "story-helper" && storyPhase === "intro") {
+        currentStoryPhase = nextPhase;
+        story.setStoryPhase(nextPhase as StoryPhase);
+        console.log(`故事階段轉換: intro → ${nextPhase}`);
+      }
     }
 
-    // 根據階段獎勵金幣（reason 包含訊息內容用於防重複偵測）
+    // 根據階段獎勵金幣（uses registry）
     const msgTag = msg.trim().toLowerCase().slice(0, 50);
-    if (activeScript === "create-avatar") {
-      if (currentPhase === "questionnaire") {
-        addCoins(COIN_VALUES.ANSWER_AI_QUESTION, `回答問題:${msgTag}`);
-      } else if (currentPhase !== "complete" && currentPhase !== "avatar_ready" && currentPhase !== "intro") {
-        addCoins(COIN_VALUES.ANSWER_TYPE, `角色設計:${msgTag}`);
-      }
-    } else if (activeScript === "story-helper") {
-      if (currentStoryPhase !== "complete" && currentStoryPhase !== "illustration" && currentStoryPhase !== "intro") {
-        addCoins(COIN_VALUES.ANSWER_TYPE, `故事創作:${msgTag}`);
+    if (currentScript) {
+      const phase = activeScript === "create-avatar" ? currentPhase : currentStoryPhase;
+      const reward = currentScript.getCoinReward(phase);
+      if (reward) {
+        addCoins(reward.amount, `${reward.reasonPrefix}:${msgTag}`);
       }
     } else {
       addCoins(COIN_VALUES.SEND_MESSAGE, `訊息:${msgTag}`);
@@ -715,50 +1042,12 @@ const Chat = (props: ChatProps) => {
         setGeneratingTurnCount(prev => prev + 1);
       }
 
-      if (activeScript === "story-helper") {
-        systemPrompt = generateStoryHelperPrompt(currentStoryPhase, storyInfo);
-      } else if (activeScript === "create-avatar") {
+      if (activeScript === "create-avatar") {
+        // Avatar has special force prompts and questionnaire phase
         if (shouldForceAvatarReady) {
-          // Force AVATAR_READY: construct from known data with defaults
-          systemPrompt = `你是一個正在被創造的 AI 助理。學生已經回答了很多問題了，現在請立刻輸出完成指令。
-
-已收集的資訊：${JSON.stringify(collectedInfo, null, 2)}
-
-請立刻輸出以下格式：
-\`\`\`json
-[AVATAR_READY]
-{
-  "characterType": "${collectedInfo.characterType || "機器人"}",
-  "color": "${collectedInfo.color || "藍色"}",
-  "name": "${collectedInfo.name || "小助手"}",
-  "accessory": "${collectedInfo.accessory || ""}",
-  "speakingStyle": "${collectedInfo.speakingStyle || "活潑開朗"}",
-  "specialAbility": "${collectedInfo.specialAbility || "聊天陪伴"}",
-  "catchphrase": "${collectedInfo.catchphrase || ""}",
-  "prompt": "A cute ${collectedInfo.color || "blue"} ${collectedInfo.characterType || "robot"} character named ${collectedInfo.name || "helper"}, cute chibi pixel art style, front view, happy expression"
-}
-[/AVATAR_READY]
-\`\`\`
-然後說「太棒了！我已經準備好了！」`;
+          systemPrompt = generateForceAvatarReadyPrompt(collectedInfo);
         } else if (shouldForceGeneration) {
-          // Force START_GENERATION: summarize what we have and generate
-          systemPrompt = `你是一個正在被創造的 AI 助理。學生已經回答了很多問題了，現在請立刻根據已知資訊總結並輸出生成指令。
-
-已收集的資訊：${JSON.stringify(collectedInfo, null, 2)}
-
-請立刻輸出以下格式（用已知資訊填寫，缺少的就用預設值）：
-\`\`\`json
-[START_GENERATION]
-{
-  "characterType": "${collectedInfo.characterType || "機器人"}",
-  "color": "${collectedInfo.color || "藍色"}",
-  "name": "${collectedInfo.name || "小助手"}",
-  "accessory": "${collectedInfo.accessory || ""}",
-  "prompt": "A cute ${collectedInfo.color || "blue"} ${collectedInfo.characterType || "robot"} character named ${collectedInfo.name || "helper"}, cute chibi pixel art style, front view, happy expression"
-}
-[/START_GENERATION]
-\`\`\`
-然後說「好的！我已經迫不及待要誕生了！讓我來幫你把剩下的部分完成吧！」`;
+          systemPrompt = generateForceStartGenerationPrompt(collectedInfo);
         } else if (currentPhase === "questionnaire" && avatarPersonality) {
           systemPrompt = generateQuestionnairePrompt(
             avatarPersonality.name || "AI助理",
@@ -767,17 +1056,28 @@ const Chat = (props: ChatProps) => {
             collectedStudentInfo
           );
         } else {
-          systemPrompt = generateAvatarCreatorPrompt(currentPhase, collectedInfo);
+          systemPrompt = currentScript!.generatePrompt(currentPhase, { collectedInfo });
         }
+      } else if (currentScript) {
+        // Generic script prompt generation
+        const phase = activeScript === "story-helper" ? currentStoryPhase : currentPhase;
+        const state = activeScript === "story-helper"
+          ? {
+              currentRound: story.currentRound,
+              totalRounds: story.totalRounds,
+              world: story.currentRoundData.worldLabel,
+              eventType: story.currentRoundData.eventLabel,
+              characterPrompt: story.currentRoundData.characterPrompt,
+            }
+          : {};
+        systemPrompt = currentScript.generatePrompt(phase, state);
       } else {
         systemPrompt = generateSystemPrompt(memory);
       }
 
       // Kid mode: append 30-char response limit (exclude JSON data blocks)
-      if (isKidMode) {
-        const markers = activeScript === "story-helper"
-          ? "[STORY_SETTING]、[CHARACTERS_READY]、[PLOT_READY]、[STORY_COMPLETE]"
-          : "[START_GENERATION]、[AVATAR_READY]";
+      if (isKidMode && currentScript) {
+        const markers = currentScript.getKidModeMarkers();
         systemPrompt += `\n\n## 重要：幼兒模式\n你的對話文字必須在30個中文字以內，用最簡單的詞彙，不要用複雜的句子。\n注意：JSON 資料標記（如 ${markers} 等）不算在30字限制內，這些資料塊請完整輸出。`;
       }
 
@@ -797,264 +1097,91 @@ const Chat = (props: ChatProps) => {
         const data = await response.json();
         let finalResponse = data.message;
 
-        // 檢查是否要開始背景生成（收集完外觀資訊）
-        const { shouldStartGeneration, basicData, cleanResponse: startGenCleanResponse } = parseStartGenerationFromResponse(finalResponse);
-        if (shouldStartGeneration && basicData && !hasStartedGeneration.current) {
-          hasStartedGeneration.current = true;
-          finalResponse = startGenCleanResponse;
+        // ===== Parse response using registry =====
+        let avatarDataForGeneration: Record<string, any> | null = null;
 
-          // 更新已收集的外觀資訊
-          const newCollectedInfo: CollectedInfo = {
-            ...collectedInfo,
-            characterType: basicData.characterType,
-            color: basicData.color,
-            name: basicData.name,
-            accessory: basicData.accessory || "",
-          };
-          setCollectedInfo(newCollectedInfo);
+        if (currentScript) {
+          const parseResults = currentScript.parseResponse(finalResponse);
+          for (const result of parseResults) {
+            finalResponse = result.cleanResponse;
+            console.log(`Parsed tag: ${result.tag}, nextPhase: ${result.nextPhase}`);
 
-          // 進入生成階段（同時收集個性）
-          setScriptPhase("generating");
-          console.log("階段轉換: appearance → generating", newCollectedInfo);
-
-          // 開始背景生成
-          startBackgroundGeneration(basicData);
-        }
-
-        // 檢查是否包含 Avatar 資料（完整資訊，包含個性）
-        const { hasAvatar, avatarData, cleanResponse } = parseAvatarFromResponse(finalResponse);
-        if (hasAvatar && avatarData) {
-          finalResponse = cleanResponse;
-
-          // 更新已收集的個性資訊
-          const fullCollectedInfo: CollectedInfo = {
-            ...collectedInfo,
-            characterType: avatarData.characterType || collectedInfo.characterType,
-            color: avatarData.color || collectedInfo.color,
-            name: avatarData.name || collectedInfo.name,
-            accessory: avatarData.accessory || collectedInfo.accessory,
-            speakingStyle: avatarData.speakingStyle,
-            specialAbility: avatarData.specialAbility,
-            catchphrase: avatarData.catchphrase || "",
-          };
-          setCollectedInfo(fullCollectedInfo);
-
-          // 進入 avatar_ready 階段
-          setScriptPhase("avatar_ready");
-          console.log("階段轉換: generating → avatar_ready", fullCollectedInfo);
-        } else {
-          finalResponse = cleanResponse;
-        }
-
-        // ===== 故事腳本解析 =====
-        if (activeScript === "story-helper") {
-          // 解析故事背景設定
-          const { hasSetting, settingData } = parseStorySettingFromResponse(finalResponse);
-          if (hasSetting && settingData) {
-            const cleanedStory = finalResponse
-              .replace(/```json\s*\[STORY_SETTING\][\s\S]*?\[\/STORY_SETTING\]\s*```/g, '')
-              .replace(/\[STORY_SETTING\][\s\S]*?\[\/STORY_SETTING\]/g, '')
-              .trim();
-            finalResponse = cleanedStory;
-            const newStoryInfo = { ...storyInfo, ...settingData };
-            setStoryInfo(newStoryInfo);
-            setStoryPhase("characters");
-            console.log("故事階段轉換: setting → characters", newStoryInfo);
-          }
-
-          // 解析角色資料
-          const { hasCharacters, characterData } = parseCharactersFromResponse(finalResponse);
-          if (hasCharacters && characterData) {
-            const cleanedChars = finalResponse
-              .replace(/```json\s*\[CHARACTERS_READY\][\s\S]*?\[\/CHARACTERS_READY\]\s*```/g, '')
-              .replace(/\[CHARACTERS_READY\][\s\S]*?\[\/CHARACTERS_READY\]/g, '')
-              .trim();
-            finalResponse = cleanedChars;
-
-            const newStoryInfo = {
-              ...storyInfo,
-              heroName: characterData.heroName,
-              heroAppearance: characterData.heroAppearance,
-              heroPersonality: characterData.heroPersonality,
-              sidekickName: characterData.sidekickName || undefined,
-              sidekickAppearance: characterData.sidekickAppearance || undefined,
-            };
-
-            // 生成角色圖片 via Pollinations
-            const heroImgPrompt = generateCharacterImagePrompt(
-              characterData.heroName,
-              characterData.heroAppearanceEN || characterData.heroAppearance,
-              storyInfo.genre || "adventure"
-            );
-            const heroImgUrl = generatePollinationsUrl(heroImgPrompt, 512, 512);
-            newStoryInfo.heroImageUrl = heroImgUrl;
-
-            const newImages: { url: string; caption: string }[] = [
-              { url: heroImgUrl, caption: `主角：${characterData.heroName}` },
-            ];
-
-            if (characterData.sidekickName && characterData.sidekickAppearanceEN) {
-              const sidekickImgPrompt = generateCharacterImagePrompt(
-                characterData.sidekickName,
-                characterData.sidekickAppearanceEN || characterData.sidekickAppearance,
-                storyInfo.genre || "adventure"
-              );
-              const sidekickImgUrl = generatePollinationsUrl(sidekickImgPrompt, 512, 512);
-              newStoryInfo.sidekickImageUrl = sidekickImgUrl;
-              newImages.push({ url: sidekickImgUrl, caption: `夥伴：${characterData.sidekickName}` });
+            // Handle side effects per tag
+            switch (result.tag) {
+              case "START_GENERATION": {
+                if (!hasStartedGeneration.current) {
+                  hasStartedGeneration.current = true;
+                  const newCollectedInfo: CollectedInfo = {
+                    ...collectedInfo,
+                    characterType: result.data.characterType,
+                    color: result.data.color,
+                    name: result.data.name,
+                    accessory: result.data.accessory || "",
+                  };
+                  setCollectedInfo(newCollectedInfo);
+                  setScriptPhase("generating");
+                  startBackgroundGeneration(result.data as Record<string, string>);
+                }
+                break;
+              }
+              case "AVATAR_READY": {
+                const fullCollectedInfo: CollectedInfo = {
+                  ...collectedInfo,
+                  characterType: result.data.characterType || collectedInfo.characterType,
+                  color: result.data.color || collectedInfo.color,
+                  name: result.data.name || collectedInfo.name,
+                  accessory: result.data.accessory || collectedInfo.accessory,
+                  speakingStyle: result.data.speakingStyle,
+                  specialAbility: result.data.specialAbility,
+                  catchphrase: result.data.catchphrase || "",
+                };
+                setCollectedInfo(fullCollectedInfo);
+                setScriptPhase("avatar_ready");
+                avatarDataForGeneration = result.data;
+                break;
+              }
+              case "STUDENT_INFO": {
+                setCollectedStudentInfo(result.data);
+                if (memory) {
+                  console.log("Student info saved to memory:", result.data);
+                }
+                if (avatarPersonality) {
+                  console.log("Avatar personality saved to memory:", avatarPersonality);
+                }
+                const questArchiveMessages = [
+                  ...conversation,
+                  { content: msg, role: "user" },
+                  { content: finalResponse, role: "system" },
+                ]
+                  .filter((m) => m.content)
+                  .map((m) => ({
+                    content: m.content,
+                    role: m.role as "user" | "system",
+                    timestamp: new Date().toISOString(),
+                  }));
+                archiveConversation("了解學生問卷", questArchiveMessages);
+                setScriptPhase("complete");
+                setTimeout(() => {
+                  setConversation([]);
+                  setShowEmptyChat(true);
+                  setQuickReplies([]);
+                  setScriptPhase("appearance");
+                  setCollectedInfo({});
+                  setCollectedStudentInfo({});
+                  setAvatarPersonality(null);
+                  setScriptTurnCount(0);
+                  hasStartedGeneration.current = false;
+                  onScriptComplete?.();
+                }, 500);
+                break;
+              }
+              case "STORYBOARD_READY": {
+                // AI generated the 3-panel storyboard — hand off to hook for TTS + slideshow
+                story.generateStory(result.data as any);
+                break;
+              }
             }
-
-            setStoryInfo(newStoryInfo);
-            setStoryImages(newImages);
-            setStoryPhase("plot");
-            console.log("故事階段轉換: characters → plot", newStoryInfo);
           }
-
-          // 解析劇情資料
-          const { hasPlot, plotData } = parsePlotFromResponse(finalResponse);
-          if (hasPlot && plotData) {
-            const cleanedPlot = finalResponse
-              .replace(/```json\s*\[PLOT_READY\][\s\S]*?\[\/PLOT_READY\]\s*```/g, '')
-              .replace(/\[PLOT_READY\][\s\S]*?\[\/PLOT_READY\]/g, '')
-              .trim();
-            finalResponse = cleanedPlot;
-
-            const newStoryInfo = {
-              ...storyInfo,
-              plotGoal: plotData.plotGoal,
-              plotObstacle: plotData.plotObstacle,
-              plotResolution: plotData.plotResolution,
-              storyTitle: plotData.storyTitle,
-            };
-
-            // 生成場景插圖 via Pollinations
-            if (plotData.scenes && Array.isArray(plotData.scenes)) {
-              const sceneImages = plotData.scenes.map((scene: any) => ({
-                url: generatePollinationsUrl(
-                  generateSceneImagePrompt(scene.description, storyInfo.setting || "", storyInfo.genre || ""),
-                  768, 512
-                ),
-                caption: scene.caption,
-              }));
-              setStoryImages(prev => [...prev, ...sceneImages]);
-              newStoryInfo.sceneImageUrls = sceneImages.map((s: any) => s.url);
-            }
-
-            setStoryInfo(newStoryInfo);
-            setStoryPhase("illustration");
-            console.log("故事階段轉換: plot → illustration", newStoryInfo);
-          }
-
-          // 解析完整故事
-          const { hasStory, storyData } = parseStoryCompleteFromResponse(finalResponse);
-          if (hasStory && storyData) {
-            const cleanedFinal = finalResponse
-              .replace(/```json\s*\[STORY_COMPLETE\][\s\S]*?\[\/STORY_COMPLETE\]\s*```/g, '')
-              .replace(/\[STORY_COMPLETE\][\s\S]*?\[\/STORY_COMPLETE\]/g, '')
-              .trim();
-
-            // 把故事內容格式化成顯示文字
-            const storyText = `📖 **${storyData.title}**\n\n${storyData.paragraphs.join("\n\n")}`;
-            finalResponse = cleanedFinal + "\n\n" + storyText;
-
-            setStoryInfo(prev => ({
-              ...prev,
-              storyTitle: storyData.title,
-              storyContent: storyData.paragraphs.join("\n\n"),
-            }));
-
-            // 獎勵完成金幣
-            addCoins(20, "完成故事創作");
-
-            // 延遲完成腳本
-            setStoryPhase("complete");
-            console.log("故事階段轉換: illustration → complete");
-
-            // 封存對話
-            const archiveMessages = [
-              ...conversation,
-              { content: msg, role: "user" },
-              { content: finalResponse, role: "system" },
-            ]
-              .filter((m) => m.content)
-              .map((m) => ({
-                content: m.content,
-                role: m.role as "user" | "system",
-                timestamp: new Date().toISOString(),
-              }));
-            archiveConversation(`故事：${storyData.title}`, archiveMessages);
-
-            setTimeout(() => {
-              setConversation([]);
-              setShowEmptyChat(true);
-              setQuickReplies([]);
-              setStoryPhase("intro");
-              setStoryInfo({});
-              setStoryImages([]);
-              setScriptTurnCount(0);
-              storyScriptInitialized.current = false;
-              onScriptComplete?.();
-            }, 3000);
-          }
-        }
-
-        // 檢查是否包含學生資訊
-        const { hasStudentInfo, studentInfo, cleanResponse: cleanedStudentResponse } = parseStudentInfoFromResponse(finalResponse);
-        if (hasStudentInfo && studentInfo) {
-          finalResponse = cleanedStudentResponse;
-
-          // 更新已收集的學生資訊
-          setCollectedStudentInfo(studentInfo);
-
-          // 保存學生資訊到記憶
-          if (memory) {
-            const personalInfo = {
-              ...memory.personalInfo,
-              nickname: studentInfo.nickname,
-              occupation: `${studentInfo.grade}學生`,
-              interests: studentInfo.hobbies,
-              customFacts: [
-                `喜歡的科目: ${studentInfo.favoriteSubject}`,
-                `希望 AI 幫助: ${studentInfo.needsHelp}`,
-              ],
-            };
-            console.log("Student info saved to memory:", personalInfo);
-          }
-
-          // 保存 Avatar 個性到記憶
-          if (avatarPersonality) {
-            console.log("Avatar personality saved to memory:", avatarPersonality);
-          }
-
-          // 封存對話到 sessions
-          const questArchiveMessages = [
-            ...conversation,
-            { content: msg, role: "user" },
-            { content: finalResponse, role: "system" },
-          ]
-            .filter((m) => m.content)
-            .map((m) => ({
-              content: m.content,
-              role: m.role as "user" | "system",
-              timestamp: new Date().toISOString(),
-            }));
-          archiveConversation("了解學生問卷", questArchiveMessages);
-
-          // 完成腳本並重置
-          setScriptPhase("complete");
-          console.log("階段轉換: questionnaire → complete");
-          setTimeout(() => {
-            setConversation([]);
-            setShowEmptyChat(true);
-            setQuickReplies([]);
-            setScriptPhase("appearance");
-            setCollectedInfo({});
-            setCollectedStudentInfo({});
-            setAvatarPersonality(null);
-            setScriptTurnCount(0);
-            hasStartedGeneration.current = false;
-            onScriptComplete?.();
-          }, 500);
         }
 
         const updatedConversation = [
@@ -1066,12 +1193,25 @@ const Chat = (props: ChatProps) => {
         setConversation(updatedConversation);
 
         // 如果有 Avatar 資料，開始生成圖片
-        if (hasAvatar && avatarData) {
-          generateAvatarImage(avatarData);
+        if (avatarDataForGeneration) {
+          generateAvatarImage(avatarDataForGeneration as Record<string, string>);
         }
 
-        // 非腳本模式時，處理記憶
+        // 非腳本模式時，保存對話到 ConversationContext
         if (!activeScript) {
+          // Ensure there's an active conversation to save into
+          if (!currentConversation) {
+            createNewConversation();
+          }
+          const messagesToSave = updatedConversation
+            .filter((m) => m.content)
+            .map((m) => ({
+              content: m.content,
+              role: m.role as "user" | "system",
+              timestamp: new Date().toISOString(),
+            }));
+          updateConversationMessages(messagesToSave);
+
           const newCount = incrementMessageCount();
           if (shouldTriggerExtraction(newCount)) {
             const recentMessages = updatedConversation
@@ -1125,14 +1265,14 @@ const Chat = (props: ChatProps) => {
           <div className="flex items-center gap-4">
             <button
               type="button"
-              className="md:hidden text-[var(--terminal-primary)] hover:glow-text"
-              onClick={toggleComponentVisibility}
+              className={`md:hidden text-[var(--terminal-primary)] ${activeScript ? "opacity-30 cursor-not-allowed" : "hover:glow-text"}`}
+              onClick={activeScript ? undefined : toggleComponentVisibility}
             >
               <RxHamburgerMenu className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-2">
               <span className="text-[var(--terminal-primary)] glow-text text-sm">
-                {activeScript === "create-avatar" ? "◉ AVATAR_CREATOR" : activeScript === "story-helper" ? "◉ STORY_CREATOR" : "◉ LAB-TERMINAL v2.0"}
+                {currentScript ? `◉ ${currentScript.terminalTitle}` : "◉ LAB-TERMINAL v2.0"}
               </span>
               {!activeScript && (
                 <span className="text-[var(--terminal-primary-dim)] text-xs hidden sm:inline">
@@ -1191,18 +1331,11 @@ const Chat = (props: ChatProps) => {
               <div className="flex flex-col">
                 {/* Session Info */}
                 <div className="px-4 py-2 border-b border-[var(--terminal-primary-dim)] text-xs text-[var(--terminal-primary-dim)]">
-                  {activeScript === "create-avatar" ? (
+                  {currentScript ? (
                     <>
                       <div>+------------------------------------------------------------------+</div>
-                      <div>| SCRIPT: CREATE_AVATAR | {currentTime}</div>
-                      <div>| MODE: INTERACTIVE DESIGN</div>
-                      <div>+------------------------------------------------------------------+</div>
-                    </>
-                  ) : activeScript === "story-helper" ? (
-                    <>
-                      <div>+------------------------------------------------------------------+</div>
-                      <div>| SCRIPT: STORY_CREATOR | {currentTime}</div>
-                      <div>| MODE: CREATIVE WRITING | PHASE: {storyPhase.toUpperCase()}</div>
+                      <div>| SCRIPT: {currentScript.terminalTitle} | {currentTime}</div>
+                      <div>| MODE: {currentScript.sessionMode}{activeScript === "story-helper" ? ` | ROUND: ${story.currentRound}/${story.totalRounds} | ${storyPhase.toUpperCase()}` : ""}</div>
                       <div>+------------------------------------------------------------------+</div>
                     </>
                   ) : (
@@ -1220,16 +1353,55 @@ const Chat = (props: ChatProps) => {
                   const isLastSystem = message.role === "system"
                     && message.content !== null
                     && index === conversation.length - 1;
+
+                  // Render archived story — collect all STORY_PANEL + STORY_HEADER into a slideshow
+                  if (message.content?.startsWith("[STORY_HEADER]")) {
+                    const titleMatch = message.content.match(/\[STORY_HEADER\](.*?)\[\/STORY_HEADER\]/);
+                    const title = titleMatch ? titleMatch[1] : "";
+                    const info = message.content.replace(/\[STORY_HEADER\].*?\[\/STORY_HEADER\]\n?/, "").trim();
+
+                    // Collect subsequent STORY_PANEL messages
+                    const archivedPanels: { imageUrl: string; text: string; audioUrl?: string }[] = [];
+                    for (let j = index + 1; j < conversation.length; j++) {
+                      const m = conversation[j];
+                      if (!m.content?.startsWith("[STORY_PANEL]")) break;
+                      const pImgMatch = m.content.match(/\[IMG\](.*?)\[\/IMG\]/);
+                      const pAudioUrlMatch = m.content.match(/\[AUDIO_URL\](.*?)\[\/AUDIO_URL\]/);
+                      const pText = m.content
+                        .replace(/\[STORY_PANEL\]\n?/, "")
+                        .replace(/\[IMG\].*?\[\/IMG\]\n?/, "")
+                        .replace(/\[AUDIO_URL\].*?\[\/AUDIO_URL\]\n?/, "")
+                        .trim();
+                      archivedPanels.push({
+                        imageUrl: pImgMatch ? pImgMatch[1] : "",
+                        text: pText,
+                        audioUrl: pAudioUrlMatch ? pAudioUrlMatch[1] : undefined,
+                      });
+                    }
+
+                    return (
+                      <ArchivedStoryPlayer
+                        key={index}
+                        title={title}
+                        info={info}
+                        panels={archivedPanels}
+                      />
+                    );
+                  }
+
+                  // Skip individual STORY_PANEL messages (already consumed by STORY_HEADER above)
+                  if (message.content?.startsWith("[STORY_PANEL]")) {
+                    return null;
+                  }
+
                   return (
                     <Message
                       key={index}
                       message={message}
                       avatarName={
-                        activeScript === "create-avatar" && collectedInfo.name
-                          ? collectedInfo.name
-                          : activeScript === "story-helper"
-                            ? "故事小幫手"
-                            : undefined
+                        currentScript
+                          ? currentScript.getAvatarName({ collectedInfo })
+                          : undefined
                       }
                       streaming={isLastSystem}
                       onStreamComplete={scrollToBottom}
@@ -1252,62 +1424,120 @@ const Chat = (props: ChatProps) => {
                     {/* Always show "自己輸入" as last option */}
                     <button
                       onClick={() => {
-                        setQuickReplies([]);
+                        setShowInputGuide(true);
                         textAreaRef.current?.focus();
                       }}
-                      className="px-3 py-1.5 text-xs border border-dashed border-[var(--terminal-accent)] text-[var(--terminal-accent)] hover:border-[var(--terminal-primary)] hover:text-[var(--terminal-primary)] transition-all"
+                      className={`px-3 py-1.5 text-xs border border-dashed transition-all ${
+                        showInputGuide
+                          ? "border-[var(--terminal-primary)] text-[var(--terminal-primary)] bg-[var(--terminal-primary)]/10"
+                          : "border-[var(--terminal-accent)] text-[var(--terminal-accent)] hover:border-[var(--terminal-primary)] hover:text-[var(--terminal-primary)]"
+                      }`}
                     >
                       ✏️ 自己輸入
                     </button>
                   </div>
                 )}
 
-                {/* Story Images */}
-                {activeScript === "story-helper" && storyImages.length > 0 && (
+                {/* Input Guide - shown when "自己輸入" is clicked */}
+                {showInputGuide && (
+                  <div className="px-4 py-2 flex items-center gap-2 animate-pulse">
+                    <span className="text-[var(--terminal-primary)] text-lg">↓</span>
+                    <span className="text-[var(--terminal-primary)] text-xs">
+                      在下方輸入框打字，或按麥克風用語音輸入！
+                    </span>
+                    <span className="text-[var(--terminal-primary)] text-lg">↓</span>
+                  </div>
+                )}
+
+                {/* Story: Character Preview */}
+                {activeScript === "story-helper" && storyPhase === "preview_character" && story.currentCharacterUrl && (
                   <div className="px-4 py-3">
-                    <div className="text-[var(--terminal-accent)] text-xs mb-2">{'>'} 生成的插圖：</div>
-                    <div className="grid grid-cols-2 gap-3">
-                      {storyImages.map((img, i) => (
-                        <div key={i} className="border border-[var(--terminal-primary-dim)] p-1">
-                          <div className="relative">
-                            <div className="img-loading w-full h-32 flex items-center justify-center bg-gray-900 text-[var(--terminal-primary-dim)] text-xs">
-                              <span className="animate-pulse">生成圖片中...</span>
-                            </div>
+                    <div className="text-[var(--terminal-accent)] text-xs mb-2">{'>'} 你的角色：</div>
+                    <div className="border border-[var(--terminal-primary)] p-1 w-[400px] max-w-full mx-auto">
+                      <div className="relative">
+                        <div className="w-full aspect-square flex items-center justify-center bg-black text-[var(--terminal-primary-dim)] text-xs">
+                          <span className="animate-pulse">生成角色中...</span>
+                        </div>
+                        <img
+                          key={story.currentCharacterUrl}
+                          src={story.currentCharacterUrl}
+                          alt="Character"
+                          className="w-full h-auto object-cover"
+                          style={{ display: "none" }}
+                          onLoad={(e) => {
+                            const el = e.target as HTMLImageElement;
+                            el.style.display = "block";
+                            const loader = el.previousElementSibling as HTMLElement;
+                            if (loader) loader.style.display = "none";
+                          }}
+                          onError={(e) => {
+                            const el = e.target as HTMLImageElement;
+                            const retried = el.dataset.retried;
+                            if (!retried) {
+                              el.dataset.retried = "1";
+                              setTimeout(() => {
+                                el.src = story.currentCharacterUrl + "&retry=1";
+                              }, 4000);
+                            } else if (retried === "1") {
+                              el.dataset.retried = "2";
+                              setTimeout(() => {
+                                el.src = story.currentCharacterUrl + "&retry=2";
+                              }, 5000);
+                            } else {
+                              const loader = el.previousElementSibling as HTMLElement;
+                              if (loader) loader.innerHTML = '<span class="text-red-400">載入失敗，按「換一個」重試</span>';
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="text-[var(--terminal-primary-dim)] text-[10px] text-center mt-1">
+                      已換 {story.rerollCount}/{story.maxRerolls} 次
+                    </div>
+                  </div>
+                )}
+
+                {/* Story: Slideshow */}
+                {activeScript === "story-helper" && storyPhase === "slideshow" && story.slideshowPanels.length > 0 && (
+                  <StorySlideshow
+                    panels={story.slideshowPanels}
+                    storyTitle={story.slideshowTitle}
+                    roundNumber={story.currentRound}
+                    onComplete={handleSlideshowDone}
+                  />
+                )}
+
+                {/* Story: Pick Favorite */}
+                {activeScript === "story-helper" && storyPhase === "pick_favorite" && story.completedRounds.length > 0 && (
+                  <div className="px-4 py-3">
+                    <div className="text-[var(--terminal-accent)] text-xs mb-3">{'>'} 你的 3 個故事：</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {story.completedRounds.map((round, i) => (
+                        <div key={i} className="border border-[var(--terminal-primary-dim)] p-1 text-center">
+                          {round.panels[0] && (
                             <img
-                              src={img.url}
-                              alt={img.caption}
-                              className="w-full h-auto object-cover"
-                              style={{ display: "none" }}
-                              onLoad={(e) => {
-                                const el = e.target as HTMLImageElement;
-                                el.style.display = "block";
-                                const loader = el.previousElementSibling;
-                                if (loader) (loader as HTMLElement).style.display = "none";
-                              }}
-                              onError={(e) => {
-                                const el = e.target as HTMLImageElement;
-                                const retried = el.dataset.retried;
-                                if (!retried) {
-                                  el.dataset.retried = "1";
-                                  // Pollinations generates on-demand; retry after delay
-                                  setTimeout(() => {
-                                    el.src = img.url + "&retry=1";
-                                  }, 5000);
-                                } else {
-                                  // Show error in the loading placeholder
-                                  const loader = el.previousElementSibling;
-                                  if (loader) {
-                                    (loader as HTMLElement).innerHTML = '<span class="text-red-400">圖片載入失敗</span>';
-                                  }
-                                }
-                              }}
+                              src={round.panels[0].imageUrl}
+                              alt={round.storyTitle}
+                              className="w-full h-20 object-cover"
                             />
-                          </div>
-                          <div className="text-[var(--terminal-primary)] text-xs text-center mt-1 px-1">
-                            {img.caption}
+                          )}
+                          <div className="text-[var(--terminal-primary)] text-[10px] mt-1 truncate px-1">
+                            {round.storyTitle}
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Story: Generating indicator */}
+                {activeScript === "story-helper" && storyPhase === "generating_story" && story.isGenerating && (
+                  <div className="px-4 py-6 text-center">
+                    <div className="text-[var(--terminal-primary)] text-sm animate-pulse glow-text">
+                      正在創作故事和插圖...
+                    </div>
+                    <div className="text-[var(--terminal-primary-dim)] text-xs mt-2">
+                      生成圖片和配音中，請稍等
                     </div>
                   </div>
                 )}
@@ -1363,6 +1593,32 @@ const Chat = (props: ChatProps) => {
 
         {/* Input Area */}
         <div className="absolute bottom-0 left-0 w-full border-t border-[var(--terminal-primary-dim)] bg-[var(--terminal-bg)]">
+          {/* Script Progress Bar (fixed above input) */}
+          {activeScript && !showEmptyChat && (
+            <div className="px-4 py-1.5 border-b border-[var(--terminal-primary-dim)] bg-[var(--terminal-bg)]">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-[var(--terminal-primary)] shrink-0">
+                  {currentScript?.terminalTitle || activeScript}
+                </span>
+                <div className="flex-1 h-3 border border-[var(--terminal-primary-dim)] bg-black/50 relative overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-500 ease-out ${scriptProgress >= 100 ? "bg-green-400" : "bg-[var(--terminal-primary)]"}`}
+                    style={{ width: `${scriptProgress}%` }}
+                  />
+                  <div
+                    className="absolute inset-0 flex items-center justify-center text-[8px] font-bold"
+                    style={{ color: scriptProgress > 50 ? "var(--terminal-bg)" : "var(--terminal-primary)" }}
+                  >
+                    {scriptProgress}%
+                  </div>
+                </div>
+                {scriptProgress >= 100 && (
+                  <span className="text-green-400 text-[10px] shrink-0 animate-pulse">COMPLETE</span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Voice Recorder Popup */}
           {showVoiceRecorder && (
             <VoiceRecorder
@@ -1389,7 +1645,7 @@ const Chat = (props: ChatProps) => {
                 <span className="text-[var(--terminal-highlight)] shrink-0 sm:hidden">
                   $
                 </span>
-                <div data-tutorial="chat-input" className="flex-1 flex items-center gap-2 terminal-border px-3 py-2">
+                <div data-tutorial="chat-input" className={`flex-1 flex items-center gap-2 terminal-border px-3 py-2 transition-all ${showInputGuide ? "border-[var(--terminal-primary)] shadow-[0_0_12px_var(--terminal-primary)]" : ""}`}>
                   <textarea
                     ref={textAreaRef}
                     value={message}
@@ -1430,7 +1686,7 @@ const Chat = (props: ChatProps) => {
 
           {/* Status Bar */}
           <div className="terminal-status text-[10px]">
-            <span>STATUS: {isLoading ? "PROCESSING..." : pendingAvatar?.isGenerating ? "GENERATING..." : storyPhase === "illustration" && activeScript === "story-helper" ? "ILLUSTRATING..." : "READY"}</span>
+            <span>STATUS: {isLoading ? "PROCESSING..." : pendingAvatar?.isGenerating ? "GENERATING..." : story.isGenerating ? "CREATING_STORY..." : "READY"}</span>
             <span className="hidden sm:inline">
               {activeScript ? `SCRIPT: ${activeScript}` : `MEM: ${memory?.topicSummaries.length || 0} | MODEL: ${selectedModel.id}`}
             </span>
@@ -1457,8 +1713,10 @@ const Chat = (props: ChatProps) => {
                 {activeScript === "story-helper" && (
                   <>
                     <div>storyPhase: <b>{storyPhase}</b></div>
-                    <div>storyInfo: {JSON.stringify(storyInfo)}</div>
-                    <div>storyImages: {storyImages.length}</div>
+                    <div>round: {story.currentRound}/{story.totalRounds}</div>
+                    <div>rerolls: {story.rerollCount}/{story.maxRerolls}</div>
+                    <div>roundData: {JSON.stringify(story.currentRoundData)}</div>
+                    <div>completedRounds: {story.completedRounds.length}</div>
                   </>
                 )}
                 <div>scriptTurnCount: {scriptTurnCount}</div>

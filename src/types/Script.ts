@@ -41,5 +41,5 @@ export interface UserAvatar {
   personality?: AvatarPersonality;
 }
 
-// 腳本執行狀態
-export type ActiveScript = "create-avatar" | "story-helper" | null;
+// 腳本執行狀態（使用 string 以支援動態新增腳本）
+export type ActiveScript = string | null;

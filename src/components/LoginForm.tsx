@@ -188,7 +188,7 @@ const LoginForm = ({ onSuccess }: LoginFormProps) => {
 
                 {faceStatus === "waiting" && (
                   <div className="text-[var(--terminal-primary-dim)] text-[10px]">
-                    {/* 請面向攝影機 */} 請面向攝影機，系統正在辨識您的身份...
+                    {"// 請面向攝影機，系統正在辨識您的身份..."}
                   </div>
                 )}
 
@@ -213,7 +213,7 @@ const LoginForm = ({ onSuccess }: LoginFormProps) => {
               </div>
               {faceStatus === "unavailable" && (
                 <div className="text-[var(--terminal-primary-dim)] text-[10px] mt-1">
-                  {/* FACE_ID */} FACE_ID 未偵測到，使用帳號登入
+                  {"// FACE_ID 未偵測到，使用帳號登入"}
                 </div>
               )}
             </div>
@@ -351,6 +351,7 @@ const LoginForm = ({ onSuccess }: LoginFormProps) => {
         steps={tutorialSteps}
         active={showTutorial && bootComplete}
         onComplete={() => setShowTutorial(false)}
+        skippable
       />
     </div>
   );

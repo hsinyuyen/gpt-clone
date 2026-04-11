@@ -15,7 +15,15 @@ export default function Home() {
   const [isComponentVisible, setIsComponentVisible] = useState(false);
   const [isScriptPanelOpen, setIsScriptPanelOpen] = useState(true);
   const [activeScript, setActiveScript] = useState<ActiveScript>(null);
-  const [completedScripts, setCompletedScripts] = useState<Set<string>>(new Set());
+  const [completedScripts, setCompletedScripts] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const saved = localStorage.getItem("completedScripts");
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
   const [showCompletionToast, setShowCompletionToast] = useState(false);
   const { trackEvent } = useAnalytics();
   const { user, isLoading } = useAuth();
@@ -66,18 +74,12 @@ export default function Home() {
   // Tutorial steps for main page (first-time)
   const tutorialSteps: TutorialStep[] = [
     {
-      target: "[data-tutorial='script-panel']",
-      text: "這是「腳本庫」！你可以在這裡找到各種任務，第一步先創建你的 AI 助理吧！",
+      target: "[data-tutorial='script-create-avatar']",
+      text: "歡迎！第一步先創建你的 AI 助理吧！點這個按鈕開始，跟著 AI 的提示一步一步回答就可以囉！",
       position: "left",
       beforeShow: () => {
         if (!isScriptPanelOpen) setIsScriptPanelOpen(true);
       },
-    },
-    {
-      target: "[data-tutorial='script-create-avatar']",
-      text: "點這個按鈕就可以開始創建你的專屬 AI 助理角色！跟著 AI 的提示一步一步回答就可以囉！",
-      position: "left",
-      clickToAdvance: true,
     },
   ];
 
@@ -110,11 +112,7 @@ export default function Home() {
   };
 
   const handleStartScript = (scriptId: string) => {
-    if (scriptId === "create-avatar") {
-      setActiveScript("create-avatar");
-    } else if (scriptId === "story-helper") {
-      setActiveScript("story-helper");
-    }
+    setActiveScript(scriptId);
   };
 
   const handleStopScript = () => {
@@ -124,9 +122,13 @@ export default function Home() {
   const handleScriptComplete = () => {
     const wasAvatarScript = activeScript === "create-avatar";
 
-    // Mark script as completed
+    // Mark script as completed (persist to localStorage)
     if (activeScript) {
-      setCompletedScripts(prev => new Set(Array.from(prev).concat(activeScript)));
+      setCompletedScripts(prev => {
+        const next = new Set(Array.from(prev).concat(activeScript));
+        try { localStorage.setItem("completedScripts", JSON.stringify(Array.from(next))); } catch {}
+        return next;
+      });
     }
     // Close script
     setActiveScript(null);
@@ -147,11 +149,13 @@ export default function Home() {
   };
 
   const handleNewSession = () => {
-    // Chat component detects currentConversation changes
+    // Sidebar already calls createNewConversation();
+    // Chat reacts to currentConversation changes via useEffect
   };
 
   const handleSelectSession = (id: string) => {
-    // Chat component detects currentConversation changes
+    // Sidebar already calls selectConversation(id);
+    // Chat reacts to currentConversation changes via useEffect
   };
 
   if (isLoading || !user) {
@@ -171,24 +175,32 @@ export default function Home() {
       <ActivityOverlay />
 
       {/* Mobile Sidebar Overlay */}
-      {isComponentVisible ? (
+      {isComponentVisible && !activeScript ? (
         <MobileSiderbar toggleComponentVisibility={toggleComponentVisibility} />
       ) : null}
 
       {/* Left Sidebar - Desktop */}
-      <div className="hidden flex-shrink-0 bg-[var(--terminal-bg)] md:flex md:w-[260px] md:flex-col border-r border-[var(--terminal-primary-dim)]">
+      <div className="hidden flex-shrink-0 bg-[var(--terminal-bg)] md:flex md:w-[260px] md:flex-col border-r border-[var(--terminal-primary-dim)] relative">
         <div className="flex h-full min-h-0 flex-col">
           <Sidebar
             onNewSession={handleNewSession}
             onSelectSession={handleSelectSession}
           />
         </div>
+        {activeScript && (
+          <div className="absolute inset-0 bg-black/60 z-30 flex items-center justify-center cursor-not-allowed">
+            <div className="text-[var(--terminal-primary-dim)] text-xs text-center px-4">
+              <div className="animate-pulse">SCRIPT_RUNNING</div>
+              <div className="mt-1 text-[10px]">{"// 腳本執行中，完成後解鎖"}</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Main Chat Area */}
       <Chat
-        toggleComponentVisibility={toggleComponentVisibility}
-        toggleScriptPanel={toggleScriptPanel}
+        toggleComponentVisibility={activeScript ? () => {} : toggleComponentVisibility}
+        toggleScriptPanel={activeScript ? () => {} : toggleScriptPanel}
         isScriptPanelOpen={isScriptPanelOpen}
         activeScript={activeScript}
         onScriptComplete={handleScriptComplete}
@@ -199,7 +211,7 @@ export default function Home() {
         data-tutorial="script-panel"
         className={`
           hidden md:flex flex-shrink-0 bg-[var(--terminal-bg)]
-          transition-all duration-300 ease-in-out
+          transition-all duration-300 ease-in-out relative
           ${isScriptPanelOpen ? "md:w-[280px]" : "md:w-0"}
         `}
       >
@@ -210,15 +222,23 @@ export default function Home() {
           onStopScript={handleStopScript}
           completedScripts={completedScripts}
         />
+        {activeScript && isScriptPanelOpen && (
+          <div className="absolute inset-0 bg-black/60 z-30 flex items-center justify-center cursor-not-allowed">
+            <div className="text-[var(--terminal-primary-dim)] text-xs text-center px-4">
+              <div className="animate-pulse">SCRIPT_RUNNING</div>
+              <div className="mt-1 text-[10px]">{"// 腳本執行中，完成後解鎖"}</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Script Panel Toggle Button - Desktop */}
       <button
-        onClick={toggleScriptPanel}
+        onClick={activeScript ? undefined : toggleScriptPanel}
         data-tutorial="script-toggle"
-        className="hidden md:flex fixed right-0 top-1/2 -translate-y-1/2 z-20 bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] border-r-0 p-2 hover:bg-[var(--terminal-primary)]/10"
+        className={`hidden md:flex fixed right-0 top-1/2 -translate-y-1/2 z-20 bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] border-r-0 p-2 ${activeScript ? "opacity-30 cursor-not-allowed" : "hover:bg-[var(--terminal-primary)]/10"}`}
         style={{ right: isScriptPanelOpen ? "280px" : "0" }}
-        title={isScriptPanelOpen ? "關閉腳本庫" : "開啟腳本庫"}
+        title={activeScript ? "腳本執行中" : isScriptPanelOpen ? "關閉腳本庫" : "開啟腳本庫"}
       >
         <span className="text-[var(--terminal-primary)] text-xs">
           {isScriptPanelOpen ? "◁" : "▷"}

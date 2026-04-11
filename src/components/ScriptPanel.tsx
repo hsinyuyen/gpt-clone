@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Script, ActiveScript } from "@/types/Script";
-import { defaultScripts } from "@/data/avatarQuestions";
+import { getDisplayScripts } from "@/scripts";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCoin } from "@/contexts/CoinContext";
 import SpriteAnimator from "./SpriteAnimator";
@@ -21,7 +21,7 @@ const ScriptPanel: React.FC<ScriptPanelProps> = ({
   onStopScript,
   completedScripts = new Set(),
 }) => {
-  const [scripts] = useState<Script[]>(defaultScripts);
+  const [scripts] = useState<Script[]>(getDisplayScripts());
   const { user, updateUser } = useAuth();
   const { spendCoins, canAfford, COIN_VALUES } = useCoin();
   const [fps, setFps] = useState(8);
@@ -35,9 +35,26 @@ const ScriptPanel: React.FC<ScriptPanelProps> = ({
 
     if (activeScript === scriptId) {
       onStopScript();
-    } else {
-      onStartScript(scriptId);
+      return;
     }
+
+    // Story helper: first time free, after that costs 30 coins
+    if (scriptId === "story-helper" && completedScripts.has("story-helper")) {
+      if (!canAfford(COIN_VALUES.STORY_SCRIPT_COST)) {
+        alert(`需要 ${COIN_VALUES.STORY_SCRIPT_COST} ◆ 才能再次使用故事創作！`);
+        return;
+      }
+      if (!confirm(`再次使用故事創作需要花費 ${COIN_VALUES.STORY_SCRIPT_COST} ◆，確定嗎？`)) {
+        return;
+      }
+      const success = spendCoins(COIN_VALUES.STORY_SCRIPT_COST, "使用故事創作小幫手");
+      if (!success) {
+        alert("金幣不足！");
+        return;
+      }
+    }
+
+    onStartScript(scriptId);
   };
 
   const handleRegenerateAvatar = async () => {
@@ -208,6 +225,9 @@ const ScriptPanel: React.FC<ScriptPanelProps> = ({
           const isCompleted = completedScripts.has(script.id);
           // 如果用戶已經有 avatar，隱藏 create-avatar 選項
           const isHidden = script.id === "create-avatar" && avatar?.imageUrl;
+          // Story helper: costs coins after first use
+          const needsCoin = script.id === "story-helper" && isCompleted && !isActive;
+          const cantAfford = needsCoin && !canAfford(COIN_VALUES.STORY_SCRIPT_COST);
 
           if (isHidden) return null;
 
@@ -216,16 +236,18 @@ const ScriptPanel: React.FC<ScriptPanelProps> = ({
               key={script.id}
               data-tutorial={`script-${script.id}`}
               onClick={() => handleScriptClick(script.id)}
-              disabled={!script.isAvailable}
+              disabled={!script.isAvailable || cantAfford}
               className={`
                 w-full text-left p-3 border transition-all
                 ${isActive
                   ? "border-[var(--terminal-primary)] bg-[var(--terminal-primary)]/20"
-                  : isCompleted
-                    ? "border-green-500/50 bg-green-500/10"
-                    : script.isAvailable
-                      ? "border-[var(--terminal-primary-dim)] hover:border-[var(--terminal-primary)] hover:bg-[var(--terminal-primary)]/10 cursor-pointer"
-                      : "border-[var(--terminal-primary-dim)]/30 opacity-40 cursor-not-allowed"
+                  : cantAfford
+                    ? "border-[var(--terminal-primary-dim)]/30 opacity-50 cursor-not-allowed"
+                    : isCompleted
+                      ? "border-green-500/50 bg-green-500/10"
+                      : script.isAvailable
+                        ? "border-[var(--terminal-primary-dim)] hover:border-[var(--terminal-primary)] hover:bg-[var(--terminal-primary)]/10 cursor-pointer"
+                        : "border-[var(--terminal-primary-dim)]/30 opacity-40 cursor-not-allowed"
                 }
               `}
             >
@@ -251,6 +273,11 @@ const ScriptPanel: React.FC<ScriptPanelProps> = ({
                     {isCompleted && !isActive && (
                       <span className="text-[8px] text-green-900 bg-green-400 px-1">
                         已完成
+                      </span>
+                    )}
+                    {needsCoin && (
+                      <span className={`text-[8px] px-1 ${cantAfford ? "text-red-400 border border-red-400/50" : "text-yellow-400 border border-yellow-400/50"}`}>
+                        {COIN_VALUES.STORY_SCRIPT_COST} ◆
                       </span>
                     )}
                     {!script.isAvailable && (

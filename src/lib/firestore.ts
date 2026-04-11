@@ -15,6 +15,7 @@ import { User } from "@/types/User";
 import { UserMemory } from "@/types/Memory";
 import { Conversation, ConversationMessage } from "@/types/Conversation";
 import { ActivityState, UserActivityRecord } from "@/types/Activity";
+import { PlayerCardCollection, PvpBattleRoom } from "@/types/Card";
 
 // ============ Users ============
 
@@ -169,6 +170,30 @@ export async function saveUserActivityRecord(
   );
 }
 
+// ============ Announcements ============
+
+export interface Announcement {
+  message: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export async function getAnnouncement(): Promise<string | null> {
+  const snap = await getDoc(doc(db, "system", "announcement"));
+  if (!snap.exists()) return null;
+  const data = snap.data() as Announcement;
+  return data.message || null;
+}
+
+export async function saveAnnouncement(message: string, createdBy: string): Promise<void> {
+  const data: Announcement = {
+    message,
+    createdAt: new Date().toISOString(),
+    createdBy,
+  };
+  await setDoc(doc(db, "system", "announcement"), data);
+}
+
 // ============ Avatar Storage ============
 
 /**
@@ -219,4 +244,75 @@ export async function uploadStoryImage(
   }
 
   return await getDownloadURL(storageRef);
+}
+
+/**
+ * Upload story audio files (base64 mp3) to Firebase Storage, return download URLs.
+ */
+export async function uploadStoryAudio(
+  userId: string,
+  storyId: string,
+  audioFiles: { base64: string; index: number }[]
+): Promise<Map<number, string>> {
+  const urlMap = new Map<number, string>();
+
+  for (const file of audioFiles) {
+    const path = `stories/${userId}/${storyId}/audio_${file.index}.mp3`;
+    const storageRef = ref(storage, path);
+    await uploadString(storageRef, file.base64, "base64");
+    const url = await getDownloadURL(storageRef);
+    urlMap.set(file.index, url);
+  }
+
+  return urlMap;
+}
+
+// ============ Card Images ============
+
+export interface CardImageMap {
+  [cardId: string]: string; // cardId -> imageUrl
+}
+
+export async function getCardImages(): Promise<CardImageMap> {
+  const snap = await getDoc(doc(db, "system", "cardImages"));
+  return snap.exists() ? (snap.data() as CardImageMap) : {};
+}
+
+export async function saveCardImages(images: CardImageMap): Promise<void> {
+  await setDoc(doc(db, "system", "cardImages"), images);
+}
+
+// ============ Card Collections ============
+
+export async function getCardCollection(userId: string): Promise<PlayerCardCollection | null> {
+  const snap = await getDoc(doc(db, "cardCollections", userId));
+  return snap.exists() ? (snap.data() as PlayerCardCollection) : null;
+}
+
+export async function saveCardCollection(userId: string, data: PlayerCardCollection): Promise<void> {
+  await setDoc(doc(db, "cardCollections", userId), data);
+}
+
+// ============ PvP Rooms ============
+
+export async function getPvpRoom(roomId: string): Promise<PvpBattleRoom | null> {
+  const snap = await getDoc(doc(db, "pvpRooms", roomId));
+  return snap.exists() ? (snap.data() as PvpBattleRoom) : null;
+}
+
+export async function savePvpRoom(room: PvpBattleRoom): Promise<void> {
+  await setDoc(doc(db, "pvpRooms", room.id), room);
+}
+
+export async function deletePvpRoom(roomId: string): Promise<void> {
+  await deleteDoc(doc(db, "pvpRooms", roomId));
+}
+
+export async function getOpenPvpRooms(): Promise<PvpBattleRoom[]> {
+  const q = query(
+    collection(db, "pvpRooms"),
+    where("status", "==", "waiting")
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => d.data() as PvpBattleRoom);
 }

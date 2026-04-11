@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAllUsers, getCoinState, saveCoinState, CoinState, getGlobalActivityState, setGlobalActivityState } from "@/lib/firestore";
+import { getAllUsers, getCoinState, saveCoinState, CoinState, getGlobalActivityState, setGlobalActivityState, getAnnouncement, saveAnnouncement } from "@/lib/firestore";
 import { User } from "@/types/User";
 import { ActivityState } from "@/types/Activity";
 import { ACTIVITIES } from "@/data/activityRegistry";
@@ -31,6 +31,8 @@ export default function AdminPage() {
     activatedBy: null,
   });
   const [activityLoading, setActivityLoading] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
+  const [announcementSaved, setAnnouncementSaved] = useState(false);
 
   const isAdmin = user && (ADMIN_USERNAMES.includes(user.username.toLowerCase()) || accessBypass);
 
@@ -68,6 +70,9 @@ export default function AdminPage() {
     if (user && isAdmin) {
       loadUsers();
       getGlobalActivityState().then(setActivityState);
+      getAnnouncement().then((msg) => {
+        if (msg) setAnnouncement(msg);
+      }).catch(() => {});
     }
   }, [user, isLoading, isAdmin, router, loadUsers]);
 
@@ -196,12 +201,20 @@ export default function AdminPage() {
             管理學生帳號和金幣獎勵 | 登入帳號: {user?.username}
           </div>
         </div>
-        <button
-          onClick={() => router.push("/")}
-          className="px-4 py-2 text-sm border border-[var(--terminal-primary-dim)] hover:bg-[var(--terminal-primary)]/10"
-        >
-          ← 返回主頁
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => router.push("/admin/card-images")}
+            className="px-4 py-2 text-sm border border-purple-500 text-purple-400 hover:bg-purple-900/20"
+          >
+            🎨 卡片圖片
+          </button>
+          <button
+            onClick={() => router.push("/")}
+            className="px-4 py-2 text-sm border border-[var(--terminal-primary-dim)] hover:bg-[var(--terminal-primary)]/10"
+          >
+            ← 返回主頁
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -228,6 +241,44 @@ export default function AdminPage() {
             {users.reduce((sum, r) => sum + (r.coins?.totalEarned || 0), 0)}
           </div>
         </div>
+      </div>
+
+      {/* Commander Announcement */}
+      <div className="border border-[var(--terminal-accent)] bg-[var(--terminal-accent)]/5 p-4 mb-6">
+        <div className="text-[var(--terminal-accent)] text-sm font-bold mb-3">📢 指揮官公告</div>
+        <div className="flex flex-wrap gap-3 items-end">
+          <div className="flex-1 min-w-[200px]">
+            <label className="text-xs text-[var(--terminal-primary-dim)] block mb-1">公告訊息（留空則清除）</label>
+            <input
+              type="text"
+              value={announcement}
+              onChange={(e) => {
+                setAnnouncement(e.target.value);
+                setAnnouncementSaved(false);
+              }}
+              className="w-full bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-3 py-2 text-sm"
+              placeholder="輸入要公告給所有學生的訊息..."
+            />
+          </div>
+          <button
+            onClick={async () => {
+              await saveAnnouncement(announcement, user?.username || "admin");
+              setAnnouncementSaved(true);
+              setTimeout(() => setAnnouncementSaved(false), 3000);
+            }}
+            className="px-4 py-2 text-sm font-bold border-2 border-[var(--terminal-accent)] text-[var(--terminal-accent)] hover:bg-[var(--terminal-accent)] hover:text-black transition-colors"
+          >
+            發布公告
+          </button>
+        </div>
+        {announcementSaved && (
+          <div className="mt-2 text-sm text-green-400">公告已發布！學生將在 60 秒內看到。</div>
+        )}
+        {announcement && (
+          <div className="mt-2 text-xs text-[var(--terminal-primary-dim)]">
+            目前公告：「{announcement}」
+          </div>
+        )}
       </div>
 
       {/* Coin Bonus Controls */}

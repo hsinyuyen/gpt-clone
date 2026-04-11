@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useZhuyin } from "@/contexts/ZhuyinContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMemory } from "@/contexts/MemoryContext";
 import { useConversation } from "@/contexts/ConversationContext";
+import { getAnnouncement } from "@/lib/firestore";
 import MemoryPanel from "./MemoryPanel";
 
 interface SidebarProps {
@@ -11,12 +12,40 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
-  const { fontSize, setFontSize } = useZhuyin();
+  const { fontSize, setFontSize, zhuyinMode, setZhuyinMode } = useZhuyin();
   const { user, logout } = useAuth();
   const { memory } = useMemory();
   const { conversations, currentConversation, createNewConversation, selectConversation, deleteConversation } = useConversation();
   const [isMemoryPanelOpen, setIsMemoryPanelOpen] = useState(false);
   const [showSessions, setShowSessions] = useState(true);
+  const [isStoryGalleryOpen, setIsStoryGalleryOpen] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
+  const [isNewAnnouncement, setIsNewAnnouncement] = useState(false);
+  const lastSeenAnnouncementRef = useRef("");
+
+  // Fetch and poll announcements
+  useEffect(() => {
+    const fetchAnnouncement = () => {
+      getAnnouncement().then((msg) => {
+        if (msg && msg !== lastSeenAnnouncementRef.current) {
+          setAnnouncement(msg);
+          setIsNewAnnouncement(true);
+          // Auto-dismiss "new" highlight after 10s
+          setTimeout(() => setIsNewAnnouncement(false), 10000);
+        } else if (!msg) {
+          setAnnouncement("");
+        }
+      }).catch(() => {});
+    };
+    fetchAnnouncement();
+    const interval = setInterval(fetchAnnouncement, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const dismissAnnouncement = () => {
+    lastSeenAnnouncementRef.current = announcement;
+    setIsNewAnnouncement(false);
+  };
 
   const handleLogout = () => {
     logout();
@@ -42,8 +71,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
   const ADMIN_USERNAMES = ["admin", "teacher", "老師"];
   const isAdmin = user && ADMIN_USERNAMES.includes(user.username.toLowerCase());
 
+  const storyConvs = conversations.filter((c) => c.title?.startsWith("故事："));
+
   const menuItems = [
+    { id: "stories", label: "STORY_GALLERY", shortcut: "", action: () => setIsStoryGalleryOpen(!isStoryGalleryOpen), badge: storyConvs.length || undefined, active: isStoryGalleryOpen },
     { id: "memory", label: "MEMORY_BANK", shortcut: "Ctrl+M", action: () => setIsMemoryPanelOpen(true), badge: memory?.topicSummaries.length },
+    { id: "zhuyin", label: `ZHUYIN_MODE [${zhuyinMode ? "ON" : "OFF"}]`, shortcut: "Ctrl+Z", action: () => setZhuyinMode(!zhuyinMode), active: zhuyinMode },
+    { id: "shop", label: "AVATAR_SHOP", shortcut: "Ctrl+S", action: () => window.location.href = "/shop", dataTutorial: "sidebar-shop" },
+    { id: "cards", label: "CARD_BATTLE", shortcut: "Ctrl+B", action: () => window.location.href = "/cards" },
     ...(isAdmin ? [{ id: "admin", label: "ADMIN_PANEL", shortcut: "Ctrl+A", action: () => window.location.href = "/admin" }] : []),
   ];
 
@@ -90,6 +125,41 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
             {user.avatar?.name && (
               <div className="text-[10px] text-[var(--terminal-amber)] mt-1">
                 AI_ASSISTANT: {user.avatar.name}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Commander Announcement */}
+        {announcement && (
+          <div
+            className={`p-2 border-b transition-all ${
+              isNewAnnouncement
+                ? "border-yellow-400 bg-yellow-400/10 animate-pulse"
+                : "border-[var(--terminal-green)] bg-[var(--terminal-green)]/5"
+            }`}
+            onClick={dismissAnnouncement}
+          >
+            <div className="flex items-center gap-1.5 px-1 mb-1">
+              <span className={`text-[10px] font-bold ${isNewAnnouncement ? "text-yellow-400" : "text-[var(--terminal-amber)]"}`}>
+                {isNewAnnouncement ? "★" : "☆"} COMMANDER
+              </span>
+              {isNewAnnouncement && (
+                <span className="text-[8px] bg-yellow-400 text-black px-1 font-bold animate-bounce">
+                  NEW
+                </span>
+              )}
+            </div>
+            <div className={`text-xs px-1 leading-relaxed ${
+              isNewAnnouncement
+                ? "text-yellow-300 font-bold"
+                : "text-[var(--terminal-green)]"
+            }`}>
+              {announcement}
+            </div>
+            {isNewAnnouncement && (
+              <div className="text-[8px] text-yellow-400/60 px-1 mt-1">
+                {"// 點擊此處標記已讀"}
               </div>
             )}
           </div>
@@ -191,6 +261,67 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
             </div>
           )}
         </div>
+
+        {/* Story Gallery Panel (inline, opens when STORY_GALLERY command is active) */}
+        {isStoryGalleryOpen && (
+          <div className="border-t border-[var(--terminal-amber)] bg-[var(--terminal-bg)]">
+            <div className="px-4 py-2 text-[10px] text-[var(--terminal-amber)]">
+              ═══ STORY_GALLERY ═══
+            </div>
+            {storyConvs.length === 0 ? (
+              <div className="text-[10px] text-[var(--terminal-green-dim)] px-4 py-4 text-center">
+                還沒有故事，快去創作吧！
+              </div>
+            ) : (
+              <div className="px-2 pb-2 space-y-1 max-h-48 overflow-y-auto">
+                {storyConvs.map((conv) => {
+                  // Extract first panel image for thumbnail
+                  const panelMsg = conv.messages.find((m) => m.content?.startsWith("[STORY_PANEL]"));
+                  const imgMatch = panelMsg?.content?.match(/\[IMG\](.*?)\[\/IMG\]/);
+                  const thumbUrl = imgMatch ? imgMatch[1] : "";
+                  // Extract info from header
+                  const headerMsg = conv.messages.find((m) => m.content?.startsWith("[STORY_HEADER]"));
+                  const info = headerMsg?.content?.replace(/\[STORY_HEADER\].*?\[\/STORY_HEADER\]\n?/, "").trim() || "";
+
+                  return (
+                    <button
+                      key={conv.id}
+                      onClick={() => handleSelectSession(conv.id)}
+                      className={`w-full text-left border p-2 transition-colors group ${
+                        currentConversation?.id === conv.id
+                          ? "border-[var(--terminal-amber)] bg-[var(--terminal-amber)]/10"
+                          : "border-[var(--terminal-amber)]/30 hover:border-[var(--terminal-amber)]"
+                      }`}
+                    >
+                      <div className="flex gap-2">
+                        {thumbUrl && (
+                          <div className="w-12 h-12 flex-shrink-0 bg-black overflow-hidden">
+                            <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[var(--terminal-amber)] text-xs font-bold truncate">
+                            {conv.title?.replace("故事：", "") || "未命名"}
+                          </div>
+                          <div className="text-[8px] text-[var(--terminal-green-dim)] mt-0.5 truncate">
+                            {info || formatTime(conv.updatedAt)}
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteSession(e, conv.id); }}
+                          className="opacity-0 group-hover:opacity-100 text-[var(--terminal-red)] hover:text-red-400 text-[10px] p-0.5 self-start"
+                          title="刪除"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Font Size Control */}
         <div className="p-2 border-t border-[var(--terminal-green)]">

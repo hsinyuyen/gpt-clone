@@ -17,6 +17,8 @@ interface TutorialOverlayProps {
   steps: TutorialStep[];
   onComplete: () => void;
   active: boolean;
+  /** Allow skipping the tutorial. Defaults to false — user must complete every step. */
+  skippable?: boolean;
 }
 
 interface Rect {
@@ -28,7 +30,7 @@ interface Rect {
 
 const PADDING = 8;
 
-const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ steps, onComplete, active }) => {
+const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ steps, onComplete, active, skippable = false }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [targetRect, setTargetRect] = useState<Rect | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -81,10 +83,10 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ steps, onComplete, ac
     };
   }, [currentStep, active, updateRect]);
 
-  // Click-to-advance: listen for clicks on target element
+  // All steps require clicking the target element to advance
   useEffect(() => {
     const step = stepsRef.current[currentStep];
-    if (!active || !step?.clickToAdvance) return;
+    if (!active || !step) return;
 
     const el = document.querySelector(step.target);
     if (!el) return;
@@ -178,7 +180,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ steps, onComplete, ac
             backgroundColor: "rgba(0,0,0,0.75)",
             pointerEvents: "auto",
           }}
-          onClick={skip}
+          onClick={skippable ? skip : undefined}
         />
         {/* Bottom */}
         <div
@@ -191,7 +193,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ steps, onComplete, ac
             backgroundColor: "rgba(0,0,0,0.75)",
             pointerEvents: "auto",
           }}
-          onClick={skip}
+          onClick={skippable ? skip : undefined}
         />
         {/* Left */}
         <div
@@ -204,7 +206,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ steps, onComplete, ac
             backgroundColor: "rgba(0,0,0,0.75)",
             pointerEvents: "auto",
           }}
-          onClick={skip}
+          onClick={skippable ? skip : undefined}
         />
         {/* Right */}
         <div
@@ -217,7 +219,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ steps, onComplete, ac
             backgroundColor: "rgba(0,0,0,0.75)",
             pointerEvents: "auto",
           }}
-          onClick={skip}
+          onClick={skippable ? skip : undefined}
         />
       </div>
 
@@ -265,36 +267,25 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ steps, onComplete, ac
               {currentStep + 1} / {steps.length}
             </span>
 
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={skip}
-                style={{
-                  background: "none",
-                  border: "1px solid var(--terminal-primary-dim)",
-                  color: "var(--terminal-primary-dim)",
-                  padding: "4px 12px",
-                  fontSize: 12,
-                  cursor: "pointer",
-                }}
-              >
-                跳過
-              </button>
-              {!step?.clickToAdvance && (
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {skippable && (
                 <button
-                  onClick={advance}
+                  onClick={skip}
                   style={{
-                    background: "var(--terminal-primary)",
-                    border: "none",
-                    color: "var(--terminal-bg)",
+                    background: "none",
+                    border: "1px solid var(--terminal-primary-dim)",
+                    color: "var(--terminal-primary-dim)",
                     padding: "4px 12px",
                     fontSize: 12,
-                    fontWeight: "bold",
                     cursor: "pointer",
                   }}
                 >
-                  {currentStep === steps.length - 1 ? "完成！" : "下一步"}
+                  跳過
                 </button>
               )}
+              <span style={{ color: "var(--terminal-primary-dim)", fontSize: 11 }}>
+                {"<< 點擊高亮區域繼續 >>"}
+              </span>
             </div>
           </div>
         </div>

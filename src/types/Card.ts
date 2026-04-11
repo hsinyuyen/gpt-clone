@@ -7,51 +7,48 @@ export type MonsterCardType = 'normal' | 'effect';
 export type CardCategory = 'monster' | 'spell' | 'trap';
 export type MonsterPosition = 'attack' | 'defense' | 'facedown_defense';
 
-// === Yu-Gi-Oh Style Card Effect System ===
+// === Card Effect System ===
+// IMPORTANT: These types are the only source of truth for what triggers /
+// actions / targets exist. Adding a new member here is half the work — the
+// other half is implementing a handler in effectCatalog.ts. If you add one
+// here without a handler, module-load validation will throw.
 export type EffectTrigger =
-  | 'on_summon'        // when this card is summoned
-  | 'on_destroy'       // when this card is destroyed
-  | 'on_attack'        // when this card declares an attack
-  | 'on_attacked'      // when this card is attacked
-  | 'on_flip'          // when flipped face-up
-  | 'activated'        // manually activated (spell/trap)
-  | 'continuous'       // always active while on field
-  | 'on_tribute'       // when used as tribute material
+  | 'on_summon'        // when this monster is summoned
+  | 'on_attack'        // when this monster declares an attack
+  | 'on_attacked'      // when this monster is attacked
+  | 'on_destroy'       // when this monster is destroyed by battle
   | 'start_of_turn'    // at the start of owner's turn
-  | 'end_of_turn';     // at the end of owner's turn
+  | 'end_of_turn'      // at the end of owner's turn
+  | 'continuous';      // always active while on field (installed at summon)
 
 export type EffectAction =
   | 'damage_lp'          // deal damage to opponent LP
   | 'heal_lp'            // restore own LP
-  | 'boost_atk'          // increase ATK
-  | 'boost_def'          // increase DEF
+  | 'boost_atk'          // increase ATK (own/all own)
+  | 'boost_def'          // increase DEF (own/all own)
   | 'weaken_atk'         // decrease target ATK
   | 'weaken_def'         // decrease target DEF
-  | 'destroy_monster'    // destroy a monster
-  | 'destroy_spell_trap' // destroy a spell/trap
-  | 'draw_card'          // draw cards
-  | 'special_summon'     // special summon from hand/graveyard
-  | 'return_to_hand'     // return card to hand
-  | 'negate_attack'      // negate an attack
-  | 'change_position'    // change monster position
-  | 'piercing'           // deal piercing damage (ATK - DEF goes to LP)
-  | 'direct_attack'      // can attack LP directly
-  | 'double_attack'      // can attack twice
-  | 'protect';           // cannot be destroyed this turn
+  | 'destroy_monster'    // destroy a monster (targeted)
+  | 'draw_card'          // draw N cards
+  | 'return_to_hand'     // return a monster to its owner's hand
+  | 'piercing'           // [continuous] attacks do piercing damage
+  | 'direct_attack'      // [continuous] can attack LP directly
+  | 'double_attack'      // [continuous] can attack twice per battle phase
+  | 'protect';           // [on_summon/continuous] cannot be destroyed by battle
 
 export type EffectTarget =
   | 'self'
-  | 'opponent_monster'     // target 1 opponent monster
+  | 'opponent_monster'             // first face-up opponent monster
   | 'all_opponent_monsters'
-  | 'opponent_lp'
-  | 'own_lp'
-  | 'own_monster'
+  | 'own_monster'                  // first own face-up monster (not source)
   | 'all_own_monsters'
   | 'random_opponent_monster'
   | 'weakest_opponent_monster'
-  | 'strongest_opponent_monster';
+  | 'strongest_opponent_monster'
+  | 'opponent_lp'
+  | 'own_lp';
 
-export interface YgoEffect {
+export interface CardEffectDef {
   id: string;
   name: string;
   description: string;
@@ -59,10 +56,11 @@ export interface YgoEffect {
   action: EffectAction;
   value: number;
   target: EffectTarget;
-  duration?: number;       // turns the effect lasts (for continuous buffs)
-  condition?: string;      // human-readable condition (for UI display)
-  cooldown?: number;       // turns before effect can be used again
+  duration?: number;  // turns the effect lasts for buff actions (default: 1)
 }
+
+// Kept under the old name for backwards compat with existing imports.
+export type YgoEffect = CardEffectDef;
 
 // === Legacy Ability (kept for backward compat with old data) ===
 export interface CardEffect {

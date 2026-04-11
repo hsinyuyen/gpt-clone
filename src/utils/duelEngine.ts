@@ -18,13 +18,12 @@ import {
   processOnAttackEffects,
   processOnAttackedEffects,
   processOnDestroyEffects,
-  processOnFlipEffects,
   processStartOfTurnEffects,
   processEndOfTurnEffects,
   hasBuff,
 } from './effectEngine';
 
-const STARTING_LP = 100;
+export const STARTING_LP = 500;
 const MAX_TURNS = 40;
 const MONSTER_ZONES = 5;
 const STARTING_HAND = 5;
@@ -286,10 +285,8 @@ export function changePosition(
   newState.log.push(makeLog(newState, owner, 'info',
     `${monster.definition.name} 變更為${newPosition === 'attack' ? '攻擊' : '守備'}表示！`));
 
-  if (wasFacedown && monster.faceUp) {
-    const flipLogs = processOnFlipEffects(newState, owner, monster);
-    newState.log.push(...flipLogs);
-  }
+  // wasFacedown flip: no on_flip trigger in current catalog, nothing to do
+  void wasFacedown;
 
   return newState;
 }
@@ -315,19 +312,6 @@ export function declareAttack(
   const attackLogs = processOnAttackEffects(newState, attackerOwner, attacker);
   newState.log.push(...attackLogs);
 
-  // Check negate
-  const opponentMonsters = defenderField.monsters.filter(
-    (m): m is FieldMonster => m !== null && m.faceUp
-  );
-  for (const oppM of opponentMonsters) {
-    if (hasBuff(oppM, 'negate_attack')) {
-      newState.log.push(makeLog(newState, defenderOwner, 'effect',
-        `${oppM.definition.name} 的效果使攻擊無效化！`));
-      attacker.hasAttacked = true;
-      return newState;
-    }
-  }
-
   // Direct attack
   if (targetZone < 0 || defenderField.monsters.every((m) => m === null)) {
     const canDirect = hasBuff(attacker, 'direct_attack') ||
@@ -345,14 +329,12 @@ export function declareAttack(
   const defender = defenderField.monsters[targetZone];
   if (!defender) return newState;
 
-  // Flip face-down monster
+  // Flip face-down monster (no on_flip trigger in current catalog)
   if (!defender.faceUp) {
     defender.faceUp = true;
     defender.position = defender.position === 'facedown_defense' ? 'defense' : defender.position;
     newState.log.push(makeLog(newState, defenderOwner, 'info',
       `${defender.definition.name} 被翻轉為表側表示！`));
-    const flipLogs = processOnFlipEffects(newState, defenderOwner, defender);
-    newState.log.push(...flipLogs);
   }
 
   // Defender on_attacked effects (e.g. reflect damage, return-to-hand, weaken attacker)
