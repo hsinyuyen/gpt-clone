@@ -137,12 +137,30 @@ export interface CardPool {
   id: string;
   name: string;
   description: string;
+  /** Short tagline shown under the pool hero (e.g. "神之使者降臨") */
+  tagline?: string;
+  /** Long lore/theme text shown on the detail page */
+  lore?: string;
+  /** Background theme tokens used for hero gradient + detail page styling */
+  theme?: {
+    /** Two-stop gradient for the hero banner */
+    gradientFrom: string;
+    gradientTo: string;
+    /** Accent text/border color */
+    accent: string;
+  };
   type: 'basic' | 'event';
   isActive: boolean;
   startDate?: string;
   endDate?: string;
   imageUrl?: string;
   cardIds: string[];
+  /**
+   * Card IDs highlighted as the pool's "signature pulls" — the first one is
+   * the main featured card (used as the hero art), the rest are shown as
+   * supporting cards around it.
+   */
+  featuredCardIds?: string[];
   rates: RarityRates;
   singleDrawCost: number;
   multiDrawCost: number;

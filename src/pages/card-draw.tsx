@@ -89,7 +89,7 @@ export default function CardDrawPage() {
         )}
 
         {/* Pool Selection */}
-        <div className="space-y-3 mb-8">
+        <div className="space-y-4 mb-8">
           <h2 className="text-sm text-gray-400 mb-2">{">>>"}選擇卡池</h2>
           {pools.map((pool) => (
             <PoolBanner
@@ -97,6 +97,7 @@ export default function CardDrawPage() {
               pool={pool}
               selected={pool.id === selectedPoolId}
               onClick={() => setSelectedPoolId(pool.id)}
+              onDetailClick={() => router.push(`/card-draw/${pool.id}`)}
             />
           ))}
         </div>

@@ -31,10 +31,25 @@ export function getCardDef(cardId: string): CardDefinition | undefined {
 export const BASIC_POOL: CardPool = {
   id: 'basic',
   name: '基礎卡池',
-  description: '包含各屬性基礎卡牌，適合新手抽取！',
+  description: '五元素神獸降臨，每一次抽卡都是與傳說的相遇。',
+  tagline: '五元素神獸・初始傳說',
+  lore: '遠古五族的化身齊聚於此 —— 太陽神鳥、深淵海龍王、古代樹靈王、天神鳳凰、超電磁龍。每一張傳說卡都記錄著一段文明的起源。',
+  theme: {
+    gradientFrom: '#7c2d12',
+    gradientTo: '#1e3a8a',
+    accent: '#fbbf24',
+  },
   type: 'basic',
   isActive: true,
   cardIds: BASIC_POOL_CARDS.map((c) => c.id),
+  // 太陽神鳥 為主打，其餘四大神獸為輔
+  featuredCardIds: [
+    'basic_fire_08',     // 太陽神鳥 (主打)
+    'basic_water_08',    // 深淵海龍王
+    'basic_earth_08',    // 古代樹靈王
+    'basic_wind_08',     // 天神鳳凰
+    'basic_electric_08', // 超電磁龍
+  ],
   rates: {
     common: 0.60,
     rare: 0.25,
@@ -50,12 +65,27 @@ export const BASIC_POOL: CardPool = {
 export const HIGHTECH_CITY_POOL: CardPool = {
   id: 'hightech-city',
   name: '高科技都市',
-  description: '賽博龐克風格的限定卡池！收集套裝獲得額外加成！',
+  description: '霓虹閃爍的未來都市，收集套裝觸發賽博協同！',
+  tagline: '賽博都市・限定抽取',
+  lore: '2089 年，都市核心 AI 覺醒。機械戰士、黑客、納米戰場守護者在霓虹下交戰 —— 只有收集完整套裝，才能駕馭終極戰爭機器。',
+  theme: {
+    gradientFrom: '#4c1d95',
+    gradientTo: '#0891b2',
+    accent: '#22d3ee',
+  },
   type: 'event',
   isActive: true,
   startDate: '2026-04-01',
   endDate: '2026-06-30',
   cardIds: HIGHTECH_CITY_CARDS.map((c) => c.id),
+  // 終極戰爭機器 為主打，都市核心 AI 為副主打
+  featuredCardIds: [
+    'htc_20', // 終極戰爭機器 (主打)
+    'htc_19', // 都市核心 AI
+    'htc_18',
+    'htc_17',
+    'htc_16',
+  ],
   rates: {
     common: 0.55,
     rare: 0.28,

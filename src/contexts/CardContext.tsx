@@ -107,15 +107,23 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [user]
   );
 
+  /** Apply the Firestore-stored image URL override if the definition has none. */
+  const hydrateImage = useCallback(
+    (def: CardDefinition): CardDefinition => {
+      const storedUrl = cardImageUrls[def.id];
+      if (storedUrl && !def.imageUrl) {
+        return { ...def, imageUrl: storedUrl };
+      }
+      return def;
+    },
+    [cardImageUrls]
+  );
+
   const getCardDefFn = useCallback((cardId: string) => {
     const def = CARD_MAP.get(cardId);
     if (!def) return undefined;
-    const storedUrl = cardImageUrls[cardId];
-    if (storedUrl && !def.imageUrl) {
-      return { ...def, imageUrl: storedUrl };
-    }
-    return def;
-  }, [cardImageUrls]);
+    return hydrateImage(def);
+  }, [hydrateImage]);
 
   const drawSingle = useCallback(
     async (poolId: string): Promise<CardDefinition | null> => {
@@ -140,9 +148,9 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
         lastDrawAt: new Date().toISOString(),
       };
       save(updated);
-      return card;
+      return hydrateImage(card);
     },
-    [collection, canAfford, spendCoins, save]
+    [collection, canAfford, spendCoins, save, hydrateImage]
   );
 
   const drawMulti = useCallback(
@@ -176,9 +184,9 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
         lastDrawAt: new Date().toISOString(),
       };
       save(updated);
-      return cards;
+      return cards.map(hydrateImage);
     },
-    [collection, canAfford, spendCoins, save]
+    [collection, canAfford, spendCoins, save, hydrateImage]
   );
 
   const strengthenWithCoins = useCallback(
