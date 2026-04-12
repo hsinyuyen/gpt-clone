@@ -103,7 +103,7 @@ export const BASIC_POOL_CARDS: CardDefinition[] = [
     level: 7,
     cardCategory: 'monster',
     monsterType: 'effect',
-    effectText: '此卡攻擊時，對對手生命值造成100點燃燒傷害。此卡可以破壞對手場上1隻防禦力最低的怪獸。',
+    effectText: '此卡攻擊時，對對手生命值造成100點燃燒傷害。此卡攻擊時可以破壞對手場上1隻防禦力最低的怪獸。',
     ygoEffects: [
       {
         id: 'blaze_dragon_burn',
@@ -117,8 +117,8 @@ export const BASIC_POOL_CARDS: CardDefinition[] = [
       {
         id: 'blaze_dragon_destroy',
         name: '龍息毀滅',
-        description: '召喚時龍息破壞對手最弱的怪獸',
-        trigger: 'on_summon',
+        description: '攻擊時龍息破壞對手最弱的怪獸',
+        trigger: 'on_attack',
         action: 'destroy_monster',
         value: 1,
         target: 'weakest_opponent_monster',
@@ -181,7 +181,7 @@ export const BASIC_POOL_CARDS: CardDefinition[] = [
     level: 5,
     cardCategory: 'monster',
     monsterType: 'effect',
-    effectText: '發動效果：恢復自身300點生命值。此卡被破壞時，可以從手牌特殊召喚1隻怪獸。',
+    effectText: '召喚時恢復自身120點生命值。此卡被破壞時，可以從手牌特殊召喚1隻怪獸。',
     ygoEffects: [
       {
         id: 'baby_phoenix_heal',
@@ -195,11 +195,11 @@ export const BASIC_POOL_CARDS: CardDefinition[] = [
       {
         id: 'baby_phoenix_rebirth',
         name: '鳳凰重生',
-        description: '被破壞時爆發火焰對對手造成傷害',
+        description: '被破壞時從手牌特殊召喚1隻怪獸',
         trigger: 'on_destroy',
-        action: 'damage_lp',
-        value: 80,
-        target: 'opponent_lp',
+        action: 'special_summon_from_hand',
+        value: 1,
+        target: 'self',
       },
     ],
     imageUrl: '',
@@ -429,7 +429,7 @@ export const BASIC_POOL_CARDS: CardDefinition[] = [
     level: 7,
     cardCategory: 'monster',
     monsterType: 'effect',
-    effectText: '發動效果：恢復自身350點生命值。此卡可以從墓地特殊召喚1隻水屬性怪獸。被攻擊時，將攻擊怪獸返回手牌。',
+    effectText: '召喚時恢復自身120點生命值。此卡召喚時可以從墓地特殊召喚1隻水屬性怪獸。每回合恢復40點生命值。被攻擊時，將攻擊怪獸返回手牌。',
     ygoEffects: [
       {
         id: 'ocean_lord_heal',
@@ -439,6 +439,16 @@ export const BASIC_POOL_CARDS: CardDefinition[] = [
         action: 'heal_lp',
         value: 120,
         target: 'own_lp',
+      },
+      {
+        id: 'ocean_lord_revive',
+        name: '深海復活',
+        description: '召喚時從墓地特殊召喚水屬性怪獸',
+        trigger: 'on_summon',
+        action: 'special_summon_from_graveyard',
+        value: 1,
+        target: 'self',
+        elementFilter: 'water',
       },
       {
         id: 'ocean_lord_regen',
@@ -762,7 +772,7 @@ export const BASIC_POOL_CARDS: CardDefinition[] = [
     level: 6,
     cardCategory: 'monster',
     monsterType: 'effect',
-    effectText: '發動效果：恢復自身350點生命值。此卡可以從墓地特殊召喚1隻地屬性怪獸。被攻擊時，降低攻擊怪獸攻擊力20點。',
+    effectText: '召喚時恢復自身120點生命值。此卡召喚時可以從墓地特殊召喚1隻地屬性怪獸。每回合己方全體怪獸DEF+10。被攻擊時，降低攻擊怪獸攻擊力20點。',
     ygoEffects: [
       {
         id: 'earth_mother_heal',
@@ -772,6 +782,16 @@ export const BASIC_POOL_CARDS: CardDefinition[] = [
         action: 'heal_lp',
         value: 120,
         target: 'own_lp',
+      },
+      {
+        id: 'earth_mother_revive',
+        name: '大地復活',
+        description: '召喚時從墓地特殊召喚地屬性怪獸',
+        trigger: 'on_summon',
+        action: 'special_summon_from_graveyard',
+        value: 1,
+        target: 'self',
+        elementFilter: 'earth',
       },
       {
         id: 'earth_mother_aura',
@@ -1108,7 +1128,7 @@ export const BASIC_POOL_CARDS: CardDefinition[] = [
     level: 7,
     cardCategory: 'monster',
     monsterType: 'effect',
-    effectText: '召喚成功時，此卡獲得1回合的破壞保護。此卡可以破壞對手場上1隻怪獸。攻擊時，將對手1隻怪獸返回手牌。',
+    effectText: '召喚成功時，此卡獲得1回合的破壞保護。此卡攻擊時可以破壞對手場上1隻怪獸。攻擊時，將對手1隻怪獸返回手牌。',
     ygoEffects: [
       {
         id: 'storm_king_shield',
@@ -1122,8 +1142,8 @@ export const BASIC_POOL_CARDS: CardDefinition[] = [
       {
         id: 'storm_king_destroy',
         name: '龍捲風',
-        description: '召喚時以龍捲風破壞對手怪獸',
-        trigger: 'on_summon',
+        description: '攻擊時以龍捲風破壞對手怪獸',
+        trigger: 'on_attack',
         action: 'destroy_monster',
         value: 1,
         target: 'opponent_monster',
@@ -1163,14 +1183,13 @@ export const BASIC_POOL_CARDS: CardDefinition[] = [
     effectText: '反轉效果：此卡翻轉召喚時，無效對手1隻怪獸的攻擊。',
     ygoEffects: [
       {
-        id: 'butterfly_dancer_weaken',
+        id: 'butterfly_dancer_negate',
         name: '催眠之舞',
-        description: '召喚時跳起催眠舞蹈削弱全體對手',
-        trigger: 'on_summon',
-        action: 'weaken_atk',
-        value: 15,
-        target: 'all_opponent_monsters',
-        duration: 2,
+        description: '翻轉召喚時無效對手怪獸的攻擊',
+        trigger: 'on_flip',
+        action: 'negate_attack',
+        value: 1,
+        target: 'strongest_opponent_monster',
       },
     ],
     imageUrl: '',
@@ -1218,13 +1237,13 @@ export const BASIC_POOL_CARDS: CardDefinition[] = [
     level: 1,
     cardCategory: 'monster',
     monsterType: 'effect',
-    effectText: '發動效果：恢復自身150點生命值。',
+    effectText: '召喚時恢復自身40點生命值。',
     ygoEffects: [
       {
         id: 'cloud_cat_heal',
         name: '雲朵午睡',
-        description: '每回合開始時在雲朵上休息恢復生命值',
-        trigger: 'start_of_turn',
+        description: '召喚時在雲朵上休息恢復生命值',
+        trigger: 'on_summon',
         action: 'heal_lp',
         value: 40,
         target: 'own_lp',
@@ -1253,7 +1272,7 @@ export const BASIC_POOL_CARDS: CardDefinition[] = [
     level: 10,
     cardCategory: 'monster',
     monsterType: 'effect',
-    effectText: '此卡可以進行二次攻擊。此卡擁有貫穿傷害效果。發動效果：恢復自身400點生命值。此卡被破壞時，可以從手牌特殊召喚1隻怪獸。',
+    effectText: '此卡可以進行二次攻擊。此卡擁有貫穿傷害效果。召喚時恢復自身80點生命值。此卡被破壞時，可以從手牌特殊召喚1隻怪獸。',
     ygoEffects: [
       {
         id: 'divine_phoenix_double',
@@ -1276,8 +1295,8 @@ export const BASIC_POOL_CARDS: CardDefinition[] = [
       {
         id: 'divine_phoenix_heal',
         name: '風之重生',
-        description: '每回合開始時風的力量恢復生命值',
-        trigger: 'start_of_turn',
+        description: '召喚時風的力量恢復生命值',
+        trigger: 'on_summon',
         action: 'heal_lp',
         value: 80,
         target: 'own_lp',
@@ -1285,11 +1304,11 @@ export const BASIC_POOL_CARDS: CardDefinition[] = [
       {
         id: 'divine_phoenix_rebirth',
         name: '涅槃重生',
-        description: '被破壞時爆發神風對對手造成傷害',
+        description: '被破壞時從手牌特殊召喚1隻怪獸',
         trigger: 'on_destroy',
-        action: 'damage_lp',
-        value: 120,
-        target: 'opponent_lp',
+        action: 'special_summon_from_hand',
+        value: 1,
+        target: 'self',
       },
     ],
     imageUrl: '',

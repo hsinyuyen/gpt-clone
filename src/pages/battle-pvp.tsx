@@ -13,6 +13,7 @@ import {
   normalSummon,
   declareAttack,
   changePosition,
+  flipSummon,
   swapDuelState,
 } from '@/utils/duelEngine';
 import { savePvpRoom, deletePvpRoom } from '@/lib/firestore';
@@ -146,6 +147,12 @@ export default function BattlePvpPage() {
     if (!monster) return;
     const newPos = monster.position === 'attack' ? 'defense' : 'attack';
     const newReal = changePosition(room.battleState, localRealSide, zoneIndex, newPos);
+    commitNewState(newReal);
+  }, [room, isPlayerTurn, localRealSide, commitNewState]);
+
+  const handleFlipSummon = useCallback((zoneIndex: number) => {
+    if (!room?.battleState || !isPlayerTurn) return;
+    const newReal = flipSummon(room.battleState, localRealSide, zoneIndex);
     commitNewState(newReal);
   }, [room, isPlayerTurn, localRealSide, commitNewState]);
 
@@ -289,6 +296,7 @@ export default function BattlePvpPage() {
               onSummon={handleSummon}
               onAttack={handleAttack}
               onChangePosition={handleChangePosition}
+              onFlipSummon={handleFlipSummon}
               onAdvancePhase={handleAdvancePhase}
               isPlayerTurn={isPlayerTurn}
             />

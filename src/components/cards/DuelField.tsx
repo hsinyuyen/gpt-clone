@@ -22,6 +22,7 @@ interface DuelFieldProps {
   onSummon: (handIndex: number, zoneIndex: number, position: 'attack' | 'defense' | 'facedown_defense', tributeIndices: number[]) => void;
   onAttack: (attackerZone: number, targetZone: number) => void;
   onChangePosition: (zoneIndex: number) => void;
+  onFlipSummon?: (zoneIndex: number) => void;
   onAdvancePhase: () => void;
   isPlayerTurn: boolean;
   /** External dash animation (e.g. AI attack) */
@@ -533,6 +534,7 @@ export default function DuelField({
   onSummon,
   onAttack,
   onChangePosition,
+  onFlipSummon,
   onAdvancePhase,
   isPlayerTurn,
   externalDash,
@@ -731,6 +733,12 @@ export default function DuelField({
       setAttackMode(true);
       setSelectedHandCard(null);
       setSummonMode(false);
+      return;
+    }
+
+    // Flip summon face-down monsters
+    if (isMainPhase && monster && !monster.faceUp && monster.position === 'facedown_defense' && onFlipSummon && !summonMode) {
+      onFlipSummon(idx);
       return;
     }
 

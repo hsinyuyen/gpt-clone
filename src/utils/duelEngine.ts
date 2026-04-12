@@ -18,6 +18,7 @@ import {
   processOnAttackEffects,
   processOnAttackedEffects,
   processOnDestroyEffects,
+  processOnFlipEffects,
   processStartOfTurnEffects,
   processEndOfTurnEffects,
   hasBuff,
@@ -180,6 +181,7 @@ export function advancePhase(state: DuelState): DuelState {
       if (m) {
         m.hasAttacked = false;
         m.justSummoned = false;
+        m.canAttack = true;
       }
     }
 
@@ -306,9 +308,37 @@ export function changePosition(
   newState.log.push(makeLog(newState, owner, 'info',
     `${monster.definition.name} 變更為${newPosition === 'attack' ? '攻擊' : '守備'}表示！`));
 
-  // wasFacedown flip: no on_flip trigger in current catalog, nothing to do
+  // wasFacedown flip: handled by flipSummon instead
   void wasFacedown;
 
+  return newState;
+}
+
+// Flip summon a face-down defense monster
+export function flipSummon(
+  state: DuelState,
+  owner: 'player' | 'enemy',
+  zoneIndex: number
+): DuelState {
+  const newState = cloneState(state);
+  const field = getField(newState, owner);
+  const monster = field.monsters[zoneIndex];
+
+  if (!monster) return newState;
+  if (monster.faceUp) return newState;
+  if (monster.position !== 'facedown_defense') return newState;
+
+  monster.faceUp = true;
+  monster.position = 'attack';
+
+  newState.log.push(makeLog(newState, owner, 'summon',
+    `${monster.definition.name} 翻轉召喚！(ATK:${monster.currentAtk} DEF:${monster.currentDef})`));
+
+  // Fire on_flip effects + install continuous effects (skipped during face-down set)
+  const flipLogs = processOnFlipEffects(newState, owner, monster);
+  newState.log.push(...flipLogs);
+
+  checkWinCondition(newState);
   return newState;
 }
 
@@ -328,6 +358,7 @@ export function declareAttack(
   if (!attacker || !attacker.faceUp) return newState;
   if (attacker.position !== 'attack') return newState;
   if (attacker.hasAttacked && !hasBuff(attacker, 'double_attack')) return newState;
+  if (!attacker.canAttack) return newState;
 
   // First player cannot attack on turn 1 (Yu-Gi-Oh standard rule).
   if (newState.turn === 1 && attackerOwner === newState.firstPlayer) {
@@ -440,7 +471,7 @@ export function declareAttack(
 // === AI Decision Making ===
 
 export interface DuelAiAction {
-  type: 'summon' | 'attack' | 'end_phase';
+  type: 'summon' | 'attack' | 'end_phase' | 'flip_summon';
   handIndex?: number;
   zoneIndex?: number;
   targetZone?: number;
@@ -485,6 +516,14 @@ export function chooseDuelAiAction(state: DuelState): DuelAiAction {
             }
           }
         }
+      }
+    }
+
+    // Flip any face-down monsters before ending main phase
+    for (let i = 0; i < MONSTER_ZONES; i++) {
+      const m = field.monsters[i];
+      if (m && !m.faceUp && m.position === 'facedown_defense') {
+        return { type: 'flip_summon', zoneIndex: i };
       }
     }
 
@@ -554,6 +593,12 @@ export function executeAiTurn(state: DuelState): DuelState {
 
     const action = chooseDuelAiAction(current);
 
+    if (action.type === 'flip_summon' && action.zoneIndex !== undefined) {
+      current = flipSummon(current, 'enemy', action.zoneIndex);
+      if (current.status !== 'dueling') break;
+      continue;
+    }
+
     if (action.type === 'summon' && action.handIndex !== undefined) {
       current = normalSummon(
         current, 'enemy',
@@ -603,7 +648,7 @@ export type AiStepKind =
  * applyAiPlan() to actually mutate.
  */
 export function planAiStep(state: DuelState): {
-  kind: 'summon' | 'attack' | 'phase_advance' | 'done';
+  kind: 'summon' | 'attack' | 'phase_advance' | 'flip_summon' | 'done';
   action?: DuelAiAction;
 } {
   if (state.currentPlayer !== 'enemy' || state.status !== 'dueling') {
@@ -614,6 +659,7 @@ export function planAiStep(state: DuelState): {
   }
 
   const action = chooseDuelAiAction(state);
+  if (action.type === 'flip_summon') return { kind: 'flip_summon', action };
   if (action.type === 'summon') return { kind: 'summon', action };
   if (action.type === 'attack') return { kind: 'attack', action };
   return { kind: 'phase_advance' };
@@ -625,10 +671,15 @@ export function planAiStep(state: DuelState): {
  */
 export function applyAiAction(
   state: DuelState,
-  kind: 'summon' | 'attack' | 'phase_advance',
+  kind: 'summon' | 'attack' | 'phase_advance' | 'flip_summon',
   action?: DuelAiAction
 ): DuelState {
   let current = cloneState(state);
+
+  if (kind === 'flip_summon' && action && action.zoneIndex !== undefined) {
+    current = flipSummon(current, 'enemy', action.zoneIndex);
+    return current;
+  }
 
   if (kind === 'phase_advance') {
     current = advancePhase(current);

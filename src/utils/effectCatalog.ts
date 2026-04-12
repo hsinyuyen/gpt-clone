@@ -20,6 +20,7 @@
 
 import {
   CardEffectDef,
+  CardElement,
   EffectAction,
   EffectTrigger,
   EffectTarget,
@@ -27,6 +28,7 @@ import {
   PlayerField,
   DuelState,
   DuelLogEntry,
+  MonsterPosition,
 } from '@/types/Card';
 import { STARTING_LP } from './duelEngine';
 
@@ -67,6 +69,7 @@ const ALL_TRIGGERS_EXCEPT_CONTINUOUS: readonly EffectTrigger[] = [
   'on_destroy',
   'start_of_turn',
   'end_of_turn',
+  'on_flip',
 ];
 
 const ALL_TRIGGERS: readonly EffectTrigger[] = [
@@ -248,6 +251,96 @@ const CATALOG: Record<EffectAction, CatalogEntry> = {
     allowedTargets: ['self'],
     valueRange: [1, 1],
     handler: (ctx) => installFlagBuff(ctx, 'protect', '不會被戰鬥破壞'),
+  },
+
+  // ----------------------------------------------------- Special Summon ---
+  special_summon_from_hand: {
+    action: 'special_summon_from_hand',
+    allowedTriggers: ['on_destroy'] as readonly EffectTrigger[],
+    allowedTargets: ['self'] as readonly EffectTarget[],
+    valueRange: [1, 1] as const,
+    handler: (ctx) => {
+      const { ownerField, log } = ctx;
+      const emptyIdx = ownerField.monsters.findIndex((m) => m === null);
+      if (emptyIdx < 0) { log('場上沒有空位，無法特殊召喚！', 'info'); return; }
+      const monsters = ownerField.hand
+        .map((c, i) => ({ card: c, idx: i }))
+        .filter((x) => x.card.cardCategory === 'monster');
+      if (monsters.length === 0) { log('手牌中沒有怪獸，無法特殊召喚！', 'info'); return; }
+      monsters.sort((a, b) => b.card.baseAtk - a.card.baseAtk);
+      const picked = monsters[0];
+      ownerField.hand.splice(picked.idx, 1);
+      const scale = 1;
+      const fm: FieldMonster = {
+        cardId: picked.card.id,
+        definition: picked.card,
+        playerCardLevel: 1,
+        position: 'attack' as MonsterPosition,
+        currentAtk: Math.round(picked.card.baseAtk * scale),
+        currentDef: Math.round(picked.card.baseDef * scale),
+        canAttack: true,
+        hasAttacked: false,
+        justSummoned: true,
+        turnBuffs: [],
+        effectCooldowns: {},
+        faceUp: true,
+      };
+      ownerField.monsters[emptyIdx] = fm;
+      log(`${picked.card.name} 從手牌特殊召喚！(ATK:${fm.currentAtk})`, 'summon');
+    },
+  },
+
+  special_summon_from_graveyard: {
+    action: 'special_summon_from_graveyard',
+    allowedTriggers: ['on_summon', 'on_destroy'] as readonly EffectTrigger[],
+    allowedTargets: ['self'] as readonly EffectTarget[],
+    valueRange: [1, 1] as const,
+    handler: (ctx) => {
+      const { effect, ownerField, log } = ctx;
+      const emptyIdx = ownerField.monsters.findIndex((m) => m === null);
+      if (emptyIdx < 0) { log('場上沒有空位，無法從墓地特殊召喚！', 'info'); return; }
+      const filter = (effect as CardEffectDef & { elementFilter?: CardElement }).elementFilter;
+      let candidates = ownerField.graveyard.filter((c) => c.cardCategory === 'monster');
+      if (filter) candidates = candidates.filter((c) => c.element === filter);
+      if (candidates.length === 0) { log('墓地中沒有符合條件的怪獸！', 'info'); return; }
+      candidates.sort((a, b) => b.baseAtk - a.baseAtk);
+      const picked = candidates[0];
+      const gIdx = ownerField.graveyard.indexOf(picked);
+      ownerField.graveyard.splice(gIdx, 1);
+      const fm: FieldMonster = {
+        cardId: picked.id,
+        definition: picked,
+        playerCardLevel: 1,
+        position: 'attack' as MonsterPosition,
+        currentAtk: Math.round(picked.baseAtk),
+        currentDef: Math.round(picked.baseDef),
+        canAttack: true,
+        hasAttacked: false,
+        justSummoned: true,
+        turnBuffs: [],
+        effectCooldowns: {},
+        faceUp: true,
+      };
+      ownerField.monsters[emptyIdx] = fm;
+      log(`${picked.name} 從墓地特殊召喚！(ATK:${fm.currentAtk})`, 'summon');
+    },
+  },
+
+  // -------------------------------------------------------- Negate Attack ---
+  negate_attack: {
+    action: 'negate_attack',
+    allowedTriggers: ['on_flip', 'on_summon', 'on_attacked'] as readonly EffectTrigger[],
+    allowedTargets: ['opponent_monster', 'strongest_opponent_monster', 'all_opponent_monsters'] as readonly EffectTarget[],
+    valueRange: [1, 1] as const,
+    handler: (ctx) => {
+      const { effect, sourceMonster, ownerField, opponentField, attackerMonster, log } = ctx;
+      const targets = resolveTargets(effect.target, sourceMonster, ownerField, opponentField, attackerMonster);
+      for (const m of targets) {
+        if (!m) continue;
+        m.canAttack = false;
+        log(`${effect.name}：${m.definition.name} 的攻擊被無效化！`, 'effect');
+      }
+    },
   },
 };
 

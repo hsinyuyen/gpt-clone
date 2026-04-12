@@ -19,6 +19,7 @@ import {
   changePosition,
   planAiStep,
   applyAiAction,
+  flipSummon,
 } from '@/utils/duelEngine';
 
 type Phase = 'opponent-select' | 'deck-preview' | 'dueling' | 'result';
@@ -236,6 +237,12 @@ export default function BattlePage() {
     if (!monster) return;
     const newPos = monster.position === 'attack' ? 'defense' : 'attack';
     const newState = changePosition(duelState, 'player', zoneIndex, newPos);
+    setDuelState(newState);
+  }, [duelState, isPlayerTurn]);
+
+  const handleFlipSummon = useCallback((zoneIndex: number) => {
+    if (!duelState || !isPlayerTurn) return;
+    const newState = flipSummon(duelState, 'player', zoneIndex);
     setDuelState(newState);
   }, [duelState, isPlayerTurn]);
 
@@ -473,6 +480,7 @@ export default function BattlePage() {
                 onSummon={handleSummon}
                 onAttack={handleAttack}
                 onChangePosition={handleChangePosition}
+                onFlipSummon={handleFlipSummon}
                 onAdvancePhase={handleAdvancePhase}
                 isPlayerTurn={isPlayerTurn}
                 externalDash={aiDash}

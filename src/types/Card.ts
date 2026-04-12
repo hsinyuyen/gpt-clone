@@ -19,7 +19,8 @@ export type EffectTrigger =
   | 'on_destroy'       // when this monster is destroyed by battle
   | 'start_of_turn'    // at the start of owner's turn
   | 'end_of_turn'      // at the end of owner's turn
-  | 'continuous';      // always active while on field (installed at summon)
+  | 'continuous'       // always active while on field (installed at summon)
+  | 'on_flip';         // when a face-down monster is flip summoned
 
 export type EffectAction =
   | 'damage_lp'          // deal damage to opponent LP
@@ -34,7 +35,10 @@ export type EffectAction =
   | 'piercing'           // [continuous] attacks do piercing damage
   | 'direct_attack'      // [continuous] can attack LP directly
   | 'double_attack'      // [continuous] can attack twice per battle phase
-  | 'protect';           // [on_summon/continuous] cannot be destroyed by battle
+  | 'protect'            // [on_summon/continuous] cannot be destroyed by battle
+  | 'special_summon_from_hand'      // [on_destroy] summon strongest monster from hand
+  | 'special_summon_from_graveyard' // [on_summon/on_destroy] summon from graveyard
+  | 'negate_attack';                // set target canAttack = false
 
 export type EffectTarget =
   | 'self'
@@ -58,6 +62,7 @@ export interface CardEffectDef {
   value: number;
   target: EffectTarget;
   duration?: number;  // turns the effect lasts for buff actions (default: 1)
+  elementFilter?: CardElement; // filter for graveyard summon by element
 }
 
 // Kept under the old name for backwards compat with existing imports.

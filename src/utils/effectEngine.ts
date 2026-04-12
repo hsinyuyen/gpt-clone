@@ -96,6 +96,19 @@ export function processOnAttackedEffects(
   return runEffectsFor(state, owner, defender, effectsOf(defender, 'on_attacked'), attacker);
 }
 
+/** On-flip effects. Also installs continuous effects that were skipped during face-down set. */
+export function processOnFlipEffects(
+  state: DuelState,
+  owner: 'player' | 'enemy',
+  monster: FieldMonster
+): DuelLogEntry[] {
+  const logs: DuelLogEntry[] = [];
+  logs.push(...runEffectsFor(state, owner, monster, effectsOf(monster, 'on_flip')));
+  // Continuous effects were not installed during face-down set — install them now.
+  logs.push(...runEffectsFor(state, owner, monster, effectsOf(monster, 'continuous')));
+  return logs;
+}
+
 export function processOnDestroyEffects(
   state: DuelState,
   owner: 'player' | 'enemy',
