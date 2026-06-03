@@ -57,7 +57,7 @@ export default async function handler(
     return res.status(500).json({ error: "SEEDANCE_API_KEY not configured" });
   }
 
-  const { imageData, motionPrompt } = req.body;
+  const { imageData, motionPrompt, duration } = req.body;
 
   try {
     // Build request body
@@ -65,7 +65,7 @@ export default async function handler(
       prompt: motionPrompt || "gentle camera pan, smooth cinematic animation, children book illustration coming to life",
       aspect_ratio: "16:9",
       resolution: "480p",
-      duration: "4",
+      duration: duration || "4",
       generate_audio: false,
     };
 

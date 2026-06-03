@@ -11,6 +11,7 @@ import { ALL_POOLS } from '@/data/cards/pools';
 import { CARD_MAP } from '@/data/cards/pools';
 import { CardDefinition, CardRarity } from '@/types/Card';
 import { getRarityColor, getRarityLabel, getElementEmoji, getLevelStars, getTributeCost } from '@/utils/cardStats';
+import CardGameGuard from '@/components/CardGameGuard';
 
 const RARITY_ORDER: CardRarity[] = ['legendary', 'epic', 'rare', 'common'];
 
@@ -115,6 +116,7 @@ export default function PoolDetailPage() {
     .filter((c): c is CardDefinition => Boolean(c));
 
   return (
+    <CardGameGuard>
     <div className="min-h-screen bg-black text-white">
       {/* Nav */}
       <div className="border-b border-gray-700 p-4">
@@ -317,6 +319,7 @@ export default function PoolDetailPage() {
         />
       )}
     </div>
+    </CardGameGuard>
   );
 }
 

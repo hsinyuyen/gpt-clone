@@ -10,11 +10,14 @@ import {
 import { getRarityColor } from '@/utils/cardStats';
 import { canNormalSummon, getTributesNeeded } from '@/utils/duelEngine';
 import { hasBuff } from '@/utils/effectEngine';
+import { useCardAnimations } from '@/contexts/CardAnimationContext';
+import { useVideoCache } from '@/contexts/VideoCacheContext';
+import VideoPreloader from './VideoPreloader';
 
-// A monster can still declare an attack if it has the `double_attack` flag buff,
-// matching the engine check in declareAttack().
+// A monster can still declare an attack based on its attackCount vs max attacks.
 function canStillAttack(monster: FieldMonster): boolean {
-  return !monster.hasAttacked || hasBuff(monster, 'double_attack');
+  const maxAttacks = hasBuff(monster, 'double_attack') ? 2 : 1;
+  return monster.attackCount < maxAttacks;
 }
 
 interface DuelFieldProps {
@@ -25,6 +28,10 @@ interface DuelFieldProps {
   onFlipSummon?: (zoneIndex: number) => void;
   onAdvancePhase: () => void;
   isPlayerTurn: boolean;
+  /** Resolve a pending `special_summon_from_hand` choice — called with the chosen hand index. */
+  onResolveSpecialSummon?: (handIndex: number) => void;
+  /** True when the local user owns the pending special summon. */
+  pendingSpecialSummonIsMine?: boolean;
   /** External dash animation (e.g. AI attack) */
   externalDash?: { from: 'player' | 'enemy'; fromZone: number; toZone: number; isDirect: boolean } | null;
   /** Highlight a zone as the AI's attack target */
@@ -537,6 +544,8 @@ export default function DuelField({
   onFlipSummon,
   onAdvancePhase,
   isPlayerTurn,
+  onResolveSpecialSummon,
+  pendingSpecialSummonIsMine,
   externalDash,
   externalHighlight,
 }: DuelFieldProps) {
@@ -544,6 +553,7 @@ export default function DuelField({
   const [selectedMonster, setSelectedMonster] = useState<number | null>(null);
   const [tributeSelection, setTributeSelection] = useState<number[]>([]);
   const [summonMode, setSummonMode] = useState(false);
+  const [summonPosition, setSummonPosition] = useState<'attack' | 'defense' | 'facedown_defense'>('attack');
   const [attackMode, setAttackMode] = useState(false);
   const [showCardInfo, setShowCardInfo] = useState<CardDefinition | null>(null);
   const [showGraveyard, setShowGraveyard] = useState<'player' | 'enemy' | null>(null);
@@ -553,6 +563,17 @@ export default function DuelField({
   const [showPhaseBanner, setShowPhaseBanner] = useState(false);
   const [bannerPhase, setBannerPhase] = useState<DuelPhase>(state.currentPhase);
   const [dashAnim, setDashAnim] = useState<{ from: 'player' | 'enemy'; fromZone: number; toZone: number; isDirect: boolean } | null>(null);
+  // Attack video state: kept on a persistent <video> element so the play()
+  // call can fire instantly without React having to mount a new <video>.
+  const [attackVisible, setAttackVisible] = useState(false);
+  const [attackCardName, setAttackCardName] = useState('');
+  const hiddenAttackVideoRef = useRef<HTMLVideoElement>(null);
+  const performAttackRef = useRef<(() => void) | null>(null);
+  const { getAttackUrl: getRawAttackUrl } = useCardAnimations();
+  const { getCachedUrl } = useVideoCache();
+  // Wrap to always return blob: URL when available — instant, in-memory playback
+  const getAttackUrl = (cardId: string) => getCachedUrl(getRawAttackUrl(cardId));
+  const prevTurnStateRef = useRef<DuelState>(state);
   const [prevPlayerLp, setPrevPlayerLp] = useState(state.player.lp);
   const [prevEnemyLp, setPrevEnemyLp] = useState(state.enemy.lp);
   const [playerDrawing, setPlayerDrawing] = useState(false);
@@ -713,7 +734,7 @@ export default function DuelField({
         if (newTributes.length >= tribNeeded) {
           const emptyZone = playerField.monsters.findIndex((m) => m === null);
           if (emptyZone >= 0) {
-            onSummon(selectedHandCard, emptyZone, 'attack', newTributes);
+            onSummon(selectedHandCard, emptyZone, summonPosition, newTributes);
           }
           resetSelection();
         }
@@ -721,7 +742,7 @@ export default function DuelField({
       }
 
       if (!monster) {
-        onSummon(selectedHandCard, idx, 'attack', []);
+        onSummon(selectedHandCard, idx, summonPosition, []);
         resetSelection();
         return;
       }
@@ -751,17 +772,85 @@ export default function DuelField({
     if (monster) setShowCardInfo(monster.definition);
   };
 
+  // The MOMENT the player picks an attacker, prime the persistent video
+  // element with that attacker's URL. By the time they click a target,
+  // the first frame is already decoded and play() returns instantly.
+  useEffect(() => {
+    if (!attackMode || selectedMonster === null) return;
+    const m = playerField.monsters[selectedMonster];
+    if (!m) return;
+    const url = getAttackUrl(m.definition.id);
+    const v = hiddenAttackVideoRef.current;
+    if (!url || !v) return;
+    if (v.src !== url) {
+      v.src = url;
+      v.load();
+    }
+    // Snap to first frame so we don't see a black flicker
+    v.currentTime = 0;
+  }, [attackMode, selectedMonster, playerField.monsters, getAttackUrl]);
+
+  // Fade-out duration (ms) — kept in sync with the CSS transition below.
+  const ATTACK_FADE_MS = 350;
+
+  // End the attack overlay: fade it out and proceed to the actual dash + onAttack.
+  const finishAttackOverlay = () => {
+    setAttackVisible(false);
+    const v = hiddenAttackVideoRef.current;
+    // Run the dash + onAttack DURING the fade so it feels snappy
+    performAttackRef.current?.();
+    performAttackRef.current = null;
+    // Pause the video after fade so we don't hear bleed-through
+    setTimeout(() => {
+      if (v) {
+        try { v.pause(); } catch {}
+      }
+    }, ATTACK_FADE_MS);
+  };
+
+  // Trigger attack with optional signature video overlay (instant playback)
+  const triggerAttack = (attackerZone: number, targetZone: number, isDirect: boolean) => {
+    const attacker = playerField.monsters[attackerZone];
+    const videoUrl = attacker ? getAttackUrl(attacker.definition.id) : undefined;
+
+    const performAttack = () => {
+      setDashAnim({ from: 'player', fromZone: attackerZone, toZone: targetZone, isDirect });
+      setTimeout(() => {
+        onAttack(attackerZone, targetZone);
+        setDashAnim(null);
+      }, 500);
+    };
+
+    if (videoUrl && attacker && hiddenAttackVideoRef.current) {
+      // Defer the dash + state change until the video fade-out
+      performAttackRef.current = performAttack;
+      setAttackCardName(attacker.definition.name);
+      setAttackVisible(true);
+      const v = hiddenAttackVideoRef.current;
+      // Make sure src is correct (in case attacker wasn't pre-selected via UI)
+      if (v.src !== videoUrl) {
+        v.src = videoUrl;
+        v.load();
+      }
+      v.currentTime = 0;
+      const playPromise = v.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch((err) => {
+          console.warn('[attack-video] play failed, falling back', err);
+          finishAttackOverlay();
+        });
+      }
+    } else {
+      performAttack();
+    }
+  };
+
   const handleEnemyZoneClick = (idx: number) => {
     if (!isPlayerTurn) return;
     if (attackMode && selectedMonster !== null) {
-      // Trigger dash animation, then attack after animation completes
       const attacker = selectedMonster;
-      setDashAnim({ from: 'player', fromZone: attacker, toZone: idx, isDirect: false });
       resetSelection();
-      setTimeout(() => {
-        onAttack(attacker, idx);
-        setDashAnim(null);
-      }, 500);
+      triggerAttack(attacker, idx, false);
       return;
     }
     const monster = enemyField.monsters[idx];
@@ -771,12 +860,8 @@ export default function DuelField({
   const handleDirectAttack = () => {
     if (attackMode && selectedMonster !== null) {
       const attacker = selectedMonster;
-      setDashAnim({ from: 'player', fromZone: attacker, toZone: -1, isDirect: true });
       resetSelection();
-      setTimeout(() => {
-        onAttack(attacker, -1);
-        setDashAnim(null);
-      }, 500);
+      triggerAttack(attacker, -1, true);
     }
   };
 
@@ -786,12 +871,31 @@ export default function DuelField({
     setTributeSelection([]);
     setSummonMode(false);
     setAttackMode(false);
+    setSummonPosition('attack');
   };
 
-  const canDirectAttack = attackMode && enemyField.monsters.every((m) => m === null);
+  const canDirectAttack = attackMode && (
+    enemyField.monsters.every((m) => m === null) ||
+    (selectedMonster !== null && playerField.monsters[selectedMonster] && hasBuff(playerField.monsters[selectedMonster]!, 'direct_attack'))
+  );
+
+  // Pre-fetch attack videos for every monster currently visible (hand + field
+  // both sides) so when the user actually attacks, the video starts instantly.
+  const preloadAttackUrls: string[] = [];
+  for (const m of [...playerField.monsters, ...enemyField.monsters]) {
+    if (m) {
+      const url = getAttackUrl(m.definition.id);
+      if (url) preloadAttackUrls.push(url);
+    }
+  }
+  for (const c of [...playerField.hand, ...enemyField.hand]) {
+    const url = getAttackUrl(c.id);
+    if (url) preloadAttackUrls.push(url);
+  }
 
   return (
     <div className={`flex flex-col h-full bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 relative ${screenShake ? 'animate-duel-screen-shake' : ''}`}>
+      <VideoPreloader urls={preloadAttackUrls} />
       {/* Phase transition banner */}
       <PhaseBanner phase={bannerPhase} isPlayerTurn={isPlayerTurn} show={showPhaseBanner} />
       {/* CSS Animations */}
@@ -1134,7 +1238,35 @@ export default function DuelField({
               ? '👆 點擊你的怪獸來攻擊'
               : ''}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center flex-wrap">
+            {summonMode && (
+              <div className="flex gap-1 border border-[var(--terminal-color)]/40 rounded overflow-hidden">
+                {([
+                  { id: 'attack', label: '⚔ 攻擊' },
+                  { id: 'defense', label: '🛡 守備' },
+                  { id: 'facedown_defense', label: '🂠 背面' },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setSummonPosition(opt.id)}
+                    className={`px-2 py-1.5 text-[11px] font-bold transition-colors ${
+                      summonPosition === opt.id
+                        ? 'bg-[var(--terminal-color)] text-black'
+                        : 'text-gray-300 hover:bg-gray-800'
+                    }`}
+                    title={
+                      opt.id === 'attack'
+                        ? '以攻擊表示召喚'
+                        : opt.id === 'defense'
+                        ? '以守備表示召喚'
+                        : '以背面守備表示召喚（之後可反轉召喚）'
+                    }
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
             {(summonMode || attackMode) && (
               <button
                 onClick={resetSelection}
@@ -1360,6 +1492,110 @@ export default function DuelField({
             >
               關閉
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Attack signature video overlay — persistent <video> element so play()
+          is instant. Whole overlay fades in/out via CSS opacity transition.
+          Vignette edges blend into the duel field instead of a hard black box. */}
+      <div
+        className="fixed inset-0 z-[55] flex items-center justify-center transition-opacity duration-[350ms] ease-out"
+        style={{
+          opacity: attackVisible ? 1 : 0,
+          pointerEvents: attackVisible ? 'auto' : 'none',
+          background: attackVisible
+            ? 'radial-gradient(ellipse at center, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.85) 70%, rgba(0,0,0,0.95) 100%)'
+            : 'transparent',
+        }}
+      >
+        <div className="relative">
+          <video
+            ref={hiddenAttackVideoRef}
+            playsInline
+            preload="auto"
+            onEnded={finishAttackOverlay}
+            onError={finishAttackOverlay}
+            className="attack-vignette-video max-h-[80vh] max-w-[90vw] object-contain"
+            style={{ filter: attackVisible ? 'drop-shadow(0 0 60px rgba(250,204,21,0.6))' : 'none' }}
+          />
+          {attackVisible && attackCardName && (
+            <div
+              className="absolute -top-10 left-1/2 -translate-x-1/2 text-yellow-400 text-xl md:text-2xl font-bold tracking-widest whitespace-nowrap"
+              style={{ textShadow: '0 0 20px rgba(250,204,21,0.9), 0 0 40px rgba(250,204,21,0.6)' }}
+            >
+              ⚔ {attackCardName}
+            </div>
+          )}
+        </div>
+        {attackVisible && (
+          <button
+            onClick={finishAttackOverlay}
+            className="absolute top-4 right-4 px-3 py-1.5 text-xs border border-yellow-500 text-yellow-300 hover:bg-yellow-900/30 z-20 pointer-events-auto bg-black/60 rounded"
+          >
+            SKIP →
+          </button>
+        )}
+      </div>
+
+      {/* Pending special summon from hand — player picks which monster */}
+      {state.pendingSpecialSummon && pendingSpecialSummonIsMine && onResolveSpecialSummon && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border-2 border-[var(--terminal-color)] rounded-lg p-5 max-w-2xl w-full max-h-[85vh] flex flex-col">
+            <div className="mb-3 flex-shrink-0">
+              <h2 className="text-xl font-bold" style={{ color: 'var(--terminal-color)' }}>
+                ✨ 特殊召喚
+              </h2>
+              <p className="text-xs text-gray-400 mt-1">
+                請從手牌中選擇一隻怪獸特殊召喚到場上
+              </p>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {state.pendingSpecialSummon.candidateHandIndices.map((handIdx) => {
+                  const card = playerField.hand[handIdx];
+                  if (!card) return null;
+                  return (
+                    <button
+                      key={`pick_${handIdx}`}
+                      onClick={() => onResolveSpecialSummon(handIdx)}
+                      className="border-2 border-[var(--terminal-color)]/40 rounded-lg bg-black/60 hover:border-[var(--terminal-color)] hover:scale-105 transition-all p-2 text-left"
+                    >
+                      {card.imageUrl ? (
+                        <img
+                          src={card.imageUrl}
+                          alt={card.name}
+                          className="w-full aspect-square rounded object-cover"
+                        />
+                      ) : (
+                        <div className="w-full aspect-square flex items-center justify-center text-4xl">
+                          {card.emoji}
+                        </div>
+                      )}
+                      <div className="text-xs font-bold mt-1 truncate" style={{ color: 'var(--terminal-color)' }}>
+                        {card.name}
+                      </div>
+                      <div className="flex justify-between text-[10px] mt-1">
+                        <span className="text-orange-400">ATK {card.baseAtk}</span>
+                        <span className="text-blue-400">DEF {card.baseDef}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Waiting for opponent to pick special summon target */}
+      {state.pendingSpecialSummon && !pendingSpecialSummonIsMine && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 pointer-events-none">
+          <div className="bg-gray-900 border-2 border-purple-500 rounded-lg px-6 py-4 text-center">
+            <div className="text-3xl mb-2 animate-pulse">✨</div>
+            <div className="text-sm text-purple-300 font-bold">
+              對手正在選擇特殊召喚的怪獸...
+            </div>
           </div>
         </div>
       )}

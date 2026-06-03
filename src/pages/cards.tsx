@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCards } from '@/contexts/CardContext';
 import CoinDisplay from '@/components/CoinDisplay';
 import CardGrid from '@/components/cards/CardGrid';
+import CardGameGuard from '@/components/CardGameGuard';
 
 export default function CardsPage() {
   const router = useRouter();
@@ -34,6 +35,7 @@ export default function CardsPage() {
     .filter((c) => c.definition);
 
   return (
+    <CardGameGuard>
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
       <div className="border-b border-gray-700 p-4">
@@ -103,5 +105,6 @@ export default function CardsPage() {
         <CardGrid cards={collectionCards} />
       </div>
     </div>
+    </CardGameGuard>
   );
 }

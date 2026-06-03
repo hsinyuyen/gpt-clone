@@ -4,6 +4,8 @@ import { CardDefinition, PlayerCard } from '@/types/Card';
 import { getRarityColor, getRarityLabel, getElementEmoji, scaledStat, xpToNextLevel, getLevelStars, getTributeCost } from '@/utils/cardStats';
 import { useCards } from '@/contexts/CardContext';
 import { useCoin } from '@/contexts/CoinContext';
+import { useCardAnimations } from '@/contexts/CardAnimationContext';
+import { useVideoCache } from '@/contexts/VideoCacheContext';
 
 interface CardDetailProps {
   definition: CardDefinition;
@@ -12,9 +14,19 @@ interface CardDetailProps {
 }
 
 export default function CardDetail({ definition, playerCard, onClose }: CardDetailProps) {
-  const { strengthenWithCoins } = useCards();
+  const { strengthenWithCoins, cardImageMap } = useCards();
   const { coins } = useCoin();
+  const { getAttackUrl } = useCardAnimations();
+  const { getCachedUrl } = useVideoCache();
   const [strengthenMsg, setStrengthenMsg] = useState('');
+  const [showVideo, setShowVideo] = useState(false);
+
+  // Resolve real card art from CardContext map (Firestore uploads) — falls
+  // back to the static def.imageUrl, then to the emoji.
+  const resolvedImage = cardImageMap[definition.id] || definition.imageUrl || '';
+  // Signature attack video (legendary cards only). Use cached blob URL when available.
+  const attackVideoUrl = getCachedUrl(getAttackUrl(definition.id));
+  const hasVideo = !!attackVideoUrl;
 
   const level = playerCard?.level || 1;
   const rarityColor = getRarityColor(definition.rarity);
@@ -77,15 +89,44 @@ export default function CardDetail({ definition, playerCard, onClose }: CardDeta
           </div>
         </div>
 
-        {/* Card image */}
+        {/* Card image / video */}
         <div className="text-center my-5">
-          {definition.imageUrl ? (
-            <img
-              src={definition.imageUrl}
-              alt={definition.name}
-              className="w-72 h-72 sm:w-80 sm:h-80 mx-auto rounded-lg object-cover shadow-lg"
-              style={{ borderColor: 'var(--terminal-color)', borderWidth: '2px', borderStyle: 'solid' }}
-            />
+          {showVideo && hasVideo ? (
+            <div className="relative inline-block">
+              <video
+                src={attackVideoUrl}
+                autoPlay
+                loop
+                playsInline
+                controls
+                className="w-72 h-72 sm:w-80 sm:h-80 mx-auto rounded-lg object-cover shadow-lg"
+                style={{ borderColor: '#fbbf24', borderWidth: '2px', borderStyle: 'solid' }}
+              />
+              <button
+                onClick={() => setShowVideo(false)}
+                className="absolute top-2 right-2 px-2 py-1 text-[10px] bg-black/70 border border-yellow-500 text-yellow-300 rounded hover:bg-yellow-900/50"
+              >
+                返回卡圖
+              </button>
+            </div>
+          ) : resolvedImage ? (
+            <div className="relative inline-block">
+              <img
+                src={resolvedImage}
+                alt={definition.name}
+                className="w-72 h-72 sm:w-80 sm:h-80 mx-auto rounded-lg object-cover shadow-lg"
+                style={{ borderColor: 'var(--terminal-color)', borderWidth: '2px', borderStyle: 'solid' }}
+              />
+              {hasVideo && (
+                <button
+                  onClick={() => setShowVideo(true)}
+                  className="absolute top-2 right-2 px-3 py-1.5 text-xs font-bold bg-black/80 border-2 border-yellow-400 text-yellow-300 rounded hover:bg-yellow-900/60 hover:scale-105 transition-all animate-pulse"
+                  title="播放攻擊動畫"
+                >
+                  ▶ 攻擊動畫
+                </button>
+              )}
+            </div>
           ) : (
             <div className="text-9xl">{definition.emoji}</div>
           )}

@@ -46,7 +46,13 @@ function migrateCollection(raw: PlayerCardCollection): PlayerCardCollection {
     return raw;
   }
 
-  const legacyIds = raw.activeDeckCardIds || [];
+  // Empty collection (new player with no cards) — keep as-is
+  const legacyIds = (raw as any).activeDeckCardIds || [];
+  if (legacyIds.length === 0 && raw.cards.length === 0) {
+    return { ...raw, decks: [] };
+  }
+
+  // Legacy format: migrate activeDeckCardIds into a SavedDeck
   const firstDeck: SavedDeck = {
     id: makeId("deck"),
     name: "我的主力",
@@ -149,26 +155,16 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
           saveCardCollection(user.id, migrated);
         }
       } else {
-        // New player: generate starter collection + starter deck
-        const starterCards = generateStarterDeck(BASIC_POOL_CARDS);
-        const starterDeck: SavedDeck = {
-          id: makeId("deck"),
-          name: "我的主力",
-          description: "初始牌組",
-          cardIds: starterCards.slice(0, MAX_DECK_SIZE).map((c) => c.cardId),
-          createdAt: nowIso(),
-          updatedAt: nowIso(),
-        };
-        const newCollection: PlayerCardCollection = {
+        // New player: start with empty collection, must draw cards
+        const emptyCollection: PlayerCardCollection = {
           userId: user.id,
-          cards: starterCards,
-          decks: [starterDeck],
-          activeDeckId: starterDeck.id,
+          cards: [],
+          decks: [],
           totalDraws: 0,
           pityCounter: 0,
         };
-        setCollection(newCollection);
-        saveCardCollection(user.id, newCollection);
+        setCollection(emptyCollection);
+        saveCardCollection(user.id, emptyCollection);
       }
       setIsLoading(false);
     });

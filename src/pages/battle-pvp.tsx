@@ -1,5 +1,5 @@
 // Real-time PvP Duel page - Yu-Gi-Oh Master Duel style
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCards } from '@/contexts/CardContext';
@@ -15,10 +15,13 @@ import {
   changePosition,
   flipSummon,
   swapDuelState,
+  resolvePendingSpecialSummon,
 } from '@/utils/duelEngine';
-import { savePvpRoom, deletePvpRoom } from '@/lib/firestore';
+import { savePvpRoom, deletePvpRoom, incrementBattleWin } from '@/lib/firestore';
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
+import CardGameGuard from '@/components/CardGameGuard';
+import { useCoin } from '@/contexts/CoinContext';
 
 // Firestore rejects undefined — strip them before save
 function sanitize<T>(obj: T): T {
@@ -30,9 +33,19 @@ export default function BattlePvpPage() {
   const { roomId } = router.query;
   const { user, isLoading } = useAuth();
   const { cardImageMap } = useCards();
+  const { addCoins } = useCoin();
+
+  const PVP_REWARD_COINS = 20;
 
   const [room, setRoom] = useState<PvpBattleRoom | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const rewardGrantedRef = useRef(false);
+
+  // Opponent attack dash animation
+  type DashInfo = { from: 'player' | 'enemy'; fromZone: number; toZone: number; isDirect: boolean };
+  const [opponentDash, setOpponentDash] = useState<DashInfo | null>(null);
+  const [opponentHighlight, setOpponentHighlight] = useState<{ side: 'player' | 'enemy'; zone: number } | null>(null);
+  const prevViewStateRef = useRef<DuelState | null>(null);
 
   // Auth guard
   useEffect(() => {
@@ -64,7 +77,9 @@ export default function BattlePvpPage() {
     const initial = initPvpDuel(
       room.player1DeckCardIds,
       room.player2DeckCardIds,
-      cardImageMap
+      cardImageMap,
+      room.player1CardLevels || {},
+      room.player2CardLevels || {}
     );
     // Auto-advance the first player's draw phase (skip draw click on turn 1).
     // initPvpDuel coin-flips firstPlayer; in real-state terms, 'player' = player1
@@ -91,6 +106,17 @@ export default function BattlePvpPage() {
     }
   }, [room?.battleState?.status]);
 
+  // Award coins + track win on PvP victory (ref-guarded to prevent double-fire)
+  useEffect(() => {
+    if (rewardGrantedRef.current) return;
+    if (!user || !room || room.status !== 'finished') return;
+    if (room.winnerId !== user.id) return;
+
+    rewardGrantedRef.current = true;
+    addCoins(PVP_REWARD_COINS, 'PvP 決鬥勝利');
+    incrementBattleWin(user.id, 'pvp');
+  }, [room, user, addCoins]);
+
   // === View-state (always local = 'player' side of the DuelField) ===
   const viewState: DuelState | null = useMemo(() => {
     if (!room?.battleState) return null;
@@ -99,6 +125,88 @@ export default function BattlePvpPage() {
 
   // Whose turn is it from the local user's perspective?
   const isPlayerTurn = !!viewState && viewState.currentPlayer === 'player' && viewState.status === 'dueling';
+
+  // Detect opponent attacks from state diff and play dash animation
+  useEffect(() => {
+    const prev = prevViewStateRef.current;
+    prevViewStateRef.current = viewState;
+    if (!prev || !viewState) return;
+    // Only detect attacks when it was the opponent's turn (not player's)
+    if (prev.currentPlayer === 'player') return;
+
+    // Find new attack logs from the enemy
+    const newLogs = viewState.log.slice(prev.log.length);
+    const attackLog = newLogs.find(
+      (l) => l.type === 'attack' && l.actor === 'enemy'
+    );
+    if (!attackLog) return;
+
+    // Determine attacker zone and target zone from monster state diff
+    let fromZone = -1;
+    let toZone = -1;
+    let isDirect = false;
+
+    // Find which enemy monster attacked (attackCount increased)
+    for (let i = 0; i < 5; i++) {
+      const prevM = prev.enemy.monsters[i];
+      const currM = viewState.enemy.monsters[i];
+      if (prevM && currM && currM.attackCount > prevM.attackCount) {
+        fromZone = i;
+        break;
+      }
+      // Also check hasAttacked flip
+      if (prevM && currM && !prevM.hasAttacked && currM.hasAttacked) {
+        fromZone = i;
+        break;
+      }
+    }
+    if (fromZone < 0) return;
+
+    // Check if a player monster was destroyed (target zone)
+    for (let i = 0; i < 5; i++) {
+      if (prev.player.monsters[i] && !viewState.player.monsters[i]) {
+        toZone = i;
+        break;
+      }
+    }
+
+    // If no monster was destroyed, check for LP damage (direct attack)
+    if (toZone < 0 && viewState.player.lp < prev.player.lp) {
+      isDirect = true;
+      toZone = -1;
+    }
+
+    // If we still can't determine target, check if any player monster took damage
+    if (toZone < 0 && !isDirect) {
+      for (let i = 0; i < 5; i++) {
+        const pM = prev.player.monsters[i];
+        const cM = viewState.player.monsters[i];
+        if (pM && cM && (cM.currentAtk < pM.currentAtk || cM.currentDef < pM.currentDef)) {
+          toZone = i;
+          break;
+        }
+      }
+      // Fallback: pick first alive player monster
+      if (toZone < 0) {
+        toZone = viewState.player.monsters.findIndex((m) => m !== null);
+        if (toZone < 0) isDirect = true;
+      }
+    }
+
+    // Play highlight → dash → clear sequence
+    if (!isDirect && toZone >= 0) {
+      setOpponentHighlight({ side: 'player', zone: toZone });
+    }
+    const t1 = setTimeout(() => {
+      setOpponentDash({ from: 'enemy', fromZone, toZone, isDirect });
+      const t2 = setTimeout(() => {
+        setOpponentDash(null);
+        setOpponentHighlight(null);
+      }, 400);
+      return () => clearTimeout(t2);
+    }, 300);
+    return () => clearTimeout(t1);
+  }, [viewState]);
 
   // === Shared mutator: apply a function to the REAL state, save to Firestore ===
   const commitNewState = useCallback(async (newReal: DuelState) => {
@@ -155,6 +263,15 @@ export default function BattlePvpPage() {
     const newReal = flipSummon(room.battleState, localRealSide, zoneIndex);
     commitNewState(newReal);
   }, [room, isPlayerTurn, localRealSide, commitNewState]);
+
+  // Resolve a pending special summon — only the owner's side can pick.
+  const handleResolveSpecialSummon = useCallback((handIndex: number) => {
+    if (!room?.battleState?.pendingSpecialSummon) return;
+    // Only the side that owns the pending summon may resolve it
+    if (room.battleState.pendingSpecialSummon.owner !== localRealSide) return;
+    const newReal = resolvePendingSpecialSummon(room.battleState, handIndex);
+    commitNewState(newReal);
+  }, [room, localRealSide, commitNewState]);
 
   const handleAdvancePhase = useCallback(() => {
     if (!room?.battleState || !isPlayerTurn) return;
@@ -224,6 +341,7 @@ export default function BattlePvpPage() {
   const opponentJoined = isPlayer1 ? !!room.player2Id : !!room.player1Id;
 
   return (
+    <CardGameGuard>
     <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Header */}
       <div className="border-b border-gray-700 p-3 flex-shrink-0">
@@ -287,8 +405,8 @@ export default function BattlePvpPage() {
         </div>
       )}
 
-      {/* Actual duel */}
-      {room.status === 'battling' && viewState && (
+      {/* Actual duel — keep visible during 'finished' so KO animation plays */}
+      {(room.status === 'battling' || room.status === 'finished') && viewState && (
         <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full">
           <div className="flex-1 min-h-0 relative">
             <DuelField
@@ -299,6 +417,10 @@ export default function BattlePvpPage() {
               onFlipSummon={handleFlipSummon}
               onAdvancePhase={handleAdvancePhase}
               isPlayerTurn={isPlayerTurn}
+              onResolveSpecialSummon={handleResolveSpecialSummon}
+              pendingSpecialSummonIsMine={viewState.pendingSpecialSummon?.owner === 'player'}
+              externalDash={opponentDash}
+              externalHighlight={opponentHighlight}
             />
             {/* Turn indicator for the waiting player */}
             {!isPlayerTurn && viewState.status === 'dueling' && (
@@ -335,6 +457,11 @@ export default function BattlePvpPage() {
             <div className="text-gray-400 text-sm mb-4">
               第 {viewState.turn} 回合結束
             </div>
+            {viewState.status === 'victory' && (
+              <div className="text-yellow-400 text-sm font-bold mb-3 animate-pulse">
+                🪙 +{PVP_REWARD_COINS} 金幣
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
               <div>
                 <div className="text-gray-500">你的 LP</div>
@@ -360,5 +487,6 @@ export default function BattlePvpPage() {
         </div>
       )}
     </div>
+    </CardGameGuard>
   );
 }

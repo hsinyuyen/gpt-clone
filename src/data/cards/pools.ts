@@ -5,12 +5,14 @@ import { validateCards } from '@/utils/effectCatalog';
 import { BASIC_POOL_CARDS } from './basic-pool';
 import { HIGHTECH_CITY_CARDS } from './hightech-city';
 import { SWORD_SHIELD_POOL_CARDS } from './sword-shield-pool';
+import { WORM_NIGHTMARE_CARDS } from './worm-nightmare-pool';
 
 // All card definitions combined
 export const ALL_CARDS: CardDefinition[] = [
   ...BASIC_POOL_CARDS,
   ...HIGHTECH_CITY_CARDS,
   ...SWORD_SHIELD_POOL_CARDS,
+  ...WORM_NIGHTMARE_CARDS,
 ];
 
 // Module-load validation: any card whose effects are not in the catalog
@@ -53,10 +55,10 @@ export const BASIC_POOL: CardPool = {
     'basic_electric_08', // 超電磁龍
   ],
   rates: {
-    common: 0.60,
+    common: 0.62,
     rare: 0.25,
     epic: 0.12,
-    legendary: 0.03,
+    legendary: 0.01,
   },
   singleDrawCost: 5,
   multiDrawCost: 45,
@@ -89,10 +91,10 @@ export const HIGHTECH_CITY_POOL: CardPool = {
     'htc_16',
   ],
   rates: {
-    common: 0.55,
+    common: 0.58,
     rare: 0.28,
     epic: 0.13,
-    legendary: 0.04,
+    legendary: 0.01,
   },
   singleDrawCost: 5,
   multiDrawCost: 45,
@@ -125,13 +127,46 @@ export const SWORD_SHIELD_POOL: CardPool = {
     'ss_17', // 盾擊突擊犬
   ],
   rates: {
-    common: 0.58,
+    common: 0.60,
     rare: 0.27,
     epic: 0.12,
-    legendary: 0.03,
+    legendary: 0.01,
   },
   singleDrawCost: 5,
   multiDrawCost: 45,
+  multiDrawCount: 10,
+  guaranteedRare: true,
+};
+
+export const WORM_NIGHTMARE_POOL: CardPool = {
+  id: 'worm-nightmare',
+  name: '蠕蟲噩夢',
+  description: '獻祭你的手牌，喚醒沉睡於深淵的帝王。四張卡構成的終極連鎖！',
+  tagline: '深淵連鎖・帝王降臨',
+  lore: '從不起眼的蠕蟲一號開始，每一次「死亡」都是下一個恐怖的召喚。當三位蠕蟲將手牌全部獻祭給古老的契約之時，蠕蟲帝王・沃蘭極便會從深淵爬出，吞噬對手的所有希望。',
+  theme: {
+    gradientFrom: '#3f0d2e',
+    gradientTo: '#1a1a2e',
+    accent: '#a855f7',
+  },
+  type: 'event',
+  isActive: true,
+  cardIds: WORM_NIGHTMARE_CARDS.filter((c) => !c.isForbidden).map((c) => c.id),
+  featuredCardIds: [
+    'mainframe_worm',   // 主機蠕蟲・噩夢連鎖 (終極主打)
+    'worm_emperor',     // 蠕蟲帝王・沃蘭極
+    'abyss_tentacle',   // 深淵主宰・觸手
+    'void_beast',       // 虛空巨獸
+    'worm_1',           // 連鎖起點
+  ],
+  rates: {
+    common: 0.25,   // 蠕蟲卵
+    rare: 0.39,     // 蠕蟲一號、繁殖巢、獵手
+    epic: 0.35,     // 蠕蟲二號、三號、深淵觸手、虛空巨獸
+    legendary: 0.01, // 蠕蟲帝王、主機蠕蟲
+  },
+  singleDrawCost: 300,
+  multiDrawCost: 2700,
   multiDrawCount: 10,
   guaranteedRare: true,
 };
@@ -141,6 +176,7 @@ export const ALL_POOLS: CardPool[] = [
   BASIC_POOL,
   HIGHTECH_CITY_POOL,
   SWORD_SHIELD_POOL,
+  WORM_NIGHTMARE_POOL,
 ];
 
 // Get active pools

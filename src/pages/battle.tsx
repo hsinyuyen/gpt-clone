@@ -11,6 +11,8 @@ import DuelTutorial from '@/components/cards/DuelTutorial';
 import CardTile from '@/components/cards/CardTile';
 import { DuelState, PveOpponent } from '@/types/Card';
 import { PVE_OPPONENTS } from '@/data/cards/pve-opponents';
+import { getQuickRoom } from '@/data/cards/quick-rooms';
+import { generateOpponentFromRoom } from '@/utils/randomOpponentGenerator';
 import {
   initPveDuel,
   advancePhase,
@@ -20,7 +22,21 @@ import {
   planAiStep,
   applyAiAction,
   flipSummon,
+  resolvePendingSpecialSummon,
 } from '@/utils/duelEngine';
+import CardGameGuard from '@/components/CardGameGuard';
+import {
+  incrementBattleWin,
+  getUserQuestProgress,
+  markPveQuestCompleted,
+  UserQuestProgress,
+  onQuestImagesChange,
+  QuestImageMap,
+} from '@/lib/firestore';
+
+const BATTLE_COST = 10;
+const DAILY_BATTLE_LIMIT = 10;
+const BATTLE_TX_PREFIX = "PvE 決鬥";
 
 type Phase = 'opponent-select' | 'deck-preview' | 'dueling' | 'result';
 
@@ -28,10 +44,12 @@ export default function BattlePage() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
   const { collection, getCardDef, cardImageMap, refreshCollection, activeDeck, setActiveDeck } = useCards();
-  const { addCoins } = useCoin();
+  const { addCoins, spendCoins, canAfford, transactions } = useCoin();
 
   const [phase, setPhase] = useState<Phase>('opponent-select');
   const [selectedOpponent, setSelectedOpponent] = useState<PveOpponent | null>(null);
+  const [questProgress, setQuestProgress] = useState<UserQuestProgress | null>(null);
+  const [questImages, setQuestImages] = useState<QuestImageMap>({});
   const [showDeckPicker, setShowDeckPicker] = useState(false);
   const [duelState, setDuelState] = useState<DuelState | null>(null);
   const [isPlayerTurn, setIsPlayerTurn] = useState(true);
@@ -41,11 +59,54 @@ export default function BattlePage() {
   const [aiHighlight, setAiHighlight] = useState<{ side: 'player' | 'enemy'; zone: number } | null>(null);
   const aiTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Calculate today's battle count from transaction history
+  const todayBattleCount = (() => {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayMs = todayStart.getTime();
+    return transactions.filter(
+      (tx) =>
+        tx.amount < 0 &&
+        tx.reason.startsWith(BATTLE_TX_PREFIX) &&
+        new Date(tx.timestamp).getTime() >= todayMs
+    ).length;
+  })();
+
+  const canStartBattle = canAfford(BATTLE_COST) && todayBattleCount < DAILY_BATTLE_LIMIT;
+  const remainingBattles = DAILY_BATTLE_LIMIT - todayBattleCount;
+
   useEffect(() => {
     if (!isLoading && !user) {
       router.replace('/login');
     }
   }, [user, isLoading, router]);
+
+  // Load quest progress whenever user changes
+  useEffect(() => {
+    if (!user) return;
+    getUserQuestProgress(user.id).then(setQuestProgress);
+  }, [user]);
+
+  // Subscribe to quest card images (live — admin updates appear instantly)
+  useEffect(() => {
+    const unsub = onQuestImagesChange(setQuestImages);
+    return () => unsub();
+  }, []);
+
+  // If launched from /battle-rooms with ?room=<id>, generate the AI opponent
+  // and skip the opponent-select screen.
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (selectedOpponent) return;
+    const roomId = router.query.room;
+    if (typeof roomId !== 'string') return;
+    const room = getQuickRoom(roomId);
+    if (!room) return;
+    const seed = typeof router.query.seed === 'string' ? Number(router.query.seed) : undefined;
+    const generated = generateOpponentFromRoom(room, seed);
+    setSelectedOpponent(generated);
+    setPhase('deck-preview');
+  }, [router.isReady, router.query, selectedOpponent]);
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -173,6 +234,18 @@ export default function BattlePage() {
   const startDuel = useCallback(() => {
     if (!collection || !selectedOpponent || !activeDeck) return;
 
+    // Check daily limit
+    if (todayBattleCount >= DAILY_BATTLE_LIMIT) {
+      alert(`今天已經玩了 ${DAILY_BATTLE_LIMIT} 場了，明天再來吧！`);
+      return;
+    }
+
+    // Check and deduct coins
+    if (!spendCoins(BATTLE_COST, `${BATTLE_TX_PREFIX}費用: ${selectedOpponent.name}`)) {
+      alert(`金幣不足！需要 ${BATTLE_COST} 幣才能開始決鬥。`);
+      return;
+    }
+
     // Expand active deck ids into PlayerCard instances. A single cardId may
     // appear multiple times in a deck — expand each occurrence so the duel
     // engine sees the correct count.
@@ -199,7 +272,7 @@ export default function BattlePage() {
       setIsPlayerTurn(false);
       runAiTurn(state);
     }
-  }, [collection, selectedOpponent, cardImageMap, activeDeck, runAiTurn]);
+  }, [collection, selectedOpponent, cardImageMap, activeDeck, runAiTurn, spendCoins, todayBattleCount]);
 
   // Player summons a monster
   const handleSummon = useCallback((
@@ -246,6 +319,26 @@ export default function BattlePage() {
     setDuelState(newState);
   }, [duelState, isPlayerTurn]);
 
+  // Player resolves a pending special summon — picks which hand card to summon
+  const handleResolveSpecialSummon = useCallback((handIndex: number) => {
+    if (!duelState) return;
+    const newState = resolvePendingSpecialSummon(duelState, handIndex);
+    setDuelState(newState);
+  }, [duelState]);
+
+  // Auto-resolve enemy AI's pending special summon (random pick)
+  useEffect(() => {
+    if (!duelState?.pendingSpecialSummon) return;
+    if (duelState.pendingSpecialSummon.owner !== 'enemy') return;
+    const candidates = duelState.pendingSpecialSummon.candidateHandIndices;
+    if (candidates.length === 0) return;
+    const pick = candidates[Math.floor(Math.random() * candidates.length)];
+    const t = setTimeout(() => {
+      setDuelState((prev) => (prev ? resolvePendingSpecialSummon(prev, pick) : prev));
+    }, 900);
+    return () => clearTimeout(t);
+  }, [duelState?.pendingSpecialSummon]);
+
   // Player advances to next phase. From battle phase, collapse end → opponent
   // so the player only needs ONE click to end their turn.
   const handleAdvancePhase = useCallback(() => {
@@ -278,6 +371,15 @@ export default function BattlePage() {
     if (!selectedOpponent) return;
     if (state.status === 'victory') {
       addCoins(selectedOpponent.rewardCoins, `PvE 決鬥勝利: ${selectedOpponent.name}`);
+      if (user) {
+        incrementBattleWin(user.id, "pve");
+        // Persist quest progress — only counts if it's an official PVE_OPPONENTS quest
+        // (skip random quick-room AIs which use different ID prefix)
+        const isOfficialQuest = PVE_OPPONENTS.some((q) => q.id === selectedOpponent.id);
+        if (isOfficialQuest) {
+          markPveQuestCompleted(user.id, selectedOpponent.id).then(setQuestProgress);
+        }
+      }
     }
   };
 
@@ -297,6 +399,7 @@ export default function BattlePage() {
   }
 
   return (
+    <CardGameGuard>
     <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Header */}
       <div className="border-b border-gray-700 p-3 flex-shrink-0">
@@ -328,43 +431,149 @@ export default function BattlePage() {
 
       {/* Content */}
       <div className="flex-1 flex flex-col">
-        {/* Opponent Selection */}
+        {/* Opponent Selection — horizontal card row, each quest gates by its OWN lesson */}
         {phase === 'opponent-select' && (
-          <div className="max-w-4xl mx-auto px-4 py-6 w-full">
-            <h2 className="text-sm text-gray-400 mb-4">{">>>"}選擇對手</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {PVE_OPPONENTS.map((opp) => {
-                const diffColor = opp.difficulty === 'easy' ? 'text-green-400'
-                  : opp.difficulty === 'medium' ? 'text-yellow-400' : 'text-red-400';
-                const diffLabel = opp.difficulty === 'easy' ? '簡單'
-                  : opp.difficulty === 'medium' ? '中等' : '困難';
+          <div className="max-w-6xl mx-auto px-4 py-6 w-full">
+            <h2 className="text-sm text-gray-400 mb-1">{">>>"}任務之路</h2>
+            <p className="text-xs text-gray-500 mb-4">
+              依序闖關 → 每關先學一堂 Prompt 課程，再進入戰鬥。輸了可以重打不用重學！
+            </p>
 
-                return (
-                  <button
-                    key={opp.id}
-                    onClick={() => {
-                      setSelectedOpponent(opp);
-                      setPhase('deck-preview');
-                    }}
-                    className="p-4 border border-gray-600 rounded-lg bg-black/50 text-left hover:border-[var(--terminal-color)] transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl">{opp.emoji}</span>
-                      <div className="flex-1">
-                        <div className="font-bold" style={{ color: 'var(--terminal-color)' }}>
-                          {opp.name}
-                        </div>
-                        <div className="text-xs text-gray-400 mt-1">{opp.description}</div>
-                        <div className="flex gap-3 mt-2 text-xs">
-                          <span className={diffColor}>{diffLabel}</span>
-                          <span className="text-yellow-400">◆ {opp.rewardCoins}</span>
-                          <span className="text-blue-400">✦ {opp.rewardXp} XP</span>
+            {/* Horizontal scroll quest cards */}
+            <div className="overflow-x-auto pb-4 -mx-4 px-4">
+              <div className="flex gap-4 min-w-max">
+                {PVE_OPPONENTS.map((opp, idx) => {
+                  const completedIds = questProgress?.completedPveQuestIds || [];
+                  const completedLessons = questProgress?.completedPromptLessonIds || [];
+                  const isCompleted = completedIds.includes(opp.id);
+                  const prevId = idx > 0 ? PVE_OPPONENTS[idx - 1].id : null;
+                  const prevDone = prevId ? completedIds.includes(prevId) : true;
+                  const isUnlocked = prevDone;
+                  const lessonDone = !!opp.lessonId && completedLessons.includes(opp.lessonId);
+
+                  const diffColor =
+                    opp.difficulty === 'easy' ? 'from-green-600 to-emerald-700 border-green-500'
+                    : opp.difficulty === 'medium' ? 'from-yellow-600 to-orange-700 border-yellow-500'
+                    : opp.difficulty === 'hard' ? 'from-red-600 to-rose-800 border-red-500'
+                    : 'from-purple-700 to-pink-900 border-purple-500';
+                  const diffLabel = opp.difficulty === 'easy' ? '簡單'
+                    : opp.difficulty === 'medium' ? '中等'
+                    : opp.difficulty === 'hard' ? '困難'
+                    : '☠ 噩夢級';
+
+                  // Determine card state and primary action
+                  let primaryBtn: { label: string; color: string; onClick: () => void } | null = null;
+                  if (!isUnlocked) {
+                    primaryBtn = null;
+                  } else if (!lessonDone) {
+                    primaryBtn = {
+                      label: '📚 進入課程',
+                      color: 'border-cyan-400 text-cyan-200 bg-cyan-900/40 hover:bg-cyan-500 hover:text-black',
+                      onClick: () => router.push(`/prompt-course?lesson=${opp.lessonId}&returnQuest=${opp.id}`),
+                    };
+                  } else {
+                    primaryBtn = {
+                      label: isCompleted ? '🔁 再挑戰一次' : '⚔ 開始戰鬥',
+                      color: 'border-yellow-400 text-yellow-200 bg-yellow-900/40 hover:bg-yellow-400 hover:text-black animate-pulse',
+                      onClick: () => {
+                        setSelectedOpponent(opp);
+                        setPhase('deck-preview');
+                      },
+                    };
+                  }
+
+                  return (
+                    <div
+                      key={opp.id}
+                      className={`relative w-56 sm:w-64 flex-shrink-0 rounded-xl overflow-hidden border-2 bg-gradient-to-b transition-all ${
+                        isUnlocked
+                          ? `${diffColor} shadow-lg hover:scale-[1.02]`
+                          : 'border-gray-700 from-gray-800 to-gray-900 opacity-60'
+                      }`}
+                    >
+                      {/* Status corner badge */}
+                      <div className="absolute top-2 right-2 z-10">
+                        {isCompleted && (
+                          <span className="text-[10px] px-2 py-0.5 bg-green-600 text-white font-bold rounded">✓ 已通關</span>
+                        )}
+                        {!isCompleted && lessonDone && isUnlocked && (
+                          <span className="text-[10px] px-2 py-0.5 bg-yellow-600 text-white font-bold rounded">⚔ 可戰鬥</span>
+                        )}
+                        {!isCompleted && !lessonDone && isUnlocked && (
+                          <span className="text-[10px] px-2 py-0.5 bg-cyan-600 text-white font-bold rounded">📖 待學</span>
+                        )}
+                        {!isUnlocked && (
+                          <span className="text-[10px] px-2 py-0.5 bg-gray-600 text-white font-bold rounded">🔒 未解鎖</span>
+                        )}
+                      </div>
+
+                      {/* Quest number badge */}
+                      <div className="absolute top-2 left-2 z-10 w-8 h-8 rounded-full bg-black/70 border-2 border-white/40 flex items-center justify-center text-xs font-bold text-white">
+                        {idx + 1}
+                      </div>
+
+                      {/* Card art area — full image if available, else styled emoji */}
+                      <div className="aspect-[4/3] relative flex items-center justify-center bg-gradient-to-br from-black/30 to-black/60 overflow-hidden">
+                        {(questImages[opp.id] || opp.imageUrl) ? (
+                          <img
+                            src={questImages[opp.id] || opp.imageUrl}
+                            alt={opp.name}
+                            className={`w-full h-full object-cover ${!isUnlocked ? 'grayscale' : ''}`}
+                          />
+                        ) : (
+                          <>
+                            {/* Decorative ring */}
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_70%)]" />
+                            <span className={`text-7xl drop-shadow-2xl ${!isUnlocked ? 'grayscale opacity-50' : ''}`}>
+                              {opp.emoji}
+                            </span>
+                          </>
+                        )}
+                        {/* Difficulty stripe at bottom of art */}
+                        <div className="absolute bottom-0 left-0 right-0 px-2 py-1 bg-black/60 text-[10px] text-center font-bold tracking-widest text-white">
+                          {diffLabel}
                         </div>
                       </div>
+
+                      {/* Card body */}
+                      <div className="p-3 bg-black/70">
+                        <div className="text-[10px] text-gray-400 mb-1">任務 {idx + 1}</div>
+                        <h3 className="font-bold text-sm text-white mb-1 truncate">{opp.name}</h3>
+                        <p className="text-[11px] text-gray-300 leading-snug mb-2 line-clamp-2 h-8">
+                          {opp.description}
+                        </p>
+
+                        <div className="text-[11px] text-yellow-300 font-bold mb-2">
+                          ◆ {opp.rewardCoins} 金幣
+                        </div>
+
+                        {primaryBtn ? (
+                          <button
+                            onClick={primaryBtn.onClick}
+                            className={`w-full py-2 text-xs font-bold border-2 rounded transition-colors ${primaryBtn.color}`}
+                          >
+                            {primaryBtn.label}
+                          </button>
+                        ) : (
+                          <div className="w-full py-2 text-xs text-center text-gray-500 border-2 border-gray-700 rounded">
+                            完成任務 {idx} 後解鎖
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </button>
-                );
-              })}
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Quick link to course page */}
+            <div className="mt-4 text-center">
+              <button
+                onClick={() => router.push('/prompt-course')}
+                className="text-xs text-cyan-400 hover:underline"
+              >
+                📚 查看完整 Prompt Engineering 課程列表 →
+              </button>
             </div>
           </div>
         )}
@@ -461,12 +670,17 @@ export default function BattlePage() {
               </button>
               <button
                 onClick={startDuel}
-                disabled={!activeDeck || activeDeck.cardIds.length === 0}
+                disabled={!activeDeck || activeDeck.cardIds.length === 0 || !canStartBattle}
                 className="px-8 py-2 border-2 rounded font-bold text-lg transition-all hover:scale-105 hover:bg-[var(--terminal-color)] hover:text-black disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-transparent disabled:hover:text-[var(--terminal-color)]"
                 style={{ borderColor: 'var(--terminal-color)', color: 'var(--terminal-color)' }}
               >
-                ⚔️ 開始決鬥！
+                ⚔️ 開始決鬥！（{BATTLE_COST} 幣）
               </button>
+              <div className="w-full text-center mt-2 text-xs text-gray-500">
+                今日剩餘 {remainingBattles} / {DAILY_BATTLE_LIMIT} 場
+                {!canAfford(BATTLE_COST) && <span className="text-red-400 ml-2">（金幣不足）</span>}
+                {remainingBattles <= 0 && <span className="text-red-400 ml-2">（已達今日上限）</span>}
+              </div>
             </div>
           </div>
         )}
@@ -483,6 +697,8 @@ export default function BattlePage() {
                 onFlipSummon={handleFlipSummon}
                 onAdvancePhase={handleAdvancePhase}
                 isPlayerTurn={isPlayerTurn}
+                onResolveSpecialSummon={handleResolveSpecialSummon}
+                pendingSpecialSummonIsMine={duelState.pendingSpecialSummon?.owner === 'player'}
                 externalDash={aiDash}
                 externalHighlight={aiHighlight}
               />
@@ -561,5 +777,6 @@ export default function BattlePage() {
         </div>
       )}
     </div>
+    </CardGameGuard>
   );
 }

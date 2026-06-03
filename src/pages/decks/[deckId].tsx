@@ -12,6 +12,7 @@ import {
   CardElement,
 } from "@/types/Card";
 import { getRarityColor, getRarityLabel, getElementEmoji, getLevelStars, getTributeCost } from "@/utils/cardStats";
+import CardGameGuard from "@/components/CardGameGuard";
 
 export default function DeckEditorPage() {
   const router = useRouter();
@@ -178,6 +179,7 @@ export default function DeckEditorPage() {
   const isActive = deck.id === collection.activeDeckId;
 
   return (
+    <CardGameGuard>
     <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Header */}
       <div className="border-b border-gray-700 p-4">
@@ -552,5 +554,6 @@ export default function DeckEditorPage() {
         />
       )}
     </div>
+    </CardGameGuard>
   );
 }

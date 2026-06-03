@@ -6,6 +6,7 @@ import { useCoin } from '@/contexts/CoinContext';
 import CoinDisplay from '@/components/CoinDisplay';
 import PvpLobby from '@/components/cards/PvpLobby';
 import { PvpBattleRoom } from '@/types/Card';
+import CardGameGuard from '@/components/CardGameGuard';
 
 export default function BattleLobbyPage() {
   const router = useRouter();
@@ -30,6 +31,7 @@ export default function BattleLobbyPage() {
   }
 
   return (
+    <CardGameGuard>
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
       <div className="border-b border-gray-700 p-4">
@@ -54,5 +56,6 @@ export default function BattleLobbyPage() {
         <PvpLobby onJoinRoom={handleJoinRoom} />
       </div>
     </div>
+    </CardGameGuard>
   );
 }

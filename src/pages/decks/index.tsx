@@ -6,6 +6,7 @@ import { useCards, MAX_DECKS, MAX_DECK_SIZE } from "@/contexts/CardContext";
 import CoinDisplay from "@/components/CoinDisplay";
 import { SavedDeck, CardDefinition } from "@/types/Card";
 import { getRarityColor } from "@/utils/cardStats";
+import CardGameGuard from "@/components/CardGameGuard";
 
 export default function DecksDashboardPage() {
   const router = useRouter();
@@ -63,6 +64,7 @@ export default function DecksDashboardPage() {
   };
 
   return (
+    <CardGameGuard>
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
       <div className="border-b border-gray-700 p-4">
@@ -181,6 +183,7 @@ export default function DecksDashboardPage() {
         </div>
       </div>
     </div>
+    </CardGameGuard>
   );
 }
 

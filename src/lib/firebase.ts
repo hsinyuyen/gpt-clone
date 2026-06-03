@@ -10,6 +10,10 @@ import {
   where,
   getDocs,
   onSnapshot,
+  runTransaction,
+  orderBy,
+  limit as firestoreLimit,
+  arrayUnion,
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -30,5 +34,6 @@ import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage"
 const storage = getStorage(app);
 
 export { db, doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs, onSnapshot };
+export { runTransaction, orderBy, firestoreLimit, arrayUnion };
 export { storage, ref, uploadString, getDownloadURL };
 export default db;

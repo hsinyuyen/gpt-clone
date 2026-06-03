@@ -38,6 +38,9 @@ export type EffectAction =
   | 'protect'            // [on_summon/continuous] cannot be destroyed by battle
   | 'special_summon_from_hand'      // [on_destroy] summon strongest monster from hand
   | 'special_summon_from_graveyard' // [on_summon/on_destroy] summon from graveyard
+  | 'summon_specific'               // [on_summon/on_destroy] summon a specific card ID (uses targetCardId). Costs entire hand when triggered on_summon.
+  | 'search_deck_for_card'          // [on_summon] search deck for specific card ID (uses targetCardId), add to hand
+  | 'discard_hand_for_damage'       // [end_of_turn] discard all monster cards in hand, deal damage = sum(ATK)
   | 'negate_attack';                // set target canAttack = false
 
 export type EffectTarget =
@@ -63,6 +66,8 @@ export interface CardEffectDef {
   target: EffectTarget;
   duration?: number;  // turns the effect lasts for buff actions (default: 1)
   elementFilter?: CardElement; // filter for graveyard summon by element
+  targetCardId?: string;       // specific card ID to summon (for summon_specific)
+  costDiscardHand?: boolean;   // if true, discard all hand cards as cost before summoning
 }
 
 // Kept under the old name for backwards compat with existing imports.
@@ -111,6 +116,11 @@ export interface CardDefinition {
   monsterType?: MonsterCardType;   // normal/effect
   ygoEffects?: YgoEffect[];        // structured effects
   effectText?: string;             // display text for card effect
+  cannotNormalSummon?: boolean;    // if true, can only be special-summoned (e.g. 蠕蟲二號)
+  /** Specific card IDs required as tributes for normal summon (e.g. 主機蠕蟲). */
+  requiredTributeCardIds?: string[];
+  /** Forbidden card — undrawable, unusable in decks. Kept for historical data compat. */
+  isForbidden?: boolean;
 
   // Synergy
   synergySetId?: string;
@@ -233,6 +243,8 @@ export interface FieldMonster {
   currentDef: number;
   canAttack: boolean;
   hasAttacked: boolean;
+  /** Number of attacks declared this turn. Used with double_attack to cap at 2. */
+  attackCount: number;
   justSummoned: boolean;   // summoning sickness
   turnBuffs: FieldBuff[];
   faceUp: boolean;
@@ -262,6 +274,8 @@ export interface PlayerField {
   deck: CardDefinition[];
   graveyard: CardDefinition[];
   hasNormalSummoned: boolean;
+  /** Upgrade levels per card ID (from PlayerCard). Defaults to 1 if absent. */
+  cardLevels: Record<string, number>;
 }
 
 export interface DuelLogEntry {
@@ -292,6 +306,15 @@ export interface DuelState {
   log: DuelLogEntry[];
   chainStack: YgoEffect[];  // effect chain resolution
 
+  /** Pending user selection for "special summon from hand" — resolved via resolvePendingSpecialSummon() */
+  pendingSpecialSummon?: {
+    owner: 'player' | 'enemy';
+    candidateHandIndices: number[]; // indices into owner's hand
+  };
+
+  /** Selects which AI strategy chooseDuelAiAction uses for the enemy. Set by PvE init. */
+  enemyAiStrategy?: 'standard' | 'worm_combo';
+
   rewards?: DuelRewards;
 }
 
@@ -300,12 +323,20 @@ export interface PveOpponent {
   id: string;
   name: string;
   description: string;
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: 'easy' | 'medium' | 'hard' | 'nightmare';
   teamCardIds: string[];
   teamLevels: number[];
+  /** Optional AI script to use. Defaults to 'standard' if omitted. */
+  aiStrategy?: 'standard' | 'worm_combo';
+  /** Card IDs guaranteed to be in the opening hand (luck stacking). */
+  guaranteedOpening?: string[];
   rewardCoins: number;
   rewardXp: number;
   emoji: string;
+  /** Linked Prompt-Engineering lesson ID — must complete this lesson before battling. */
+  lessonId?: string;
+  /** Optional generated card art URL (if absent, UI shows styled emoji placeholder). */
+  imageUrl?: string;
 }
 
 // === PvP Room ===
@@ -321,6 +352,10 @@ export interface PvpBattleRoom {
   player1DeckCardIds?: string[];
   /** Deck snapshot for player2 (card IDs of active deck, taken when player joins) */
   player2DeckCardIds?: string[];
+  /** Card upgrade levels for player1 */
+  player1CardLevels?: Record<string, number>;
+  /** Card upgrade levels for player2 */
+  player2CardLevels?: Record<string, number>;
   currentTurnPlayerId?: string;
   lastActionAt?: string;
   turnTimeLimit: number;

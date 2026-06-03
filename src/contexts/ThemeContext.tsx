@@ -1,5 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "./AuthContext";
+import {
+  getThemeState as getFirestoreThemeState,
+  saveThemeState as saveFirestoreThemeState,
+} from "@/lib/firestore";
 
 export interface ThemeDefinition {
   id: string;
@@ -150,10 +154,51 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { user } = useAuth();
   const [currentThemeId, setCurrentThemeId] = useState("amber");
   const [purchasedThemes, setPurchasedThemes] = useState<string[]>(["amber"]);
+  const loadedRef = useRef(false);
 
-  // Load from localStorage per user
+  // Load from Firestore first, fallback to localStorage
   useEffect(() => {
-    if (user) {
+    if (!user) {
+      loadedRef.current = false;
+      return;
+    }
+
+    loadedRef.current = false;
+
+    getFirestoreThemeState(user.id).then((firestoreData) => {
+      if (firestoreData) {
+        // Firestore has data — use it as source of truth
+        setCurrentThemeId(firestoreData.currentTheme);
+        setPurchasedThemes(firestoreData.purchasedThemes);
+        // Sync back to localStorage for offline cache
+        localStorage.setItem(`theme_active_${user.id}`, firestoreData.currentTheme);
+        localStorage.setItem(`theme_purchased_${user.id}`, JSON.stringify(firestoreData.purchasedThemes));
+      } else {
+        // No Firestore data — migrate from localStorage if available
+        const savedTheme = localStorage.getItem(`theme_active_${user.id}`);
+        const savedPurchased = localStorage.getItem(`theme_purchased_${user.id}`);
+        const themeId = savedTheme || "amber";
+        let purchased = ["amber"];
+
+        if (savedPurchased) {
+          try {
+            const parsed = JSON.parse(savedPurchased);
+            if (Array.isArray(parsed)) purchased = parsed;
+          } catch {}
+        }
+
+        setCurrentThemeId(themeId);
+        setPurchasedThemes(purchased);
+
+        // Migrate localStorage data to Firestore
+        saveFirestoreThemeState(user.id, {
+          currentTheme: themeId,
+          purchasedThemes: purchased,
+        });
+      }
+      loadedRef.current = true;
+    }).catch(() => {
+      // Firestore failed — fallback to localStorage
       const savedTheme = localStorage.getItem(`theme_active_${user.id}`);
       const savedPurchased = localStorage.getItem(`theme_purchased_${user.id}`);
       if (savedTheme) setCurrentThemeId(savedTheme);
@@ -163,7 +208,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (Array.isArray(parsed)) setPurchasedThemes(parsed);
         } catch {}
       }
-    }
+      loadedRef.current = true;
+    });
   }, [user]);
 
   // Apply CSS variables when theme changes
@@ -181,14 +227,30 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     root.style.setProperty("--terminal-cyan", "var(--terminal-highlight)");
   }, [currentThemeId]);
 
-  const setTheme = useCallback(
-    (themeId: string) => {
-      setCurrentThemeId(themeId);
+  // Helper to save both localStorage and Firestore
+  const saveState = useCallback(
+    (themeId: string, purchased: string[]) => {
       if (user) {
         localStorage.setItem(`theme_active_${user.id}`, themeId);
+        localStorage.setItem(`theme_purchased_${user.id}`, JSON.stringify(purchased));
+        saveFirestoreThemeState(user.id, {
+          currentTheme: themeId,
+          purchasedThemes: purchased,
+        });
       }
     },
     [user]
+  );
+
+  const setTheme = useCallback(
+    (themeId: string) => {
+      setCurrentThemeId(themeId);
+      setPurchasedThemes((prev) => {
+        saveState(themeId, prev);
+        return prev;
+      });
+    },
+    [saveState]
   );
 
   const purchaseTheme = useCallback(
@@ -196,13 +258,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setPurchasedThemes((prev) => {
         if (prev.includes(themeId)) return prev;
         const updated = [...prev, themeId];
-        if (user) {
-          localStorage.setItem(`theme_purchased_${user.id}`, JSON.stringify(updated));
-        }
+        saveState(currentThemeId, updated);
         return updated;
       });
     },
-    [user]
+    [saveState, currentThemeId]
   );
 
   const hasTheme = useCallback(

@@ -19,6 +19,7 @@
 // ============================================================================
 
 import {
+  CardDefinition,
   CardEffectDef,
   CardElement,
   EffectAction,
@@ -30,7 +31,7 @@ import {
   DuelLogEntry,
   MonsterPosition,
 } from '@/types/Card';
-import { STARTING_LP } from './duelEngine';
+import { STARTING_LP } from './duelConstants';
 
 // === Shared resolution context passed to every handler ====================
 export interface EffectContext {
@@ -163,17 +164,25 @@ const CATALOG: Record<EffectAction, CatalogEntry> = {
     valueRange: [1, 1],
     handler: ({ state, effect, sourceMonster, ownerField, opponentField, sourceOwner, log }) => {
       const targets = resolveTargets(effect.target, sourceMonster, ownerField, opponentField);
+      const destroyedOwner = sourceOwner === 'player' ? 'enemy' : 'player';
       for (const m of targets) {
         if (!m) continue;
         const idx = opponentField.monsters.indexOf(m);
         if (idx < 0) continue;
+        // Respect "indestructible" — protect buff also shields against effect-destruction
+        if (m.turnBuffs.some((b) => b.action === 'protect')) {
+          log(`${effect.name}：${m.definition.name} 受到破壞保護，免於被效果破壞！`, 'info');
+          continue;
+        }
+        // Fire the destroyed monster's on_destroy chain (e.g. 蠕蟲一號 →
+        // 蠕蟲二號) BEFORE removing it from the field, so the chain can
+        // observe the dying monster.
+        fireOnDestroyFor(state, destroyedOwner, m, log);
         opponentField.graveyard.push(m.definition);
         opponentField.monsters[idx] = null;
         log(`${effect.name}：${m.definition.name} 被破壞了！`, 'destroy');
       }
-      // Prevent unused warning
-      void state;
-      void sourceOwner;
+      void ownerField;
     },
   },
 
@@ -260,33 +269,23 @@ const CATALOG: Record<EffectAction, CatalogEntry> = {
     allowedTargets: ['self'] as readonly EffectTarget[],
     valueRange: [1, 1] as const,
     handler: (ctx) => {
-      const { ownerField, log } = ctx;
+      const { state, sourceOwner, ownerField, log } = ctx;
       const emptyIdx = ownerField.monsters.findIndex((m) => m === null);
       if (emptyIdx < 0) { log('場上沒有空位，無法特殊召喚！', 'info'); return; }
-      const monsters = ownerField.hand
+      const candidateIndices = ownerField.hand
         .map((c, i) => ({ card: c, idx: i }))
-        .filter((x) => x.card.cardCategory === 'monster');
-      if (monsters.length === 0) { log('手牌中沒有怪獸，無法特殊召喚！', 'info'); return; }
-      monsters.sort((a, b) => b.card.baseAtk - a.card.baseAtk);
-      const picked = monsters[0];
-      ownerField.hand.splice(picked.idx, 1);
-      const scale = 1;
-      const fm: FieldMonster = {
-        cardId: picked.card.id,
-        definition: picked.card,
-        playerCardLevel: 1,
-        position: 'attack' as MonsterPosition,
-        currentAtk: Math.round(picked.card.baseAtk * scale),
-        currentDef: Math.round(picked.card.baseDef * scale),
-        canAttack: true,
-        hasAttacked: false,
-        justSummoned: true,
-        turnBuffs: [],
-        effectCooldowns: {},
-        faceUp: true,
+        .filter((x) => x.card.cardCategory === 'monster')
+        .map((x) => x.idx);
+      if (candidateIndices.length === 0) { log('手牌中沒有怪獸，無法特殊召喚！', 'info'); return; }
+
+      // Mark as pending — the UI / AI driver resolves it later via
+      // resolvePendingSpecialSummon(). This lets the player CHOOSE which
+      // monster to summon instead of the engine auto-picking.
+      state.pendingSpecialSummon = {
+        owner: sourceOwner,
+        candidateHandIndices: candidateIndices,
       };
-      ownerField.monsters[emptyIdx] = fm;
-      log(`${picked.card.name} 從手牌特殊召喚！(ATK:${fm.currentAtk})`, 'summon');
+      log('觸發特殊召喚效果！請選擇要從手牌召喚的怪獸...', 'effect');
     },
   },
 
@@ -296,7 +295,7 @@ const CATALOG: Record<EffectAction, CatalogEntry> = {
     allowedTargets: ['self'] as readonly EffectTarget[],
     valueRange: [1, 1] as const,
     handler: (ctx) => {
-      const { effect, ownerField, log } = ctx;
+      const { effect, sourceOwner, ownerField, log } = ctx;
       const emptyIdx = ownerField.monsters.findIndex((m) => m === null);
       if (emptyIdx < 0) { log('場上沒有空位，無法從墓地特殊召喚！', 'info'); return; }
       const filter = (effect as CardEffectDef & { elementFilter?: CardElement }).elementFilter;
@@ -307,15 +306,18 @@ const CATALOG: Record<EffectAction, CatalogEntry> = {
       const picked = candidates[0];
       const gIdx = ownerField.graveyard.indexOf(picked);
       ownerField.graveyard.splice(gIdx, 1);
+      const lvl = ownerField.cardLevels?.[picked.id] || 1;
+      const scale = 1 + 0.1 * (lvl - 1);
       const fm: FieldMonster = {
         cardId: picked.id,
         definition: picked,
-        playerCardLevel: 1,
+        playerCardLevel: lvl,
         position: 'attack' as MonsterPosition,
-        currentAtk: Math.round(picked.baseAtk),
-        currentDef: Math.round(picked.baseDef),
+        currentAtk: Math.round(picked.baseAtk * scale),
+        currentDef: Math.round(picked.baseDef * scale),
         canAttack: true,
         hasAttacked: false,
+        attackCount: 0,
         justSummoned: true,
         turnBuffs: [],
         effectCooldowns: {},
@@ -323,6 +325,129 @@ const CATALOG: Record<EffectAction, CatalogEntry> = {
       };
       ownerField.monsters[emptyIdx] = fm;
       log(`${picked.name} 從墓地特殊召喚！(ATK:${fm.currentAtk})`, 'summon');
+      fireOnSummonFor(ctx.state, sourceOwner, fm, log);
+    },
+  },
+
+  // ------------------------------------- Summon a specific card by ID ---
+  // Searches deck → hand → graveyard for the target card and special-summons
+  // it. If costDiscardHand is set, the entire hand is sent to the graveyard
+  // first (required for "蠕蟲三號 → 沃蘭極" style cost summons).
+  summon_specific: {
+    action: 'summon_specific',
+    allowedTriggers: ['on_summon', 'on_destroy'] as readonly EffectTrigger[],
+    allowedTargets: ['self'] as readonly EffectTarget[],
+    valueRange: [1, 1] as const,
+    handler: (ctx) => {
+      const { effect, sourceOwner, ownerField, log } = ctx;
+      const targetId = (effect as CardEffectDef & { targetCardId?: string }).targetCardId;
+      if (!targetId) { log('summon_specific: 缺少 targetCardId', 'info'); return; }
+
+      const emptyIdx = ownerField.monsters.findIndex((m) => m === null);
+      if (emptyIdx < 0) { log('場上沒有空位，無法特殊召喚！', 'info'); return; }
+
+      // Reserve the target from hand BEFORE paying the discard cost.
+      // Otherwise the cost wipes the hand and the target vanishes (bug:
+      // 蠕蟲三號 with 蠕蟲帝王 in hand previously failed to summon).
+      let found: CardDefinition | null = null;
+      let source: 'deck' | 'hand' | 'graveyard' | null = null;
+      const reservedHandIdx = ownerField.hand.findIndex((c) => c.id === targetId);
+      if (reservedHandIdx >= 0) {
+        found = ownerField.hand[reservedHandIdx];
+        source = 'hand';
+        ownerField.hand.splice(reservedHandIdx, 1);
+      }
+
+      // Optional cost: discard entire hand to graveyard
+      const cost = (effect as CardEffectDef & { costDiscardHand?: boolean }).costDiscardHand;
+      if (cost && ownerField.hand.length > 0) {
+        const discarded = ownerField.hand.splice(0);
+        for (const c of discarded) {
+          ownerField.graveyard.push(c);
+        }
+        log(`支付代價：手牌 ${discarded.length} 張全部送入墓地！`, 'effect');
+      }
+
+      // If not reserved from hand, search deck → graveyard
+      if (!found) {
+        const deckIdx = ownerField.deck.findIndex((c) => c.id === targetId);
+        if (deckIdx >= 0) { found = ownerField.deck[deckIdx]; source = 'deck'; ownerField.deck.splice(deckIdx, 1); }
+      }
+      if (!found) {
+        const gyIdx = ownerField.graveyard.findIndex((c) => c.id === targetId);
+        if (gyIdx >= 0) { found = ownerField.graveyard[gyIdx]; source = 'graveyard'; ownerField.graveyard.splice(gyIdx, 1); }
+      }
+
+      if (!found) {
+        log(`找不到指定的卡「${targetId}」，無法特殊召喚！`, 'info');
+        return;
+      }
+
+      const lvl = ownerField.cardLevels?.[found.id] || 1;
+      const scale = 1 + 0.1 * (lvl - 1);
+      const fm: FieldMonster = {
+        cardId: found.id,
+        definition: found,
+        playerCardLevel: lvl,
+        position: 'attack',
+        currentAtk: Math.round(found.baseAtk * scale),
+        currentDef: Math.round(found.baseDef * scale),
+        canAttack: true,
+        hasAttacked: false,
+        attackCount: 0,
+        justSummoned: true,
+        turnBuffs: [],
+        effectCooldowns: {},
+        faceUp: true,
+      };
+      ownerField.monsters[emptyIdx] = fm;
+      const sourceLabel = source === 'deck' ? '牌組' : source === 'hand' ? '手牌' : '墓地';
+      log(`${found.name} 從${sourceLabel}特殊召喚！(ATK:${fm.currentAtk})`, 'summon');
+      // Fire the newly-summoned monster's on_summon chain (bug fix for 蠕蟲三號)
+      fireOnSummonFor(ctx.state, sourceOwner, fm, log);
+    },
+  },
+
+  // ----------- Search deck for a specific card → add to hand ---
+  search_deck_for_card: {
+    action: 'search_deck_for_card',
+    allowedTriggers: ['on_summon'] as readonly EffectTrigger[],
+    allowedTargets: ['self'] as readonly EffectTarget[],
+    valueRange: [1, 1] as const,
+    handler: (ctx) => {
+      const { effect, ownerField, log } = ctx;
+      const targetId = (effect as CardEffectDef & { targetCardId?: string }).targetCardId;
+      if (!targetId) { log('search_deck_for_card: 缺少 targetCardId', 'info'); return; }
+      const deckIdx = ownerField.deck.findIndex((c) => c.id === targetId);
+      if (deckIdx < 0) { log(`牌組中找不到「${targetId}」`, 'info'); return; }
+      const found = ownerField.deck[deckIdx];
+      ownerField.deck.splice(deckIdx, 1);
+      ownerField.hand.push(found);
+      log(`從牌組將「${found.name}」加入手牌！`, 'effect');
+    },
+  },
+
+  // -------------------- Discard hand → damage (emperor end-of-turn) ---
+  discard_hand_for_damage: {
+    action: 'discard_hand_for_damage',
+    allowedTriggers: ['end_of_turn'] as readonly EffectTrigger[],
+    allowedTargets: ['opponent_lp'] as readonly EffectTarget[],
+    valueRange: [1, 1] as const,
+    handler: (ctx) => {
+      const { ownerField, opponentField, log } = ctx;
+      const monsters = ownerField.hand.filter((c) => c.cardCategory === 'monster');
+      if (monsters.length === 0) return;
+      let totalDamage = 0;
+      for (const m of monsters) {
+        const lvl = ownerField.cardLevels?.[m.id] || 1;
+        const scale = 1 + 0.1 * (lvl - 1);
+        totalDamage += Math.round(m.baseAtk * scale);
+      }
+      // Move discarded monsters to graveyard; keep non-monsters in hand
+      ownerField.graveyard.push(...monsters);
+      ownerField.hand = ownerField.hand.filter((c) => c.cardCategory !== 'monster');
+      opponentField.lp = Math.max(0, opponentField.lp - totalDamage);
+      log(`丟棄 ${monsters.length} 隻怪獸，造成 ${totalDamage} 點直傷害！(對手 LP: ${opponentField.lp})`, 'effect');
     },
   },
 
@@ -527,6 +652,65 @@ function applyStatBuff(
 }
 
 // Install a flag buff (piercing/direct_attack/double_attack/protect).
+// Fire a newly-summoned monster's on_summon + continuous effects. Used by
+// special-summon handlers so cards like 蠕蟲三號 actually trigger their
+// on_summon chain when placed via an effect (not just normalSummon).
+// Kept here to avoid a circular dependency with effectEngine.
+function fireOnSummonFor(
+  baseState: DuelState,
+  owner: 'player' | 'enemy',
+  newMonster: FieldMonster,
+  log: (msg: string, type?: DuelLogEntry['type']) => void
+): void {
+  const effects = (newMonster.definition.ygoEffects || []).filter(
+    (e) => e.trigger === 'on_summon' || e.trigger === 'continuous'
+  );
+  if (effects.length === 0) return;
+  const ownerField = owner === 'player' ? baseState.player : baseState.enemy;
+  const opponentField = owner === 'player' ? baseState.enemy : baseState.player;
+  for (const eff of effects) {
+    const newCtx: EffectContext = {
+      state: baseState,
+      effect: eff,
+      sourceOwner: owner,
+      sourceMonster: newMonster,
+      ownerField,
+      opponentField,
+      log,
+    };
+    applyEffect(newCtx);
+  }
+}
+
+// Fire a destroyed monster's on_destroy effects. Used by the destroy_monster
+// handler so cards like 蠕蟲一號 actually trigger their chain when killed by
+// an effect (not just by battle).
+function fireOnDestroyFor(
+  baseState: DuelState,
+  destroyedOwner: 'player' | 'enemy',
+  destroyedMonster: FieldMonster,
+  log: (msg: string, type?: DuelLogEntry['type']) => void
+): void {
+  const effects = (destroyedMonster.definition.ygoEffects || []).filter(
+    (e) => e.trigger === 'on_destroy'
+  );
+  if (effects.length === 0) return;
+  const ownerField = destroyedOwner === 'player' ? baseState.player : baseState.enemy;
+  const opponentField = destroyedOwner === 'player' ? baseState.enemy : baseState.player;
+  for (const eff of effects) {
+    const newCtx: EffectContext = {
+      state: baseState,
+      effect: eff,
+      sourceOwner: destroyedOwner,
+      sourceMonster: destroyedMonster,
+      ownerField,
+      opponentField,
+      log,
+    };
+    applyEffect(newCtx);
+  }
+}
+
 function installFlagBuff(
   ctx: EffectContext,
   action: 'piercing' | 'direct_attack' | 'double_attack' | 'protect',
@@ -534,7 +718,11 @@ function installFlagBuff(
 ): void {
   const { effect, sourceMonster, log } = ctx;
   if (!sourceMonster) return;
-  const duration = effect.trigger === 'continuous' ? PERMANENT_BUFF : 1;
+  // Continuous → permanent. on_summon → must survive at least the opponent's
+  // turn (otherwise tickBuffs at end of own turn drops it before the opponent
+  // ever gets a chance to attack). Use 2 so it lasts: own turn end → tick to 1
+  // → opponent's turn → opponent end → tick to 0 → expires before our next.
+  const duration = effect.trigger === 'continuous' ? PERMANENT_BUFF : 2;
   sourceMonster.turnBuffs.push({
     action,
     value: 1,

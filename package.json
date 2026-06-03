@@ -22,6 +22,7 @@
     "fluent-ffmpeg": "^2.1.3",
     "form-data": "^4.0.5",
     "formidable": "^3.5.4",
+    "katex": "^0.16.45",
     "mixpanel-browser": "^2.46.0",
     "next": "13.3.0",
     "openai": "^3.2.1",
@@ -33,7 +34,9 @@
     "react-icons": "^4.8.0",
     "react-markdown": "^10.1.0",
     "react-syntax-highlighter": "^16.1.1",
+    "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
     "tailwindcss": "3.3.1",
     "typescript": "5.0.4",
     "uuid": "^9.0.0"

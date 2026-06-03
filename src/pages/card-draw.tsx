@@ -9,6 +9,7 @@ import PoolBanner from '@/components/cards/PoolBanner';
 import DrawAnimation from '@/components/cards/DrawAnimation';
 import { getActivePools } from '@/data/cards/pools';
 import { CardDefinition } from '@/types/Card';
+import CardGameGuard from '@/components/CardGameGuard';
 
 export default function CardDrawPage() {
   const router = useRouter();
@@ -60,6 +61,7 @@ export default function CardDrawPage() {
   };
 
   return (
+    <CardGameGuard>
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
       <div className="border-b border-gray-700 p-4">
@@ -146,5 +148,6 @@ export default function CardDrawPage() {
         />
       )}
     </div>
+    </CardGameGuard>
   );
 }

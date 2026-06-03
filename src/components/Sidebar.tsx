@@ -79,6 +79,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
     { id: "zhuyin", label: `ZHUYIN_MODE [${zhuyinMode ? "ON" : "OFF"}]`, shortcut: "Ctrl+Z", action: () => setZhuyinMode(!zhuyinMode), active: zhuyinMode },
     { id: "shop", label: "AVATAR_SHOP", shortcut: "Ctrl+S", action: () => window.location.href = "/shop", dataTutorial: "sidebar-shop" },
     { id: "cards", label: "CARD_BATTLE", shortcut: "Ctrl+B", action: () => window.location.href = "/cards" },
+    { id: "worksheets", label: "WORKSHEETS", shortcut: "", action: () => window.location.href = "/worksheets" },
+    { id: "leaderboard", label: "LEADERBOARD", shortcut: "", action: () => window.location.href = "/leaderboard" },
     ...(isAdmin ? [{ id: "admin", label: "ADMIN_PANEL", shortcut: "Ctrl+A", action: () => window.location.href = "/admin" }] : []),
   ];
 
@@ -150,7 +152,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
                 </span>
               )}
             </div>
-            <div className={`text-xs px-1 leading-relaxed ${
+            <div className={`text-xs px-1 leading-relaxed break-all ${
               isNewAnnouncement
                 ? "text-yellow-300 font-bold"
                 : "text-[var(--terminal-green)]"

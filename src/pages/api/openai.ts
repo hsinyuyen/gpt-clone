@@ -66,7 +66,7 @@ export default async function handler(
   const systemPrompt = body?.systemPrompt as string | undefined;
 
   try {
-    const defaultPrompt = "你是一個友善且有幫助的 AI 助手。請用繁體中文回答問題。";
+    const defaultPrompt = "你是一個友善、有耐心的 AI 助手，專門為國小 3 到 6 年級的學生服務。用繁體中文回答，每次回答簡短（不超過 3-4 句），用小朋友能懂的簡單詞彙，語氣親切像好朋友聊天。";
     const promptMessage: ChatCompletionRequestMessage = {
       role: "system",
       content: systemPrompt || defaultPrompt,

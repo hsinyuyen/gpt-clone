@@ -22,15 +22,15 @@ export const LS_KEYS = {
 export const MEMORY_TRIGGER_COUNT = 10;
 
 export const DEFAULT_OPENAI_MODEL = {
-  name: "GPT-4o Mini",
-  id: "gpt-4o-mini",
+  name: "GPT-5.4",
+  id: "gpt-5.4",
   available: true,
 };
 
 export const GPT4_OPENAI_MODEL = {
-  name: "GPT-4",
-  id: "gpt-4",
-  available: false,
+  name: "GPT-4o Mini",
+  id: "gpt-4o-mini",
+  available: true,
 };
 
 export const OPENAI_MODELS: OpenAIModel[] = [

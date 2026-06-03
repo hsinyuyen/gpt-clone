@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import { addZhuyinAnnotations } from "@/utils/zhuyin";
@@ -186,6 +188,15 @@ const Message = ({ message, avatarName, streaming, onStreamComplete }: MessagePr
   const visibleText = text ? text.slice(0, displayedLength) : "";
   const isStreaming = streaming && text && displayedLength < text.length;
 
+  // Convert LaTeX delimiters \[...\] and \(...\) to $$...$$ and $...$
+  const preprocessMath = (content: string): string => {
+    return content
+      // Block math: \[...\] → $$...$$
+      .replace(/\\\[([\s\S]*?)\\\]/g, (_, math) => `$$${math}$$`)
+      // Inline math: \(...\) → $...$
+      .replace(/\\\(([\s\S]*?)\\\)/g, (_, math) => `$${math}$`);
+  };
+
   // Render content with markdown for AI, plain for user
   const renderedContent = useMemo(() => {
     if (!visibleText) return null;
@@ -201,8 +212,12 @@ const Message = ({ message, avatarName, streaming, onStreamComplete }: MessagePr
     }
 
     return (
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents as any}>
-        {visibleText}
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
+        components={mdComponents as any}
+      >
+        {preprocessMath(visibleText)}
       </ReactMarkdown>
     );
   }, [visibleText, zhuyinMode, isUser]);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAllUsers, getCoinState, saveCoinState, CoinState, getGlobalActivityState, setGlobalActivityState, getAnnouncement, saveAnnouncement } from "@/lib/firestore";
+import { getAllUsers, getCoinState, saveCoinState, CoinState, getGlobalActivityState, setGlobalActivityState, getAnnouncement, saveAnnouncement, getFeatureFlags, saveFeatureFlags, FeatureFlags } from "@/lib/firestore";
 import { User } from "@/types/User";
 import { ActivityState } from "@/types/Activity";
 import { ACTIVITIES } from "@/data/activityRegistry";
@@ -24,6 +24,9 @@ export default function AdminPage() {
   const [bonusAmount, setBonusAmount] = useState(10);
   const [bonusReason, setBonusReason] = useState("課堂獎勵");
   const [actionMsg, setActionMsg] = useState("");
+  const [deductAmount, setDeductAmount] = useState(10);
+  const [deductReason, setDeductReason] = useState("兌換獎品");
+  const [deductMsg, setDeductMsg] = useState("");
   const [accessBypass, setAccessBypass] = useState(false);
   const [activityState, setActivityState] = useState<ActivityState>({
     activeActivityId: null,
@@ -33,6 +36,8 @@ export default function AdminPage() {
   const [activityLoading, setActivityLoading] = useState(false);
   const [announcement, setAnnouncement] = useState("");
   const [announcementSaved, setAnnouncementSaved] = useState(false);
+  const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({ cardGameEnabled: true });
+  const [featureFlagsSaved, setFeatureFlagsSaved] = useState(false);
 
   const isAdmin = user && (ADMIN_USERNAMES.includes(user.username.toLowerCase()) || accessBypass);
 
@@ -73,6 +78,7 @@ export default function AdminPage() {
       getAnnouncement().then((msg) => {
         if (msg) setAnnouncement(msg);
       }).catch(() => {});
+      getFeatureFlags().then(setFeatureFlags).catch(() => {});
     }
   }, [user, isLoading, isAdmin, router, loadUsers]);
 
@@ -138,6 +144,55 @@ export default function AdminPage() {
     setActionMsg(`已成功發放 ${bonusAmount} 金幣給 ${success} 位學生！`);
     setSelectedUsers(new Set());
     setTimeout(() => setActionMsg(""), 3000);
+    loadUsers();
+  };
+
+  const handleDeductCoins = async () => {
+    if (selectedUsers.size === 0) {
+      setDeductMsg("請先選擇學生");
+      return;
+    }
+    if (deductAmount <= 0) {
+      setDeductMsg("扣除數量必須大於 0");
+      return;
+    }
+
+    const targets = users.filter((r) => selectedUsers.has(r.user.id));
+    let success = 0;
+    let insufficientUsers: string[] = [];
+
+    for (const row of targets) {
+      try {
+        const current: CoinState = row.coins || { balance: 0, totalEarned: 0, transactions: [] };
+        if (current.balance < deductAmount) {
+          insufficientUsers.push(row.user.displayName || row.user.username);
+          continue;
+        }
+        const transaction = {
+          id: `tx_deduct_${Date.now()}_${row.user.id}`,
+          amount: -deductAmount,
+          reason: `[核銷] ${deductReason}`,
+          timestamp: new Date().toISOString(),
+        };
+        const newState: CoinState = {
+          balance: current.balance - deductAmount,
+          totalEarned: current.totalEarned,
+          transactions: [transaction, ...current.transactions].slice(0, 100),
+        };
+        await saveCoinState(row.user.id, newState);
+        success++;
+      } catch (err) {
+        console.error(`Failed to deduct coins from ${row.user.username}:`, err);
+      }
+    }
+
+    let msg = `已成功扣除 ${deductAmount} 金幣，共 ${success} 位學生`;
+    if (insufficientUsers.length > 0) {
+      msg += `（${insufficientUsers.join("、")} 餘額不足，已跳過）`;
+    }
+    setDeductMsg(msg);
+    setSelectedUsers(new Set());
+    setTimeout(() => setDeductMsg(""), 5000);
     loadUsers();
   };
 
@@ -207,6 +262,24 @@ export default function AdminPage() {
             className="px-4 py-2 text-sm border border-purple-500 text-purple-400 hover:bg-purple-900/20"
           >
             🎨 卡片圖片
+          </button>
+          <button
+            onClick={() => router.push("/admin/card-animations")}
+            className="px-4 py-2 text-sm border border-yellow-500 text-yellow-400 hover:bg-yellow-900/20"
+          >
+            🎬 卡片動畫
+          </button>
+          <button
+            onClick={() => router.push("/admin/quest-images")}
+            className="px-4 py-2 text-sm border border-cyan-500 text-cyan-400 hover:bg-cyan-900/20"
+          >
+            🎴 任務卡圖
+          </button>
+          <button
+            onClick={() => router.push("/admin/worksheets")}
+            className="px-4 py-2 text-sm border border-green-500 text-green-400 hover:bg-green-900/20"
+          >
+            📋 學習單
           </button>
           <button
             onClick={() => router.push("/")}
@@ -281,6 +354,56 @@ export default function AdminPage() {
         )}
       </div>
 
+      {/* Classroom Management */}
+      <div className="border border-[var(--terminal-primary)] bg-[var(--terminal-primary)]/5 p-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-[var(--terminal-primary)] text-sm font-bold">📚 課堂分類</div>
+            <div className="text-xs text-[var(--terminal-primary-dim)] mt-1">
+              管理課堂、分配學生、快速發送金幣
+            </div>
+          </div>
+          <button
+            onClick={() => router.push("/admin/classrooms")}
+            className="px-6 py-3 text-sm font-bold border-2 border-[var(--terminal-primary)] text-[var(--terminal-primary)] hover:bg-[var(--terminal-primary)] hover:text-[var(--terminal-bg)] transition-colors"
+          >
+            管理課堂 →
+          </button>
+        </div>
+      </div>
+
+      {/* Feature Flags */}
+      <div className="border border-red-400/50 bg-red-400/5 p-4 mb-6">
+        <div className="text-red-400 text-sm font-bold mb-3">🎮 功能開關</div>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm">卡片遊戲系統</div>
+            <div className="text-xs text-[var(--terminal-primary-dim)]">
+              控制卡片、抽卡、牌組、對戰等所有遊戲頁面的存取
+            </div>
+          </div>
+          <button
+            onClick={async () => {
+              const newFlags = { ...featureFlags, cardGameEnabled: !featureFlags.cardGameEnabled };
+              setFeatureFlags(newFlags);
+              await saveFeatureFlags(newFlags);
+              setFeatureFlagsSaved(true);
+              setTimeout(() => setFeatureFlagsSaved(false), 3000);
+            }}
+            className={`px-6 py-2 text-sm font-bold border-2 transition-colors ${
+              featureFlags.cardGameEnabled
+                ? "border-green-400 text-green-400 hover:bg-green-400 hover:text-black"
+                : "border-red-400 text-red-400 hover:bg-red-400 hover:text-black"
+            }`}
+          >
+            {featureFlags.cardGameEnabled ? "✅ 已開放" : "🔒 已關閉"}
+          </button>
+        </div>
+        {featureFlagsSaved && (
+          <div className="mt-2 text-sm text-green-400">設定已儲存！學生端會即時更新。</div>
+        )}
+      </div>
+
       {/* Coin Bonus Controls */}
       <div className="border border-yellow-400/50 bg-yellow-400/5 p-4 mb-6">
         <div className="text-yellow-400 text-sm font-bold mb-3">◆ 課堂獎勵發放</div>
@@ -315,6 +438,58 @@ export default function AdminPage() {
         </div>
         {actionMsg && (
           <div className="mt-2 text-sm text-yellow-400">{actionMsg}</div>
+        )}
+      </div>
+
+      {/* Coin Deduct Controls */}
+      <div className="border border-red-400/50 bg-red-400/5 p-4 mb-6">
+        <div className="text-red-400 text-sm font-bold mb-3">◆ 核銷扣點</div>
+        <div className="flex flex-wrap gap-3 items-end">
+          <div>
+            <label className="text-xs text-[var(--terminal-primary-dim)] block mb-1">扣除數量</label>
+            <input
+              type="number"
+              value={deductAmount}
+              onChange={(e) => setDeductAmount(Math.max(1, parseInt(e.target.value) || 0))}
+              className="w-20 bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-2 py-1 text-sm"
+              min={1}
+            />
+          </div>
+          <div className="flex gap-1">
+            {[5, 10, 20, 50, 100].map((v) => (
+              <button
+                key={v}
+                onClick={() => setDeductAmount(v)}
+                className={`px-2 py-1 text-xs border transition-colors ${
+                  deductAmount === v
+                    ? "border-red-400 text-red-400 bg-red-400/20"
+                    : "border-[var(--terminal-primary-dim)]/50 text-[var(--terminal-primary-dim)] hover:border-red-400/50"
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+          <div className="flex-1 min-w-[150px]">
+            <label className="text-xs text-[var(--terminal-primary-dim)] block mb-1">核銷原因</label>
+            <input
+              type="text"
+              value={deductReason}
+              onChange={(e) => setDeductReason(e.target.value)}
+              className="w-full bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-2 py-1 text-sm"
+              placeholder="兌換獎品"
+            />
+          </div>
+          <button
+            onClick={handleDeductCoins}
+            disabled={selectedUsers.size === 0}
+            className="px-4 py-1 text-sm font-bold border-2 border-red-400 text-red-400 hover:bg-red-400 hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            扣除 {selectedUsers.size} 位學生
+          </button>
+        </div>
+        {deductMsg && (
+          <div className="mt-2 text-sm text-red-400">{deductMsg}</div>
         )}
       </div>
 
@@ -484,7 +659,7 @@ export default function AdminPage() {
                   <td className="p-2 text-xs text-[var(--terminal-primary-dim)]">
                     {formatDate(row.user.lastActiveAt)}
                   </td>
-                  <td className="p-2">
+                  <td className="p-2 flex gap-1">
                     <button
                       onClick={() => {
                         setSelectedUsers(new Set([row.user.id]));
@@ -494,6 +669,16 @@ export default function AdminPage() {
                       className="text-xs border border-yellow-400/50 text-yellow-400 px-2 py-0.5 hover:bg-yellow-400/20"
                     >
                       +金幣
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedUsers(new Set([row.user.id]));
+                        setDeductAmount(10);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className="text-xs border border-red-400/50 text-red-400 px-2 py-0.5 hover:bg-red-400/20"
+                    >
+                      -金幣
                     </button>
                   </td>
                 </tr>

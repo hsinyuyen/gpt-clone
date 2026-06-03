@@ -121,6 +121,7 @@ const Chat = (props: ChatProps) => {
   const [errorMessage, setErrorMessage] = useState("");
   const [showEmptyChat, setShowEmptyChat] = useState(true);
   const [conversation, setConversation] = useState<any[]>([]);
+  const [activelyStreaming, setActivelyStreaming] = useState(false);
   const [message, setMessage] = useState("");
   const [pendingAvatar, setPendingAvatar] = useState<PendingAvatar | null>(null);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
@@ -272,6 +273,7 @@ const Chat = (props: ChatProps) => {
 
       if (response.ok) {
         const data = await response.json();
+        setActivelyStreaming(true);
         setConversation([{ content: data.message, role: "system" }]);
         generateQuickReplies(data.message);
       }
@@ -700,6 +702,7 @@ const Chat = (props: ChatProps) => {
 
       if (response.ok) {
         const data = await response.json();
+        setActivelyStreaming(true);
         setConversation(prev => [
           ...prev,
           { content: data.message, role: "system" },
@@ -1190,6 +1193,7 @@ const Chat = (props: ChatProps) => {
           { content: finalResponse, role: "system" },
         ];
 
+        setActivelyStreaming(true);
         setConversation(updatedConversation);
 
         // 如果有 Avatar 資料，開始生成圖片
@@ -1350,7 +1354,8 @@ const Chat = (props: ChatProps) => {
 
                 {/* Messages */}
                 {conversation.map((message, index) => {
-                  const isLastSystem = message.role === "system"
+                  const isLastSystem = activelyStreaming
+                    && message.role === "system"
                     && message.content !== null
                     && index === conversation.length - 1;
 
@@ -1404,7 +1409,10 @@ const Chat = (props: ChatProps) => {
                           : undefined
                       }
                       streaming={isLastSystem}
-                      onStreamComplete={scrollToBottom}
+                      onStreamComplete={() => {
+                        setActivelyStreaming(false);
+                        scrollToBottom();
+                      }}
                     />
                   );
                 })}

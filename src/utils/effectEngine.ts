@@ -207,6 +207,7 @@ export function createFieldMonster(
     currentDef: Math.round(definition.baseDef * scale),
     canAttack: true,
     hasAttacked: false,
+    attackCount: 0,
     justSummoned: true,
     turnBuffs: [],
     effectCooldowns: {},

@@ -24,7 +24,9 @@ import {
   hasBuff,
 } from './effectEngine';
 
-export const STARTING_LP = 500;
+// Import from shared constants (avoids circular dependency)
+import { STARTING_LP } from './duelConstants';
+export { STARTING_LP };
 const MAX_TURNS = 40;
 const MONSTER_ZONES = 5;
 const STARTING_HAND = 5;
@@ -35,7 +37,9 @@ const PVE_DECK_SIZE = 20;
 
 export function initDuel(
   playerDeck: CardDefinition[],
-  enemyDeck: CardDefinition[]
+  enemyDeck: CardDefinition[],
+  playerCardLevels: Record<string, number> = {},
+  enemyCardLevels: Record<string, number> = {}
 ): DuelState {
   const shuffledPlayer = shuffle([...playerDeck]);
   const shuffledEnemy = shuffle([...enemyDeck]);
@@ -62,6 +66,7 @@ export function initDuel(
       deck: shuffledPlayer,
       graveyard: [],
       hasNormalSummoned: false,
+      cardLevels: playerCardLevels,
     },
     enemy: {
       lp: STARTING_LP,
@@ -71,6 +76,7 @@ export function initDuel(
       deck: shuffledEnemy,
       graveyard: [],
       hasNormalSummoned: false,
+      cardLevels: enemyCardLevels,
     },
     log: [],
     chainStack: [],
@@ -89,6 +95,7 @@ export function initPveDuel(
   cardImageMap?: Record<string, string>
 ): DuelState {
   const playerDeck: CardDefinition[] = [];
+  const playerCardLevels: Record<string, number> = {};
 
   for (const pc of playerCards) {
     const def = CARD_MAP.get(pc.cardId);
@@ -97,10 +104,12 @@ export function initPveDuel(
         ? { ...def, imageUrl: cardImageMap[def.id] }
         : def;
       playerDeck.push(withImage);
+      playerCardLevels[pc.cardId] = pc.level || 1;
     }
   }
 
   const enemyDeck: CardDefinition[] = [];
+  const enemyCardLevels: Record<string, number> = {};
 
   for (let i = 0; i < opponent.teamCardIds.length; i++) {
     const def = CARD_MAP.get(opponent.teamCardIds[i]);
@@ -109,6 +118,8 @@ export function initPveDuel(
         ? { ...def, imageUrl: cardImageMap[def.id] }
         : def;
       enemyDeck.push(withImage);
+      // Use PvE opponent's team level for this card
+      enemyCardLevels[def.id] = opponent.teamLevels?.[i] || 1;
     }
   }
 
@@ -123,14 +134,41 @@ export function initPveDuel(
     }
   }
 
-  return initDuel(playerDeck, enemyDeck);
+  const initialState = initDuel(playerDeck, enemyDeck, playerCardLevels, enemyCardLevels);
+
+  // Stack the AI's opening hand with key combo pieces ("luck"). If the deck
+  // contains all the requested IDs, pull one copy of each to the front of the
+  // hand, then refill the rest with shuffled draws.
+  if (opponent.guaranteedOpening && opponent.guaranteedOpening.length > 0) {
+    const enemyField = initialState.enemy;
+    // Combine current hand+deck back into one shuffled pool
+    const pool: CardDefinition[] = [...enemyField.hand, ...enemyField.deck];
+    const guaranteedHand: CardDefinition[] = [];
+    for (const wantedId of opponent.guaranteedOpening) {
+      const idx = pool.findIndex((c) => c.id === wantedId);
+      if (idx >= 0) {
+        guaranteedHand.push(pool[idx]);
+        pool.splice(idx, 1);
+      }
+    }
+    // Fill remaining hand slots (up to 5) from the pool
+    const remainingHandSlots = Math.max(0, 5 - guaranteedHand.length);
+    const fillers = pool.splice(0, remainingHandSlots);
+    enemyField.hand = [...guaranteedHand, ...fillers];
+    enemyField.deck = pool;
+  }
+
+  initialState.enemyAiStrategy = opponent.aiStrategy || 'standard';
+  return initialState;
 }
 
 // Initialize a PvP duel from two card-ID decks
 export function initPvpDuel(
   player1CardIds: string[],
   player2CardIds: string[],
-  cardImageMap?: Record<string, string>
+  cardImageMap?: Record<string, string>,
+  player1Levels?: Record<string, number>,
+  player2Levels?: Record<string, number>
 ): DuelState {
   const resolveDeck = (ids: string[]): CardDefinition[] => {
     const deck: CardDefinition[] = [];
@@ -146,18 +184,36 @@ export function initPvpDuel(
     return deck;
   };
 
-  return initDuel(resolveDeck(player1CardIds), resolveDeck(player2CardIds));
+  return initDuel(
+    resolveDeck(player1CardIds),
+    resolveDeck(player2CardIds),
+    player1Levels || {},
+    player2Levels || {}
+  );
 }
 
 // Swap the player ↔ enemy fields of a DuelState so that the LOCAL player
 // always looks at themselves on the bottom row. Used by the PvP view layer.
 export function swapDuelState(state: DuelState): DuelState {
+  // Swap victory ↔ defeat so each player sees the correct result
+  const swapStatus = (s: DuelState['status']): DuelState['status'] => {
+    if (s === 'victory') return 'defeat';
+    if (s === 'defeat') return 'victory';
+    return s;
+  };
   return {
     ...state,
+    status: swapStatus(state.status),
     player: state.enemy,
     enemy: state.player,
     currentPlayer: state.currentPlayer === 'player' ? 'enemy' : 'player',
     firstPlayer: state.firstPlayer === 'player' ? 'enemy' : 'player',
+    pendingSpecialSummon: state.pendingSpecialSummon
+      ? {
+          ...state.pendingSpecialSummon,
+          owner: state.pendingSpecialSummon.owner === 'player' ? 'enemy' : 'player',
+        }
+      : undefined,
   };
 }
 
@@ -180,6 +236,7 @@ export function advancePhase(state: DuelState): DuelState {
     for (const m of field.monsters) {
       if (m) {
         m.hasAttacked = false;
+        m.attackCount = 0;
         m.justSummoned = false;
         m.canAttack = true;
       }
@@ -238,6 +295,8 @@ export function normalSummon(
   if (zoneIndex < 0 || zoneIndex >= MONSTER_ZONES) return newState;
 
   const card = field.hand[handIndex];
+  // Guard: monsters with cannotNormalSummon can only enter the field through effects
+  if (card && card.cannotNormalSummon) return newState;
   if (card.cardCategory !== 'monster') return newState;
 
   const level = card.level || 1;
@@ -251,6 +310,17 @@ export function normalSummon(
       .filter((m): m is FieldMonster => m !== null);
 
     if (tributes.length < tributesNeeded) return newState;
+
+    // Enforce specific-tribute requirement (e.g. 主機蠕蟲 needs 蠕蟲帝王 + 終極戰爭機器)
+    if (card.requiredTributeCardIds && card.requiredTributeCardIds.length > 0) {
+      const tributeIds = tributes.map((t) => t.definition.id);
+      const tributeIdsCopy = [...tributeIds];
+      for (const reqId of card.requiredTributeCardIds) {
+        const idx = tributeIdsCopy.indexOf(reqId);
+        if (idx < 0) return newState; // required tribute not found
+        tributeIdsCopy.splice(idx, 1);
+      }
+    }
 
     for (const idx of tributeIndices) {
       const tribute = field.monsters[idx];
@@ -270,7 +340,7 @@ export function normalSummon(
     if (targetZone < 0) return newState;
   }
 
-  const monster = createFieldMonster(card, 1, position);
+  const monster = createFieldMonster(card, field.cardLevels[card.id] || 1, position);
   field.monsters[targetZone] = monster;
   field.hand.splice(handIndex, 1);
   field.hasNormalSummoned = true;
@@ -342,6 +412,65 @@ export function flipSummon(
   return newState;
 }
 
+// Resolve a pending `special_summon_from_hand` choice.
+// The effect handler parks a `pendingSpecialSummon` on the state; the UI (or
+// AI driver) picks which hand index to summon and calls this to actually place
+// the monster on the field.
+export function resolvePendingSpecialSummon(
+  state: DuelState,
+  chosenHandIndex: number
+): DuelState {
+  const newState = cloneState(state);
+  const pending = newState.pendingSpecialSummon;
+  if (!pending) return newState;
+
+  const field = getField(newState, pending.owner);
+  const emptyIdx = field.monsters.findIndex((m) => m === null);
+  if (emptyIdx < 0) {
+    newState.log.push(makeLog(newState, pending.owner, 'info',
+      '場上沒有空位，無法特殊召喚！'));
+    newState.pendingSpecialSummon = undefined;
+    return newState;
+  }
+
+  const card = field.hand[chosenHandIndex];
+  if (!card || card.cardCategory !== 'monster') {
+    newState.pendingSpecialSummon = undefined;
+    return newState;
+  }
+
+  field.hand.splice(chosenHandIndex, 1);
+  const lvl = field.cardLevels?.[card.id] || 1;
+  const scale = 1 + 0.1 * (lvl - 1);
+  const fm: FieldMonster = {
+    cardId: card.id,
+    definition: card,
+    playerCardLevel: lvl,
+    position: 'attack',
+    currentAtk: Math.round(card.baseAtk * scale),
+    currentDef: Math.round(card.baseDef * scale),
+    canAttack: true,
+    hasAttacked: false,
+    attackCount: 0,
+    justSummoned: true,
+    turnBuffs: [],
+    effectCooldowns: {},
+    faceUp: true,
+  };
+  field.monsters[emptyIdx] = fm;
+  newState.log.push(makeLog(newState, pending.owner, 'summon',
+    `${card.name} 從手牌特殊召喚！(ATK:${fm.currentAtk})`));
+
+  // Fire the summoned monster's on_summon + continuous effects (bug fix:
+  // previously special-summoned monsters never ran their on_summon chain).
+  const effectLogs = processOnSummonEffects(newState, pending.owner, fm);
+  newState.log.push(...effectLogs);
+
+  newState.pendingSpecialSummon = undefined;
+  checkWinCondition(newState);
+  return newState;
+}
+
 // Attack with a monster
 export function declareAttack(
   state: DuelState,
@@ -357,7 +486,8 @@ export function declareAttack(
   const attacker = attackerField.monsters[attackerZone];
   if (!attacker || !attacker.faceUp) return newState;
   if (attacker.position !== 'attack') return newState;
-  if (attacker.hasAttacked && !hasBuff(attacker, 'double_attack')) return newState;
+  const maxAttacks = hasBuff(attacker, 'double_attack') ? 2 : 1;
+  if (attacker.attackCount >= maxAttacks) return newState;
   if (!attacker.canAttack) return newState;
 
   // First player cannot attack on turn 1 (Yu-Gi-Oh standard rule).
@@ -379,6 +509,7 @@ export function declareAttack(
     newState.log.push(makeLog(newState, attackerOwner, 'attack',
       `${attacker.definition.name} 直接攻擊！造成 ${attacker.currentAtk} 點傷害！(LP: ${defenderField.lp})`));
     attacker.hasAttacked = true;
+    attacker.attackCount++;
     checkWinCondition(newState);
     return newState;
   }
@@ -401,6 +532,7 @@ export function declareAttack(
   // on_attacked effects may have removed the defender (e.g. return_to_hand) — re-check
   if (defenderField.monsters[targetZone] !== defender) {
     attacker.hasAttacked = true;
+    attacker.attackCount++;
     checkWinCondition(newState);
     return newState;
   }
@@ -416,9 +548,14 @@ export function declareAttack(
       defenderField.lp = Math.max(0, defenderField.lp - diff);
       newState.log.push(makeLog(newState, attackerOwner, 'attack',
         `${attacker.definition.name}(${attacker.currentAtk}) 戰鬥破壞 ${defender.definition.name}(${defender.currentAtk})！傷害: ${diff}`));
-      const destroyLogs = processOnDestroyEffects(newState, defenderOwner, defender);
-      newState.log.push(...destroyLogs);
-      sendToGraveyard(defenderField, targetZone);
+      if (!hasBuff(defender, 'protect')) {
+        const destroyLogs = processOnDestroyEffects(newState, defenderOwner, defender);
+        newState.log.push(...destroyLogs);
+        sendToGraveyard(defenderField, targetZone);
+      } else {
+        newState.log.push(makeLog(newState, defenderOwner, 'info',
+          `${defender.definition.name} 受到破壞保護，免於被摧毀！`));
+      }
     } else if (diff < 0) {
       attackerField.lp = Math.max(0, attackerField.lp - Math.abs(diff));
       newState.log.push(makeLog(newState, defenderOwner, 'attack',
@@ -427,6 +564,9 @@ export function declareAttack(
         const destroyLogs = processOnDestroyEffects(newState, attackerOwner, attacker);
         newState.log.push(...destroyLogs);
         sendToGraveyard(attackerField, attackerZone);
+      } else {
+        newState.log.push(makeLog(newState, attackerOwner, 'info',
+          `${attacker.definition.name} 受到破壞保護，免於被摧毀！`));
       }
     } else {
       newState.log.push(makeLog(newState, attackerOwner, 'attack',
@@ -435,10 +575,18 @@ export function declareAttack(
         const destroyLogs1 = processOnDestroyEffects(newState, attackerOwner, attacker);
         newState.log.push(...destroyLogs1);
         sendToGraveyard(attackerField, attackerZone);
+      } else {
+        newState.log.push(makeLog(newState, attackerOwner, 'info',
+          `${attacker.definition.name} 受到破壞保護，免於被摧毀！`));
       }
-      const destroyLogs2 = processOnDestroyEffects(newState, defenderOwner, defender);
-      newState.log.push(...destroyLogs2);
-      sendToGraveyard(defenderField, targetZone);
+      if (!hasBuff(defender, 'protect')) {
+        const destroyLogs2 = processOnDestroyEffects(newState, defenderOwner, defender);
+        newState.log.push(...destroyLogs2);
+        sendToGraveyard(defenderField, targetZone);
+      } else {
+        newState.log.push(makeLog(newState, defenderOwner, 'info',
+          `${defender.definition.name} 受到破壞保護，免於被摧毀！`));
+      }
     }
   } else {
     const diff = attacker.currentAtk - defender.currentDef;
@@ -450,9 +598,14 @@ export function declareAttack(
         newState.log.push(makeLog(newState, attackerOwner, 'damage',
           `貫通傷害！${diff} 點！(LP: ${defenderField.lp})`));
       }
-      const destroyLogs = processOnDestroyEffects(newState, defenderOwner, defender);
-      newState.log.push(...destroyLogs);
-      sendToGraveyard(defenderField, targetZone);
+      if (!hasBuff(defender, 'protect')) {
+        const destroyLogs = processOnDestroyEffects(newState, defenderOwner, defender);
+        newState.log.push(...destroyLogs);
+        sendToGraveyard(defenderField, targetZone);
+      } else {
+        newState.log.push(makeLog(newState, defenderOwner, 'info',
+          `${defender.definition.name} 受到破壞保護，免於被摧毀！`));
+      }
     } else if (diff < 0) {
       attackerField.lp = Math.max(0, attackerField.lp - Math.abs(diff));
       newState.log.push(makeLog(newState, attackerOwner, 'attack',
@@ -464,6 +617,7 @@ export function declareAttack(
   }
 
   attacker.hasAttacked = true;
+  attacker.attackCount++;
   checkWinCondition(newState);
   return newState;
 }
@@ -479,14 +633,212 @@ export interface DuelAiAction {
   tributeIndices?: number[];
 }
 
+// === Smart "worm combo" AI ===========================================
+// This boss-tier strategy aggressively plays the worm chain:
+//   蠕蟲卵 → search worm_1 → summon → die → worm_2 → die → worm_3 →
+//   discard hand → worm_emperor → end-of-turn discard for huge LP burn.
+// Also opportunistically plays 噩夢融合契約 to summon mainframe_worm
+// (which then summons emperor + 終極戰爭機器).
+//
+// Priority for what to normal-summon (highest first):
+//   1. nightmare_pact   — instantly chains to mainframe_worm + emperor + war machine
+//   2. worm_egg         — searches worm_1 from deck (almost free tempo)
+//   3. worm_spawner     — draws 2 cards (cycles to combo pieces)
+//   4. worm_1           — kicks off the death-chain
+//   5. worm_hunter      — solid 60 ATK + revives worm_1 on death (combo backup)
+//   6. fallback         — best ATK monster the AI can normal-summon
+const WORM_PRIORITY_IDS = [
+  'worm_egg',
+  'worm_spawner',
+  'worm_1',
+  'worm_hunter',
+];
+
+function chooseWormComboAction(state: DuelState): DuelAiAction {
+  const field = state.enemy;
+
+  if (state.currentPhase === 'main') {
+    if (!field.hasNormalSummoned) {
+      // === Priority 0: Tribute-summon 主機蠕蟲 if requirements on field ===
+      // If 蠕蟲帝王 + 終極戰爭機器 are both on field and mainframe_worm is in hand,
+      // tribute them to summon mainframe.
+      const mainframeInHand = field.hand.findIndex((c) => c.id === 'mainframe_worm');
+      if (mainframeInHand >= 0) {
+        const emperorZone = field.monsters.findIndex((m) => m !== null && m.definition.id === 'worm_emperor');
+        const warMachineZone = field.monsters.findIndex((m) => m !== null && m.definition.id === 'htc_20');
+        if (emperorZone >= 0 && warMachineZone >= 0) {
+          // Find a zone to place mainframe: prefer an empty zone, else one of the tributes
+          const emptyZone = field.monsters.findIndex((m) => m === null);
+          const targetZone = emptyZone >= 0 ? emptyZone : emperorZone;
+          return {
+            type: 'summon',
+            handIndex: mainframeInHand,
+            zoneIndex: targetZone,
+            position: 'attack',
+            tributeIndices: [emperorZone, warMachineZone],
+          };
+        }
+      }
+
+      // === Priority 1: Summon 終極戰爭機器 if 蠕蟲帝王 is already on field ===
+      // This sets up the mainframe tribute combo.
+      const emperorOnField = field.monsters.some((m) => m !== null && m.definition.id === 'worm_emperor');
+      const warMachineInHand = field.hand.findIndex((c) => c.id === 'htc_20');
+      if (emperorOnField && warMachineInHand >= 0) {
+        const ownMonsters = field.monsters
+          .map((m, i) => ({ m, i }))
+          .filter((x) => x.m !== null);
+        if (ownMonsters.length >= 2) {
+          // Keep 蠕蟲帝王 — tribute 2 weakest non-emperor monsters
+          const sacrificeCandidates = ownMonsters
+            .filter((x) => x.m!.definition.id !== 'worm_emperor')
+            .sort((a, b) => (a.m?.currentAtk || 0) - (b.m?.currentAtk || 0))
+            .slice(0, 2)
+            .map((x) => x.i);
+          if (sacrificeCandidates.length >= 2) {
+            const emptyZone = field.monsters.findIndex((m) => m === null);
+            const targetZone = emptyZone >= 0 ? emptyZone : sacrificeCandidates[0];
+            return {
+              type: 'summon',
+              handIndex: warMachineInHand,
+              zoneIndex: targetZone,
+              position: 'attack',
+              tributeIndices: sacrificeCandidates,
+            };
+          }
+        }
+      }
+
+      const summonable = field.hand
+        .map((c, i) => ({ card: c, idx: i }))
+        .filter((x) => x.card.cardCategory === 'monster' && !x.card.cannotNormalSummon);
+
+      if (summonable.length > 0) {
+        // Try priority IDs first
+        let pick: { card: CardDefinition; idx: number } | null = null;
+        for (const wantedId of WORM_PRIORITY_IDS) {
+          const found = summonable.find((s) => s.card.id === wantedId);
+          if (found) { pick = found; break; }
+        }
+        // Fallback: highest ATK that can be summoned with available tributes
+        if (!pick) {
+          const sortedByAtk = [...summonable].sort((a, b) => b.card.baseAtk - a.card.baseAtk);
+          pick = sortedByAtk[0] || null;
+        }
+
+        if (pick) {
+          const level = pick.card.level || 1;
+          const tributesNeeded = level >= 7 ? 2 : level >= 5 ? 1 : 0;
+          const ownMonsters = field.monsters
+            .map((m, i) => ({ m, i }))
+            .filter((x) => x.m !== null);
+
+          if (ownMonsters.length >= tributesNeeded) {
+            const emptyZone = field.monsters.findIndex((m) => m === null);
+            if (emptyZone >= 0 || tributesNeeded > 0) {
+              // Don't tribute 蠕蟲帝王 for anything except mainframe — preserve for combo
+              const tributes = ownMonsters
+                .filter((x) => x.m!.definition.id !== 'worm_emperor' && x.m!.definition.id !== 'htc_20')
+                .sort((a, b) => (a.m?.currentAtk || 0) - (b.m?.currentAtk || 0))
+                .slice(0, tributesNeeded)
+                .map((x) => x.i);
+              // If we can't find enough non-essential tributes, fall back to cheapest
+              if (tributes.length < tributesNeeded) {
+                tributes.length = 0;
+                ownMonsters
+                  .sort((a, b) => (a.m?.currentAtk || 0) - (b.m?.currentAtk || 0))
+                  .slice(0, tributesNeeded)
+                  .forEach((x) => tributes.push(x.i));
+              }
+              const targetZone = emptyZone >= 0 ? emptyZone : tributes[0];
+              return {
+                type: 'summon',
+                handIndex: pick.idx,
+                zoneIndex: targetZone,
+                position: 'attack',
+                tributeIndices: tributes,
+              };
+            }
+          }
+        }
+      }
+    }
+
+    // Flip face-down monsters before ending main phase
+    for (let i = 0; i < MONSTER_ZONES; i++) {
+      const m = field.monsters[i];
+      if (m && !m.faceUp && m.position === 'facedown_defense') {
+        return { type: 'flip_summon', zoneIndex: i };
+      }
+    }
+    return { type: 'end_phase' };
+  }
+
+  if (state.currentPhase === 'battle') {
+    if (state.turn === 1 && state.firstPlayer === 'enemy') {
+      return { type: 'end_phase' };
+    }
+    // Same battle logic as standard but slightly more aggressive — always
+    // attack into player's strongest if we'll trade or kill.
+    for (let i = 0; i < MONSTER_ZONES; i++) {
+      const m = field.monsters[i];
+      if (!m || !m.faceUp || m.position !== 'attack') continue;
+      const aiMaxAttacks = hasBuff(m, 'double_attack') ? 2 : 1;
+      if (m.attackCount >= aiMaxAttacks) continue;
+
+      const playerField = state.player;
+      const targets = playerField.monsters
+        .map((pm, pi) => ({ m: pm, i: pi }))
+        .filter((x) => x.m !== null);
+
+      if (targets.length === 0 || hasBuff(m, 'direct_attack')) {
+        return { type: 'attack', zoneIndex: i, targetZone: -1 };
+      }
+
+      // Worm AI prefers to trade aggressively to TRIGGER on_destroy chains.
+      // If our attacker is a worm in the chain, attack into anything to die.
+      const isChainWorm = m.definition.id === 'worm_1' || m.definition.id === 'worm_2' || m.definition.id === 'worm_hunter';
+      if (isChainWorm) {
+        const strongest = [...targets].sort((a, b) => (b.m?.currentAtk || 0) - (a.m?.currentAtk || 0))[0];
+        if (strongest) return { type: 'attack', zoneIndex: i, targetZone: strongest.i };
+      }
+
+      const attackTargets = targets
+        .filter((t) => t.m!.position === 'attack' && m.currentAtk > t.m!.currentAtk)
+        .sort((a, b) => (b.m?.currentAtk || 0) - (a.m?.currentAtk || 0));
+      if (attackTargets.length > 0) {
+        return { type: 'attack', zoneIndex: i, targetZone: attackTargets[0].i };
+      }
+
+      const defTargets = targets
+        .filter((t) => t.m!.position !== 'attack' && m.currentAtk > t.m!.currentDef);
+      if (defTargets.length > 0) {
+        return { type: 'attack', zoneIndex: i, targetZone: defTargets[0].i };
+      }
+
+      if (targets.length > 0 && m.currentAtk >= (targets[0].m?.currentAtk || 0)) {
+        return { type: 'attack', zoneIndex: i, targetZone: targets[0].i };
+      }
+    }
+    return { type: 'end_phase' };
+  }
+
+  return { type: 'end_phase' };
+}
+
 export function chooseDuelAiAction(state: DuelState): DuelAiAction {
+  // Dispatch to specialized strategy if configured
+  if (state.enemyAiStrategy === 'worm_combo') {
+    return chooseWormComboAction(state);
+  }
+
   const field = state.enemy;
 
   if (state.currentPhase === 'main') {
     if (!field.hasNormalSummoned) {
       const monsterCards = field.hand
         .map((c, i) => ({ card: c, idx: i }))
-        .filter((x) => x.card.cardCategory === 'monster');
+        .filter((x) => x.card.cardCategory === 'monster' && !x.card.cannotNormalSummon);
 
       if (monsterCards.length > 0) {
         const sorted = monsterCards.sort((a, b) => b.card.baseAtk - a.card.baseAtk);
@@ -538,14 +890,16 @@ export function chooseDuelAiAction(state: DuelState): DuelAiAction {
     for (let i = 0; i < MONSTER_ZONES; i++) {
       const m = field.monsters[i];
       if (!m || !m.faceUp || m.position !== 'attack') continue;
-      if (m.hasAttacked && !hasBuff(m, 'double_attack')) continue;
+      const aiMaxAttacks = hasBuff(m, 'double_attack') ? 2 : 1;
+      if (m.attackCount >= aiMaxAttacks) continue;
 
       const playerField = state.player;
       const targets = playerField.monsters
         .map((pm, pi) => ({ m: pm, i: pi }))
         .filter((x) => x.m !== null);
 
-      if (targets.length === 0) {
+      // Direct attack: if no targets or has direct_attack buff
+      if (targets.length === 0 || hasBuff(m, 'direct_attack')) {
         return { type: 'attack', zoneIndex: i, targetZone: -1 };
       }
 
@@ -565,10 +919,10 @@ export function chooseDuelAiAction(state: DuelState): DuelAiAction {
         return { type: 'attack', zoneIndex: i, targetZone: defTargets[0].i };
       }
 
-      // Still attack even if we might lose — makes AI more aggressive
-      if (targets.length > 0 && m.currentAtk >= (targets[0].m?.currentAtk || 0)) {
-        return { type: 'attack', zoneIndex: i, targetZone: targets[0].i };
-      }
+      // Smart suicide-prevention: only trade if we kill an equal-ATK opponent
+      // AND we ourselves don't take ANY net loss bigger than 0. Otherwise skip
+      // — kid-friendly AI shouldn't throw away cards into stronger defenders.
+      // (Per design: "若手牌的攻擊力比對方低，就不會貿然發動攻擊")
     }
 
     return { type: 'end_phase' };
@@ -777,6 +1131,8 @@ export function getMonsterCount(field: PlayerField): number {
 export function canNormalSummon(field: PlayerField, card: CardDefinition): boolean {
   if (field.hasNormalSummoned) return false;
   if (card.cardCategory !== 'monster') return false;
+  // Some monsters can ONLY be special-summoned (e.g. 蠕蟲二號、三號、帝王)
+  if (card.cannotNormalSummon) return false;
 
   const level = card.level || 1;
   const tributesNeeded = level >= 7 ? 2 : level >= 5 ? 1 : 0;
@@ -785,6 +1141,14 @@ export function canNormalSummon(field: PlayerField, card: CardDefinition): boole
 
   if (tributesNeeded > ownMonsters) return false;
   if (tributesNeeded === 0 && emptyZones === 0) return false;
+
+  // If card requires specific tribute card IDs, ensure ALL of those cards are on field
+  if (card.requiredTributeCardIds && card.requiredTributeCardIds.length > 0) {
+    const onFieldIds = new Set(field.monsters.filter((m) => m !== null).map((m) => m!.definition.id));
+    for (const reqId of card.requiredTributeCardIds) {
+      if (!onFieldIds.has(reqId)) return false;
+    }
+  }
 
   return true;
 }

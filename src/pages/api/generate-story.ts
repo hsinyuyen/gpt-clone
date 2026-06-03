@@ -53,7 +53,7 @@ export default async function handler(
 imagePrompt 要用英文描述這一頁的畫面，風格是兒童繪本插畫。`;
 
     const completion = await openai.createChatCompletion({
-      model: "gpt-4o-mini",
+      model: "gpt-5.4",
       temperature: 0.8,
       messages: [
         { role: "system", content: systemPrompt },
