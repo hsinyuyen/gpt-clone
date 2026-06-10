@@ -92,3 +92,20 @@ export function extractWorksheetTitle(content: string): string {
   }
   return "未命名學習單";
 }
+
+/**
+ * Auto-detect semester (e.g. "S5") and week (e.g. 14) from the worksheet title
+ * or filename. Supports patterns like "S5 W14", "S5-W14", "S5W14".
+ * Returns null for a field when it can't be confidently extracted.
+ */
+export function extractSemesterAndWeek(text: string): {
+  semester: string | null;
+  week: number | null;
+} {
+  const semMatch = text.match(/\bS(\d{1,2})\b/i);
+  const weekMatch = text.match(/\bW(\d{1,2})\b/i);
+  return {
+    semester: semMatch ? `S${parseInt(semMatch[1], 10)}` : null,
+    week: weekMatch ? parseInt(weekMatch[1], 10) : null,
+  };
+}

@@ -9,7 +9,7 @@ import {
   Classroom,
 } from "@/lib/firestore";
 import { Worksheet, Task } from "@/types/Worksheet";
-import { parseWorksheetMarkdown, extractWorksheetTitle } from "@/utils/worksheetParser";
+import { parseWorksheetMarkdown, extractWorksheetTitle, extractSemesterAndWeek } from "@/utils/worksheetParser";
 import { ParsedTask, ParseResult } from "@/types/Worksheet";
 
 const ADMIN_USERNAMES = ["admin", "teacher", "老師"];
@@ -388,7 +388,12 @@ function UploadModal({
       const result = parseWorksheetMarkdown(text);
       setParseResult(result);
       setEditedTasks(result.tasks.map((t) => ({ ...t })));
-      setTitle(extractWorksheetTitle(text));
+      const detectedTitle = extractWorksheetTitle(text);
+      setTitle(detectedTitle);
+      // Auto-detect semester/week from title or filename (e.g. "S5 W14")
+      const detected = extractSemesterAndWeek(`${detectedTitle} ${file.name}`);
+      if (detected.semester) setSemester(detected.semester);
+      if (detected.week) setWeek(detected.week);
     };
     reader.readAsText(file);
   };
