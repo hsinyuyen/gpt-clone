@@ -7,6 +7,7 @@ export interface Script {
   icon: string;
   category: ScriptCategory;
   isAvailable: boolean;
+  externalUrl?: string; // 若有，點擊時直接前往此網址（例如獨立的遊戲/學習單頁面）
 }
 
 export type ScriptCategory = "avatar" | "learning" | "creative" | "utility";

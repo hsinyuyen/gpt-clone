@@ -33,6 +33,12 @@ const ScriptPanel: React.FC<ScriptPanelProps> = ({
     const script = scripts.find(s => s.id === scriptId);
     if (!script?.isAvailable) return;
 
+    // External page (game / worksheet) — just navigate there
+    if (script.externalUrl) {
+      window.location.href = script.externalUrl;
+      return;
+    }
+
     if (activeScript === scriptId) {
       onStopScript();
       return;
@@ -257,6 +263,7 @@ const ScriptPanel: React.FC<ScriptPanelProps> = ({
                     <>
                       {script.id === "create-avatar" && "[+]"}
                       {script.id === "story-helper" && "[S]"}
+                      {script.id === "game-lab" && "[▶]"}
                       {script.id === "math-tutor" && "[#]"}
                       {script.id === "english-buddy" && "[A]"}
                     </>

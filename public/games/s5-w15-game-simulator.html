@@ -1,0 +1,1855 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>S5-W15 遊戲開發模擬器｜Lab Terminal</title>
+<!-- Firebase（compat CDN）：讓進度與金幣綁定登入帳號、跨裝置同步 -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root {
+    --bg: #0b1020;
+    --bg-2: #121a33;
+    --panel: #16203d;
+    --panel-2: #1d2a4d;
+    --line: #2b3a63;
+    --ink: #e8eeff;
+    --ink-dim: #93a3c9;
+    --accent: #5b8cff;
+    --accent-2: #7c5cff;
+    --good: #2bd17e;
+    --good-bg: rgba(43,209,126,.12);
+    --bad: #ff5d6c;
+    --bad-bg: rgba(255,93,108,.12);
+    --gold: #ffce47;
+    --shadow: 0 10px 40px rgba(0,0,0,.45);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif; }
+  html, body { height: 100%; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(124,92,255,.18), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(91,140,255,.15), transparent 60%),
+      var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .wrap { width: 100%; max-width: 1080px; padding: 16px; flex: 1; display: flex; flex-direction: column; }
+
+  /* ===== two-column layout: left workspace / right interaction ===== */
+  .layout { display: grid; grid-template-columns: 360px 1fr; gap: 16px; margin-top: 16px; align-items: start; }
+  .layout.solo { grid-template-columns: 1fr; max-width: 820px; margin-left: auto; margin-right: auto; width: 100%; }
+  .layout.solo .leftcol { display: none; }
+  .leftcol { position: sticky; top: 176px; display: flex; flex-direction: column; gap: 16px; }
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; }
+    .leftcol { position: static; }
+  }
+
+  .workspace { background: linear-gradient(180deg, var(--panel), var(--bg-2)); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+  .ws-head { padding: 12px 14px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 14px; background: var(--panel-2); }
+  .ws-head .folder { width: 18px; height: 18px; color: var(--gold); }
+  .ws-head small { color: var(--ink-dim); font-weight: 600; margin-left: auto; }
+  .ws-files { padding: 8px; display: flex; flex-direction: column; gap: 3px; max-height: 168px; overflow: auto; }
+  .ws-file { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--ink-dim); border: 1px solid transparent; font-family: "Consolas",monospace; }
+  .ws-file:hover { background: var(--panel-2); }
+  .ws-file.active { background: var(--panel-2); border-color: var(--line); color: var(--ink); }
+  .ws-file.justsaved { animation: savein .55s ease both; }
+  @keyframes savein { from { background: var(--good-bg); transform: translateX(-8px); opacity: 0; } to { opacity: 1; } }
+  .ws-file .fic { width: 15px; height: 15px; flex-shrink: 0; color: var(--accent); }
+  .ws-empty { padding: 34px 18px; text-align: center; color: var(--ink-dim); font-size: 13px; line-height: 1.8; }
+  .ws-preview { border-top: 1px solid var(--line); padding: 14px; min-height: 210px; }
+  .ws-pname { font-size: 11px; color: var(--ink-dim); margin-bottom: 10px; font-family: "Consolas",monospace; display: flex; align-items: center; gap: 6px; }
+  .ws-saving { font-size: 12px; color: var(--accent); display: flex; align-items: center; gap: 8px; padding: 30px 0; justify-content: center; }
+
+  /* markdown / code preview */
+  .md-doc h3 { font-size: 15px; color: var(--accent); margin: 0 0 8px; }
+  .md-doc h4 { font-size: 13px; color: var(--ink); margin: 11px 0 5px; }
+  .md-doc p { font-size: 13px; line-height: 1.75; margin: 4px 0; color: var(--ink); }
+  .md-doc ul { margin: 5px 0; padding: 0; }
+  .md-doc li { font-size: 13px; line-height: 1.7; list-style: none; display: flex; gap: 8px; align-items: flex-start; margin: 3px 0; color: var(--ink); }
+  .md-doc li .bul { color: var(--accent); flex-shrink: 0; }
+  .md-chk { width: 15px; height: 15px; border: 1.5px solid var(--ink-dim); border-radius: 4px; flex-shrink: 0; margin-top: 2px; display: inline-flex; align-items: center; justify-content: center; }
+  .md-chk.on { background: var(--good); border-color: var(--good); }
+  .code-doc { background: #0a1024; border: 1px solid var(--line); border-radius: 8px; padding: 12px; font-family: "Consolas","Monaco",monospace; font-size: 12.5px; line-height: 1.75; color: #cfe0ff; white-space: pre-wrap; overflow: auto; }
+  .code-doc .cm { color: #6b87c0; }
+  .code-doc .kw { color: #ff9bb0; }
+
+  /* ===== Docked game preview panel (single, non-draggable) ===== */
+  .gpwin { background: #0b1226; border: 1px solid var(--accent); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+  .gp-head { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: linear-gradient(180deg,#16203d,#101a33); border-bottom: 1px solid var(--line); user-select: none; }
+  .gp-dots { display: flex; gap: 4px; }
+  .gp-dots i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .gp-dots i:nth-child(1) { background: #ff5d6c; } .gp-dots i:nth-child(2) { background: #ffce47; } .gp-dots i:nth-child(3) { background: #2bd17e; }
+  .gp-title { font-size: 13px; font-weight: 800; color: var(--ink); }
+  .gp-badge { font-size: 10px; font-weight: 800; margin-left: auto; padding: 2px 8px; border-radius: 999px; }
+  .gp-badge.live { background: #2bd17e; color: #06210f; }
+  .gp-badge.build { background: rgba(91,140,255,.2); color: var(--accent); }
+  .gp-body { padding: 12px; }
+  #gpCanvas { width: 100%; max-width: 320px; height: auto; aspect-ratio: 1 / 1; display: block; margin: 0 auto; border-radius: 10px; background: #0a1024; cursor: pointer; }
+  .gp-hint { font-size: 12px; color: var(--ink-dim); text-align: center; margin-top: 10px; line-height: 1.5; min-height: 32px; }
+  .gp-ctrl { display: none; justify-content: center; gap: 14px; margin-top: 8px; }
+  .gp-ctrl.on { display: flex; }
+  .gp-ctrl button { width: 64px; height: 42px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); font-size: 20px; cursor: pointer; user-select: none; }
+  .gp-ctrl button:active { background: var(--accent); color: #fff; }
+  .ws-note { font-size: 12px; color: var(--ink-dim); line-height: 1.7; text-align: center; padding: 18px 8px; }
+
+  /* ===== Top HUD: journey map + coin ===== */
+  .hud {
+    background: linear-gradient(180deg, var(--panel), var(--bg-2));
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+    position: sticky; top: 8px; z-index: 5;
+  }
+  .hud-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 800; letter-spacing: .5px; }
+  .brand .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--good); box-shadow: 0 0 12px var(--good); }
+  .brand small { color: var(--ink-dim); font-weight: 600; }
+  .coin { display: flex; align-items: center; gap: 7px; background: rgba(255,206,71,.12); border: 1px solid rgba(255,206,71,.4); color: var(--gold); padding: 6px 12px; border-radius: 999px; font-weight: 800; }
+  .coin svg { width: 18px; height: 18px; }
+
+  .map { margin-top: 12px; }
+  .map-bar { position: relative; height: 8px; background: var(--panel-2); border-radius: 999px; overflow: hidden; }
+  .map-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .6s cubic-bezier(.2,.8,.2,1); }
+  .gates { display: flex; justify-content: space-between; margin-top: 10px; }
+  .gate { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; }
+  .gate .ic { width: 34px; height: 34px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; transition: .3s; }
+  .gate .ic svg { width: 20px; height: 20px; color: var(--ink-dim); transition: .3s; }
+  .gate.lit .ic { background: var(--good-bg); border-color: var(--good); box-shadow: 0 0 16px rgba(43,209,126,.4); }
+  .gate.lit .ic svg { color: var(--good); }
+  .gate span { font-size: 11px; color: var(--ink-dim); font-weight: 700; }
+  .gate.lit span { color: var(--ink); }
+  .map-pct { text-align: center; margin-top: 8px; font-size: 12px; color: var(--ink-dim); font-weight: 700; }
+  .map-pct b { color: var(--accent); }
+
+  /* ===== Screen ===== */
+  #screen { min-width: 0; }
+  .card {
+    background: linear-gradient(180deg, var(--panel), var(--bg-2));
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 22px;
+    box-shadow: var(--shadow);
+    animation: rise .4s ease both;
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+  h1 { font-size: 26px; line-height: 1.3; }
+  h2 { font-size: 20px; line-height: 1.35; }
+  .sub { color: var(--ink-dim); margin-top: 8px; line-height: 1.7; }
+  .key-msg { margin: 14px 0; padding: 12px 14px; border-left: 4px solid var(--accent); background: rgba(91,140,255,.1); border-radius: 0 10px 10px 0; line-height: 1.7; font-weight: 600; }
+  .stage-flag { display: inline-flex; align-items: center; gap: 7px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 700; color: var(--ink-dim); }
+  .stage-flag b { color: var(--accent); }
+
+  /* AI bubble */
+  .ai { display: flex; gap: 12px; margin-top: 16px; }
+  .ai .avatar { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 6px 18px rgba(91,140,255,.4); }
+  .ai .avatar svg { width: 26px; height: 26px; color: #fff; }
+  .ai .bubble { background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; border-top-left-radius: 4px; padding: 14px 16px; line-height: 1.85; font-size: 15px; }
+  .ai .bubble .term { color: var(--gold); font-weight: 800; border-bottom: 2px dotted var(--gold); }
+
+  /* steps */
+  .step { margin-top: 18px; border-top: 1px dashed var(--line); padding-top: 18px; }
+  .step.hidden { display: none; }
+  .step-label { font-size: 13px; font-weight: 800; color: var(--accent); letter-spacing: .4px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .step-label .n { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
+
+  /* ===== Play the finished game (fullscreen) ===== */
+  .play-overlay { position: fixed; inset: 0; z-index: 60; background: rgba(5,8,20,.94); display: flex; align-items: center; justify-content: center; padding: 12px; }
+  .play-frame { width: min(94vw, 400px); display: flex; flex-direction: column; gap: 10px; }
+  .play-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .play-title { font-weight: 800; color: var(--ink); font-size: 15px; }
+  .play-close { background: none; border: 1px solid var(--line); color: var(--ink-dim); border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+  .play-close:hover { color: var(--ink); }
+  #playCanvas { width: 100%; height: auto; aspect-ratio: 360 / 560; max-height: 72vh; background: #0a1024; border: 1px solid var(--accent); border-radius: 14px; cursor: pointer; touch-action: none; display: block; margin: 0 auto; }
+  .play-ctrl { display: flex; justify-content: center; gap: 20px; }
+  .play-ctrl button { width: 88px; height: 56px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); font-size: 26px; cursor: pointer; user-select: none; }
+  .play-ctrl button:active { background: var(--accent); color: #fff; }
+  .btn.play-cta { background: linear-gradient(135deg, var(--good), #1fae6a); margin-bottom: 6px; }
+  .exam-cert { text-align: center; margin-top: 18px; padding: 20px; border: 1px solid var(--good); border-radius: 16px; background: var(--good-bg); animation: pop .4s ease both; }
+  .exam-score { font-size: 44px; font-weight: 900; color: var(--good); }
+  .exam-grade { font-size: 16px; font-weight: 800; margin-top: 4px; }
+  .real-world { margin-top: 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(91,140,255,.06); overflow: hidden; }
+  .real-world summary { cursor: pointer; padding: 11px 14px; font-size: 13px; font-weight: 700; color: var(--accent); list-style: none; display: flex; align-items: center; gap: 8px; }
+  .real-world summary::-webkit-details-marker { display: none; }
+  .real-world summary svg { width: 15px; height: 15px; }
+  .real-world[open] summary { border-bottom: 1px solid var(--line); }
+  .rw-body { padding: 12px 16px; }
+  .rw-title { font-weight: 800; font-size: 14px; margin-bottom: 8px; color: var(--ink); }
+  .rw-sub { font-size: 12px; font-weight: 700; color: var(--accent); margin: 8px 0 4px; }
+  .rw-list, .rw-steps { margin: 0 0 4px; padding-left: 20px; }
+  .rw-list li, .rw-steps li { font-size: 13px; line-height: 1.7; color: var(--ink); margin: 2px 0; }
+  .rw-steps li { list-style: none; }
+  .decide-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .decide-btn { padding: 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); font-size: 15px; font-weight: 700; cursor: pointer; transition: .15s; }
+  .decide-btn:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .decide-btn.chosen { border-color: var(--good); background: var(--good-bg); color: var(--good); }
+  @media (max-width: 520px){ .decide-opts { grid-template-columns: 1fr; } }
+  .quiz-q { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px dashed var(--line); }
+  .quiz-q:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .quiz-qtext { font-size: 15px; font-weight: 700; margin-bottom: 10px; line-height: 1.6; }
+  .options { display: grid; gap: 10px; }
+  .opt { text-align: left; padding: 13px 15px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); font-size: 15px; font-weight: 600; cursor: pointer; transition: .15s; }
+  .opt:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-1px); }
+  .opt:disabled { cursor: not-allowed; }
+  .opt.locked { background: var(--bad-bg); border-color: var(--bad); color: var(--bad); opacity: .7; text-decoration: line-through; }
+  .opt.correct { background: var(--good-bg); border-color: var(--good); color: var(--good); }
+
+  .field { margin-top: 4px; }
+  input.txt, textarea.txt {
+    width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
+    color: var(--ink); padding: 13px 15px; font-size: 15px; resize: vertical; line-height: 1.6;
+  }
+  input.txt:focus, textarea.txt:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91,140,255,.2); }
+  .hint { margin-top: 8px; font-size: 13px; color: var(--ink-dim); line-height: 1.6; -webkit-user-select: none; user-select: none; }
+  .feedback { margin-top: 10px; font-size: 14px; font-weight: 700; min-height: 20px; }
+  .feedback.ok { color: var(--good); }
+  .feedback.no { color: var(--bad); }
+
+  .ai-status { font-size: 13px; font-weight: 700; line-height: 1.5; display: inline-flex; align-items: center; gap: 7px; }
+  .ai-status.loading { color: var(--accent); }
+  .ai-status.ok { color: var(--good); }
+  .ai-status.no { color: var(--bad); }
+  .spin { width: 14px; height: 14px; border: 2px solid rgba(91,140,255,.3); border-top-color: var(--accent); border-radius: 50%; display: inline-block; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== Stage visual (AI 生成預覽) ===== */
+  .visual-wrap { margin-top: 16px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--bg); }
+  .visual-wrap.hidden { display: none; }
+  .visual-label { font-size: 12px; font-weight: 800; color: var(--accent); padding: 9px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 7px; background: var(--panel-2); }
+  .visual-label svg { width: 15px; height: 15px; }
+  .visual-stage { padding: 16px; display: flex; justify-content: center; align-items: center; min-height: 150px; }
+  .shimmer { width: 100%; height: 150px; border-radius: 10px; background: linear-gradient(100deg, var(--panel-2) 30%, rgba(91,140,255,.22) 50%, var(--panel-2) 70%); background-size: 220% 100%; animation: sh 1.1s linear infinite; }
+  @keyframes sh { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  .mock { animation: rise .4s ease both; }
+  .vcap { text-align: center; font-size: 12px; color: var(--ink-dim); margin-top: 10px; line-height: 1.5; }
+  .vcap b { color: var(--ink); }
+  /* mock phone screen */
+  .phone { width: 188px; }
+  .phone .scr-title { font: 700 13px/1 "Noto Sans TC",sans-serif; }
+  .float-rock { animation: rockfall 2.4s ease-in infinite; }
+  @keyframes rockfall { from { transform: translateY(-6px); } to { transform: translateY(8px); } }
+  .glitch { animation: glx .35s steps(2) infinite; }
+  @keyframes glx { 0%{transform:translate(0,0)} 50%{transform:translate(1.5px,-1px)} 100%{transform:translate(-1.5px,1px)} }
+  .pulse-live { animation: plive 1.1s ease-in-out infinite; }
+  @keyframes plive { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .check-pop { animation: pop .35s ease both; }
+
+  .row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  button.btn {
+    border: none; border-radius: 12px; padding: 13px 22px; font-size: 15px; font-weight: 800; cursor: pointer;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; box-shadow: 0 6px 18px rgba(91,140,255,.35); transition: .15s;
+  }
+  button.btn:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(91,140,255,.45); }
+  button.btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--ink); box-shadow: none; }
+  button.btn:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .reward { margin-top: 12px; display: inline-flex; align-items: center; gap: 8px; color: var(--gold); font-weight: 800; opacity: 0; transition: .4s; }
+  .reward.show { opacity: 1; }
+
+  /* recall 2-step */
+  .qline { margin-top: 16px; }
+  .qline .qtext { line-height: 1.8; font-size: 15px; }
+
+  /* modal */
+  .overlay { position: fixed; inset: 0; background: rgba(5,8,20,.78); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 20; padding: 16px; }
+  .overlay.show { display: flex; }
+  .modal { max-width: 560px; width: 100%; background: linear-gradient(180deg, var(--panel), var(--bg-2)); border: 1px solid var(--accent); border-radius: 18px; padding: 24px; box-shadow: var(--shadow); animation: rise .35s ease both; }
+  .modal h2 { margin-bottom: 6px; }
+  .blank-inline { display: inline-block; min-width: 90px; border-bottom: 2px solid var(--accent); }
+
+  /* skill wall */
+  .wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 18px; }
+  .badge { background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; padding: 14px; text-align: center; animation: pop .4s ease both; }
+  .badge.dim { opacity: .35; }
+  @keyframes pop { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .badge .bic { width: 40px; height: 40px; margin: 0 auto 8px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); display: flex; align-items: center; justify-content: center; }
+  .badge .bic svg { width: 24px; height: 24px; color: #fff; }
+  .badge .bt { font-weight: 800; font-size: 14px; }
+  .badge .bs { font-size: 12px; color: var(--ink-dim); margin-top: 3px; }
+
+  /* rocket / done */
+  .launchpad { position: relative; height: 220px; margin: 18px 0; overflow: hidden; border-radius: 16px; background: linear-gradient(180deg, #0a1230, #142250); border: 1px solid var(--line); }
+  .stars::before { content: ""; position: absolute; inset: 0; background-image: radial-gradient(2px 2px at 20% 30%, #fff, transparent), radial-gradient(1px 1px at 60% 20%, #fff, transparent), radial-gradient(1.5px 1.5px at 80% 60%, #fff, transparent), radial-gradient(1px 1px at 35% 70%, #fff, transparent), radial-gradient(2px 2px at 75% 40%, #fff, transparent); opacity: .6; }
+  .rocket { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); width: 60px; }
+  .rocket.go { animation: launch 2.4s cubic-bezier(.4,0,.6,1) forwards; }
+  @keyframes launch { 0% { bottom: 14px; } 30% { bottom: 26px; } 100% { bottom: 260px; opacity: .2; } }
+  .flame { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); width: 22px; height: 0; background: linear-gradient(180deg, var(--gold), #ff7a3c); border-radius: 0 0 50% 50%; filter: blur(1px); opacity: 0; }
+  .rocket.go + .flame { animation: flame 2.4s ease forwards; }
+  @keyframes flame { 0% { height: 0; opacity: 0; bottom: 8px; } 25% { height: 34px; opacity: 1; bottom: 6px; } 100% { height: 60px; opacity: 0; bottom: 240px; } }
+  .done-banner { text-align: center; }
+  .big-pct { font-size: 56px; font-weight: 900; background: linear-gradient(90deg, var(--accent), var(--gold)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+
+  .center { text-align: center; }
+  .muted { color: var(--ink-dim); }
+  .mt8 { margin-top: 8px; } .mt16 { margin-top: 16px; }
+  .restart { margin-top: 18px; font-size: 12px; color: var(--ink-dim); background: none; border: none; cursor: pointer; text-decoration: underline; }
+  .skip-test { font-size: 11px; font-weight: 700; color: var(--ink-dim); background: rgba(255,206,71,.08); border: 1px dashed #ca8a04; border-radius: 8px; padding: 5px 10px; cursor: pointer; white-space: nowrap; }
+  .skip-test:hover { color: var(--gold); background: rgba(255,206,71,.16); }
+  .acct-badge { position: fixed; left: 50%; transform: translateX(-50%); bottom: 8px; z-index: 5; font-size: 11px; color: var(--ink-dim); background: rgba(11,16,32,.92); border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px; display: flex; align-items: center; gap: 7px; max-width: 94vw; box-shadow: 0 4px 16px rgba(0,0,0,.4); }
+  .acct-badge .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .acct-badge .dot.ok { background: var(--good); box-shadow: 0 0 8px var(--good); }
+  .acct-badge .dot.warn { background: var(--gold); }
+  .acct-badge a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- HUD -->
+  <div class="hud">
+    <div class="hud-top">
+      <div class="brand"><span class="dot"></span> LAB TERMINAL <small>S5·W15 遊戲開發模擬器</small></div>
+      <div class="coin"><span id="coinIc"></span><span id="coinVal">0</span> 金幣</div>
+    </div>
+    <div class="map">
+      <div class="map-bar"><div class="map-fill" id="mapFill"></div></div>
+      <div class="gates" id="gates"></div>
+      <div class="map-pct">開發旅程進度：<b id="pctVal">0%</b></div>
+    </div>
+  </div>
+
+  <div class="layout solo" id="layout">
+    <div class="leftcol">
+      <aside class="workspace" id="workspace"></aside>
+      <div id="gameDock"></div>
+    </div>
+    <div id="screen"></div>
+  </div>
+</div>
+
+<!-- Rehearsal modal -->
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+/* =========================================================
+   ICONS (inline SVG — 零 emoji)
+   ========================================================= */
+const ICON = {
+  ai: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M8 21h8M12 18v3"/><circle cx="9" cy="11" r="1.2"/><circle cx="15" cy="11" r="1.2"/></svg>',
+  idea: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.3 1 2.5h6c0-1.2.3-1.8 1-2.5A6 6 0 0 0 12 3z"/></svg>',
+  design: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/></svg>',
+  code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l-3 3 3 3M16 9l3 3-3 3M13 7l-2 10"/></svg>',
+  test: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v5l-4 9a2 2 0 0 0 2 3h8a2 2 0 0 0 2-3l-4-9V3"/><path d="M7 14h10"/></svg>',
+  deploy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3l7 7-4 1-4 4-1 4-7-7 4-1 4-4z"/><path d="M9 15l-3 3"/></svg>',
+  launch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c3 1 5 4 5 8 0 2-1 4-2 5H9c-1-1-2-3-2-5 0-4 2-7 5-8z"/><circle cx="12" cy="9" r="1.6"/><path d="M9 17l-2 4M15 17l2 4M12 15v6"/></svg>',
+  coin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7l1.5 3.2L17 11l-2.6 2.3L15 17l-3-1.8L9 17l.6-3.7L7 11l3.5-.8L12 7z" fill="currentColor" stroke="none"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>',
+  flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>'
+};
+function rocketSVG(){return '<svg viewBox="0 0 40 80" width="60" xmlns="http://www.w3.org/2000/svg"><path d="M20 2c8 8 10 20 10 30 0 8-4 14-10 18-6-4-10-10-10-18C10 22 12 10 20 2z" fill="#dfe7ff" stroke="#5b8cff" stroke-width="2"/><circle cx="20" cy="26" r="5" fill="#5b8cff"/><path d="M10 44l-6 10 10-4M30 44l6 10-10-4" fill="#7c5cff"/></svg>';}
+
+/* =========================================================
+   KEY MESSAGE (≥5 處出現)
+   ========================================================= */
+const KEY_MSG = "看懂 AI 對話裡的專有名詞，就能掌握一款遊戲從想法到上線的每一步。";
+
+/* =========================================================
+   STAGES — 15 階段資料
+   ========================================================= */
+const STAGES = [
+  // 0 發想／需求
+  { stage:"發想", icon:"idea", term:"需求", synonyms:["需求","requirement","需要"],
+    passage:"嘿，這是「你的」遊戲！第一步別急著寫程式。我們先問一個問題：玩家到底想要什麼？也許你想做一款「躲避隕石」的小遊戲，那玩家想要的就是「操作簡單、越玩越緊張」。把這些「玩家想要的東西」整理清楚，這份東西就叫做需求。需求就像蓋房子前的願望清單，它決定我們接下來要做什麼。記住：先搞懂需求，後面才不會做白工。",
+    quiz:[
+      { q:"AI 說的「需求」實際上是指什麼？", options:["把『玩家想要的東西』整理清楚","遊戲程式碼總共有幾行","遊戲畫面要用什麼顏色","遊戲完成的截止日期"], answer:0 },
+      { q:"AI 說為什麼要『先』搞懂需求？", options:["後面才不會白做工、做錯方向","這樣就可以不用寫程式","因為需求就是完成的遊戲","因為老師規定一定要"], answer:0 }
+    ],
+    blankHint:"提示：把『玩家想要的東西』整理清楚，叫做……",
+    taskExample:"幫我做一款用左右鍵閃避掉落隕石的小遊戲，操作要簡單、越玩越緊張。", goal:"描述你想做一款怎樣的遊戲",
+    slots:{ target:["遊戲","隕石","太空船","船","玩家"], behavior:["閃","躲","避","移動","掉","做","玩"] } },
+
+  // 1 玩法（核心玩法 + 決定操作方式）
+  { stage:"玩法", icon:"idea", term:"核心玩法", synonyms:["核心玩法","玩法","機制"],
+    passage:"知道玩家要什麼之後，要先定下這款遊戲『最核心、會一直重複的那個動作』——這就是核心玩法。我們這款的核心玩法是：太空船左右移動、閃避一直掉下來的隕石，撞到就結束。好玩的遊戲通常有一個簡單、又讓人想再玩一次的核心動作。先把玩法說定，後面才不會做到一半才發現不好玩。順便也決定：玩家要用『方向鍵』還是『螢幕上的按鈕』來操作。",
+    quiz:[
+      { q:"AI 說「核心玩法」是指什麼？", options:["遊戲最主要、會一直重複的那個動作","遊戲的封面顏色","遊戲要賣多少錢","遊戲叫什麼名字"], answer:0 },
+      { q:"為什麼要先把核心玩法定下來？", options:["後面才不會做到一半發現不好玩","定了就不能再改","這樣就不用寫程式","為了拖時間"], answer:0 }
+    ],
+    blankHint:"提示：遊戲『最主要、會一直重複的那個動作』叫核心……",
+    taskExample:"這個遊戲的玩法是太空船左右閃躲，被隕石撞到就結束。", goal:"說定這款遊戲怎麼玩（核心玩法）",
+    slots:{ target:["太空船","船","隕石","角色"], behavior:["閃","躲","避","移動","左右","撞","結束"] },
+    decision:{ key:"control", q:"玩家要怎麼操作太空船？", options:[{label:"用方向鍵 ← →",val:"keys"},{label:"用螢幕按鈕（手指點）",val:"touch"}], note:{ keys:"用方向鍵：適合電腦玩。", touch:"用螢幕按鈕：適合手機、平板玩。" } } },
+
+  // 2 範圍（單人 / 多人 決策）
+  { stage:"範圍", icon:"idea", term:"多人", synonyms:["多人","單人","人數"],
+    passage:"一個重要的產品決定：這款遊戲要『一個人玩(單人)』，還是『跟朋友一起玩(多人)』？多人聽起來很酷，但它像揪一群人打球——要讓大家連到同一台伺服器、處理誰先誰後，要多接很多線，難很多。聰明的做法是：第一版先把『一個人玩』做好（這叫 MVP，最小可行版本），之後行有餘力再加多人。今天我們先把單人做好。",
+    quiz:[
+      { q:"AI 說第一版為什麼先做單人？", options:["多人要多接很多線、難很多，先把單人做好(MVP)","因為多人不好玩","因為一個人比較厲害","因為電腦只能一個人用"], answer:0 },
+      { q:"AI 把『做多人』比喻成什麼？", options:["揪一群人打球，要連到同一台伺服器","一個人安靜看書","自己畫畫","睡覺"], answer:0 }
+    ],
+    blankHint:"提示：很多人連到同一台伺服器一起玩，叫……",
+    taskExample:"這一版先做一個人玩的，之後再考慮加雙人。", goal:"決定先做單人還是多人",
+    slots:{ any:["單人","一個人","多人","雙人","朋友"] },
+    decision:{ key:"players", q:"這一版先做幾個人玩？", options:[{label:"先做單人（建議）",val:"single"},{label:"做雙人（多人示意）",val:"double"}], note:{ single:"先做單人＝MVP，做好再加多人。", double:"多人要連到同一台伺服器，今天先用畫面示意第二台船。" } } },
+
+  // 3 技術選型（web app / 框架 決策）
+  { stage:"技術選型", icon:"code", term:"技術選型", synonyms:["技術選型","架構","技術"],
+    passage:"動手前還要決定『用什麼做』——這叫技術選型。我們這款小遊戲，最適合做成『打開瀏覽器就能玩的網頁(web app)』，用一塊『畫布(Canvas)』來畫太空船和隕石。它很小，不需要像 Next.js 那種大型框架，也先不用架伺服器。就像蓋一個小狗屋，不必請建築師、不用鋼骨——選對工具，做起來才又快又輕。技術定好了，後面才知道要寫哪些檔案。",
+    quiz:[
+      { q:"AI 說這款小遊戲為什麼不用 Next.js 那種大框架？", options:["遊戲很小，用網頁+畫布就夠，選對工具更快更輕","因為框架要很多錢","因為框架壞掉了","因為沒有人會用"], answer:0 },
+      { q:"AI 把『選技術』比喻成什麼？", options:["蓋小狗屋不必請建築師、不用鋼骨","考試前的總複習","存錢買玩具","出去玩"], answer:0 }
+    ],
+    blankHint:"提示：決定『用什麼平台、什麼工具做』，叫技術……",
+    taskExample:"幫我用網頁、打開瀏覽器就能玩，用一塊畫布來畫，不用大框架。", goal:"決定用什麼平台和工具做（網頁？框架？）",
+    slots:{ any:["網頁","瀏覽器","canvas","畫布","web","框架"] },
+    decision:{ key:"framework", q:"這個小遊戲要用大型框架（像 Next.js）嗎？", options:[{label:"不用，純網頁＋畫布就好（建議）",val:"none"},{label:"用框架",val:"framework"}], note:{ none:"小遊戲用純網頁＋Canvas 最快最輕。", framework:"大型專案才需要框架；這款小遊戲用框架反而太重。" } } },
+
+  // 4 規格（功能清單 + 要不要計分 決策）
+  { stage:"規格", icon:"design", term:"規格書", synonyms:["規格書","規格","spec","功能清單"],
+    passage:"決定好玩法、範圍、技術後，要把它們寫成一張清楚的清單：遊戲要有『隕石會掉下來』『太空船能移動』『撞到就結束』『顯示分數』『可以重玩』。把每一項『要做的功能』列出來，這張清單就叫規格書。規格書就像食譜，照著它一項一項做，就不會做錯方向。清單越清楚，做出來的遊戲就越接近你想要的樣子。",
+    quiz:[
+      { q:"AI 把「規格書」比喻成什麼？", options:["食譜（照著一項一項做）","地圖","鬧鐘","遊戲機"], answer:0 },
+      { q:"規格書上列的是什麼內容？", options:["遊戲『要做哪些功能』的清單","玩家的真實姓名","遊戲要賣多少錢","工程師的座位表"], answer:0 }
+    ],
+    blankHint:"提示：把要做的功能列成清單，這張清單叫……",
+    taskExample:"幫我把要做的功能列成清單：太空船左右移動、隕石掉下、撞到結束、右上顯示分數、可以重玩。", goal:"把要做的功能列成一張清單",
+    slots:{ target:["功能","清單","隕石","太空船","分數"], behavior:["列","移動","掉","撞","結束","顯示"] },
+    decision:{ key:"scoring", q:"遊戲要顯示分數嗎？", options:[{label:"要，顯示分數",val:"yes"},{label:"先不要",val:"no"}], note:{ yes:"有計分，玩家會想挑戰更高分。", no:"先不計分，之後想加再加。" } } },
+
+  // 5 設計／原型
+  { stage:"設計", icon:"design", term:"原型", synonyms:["原型","prototype"],
+    passage:"清單有了，先別整個做完！我們先做一個『能點點看、但還沒真功能』的簡單版本，像是用紙畫出畫面、或先放幾個假按鈕。這種用來試方向的初版，就叫原型。原型的重點是『快、能試』，不是『完美』。如果原型一試就發現操作很怪，我們現在改超快；要是等全部做完才發現，那就來不及了。先做原型，是聰明人的做法。",
+    quiz:[
+      { q:"AI 說「原型」最重要的特點是？", options:["快、能試，用來確認方向（還沒真功能）","已經是完美的最終成品","一定要能正式賣錢","必須畫得非常精美"], answer:0 },
+      { q:"根據 AI，為什麼要先做原型？", options:["早點發現問題，現在改最快","做完原型遊戲就完成了","為了拖時間","這樣就不用做正式版"], answer:0 }
+    ],
+    blankHint:"提示：能點、但還沒真功能、用來試方向的版本叫……",
+    taskExample:"先幫我做一個能點點看的草圖，放上太空船和一個開始按鈕，先不用真的能玩。", goal:"先做一個能試試看的草圖版本",
+    slots:{ target:["草圖","原型","畫面","按鈕","太空船"], behavior:["做","畫","放","試","點"] } },
+
+  // 6 介面 UI
+  { stage:"介面", icon:"design", term:"UI", synonyms:["ui","ux","介面","使用者介面"],
+    passage:"原型 OK，接著我們來顧『畫面』和『手感』。畫面長什麼樣子、按鈕放哪裡、顏色好不好看，這叫 UI（使用者介面）；而玩起來順不順手、好不好懂，這叫 UX（使用者體驗）。舉例：分數字太小看不到，是 UI 問題；玩家不知道怎麼開始，是 UX 問題。UI 讓遊戲『好看』，UX 讓遊戲『好用』，兩個一起顧，玩家才會喜歡。",
+    quiz:[
+      { q:"AI 舉例：『分數字太小看不到』是哪一種問題？", options:["UI 問題（畫面長相）","UX 問題（順不順手）","網路太慢的問題","音效的問題"], answer:0 },
+      { q:"AI 怎麼分辨 UI 和 UX？", options:["UI 是『好看』，UX 是『好用、順手』","UI 和 UX 其實是同一件事","UI 管聲音，UX 管畫面","UI 比 UX 不重要"], answer:0 }
+    ],
+    blankHint:"提示：畫面長相叫 UI，用起來順不順手叫 UX，填其中一個……",
+    taskExample:"幫我把畫面改成藍色，中間放一個大大的開始按鈕，分數放右上角看得清楚。", goal:"調整畫面的外觀和好不好用（UI/UX）",
+    slots:{ target:["畫面","介面","按鈕","顏色","開始"], behavior:["改","做","放","換","藍","紅","綠","黃","紫","顏色"] } },
+
+  // 7 開發環境／Git
+  { stage:"開發環境", icon:"code", term:"版本控制", synonyms:["版本控制","git"],
+    passage:"要開始寫程式囉！但寫之前先準備一個『安全網』。我們把程式碼用 Git 一次次存起來，每存一次就像遊戲存檔。萬一今天改壞了，明天可以一鍵回到昨天好好的版本。這套『幫程式碼存檔、能回到舊版本』的工具，就叫版本控制，最有名的就是 Git。有了版本控制，你就敢大膽嘗試，因為永遠回得去。這是工程師的後悔藥。",
+    quiz:[
+      { q:"AI 把「版本控制（Git）」比喻成什麼？", options:["遊戲存檔 / 後悔藥（能回到舊版本）","遊戲的背景音樂","玩家的分數","螢幕的亮度"], answer:0 },
+      { q:"有了版本控制，為什麼你敢大膽嘗試？", options:["改壞了永遠回得去舊版本","因為程式從此不會出錯","因為以後不用寫程式了","因為會自動幫你過關"], answer:0 }
+    ],
+    blankHint:"提示：幫程式碼存檔、能回到舊版本的工具叫……（或 Git）",
+    taskExample:"幫我設定一個能存檔、改壞了可以回到上一版的安全網。", goal:"設好能存檔、能回到舊版本的安全網",
+    slots:{ any:["存檔","版本","回到","上一版","安全網","回"] } },
+
+  // 8 開發／功能（含 re-prompt：第一次沒講方向，要再補一次）
+  { stage:"開發", icon:"code", term:"功能", synonyms:["功能","function"],
+    passage:"準備好了，正式動手！我們從規格書上挑一項，把它做成『真的能用』的東西，例如『按左右鍵，太空船會跟著移動』。這種做好之後能真正運作的一塊，就叫一個功能。開發其實就是把規格書上的清單，一項一項變成可以玩的功能。提醒你：跟 AI 講需求時要講清楚（例如往哪個方向移動），不然它做出來的可能不是你要的，那就要再講一次。",
+    quiz:[
+      { q:"AI 說「一個功能」是指什麼？", options:["規格書上的一項，做成真的能用的東西","遊戲的封面圖","程式裡的一行註解","遊戲的名字"], answer:0 },
+      { q:"AI 提醒：跟 AI 講需求時要怎樣？", options:["講清楚（例如往哪個方向），不然做出來不是你要的","越模糊越好讓它自己猜","完全不用講","只能講一個字"], answer:0 }
+    ],
+    blankHint:"提示：把規格書上一項做成真的能用的東西，叫一個……",
+    taskExample:"幫我做一個按左右鍵、太空船就會跟著左右移動的功能。", goal:"做出一個真的能操作的功能",
+    slots:{ target:["太空船","船","角色","主角"], behavior:["移動","控制","操作","動","會動"] },
+    refine:{ needs:(t)=>!/左右|上下|左|右|上|下/.test(t||""), ask:"AI：我做好『會動的太空船』了，但你沒說要往哪個方向動。請再講一次——你要它「左右」還是「上下」移動？", hint:"再寫一句，這次要講清楚方向（左右 或 上下）。", check:(t)=>/左右|上下|左|右|上|下/.test(t||"") } },
+
+  // 9 資料／變數
+  { stage:"資料", icon:"code", term:"變數", synonyms:["變數","variable"],
+    passage:"遊戲裡有些東西會一直變：分數會增加、生命值會減少、隕石速度會變快。這些『會變的值』要找地方存起來，我們用變數來裝。你可以把變數想成一個貼了標籤的盒子，標籤寫『分數』，盒子裡的數字隨時可以換。撞到隕石，就把『生命值』這個變數減 1。學會用變數記住會變的數字，遊戲才能真的『玩起來』。",
+    quiz:[
+      { q:"AI 說「變數」是拿來存什麼的？", options:["會一直改變的值（像分數、生命值）","永遠不會變的東西","遊戲的背景音樂","玩家的真實姓名"], answer:0 },
+      { q:"AI 把變數比喻成什麼？", options:["貼了標籤的盒子（裡面數字可換）","一面照人的鏡子","一條綁東西的繩子","寫死不能改的貼紙"], answer:0 }
+    ],
+    blankHint:"提示：用來存『會變的值』（像分數、生命值）的東西叫……",
+    taskExample:"幫我記住玩家的分數和還剩幾條命，撞到隕石就扣一條命。", goal:"記住會變的數值（像分數、生命）",
+    slots:{ target:["分數","血","命","生命","數字"], behavior:["記","記住","扣","減","加","算","存"] } },
+
+  // 10 存檔／資料庫（本機 vs 雲端 決策）
+  { stage:"存檔", icon:"deploy", term:"資料庫", synonyms:["資料庫","雲端","最高分"],
+    passage:"變數很好用，但它像一張便條紙——遊戲一關掉，分數就不見了。如果我們想記住『歷來最高分』，下次打開、甚至換一台電腦都看得到，就要把它存進『資料庫』——你可以想成一本放在雲端、大家共用的成績簿。真實世界會用 Firebase、Supabase 這種雲端資料庫服務來存。今天我們先用一個小技巧，在你自己的電腦上『假裝』成雲端成績簿，把概念示意給你看。",
+    quiz:[
+      { q:"AI 說『變數』和『資料庫』差在哪？", options:["變數像便條紙(關掉就沒了)，資料庫像雲端成績簿(存著，明天/別台都看得到)","兩個完全一樣","變數比較貴","資料庫只能存圖片"], answer:0 },
+      { q:"想存最高分讓大家一起比，真實世界會用什麼？", options:["雲端資料庫服務（像 Firebase、Supabase）","一張紙","遊戲的背景音樂","手機的鬧鐘"], answer:0 }
+    ],
+    blankHint:"提示：能長期存資料、換裝置也看得到的『雲端成績簿』叫……",
+    taskExample:"幫我把最高分存起來，下次打開、換一台電腦也看得到。", goal:"把最高分存起來（下次、換裝置都看得到）",
+    slots:{ any:["最高分","最高","紀錄","雲端","存","記住"] },
+    decision:{ key:"cloudScore", q:"最高分要存在哪裡？", options:[{label:"存到雲端資料庫（大家比）",val:"cloud"},{label:"只存這台電腦",val:"local"}], note:{ cloud:"存雲端：換一台電腦、別人也看得到（今天用本機示意）。", local:"只存本機：換電腦就看不到了。" } },
+    realWorld:{ title:"真實世界怎麼接一個雲端資料庫？", services:["Firebase Firestore — Google 的雲端資料庫，免費額度大、最多人用","Supabase — 開源的，還附帶玩家登入功能","其他：MongoDB Atlas、PlanetScale"], steps:["① 到服務的網站申請一個免費帳號","② 開一個資料庫，建一張表叫「最高分排行榜」","③ 拿到一把「金鑰(API Key)」——像一張門禁卡","④ 在程式裡用金鑰連上去：玩家破紀錄時 save(分數)","⑤ 開遊戲時 load() 把雲端最高分讀回來顯示"] } },
+
+  // 11 AI 協作／Copilot
+  { stage:"AI 協作", icon:"code", term:"Copilot", synonyms:["copilot","prompt","提示詞"],
+    passage:"卡關別怕，你有 AI 隊友！你只要用文字把需求描述清楚，例如『幫我寫一段：撞到隕石生命值減 1』，這段描述就叫 prompt（提示詞）。你的 AI 夥伴 Copilot 讀懂後，就會幫你把程式碼寫出來。重點是：prompt 講得越清楚，Copilot 寫得越準。你負責想清楚要什麼，Copilot 負責動手，這就是人和 AI 的協作。",
+    quiz:[
+      { q:"AI 說，要讓 Copilot 幫你寫程式，你要先做什麼？", options:["用文字把需求描述清楚（寫 prompt）","自己先把全部程式寫好","對著電腦大聲喊","把電腦重新開機"], answer:0 },
+      { q:"根據 AI，prompt 怎麼寫 Copilot 才會寫得準？", options:["講得越清楚越好","越短越神祕越好","故意不講清楚讓它猜","用注音符號寫"], answer:0 }
+    ],
+    blankHint:"提示：幫你寫程式的 AI 夥伴叫……（或你給它的提示叫 prompt）",
+    taskExample:"幫我寫一段：當太空船撞到隕石，生命值就減 1。", goal:"請 AI 幫你寫出某一段功能",
+    slots:{ target:["程式","功能","太空船","隕石","生命","分數"], behavior:["寫","做","撞","減","加","幫我"] } },
+
+  // 12 迭代＋出錯（合併）
+  { stage:"迭代", icon:"test", term:"bug", synonyms:["bug","蟲","錯誤"],
+    passage:"第一次做出來通常不夠好玩，這很正常。我們玩一次、覺得隕石太快就調慢，再玩再調，這種『測一次→改一點→再測』的循環叫迭代。但迭代中你一定會遇到怪事：明明撞到隕石卻沒扣命、分數也不會動——這種『程式沒照你想的運作』的錯誤，工程師叫它 bug。發現 bug 是好事，代表你在認真測試。先學會看出『哪裡怪怪的』，這就是面對 bug 的第一步。",
+    quiz:[
+      { q:"AI 說的「迭代」是什麼樣的循環？", options:["測一次 → 改一點 → 再測，不斷重複","做完一次後就不能再改","一直玩但完全不改","把遊戲整個刪掉"], answer:0 },
+      { q:"AI 說「bug」是指什麼？", options:["程式沒有照你想的方式運作","遊戲做得太好玩","玩的人太多","螢幕開太亮"], answer:0 }
+    ],
+    blankHint:"提示：程式沒照你想的運作，這種錯誤叫……",
+    taskExample:"我覺得隕石太快，幫我調慢一點；而且撞到隕石卻沒扣命，好像怪怪的。", goal:"調整手感、並指出遊戲哪裡不對勁",
+    slots:{ any:["太快","慢","快","調","撞","沒","怪","錯","沒反應"] } },
+
+  // 13 除錯＋測試（合併，含 re-prompt：第一次講太籠統要再講清楚）
+  { stage:"修錯", icon:"test", term:"除錯", synonyms:["除錯","debug"],
+    passage:"找到 bug 就當偵探：一步步檢查，找出真正的原因、改掉那一行，這叫除錯(debug)——不是整個重寫。修好之後別急著上線！要把所有功能完整跑一遍：移動正常嗎？計分對嗎？撞到會結束嗎？重玩會重設嗎？這種『發布前完整試一遍、確認沒問題』叫測試(QA)，就像考試前的總複習。除錯加測試做得越仔細，遊戲上線後越穩。",
+    quiz:[
+      { q:"AI 說「除錯」是在做什麼？", options:["找出 bug 的原因、改掉那一行（不是整個重寫）","把整個程式刪掉重寫","假裝沒看到 bug","換一台新電腦"], answer:0 },
+      { q:"「測試(QA)」是什麼時候做？", options:["上線前，把每個功能完整試一遍","上線之後才隨便看看","一邊寫一邊都不用管","只測自己喜歡的部分"], answer:0 }
+    ],
+    blankHint:"提示：找出 bug 原因並修好，這過程叫……（或 debug）",
+    taskExample:"幫我找出為什麼撞到隕石沒扣命，把它修好，再把移動、計分、結束、重玩全部測一次。", goal:"找出原因把 bug 修好，再完整測試一遍",
+    slots:{ any:["修","找出","原因","測","試","檢查","全部","撞","命","分數"] },
+    refine:{ needs:(t)=>!/撞|命|生命|分數|計分|扣/.test(t||""), ask:"AI：我試著修了，但還是怪怪的。請講清楚是『哪裡』壞掉要修（例如：撞到要扣命、分數要會加）。", hint:"再寫一句，講清楚要修的地方（例如：撞到隕石要扣命）。", check:(t)=>/撞|命|生命|分數|計分|扣/.test(t||"") } },
+
+  // 14 部署＋發布（合併・收尾高潮）
+  { stage:"發布", icon:"launch", term:"發布", synonyms:["發布","上線","release"],
+    passage:"最後一步！先把測試過的遊戲放上網路、拿到一個任何人都打得開的公開網址，這叫部署(deploy)；接著正式對外宣布『可以來玩了』、邀請大家來玩，這叫發布上線(release)。真實世界常用 GitHub Pages、Vercel、Netlify 這些服務來部署。部署是『放上去』，發布是『正式開放』。當你按下發布，全世界的人都能打開你的遊戲——這是只屬於創造者的時刻。準備好，對你的玩家說一句上線宣言吧！",
+    quiz:[
+      { q:"AI 說「部署」和「發布」差在哪裡？", options:["部署是放上網路拿到網址，發布是正式宣布開放邀請大家玩","兩個完全一樣、沒有差別","發布是刪掉，部署是上傳","發布要付錢，部署免費"], answer:0 },
+      { q:"真實世界常用什麼服務把網頁遊戲部署上網？", options:["GitHub Pages、Vercel、Netlify","小畫家","計算機","記事本"], answer:0 }
+    ],
+    blankHint:"提示：正式對外公開、讓大家能玩到，叫……（或上線 / release）",
+    taskExample:"我的躲隕石遊戲正式發布上線，快來挑戰你的最高分！", goal:"正式對外宣布開放、邀請大家玩",
+    slots:{ any:["上線","發布","玩","挑戰","來","最高分"] },
+    realWorld:{ title:"真實世界怎麼把遊戲部署、上線？", services:["GitHub Pages — 免費，最適合純網頁小遊戲","Vercel / Netlify — 推上 GitHub 就自動 build、自動上線，還送你網址","想要好記的網址，可以再買一個網域名稱(domain)"], steps:["① 把程式碼用 Git 推上 GitHub","② 到 Vercel/Netlify 點「連到這個 GitHub 專案」","③ 它自動幫你 build、放上伺服器","④ 給你一個公開網址(例：yourgame.vercel.app)——這步叫『部署』","⑤ 把網址分享出去、宣布開放——這步叫『發布』"] } }
+];
+
+/* 每階段金幣：taskA(0-6)=120，taskB(7-14)=130，合計 250 */
+const STAGE_COIN = [17,17,17,17,17,17,18, 16,16,16,16,16,16,16,18];
+
+/* =========================================================
+   STAGE VISUAL ENGINE — 視覺類型（與 STAGES 同序）
+   wireframe/screen/launch = 互動畫布的遊戲畫面（左側資料夾改指向遊戲預覽）
+   ========================================================= */
+const STAGE_VIS = ['concept','team','checklist','checklist','checklist','wireframe','screen','gitgraph','screen','code','deploy','aichat','bug','testlist','launch'];
+
+const COLOR_WORDS = { '藍':'#5b8cff','blue':'#5b8cff','紅':'#ff5d6c','red':'#ff5d6c','綠':'#2bd17e','green':'#2bd17e','黃':'#ffce47','yellow':'#ffce47','紫':'#7c5cff','purple':'#7c5cff','橘':'#ff8a3c','orange':'#ff8a3c','粉':'#ff7ab0','pink':'#ff7ab0','青':'#33d6c8','cyan':'#33d6c8','白':'#eef3ff','white':'#eef3ff' };
+function pickColors(text){ const out=[]; const t=(text||''); for(const k in COLOR_WORDS){ if(t.toLowerCase().includes(k)){ const c=COLOR_WORDS[k]; if(!out.includes(c)) out.push(c); } } return out; }
+function kw(text, words){ const t=(text||'').toLowerCase(); return words.some(w=>t.includes(w.toLowerCase())); }
+function gameName(text){ const m=(text||'').match(/(?:做|開發|製作|玩)([^，。,.!！?？、]{1,8}?)的?遊戲/); return (m&&m[1].trim())? m[1].trim()+'遊戲' : '我的遊戲'; }
+function esc(s){ return (s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+
+/* 手機畫面 mockup — 讀顏色與元素關鍵字 */
+function buildScreen(text, kind){
+  const cols = pickColors(text);
+  const accent = cols[0] || '#5b8cff';
+  const accent2 = cols[1] || '#7c5cff';
+  const title = esc(gameName(text)).slice(0,8);
+  const wantStart = kw(text,['開始','start','play','玩']) || kind==='ui';
+  const wantScore = kw(text,['分數','得分','score','計分','積分']) || kind==='vars';
+  const wantHP = kw(text,['血','生命','hp','life','心','血量']) || kind==='vars';
+  const wantShip = kw(text,['太空船','飛船','火箭','船','ship','角色','主角']) || kind==='feature';
+  const wantRock = kw(text,['隕石','石頭','障礙','asteroid','敵人','怪']);
+  let body = '';
+  if(wantScore) body += `<g><rect x="14" y="60" width="60" height="20" rx="6" fill="#0f1730"/><text x="20" y="74" fill="${accent}" font-size="11" font-weight="700">分數 0</text></g>`;
+  if(wantHP) body += `<g>${[0,1,2].map(i=>`<path transform="translate(${128+i*16},64)" d="M5 9 C-2 3 1 -1 5 2 C9 -1 12 3 5 9 Z" fill="${accent2}"/>`).join('')}</g>`;
+  if(wantRock) body += [0,1,2].map(i=>`<circle class="float-rock" style="animation-delay:${i*0.5}s" cx="${40+i*55}" cy="${110+i*8}" r="9" fill="#6b7aa8"/>`).join('');
+  if(wantShip) body += `<path class="float-rock" d="M94 215 l12 22 -12 -7 -12 7 Z" fill="${accent}" stroke="#fff" stroke-width="1.5"/>`;
+  if(wantStart) body += `<g><rect x="44" y="150" width="100" height="34" rx="17" fill="${accent}"/><text x="94" y="172" fill="#fff" font-size="13" font-weight="800" text-anchor="middle">開始</text></g>`;
+  return `<svg class="mock phone" viewBox="0 0 188 300" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="2" width="184" height="296" rx="22" fill="#0a1024" stroke="${accent}" stroke-width="2"/>
+    <rect x="10" y="10" width="168" height="280" rx="16" fill="#111a33"/>
+    <rect x="10" y="10" width="168" height="34" rx="16" fill="${accent}"/>
+    <rect x="10" y="28" width="168" height="16" fill="${accent}"/>
+    <text x="94" y="32" class="scr-title" fill="#fff" text-anchor="middle">${title}</text>
+    ${body}
+  </svg>`;
+}
+
+function buildVisual(idx, text){
+  const A='#5b8cff', G='#2bd17e', Y='#ffce47', R='#ff5d6c', P='#7c5cff';
+  switch(STAGE_VIS[idx]){
+    case 'concept': {
+      const name = esc(gameName(text));
+      return `<div class="mock" style="text-align:center">
+        <svg viewBox="0 0 60 60" width="56" style="margin-bottom:8px"><circle cx="30" cy="26" r="16" fill="${Y}" opacity=".9"/><path d="M24 40h12M26 45h8" stroke="${Y}" stroke-width="3" stroke-linecap="round"/></svg>
+        <div style="font-weight:800;font-size:16px">${name}</div>
+        <div style="margin-top:8px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
+          ${['好上手','越玩越緊張','想再玩一次'].map(t=>`<span style="font-size:11px;background:rgba(91,140,255,.15);border:1px solid ${A};color:${A};padding:3px 8px;border-radius:999px">需求：${t}</span>`).join('')}
+        </div></div>`;
+    }
+    case 'team':
+      return `<div class="mock" style="text-align:center">
+        <svg viewBox="0 0 120 60" width="150"><rect x="6" y="14" width="40" height="34" rx="8" fill="#1d2a4d" stroke="${A}"/><circle cx="26" cy="26" r="6" fill="${A}"/><path d="M16 42c0-6 20-6 20 0" fill="${A}"/><text x="74" y="26" fill="#fff" font-size="12" font-weight="800">你就是 PM</text><text x="74" y="42" fill="${"#93a3c9"}" font-size="10">決定先做什麼</text></svg></div>`;
+    case 'checklist': case 'testlist': {
+      const items = STAGE_VIS[idx]==='testlist' ? ['移動正常','計分正確','撞到會結束','重玩會重設'] : ['太空船能移動','隕石會掉下','撞到就結束','右上顯示分數'];
+      return `<div class="mock" style="width:100%;max-width:240px">
+        <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:${G}">${STAGE_VIS[idx]==='testlist'?'測試清單 ✓':'規格書 · 功能清單'}</div>
+        ${items.map((t,i)=>`<div class="check-pop" style="animation-delay:${i*0.18}s;display:flex;align-items:center;gap:8px;padding:6px 0">
+          <span style="width:18px;height:18px;border-radius:5px;background:${G};display:inline-flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="13" fill="none" stroke="#06210f" stroke-width="3"><path d="M4 12l5 5L20 6"/></svg></span>
+          <span style="font-size:13px">${t}</span></div>`).join('')}</div>`;
+    }
+    case 'wireframe':
+      return `<div class="mock"><svg viewBox="0 0 180 220" width="150"><rect x="2" y="2" width="176" height="216" rx="10" fill="none" stroke="#6b7aa8" stroke-width="2" stroke-dasharray="6 5"/><rect x="16" y="18" width="148" height="26" rx="4" fill="none" stroke="#6b7aa8" stroke-dasharray="5 4"/><line x1="24" y1="31" x2="90" y2="31" stroke="#6b7aa8" stroke-width="3"/><rect x="16" y="60" width="148" height="90" rx="4" fill="none" stroke="#6b7aa8" stroke-dasharray="5 4"/><path d="M16 60l148 90M164 60L16 150" stroke="#6b7aa8" stroke-dasharray="4 4" opacity=".5"/><rect x="54" y="170" width="72" height="28" rx="14" fill="none" stroke="#6b7aa8" stroke-dasharray="5 4"/><text x="90" y="188" fill="#6b7aa8" font-size="11" text-anchor="middle">按鈕</text></svg><div class="vcap">這是<b>原型</b>：能看、能點，但還沒真功能</div></div>`;
+    case 'screen': {
+      const kind = idx===4?'ui':(idx===6?'feature':'vars');
+      const caps = { ui:'AI 依你的描述生成了<b>畫面 (UI)</b>', feature:'你的<b>功能</b>動起來了！', vars:'<b>變數</b>正在記住分數與生命值' };
+      return `<div>${buildScreen(text, kind)}<div class="vcap">${caps[kind]}</div></div>`;
+    }
+    case 'gitgraph':
+      return `<div class="mock"><svg viewBox="0 0 220 70" width="200"><line x1="14" y1="35" x2="206" y2="35" stroke="${A}" stroke-width="3"/>${[0,1,2,3].map(i=>`<circle cx="${24+i*56}" cy="35" r="9" fill="${i===3?G:A}"/><text x="${24+i*56}" y="60" fill="#93a3c9" font-size="9" text-anchor="middle">v${i+1}</text>`).join('')}</svg><div class="vcap">每次存檔都是一個<b>版本</b>，改壞了能回去</div></div>`;
+    case 'aichat':
+      return `<div class="mock" style="width:100%;max-width:250px">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px"><div style="background:${A};color:#fff;padding:8px 12px;border-radius:12px;border-bottom-right-radius:3px;font-size:12px;max-width:80%">幫我寫：撞到隕石生命值減 1</div></div>
+        <div style="display:flex;gap:8px"><div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,${A},${P});flex-shrink:0"></div><div style="background:#1d2a4d;padding:8px 12px;border-radius:12px;border-bottom-left-radius:3px;font-size:12px;font-family:monospace;color:${G}">if(hit) hp -= 1; ✓</div></div>
+        <div class="vcap">你給 <b>prompt</b>，Copilot 幫你寫程式</div></div>`;
+    case 'loop':
+      return `<div class="mock" style="text-align:center"><svg viewBox="0 0 100 100" width="120"><circle cx="50" cy="50" r="34" fill="none" stroke="${A}" stroke-width="5" stroke-dasharray="160 60" stroke-linecap="round"/><path d="M78 38l6-12 8 10z" fill="${A}"/><text x="50" y="46" fill="#fff" font-size="11" font-weight="800" text-anchor="middle">測→改</text><text x="50" y="60" fill="#fff" font-size="11" font-weight="800" text-anchor="middle">→再測</text></svg><div class="vcap">不斷<b>迭代</b>，遊戲越來越好玩</div></div>`;
+    case 'bug':
+      return `<div class="mock"><svg class="glitch" viewBox="0 0 180 150" width="170"><rect x="2" y="2" width="176" height="146" rx="10" fill="#111a33" stroke="${R}"/><rect x="14" y="20" width="120" height="10" fill="${R}" opacity=".6"/><rect x="30" y="50" width="90" height="8" fill="${A}" opacity=".5"/><rect x="14" y="80" width="150" height="8" fill="${R}" opacity=".4"/><g transform="translate(120,95)"><ellipse cx="0" cy="0" rx="13" ry="16" fill="${R}"/><line x1="-16" y1="-8" x2="-13" y2="-4" stroke="${R}" stroke-width="2"/><line x1="16" y1="-8" x2="13" y2="-4" stroke="${R}" stroke-width="2"/><circle cx="-4" cy="-4" r="2" fill="#fff"/><circle cx="4" cy="-4" r="2" fill="#fff"/></g></svg><div class="vcap">畫面出現 <b>bug</b>：分數算錯、畫面亂掉</div></div>`;
+    case 'debug':
+      return `<div class="mock"><svg viewBox="0 0 180 150" width="170"><rect x="2" y="2" width="176" height="146" rx="10" fill="#111a33" stroke="${G}"/><rect x="14" y="20" width="120" height="10" rx="3" fill="${A}" opacity=".7"/><rect x="14" y="42" width="150" height="8" rx="3" fill="${A}" opacity=".5"/><rect x="14" y="62" width="100" height="8" rx="3" fill="${A}" opacity=".5"/><g transform="translate(120,100)"><ellipse cx="0" cy="0" rx="13" ry="16" fill="#5a6b99" opacity=".3"/><line x1="-18" y1="-18" x2="18" y2="18" stroke="${G}" stroke-width="4" stroke-linecap="round"/></g><g transform="translate(150,30)"><circle r="12" fill="${G}"/><path d="M-5 0l4 4 7-8" stroke="#06210f" stroke-width="3" fill="none" stroke-linecap="round"/></g></svg><div class="vcap"><b>除錯</b>完成：找到原因、修好了！</div></div>`;
+    case 'deploy':
+      return `<div class="mock" style="width:100%;max-width:250px">
+        <div style="display:flex;align-items:center;gap:6px;background:#0f1730;border:1px solid ${A};border-radius:8px;padding:8px 10px">
+          <svg viewBox="0 0 24 24" width="14" fill="none" stroke="${G}" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18"/></svg>
+          <span style="font-size:12px;font-family:monospace;color:${A}">yourgame.github.io</span></div>
+        <div class="vcap"><b>部署</b>完成：拿到任何人都打得開的網址</div></div>`;
+    case 'launch':
+      return `<div class="mock" style="text-align:center">
+        <svg viewBox="0 0 80 90" width="80"><path d="M40 6c14 12 16 30 16 42 0 10-6 18-16 24-10-6-16-14-16-24C24 36 26 18 40 6z" fill="#dfe7ff" stroke="${A}" stroke-width="2"/><circle cx="40" cy="40" r="8" fill="${A}"/><path d="M24 64l-8 14 14-6M56 64l8 14-14-6" fill="${P}"/></svg>
+        <div class="pulse-live" style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;background:${G};color:#06210f;font-weight:900;padding:4px 14px;border-radius:999px;font-size:13px">● LIVE</div>
+        <div class="vcap"><b>發布上線</b>！全世界都能玩到你的遊戲了</div></div>`;
+  }
+  return '';
+}
+
+/* =========================================================
+   ARTIFACTS — 每階段「請 AI 撰寫」後存進專案資料夾的檔案（內容寫死）
+   kind: 'md' 文件 | 'code' 程式 | 'visual' 用 buildVisual 生成的圖
+   ========================================================= */
+const ARTIFACTS = [
+  { file:'需求.md', kind:'md', dyn:true },        // 0 發想/需求（動態：依 S.spec）
+  { file:'玩法.md', kind:'md', dyn:true },        // 1 玩法
+  { file:'企劃.md', kind:'md', dyn:true },        // 2 範圍/多人
+  { file:'技術選型.md', kind:'md', dyn:true },    // 3 技術選型
+  { file:'規格書.md', kind:'md', dyn:true },      // 4 規格
+  { file:'原型.html', kind:'visual' },            // 5 原型
+  { file:'介面.html', kind:'visual' },            // 6 介面 UI
+  { file:'版本控制.git', kind:'visual' },         // 7 Git
+  { file:'game.js', kind:'code', content:
+`// 太空船移動的功能（按方向鍵控制）
+function moveShip(dir) {
+  if (dir === "left")  ship.x -= 5;
+  if (dir === "right") ship.x += 5;
+}` },                                              // 8 開發/功能
+  { file:'variables.js', kind:'code', content:
+`// 用變數記住「會變的值」
+let score = 0;   // 分數
+let hp = 3;      // 生命值
+
+function hitRock() {
+  hp = hp - 1;          // 撞到 -1
+  if (hp <= 0) gameOver();
+}` },                                              // 9 資料/變數
+  { file:'最高分存哪裡.md', kind:'md', dyn:true },// 10 存檔/資料庫
+  { file:'copilot對話.txt', kind:'visual' },      // 11 AI 協作
+  { file:'bug回報.md', kind:'md', content:
+`# Bug 回報
+**問題：** 撞到隕石，卻沒有扣命、分數也沒更新
+**怎麼重現：** 開始遊戲 → 故意撞隕石 → 沒事發生
+**嚴重度：** 高（會影響遊玩）` },                  // 12 迭代+出錯
+  { file:'測試報告.md', kind:'md', content:
+`# 除錯 + 測試報告（QA）
+**修好的 bug：** 撞到隕石現在會正確扣命、加分
+
+## 完整測試
+- [x] 太空船移動正常
+- [x] 撞到會扣命、會結束
+- [x] 分數計算正確
+- [x] 重玩會重設
+
+**結論：全部通過，可以上線！**` },                 // 13 除錯+測試
+  { file:'上線.html', kind:'visual' }             // 14 部署+發布
+];
+
+const ICON_FILE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>';
+const ICON_FOLDER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
+
+/* mini markdown renderer */
+function renderMd(src){
+  const lines = (src||'').split('\n'); let html=''; let inList=false;
+  const close=()=>{ if(inList){ html+='</ul>'; inList=false; } };
+  for(const raw of lines){
+    const line = esc(raw).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+    if(/^#\s+/.test(raw)){ close(); html+='<h3>'+line.replace(/^#\s+/,'')+'</h3>'; }
+    else if(/^##\s+/.test(raw)){ close(); html+='<h4>'+line.replace(/^##\s+/,'')+'</h4>'; }
+    else if(/^\s*-\s*\[( |x)\]\s+/.test(raw)){ if(!inList){html+='<ul>';inList=true;} const on=/\[x\]/.test(raw); const t=line.replace(/^\s*-\s*\[( |x)\]\s+/,''); html+='<li><span class="md-chk '+(on?'on':'')+'">'+(on?'<svg viewBox=\"0 0 24 24\" width=\"10\" fill=\"none\" stroke=\"#06210f\" stroke-width=\"4\"><path d=\"M4 12l5 5L20 6\"/></svg>':'')+'</span><span>'+t+'</span></li>'; }
+    else if(/^\s*[-*]\s+/.test(raw)){ if(!inList){html+='<ul>';inList=true;} html+='<li><span class="bul">•</span><span>'+line.replace(/^\s*[-*]\s+/,'')+'</span></li>'; }
+    else if(/^\s*\d+\.\s+/.test(raw)){ if(!inList){html+='<ul>';inList=true;} html+='<li><span class="bul">›</span><span>'+line.replace(/^\s*\d+\.\s+/,'')+'</span></li>'; }
+    else if(raw.trim()===''){ close(); }
+    else { close(); html+='<p>'+line+'</p>'; }
+  }
+  close();
+  return '<div class="md-doc">'+html+'</div>';
+}
+function renderCode(src){
+  const h = esc(src||'')
+    .replace(/(\/\/[^\n]*)/g,'<span class="cm">$1</span>')
+    .replace(/\b(function|let|const|if|return|var|else)\b/g,'<span class="kw">$1</span>');
+  return '<div class="code-doc">'+h+'</div>';
+}
+// 決策站的 .md 依 S.spec 動態生成，讓學生的決定真的長進檔案
+function dynamicMd(idx){
+  const sp = S.spec || defaultSpec();
+  const control = sp.control==='touch' ? '螢幕按鈕（手指點）' : '方向鍵 ← →';
+  const players = sp.players==='double' ? '雙人（多人示意）' : '單人';
+  const platform = '網頁（瀏覽器打開就能玩）';
+  const framework = sp.framework==='framework' ? '使用框架' : '不用框架（純網頁＋畫布）';
+  const cloud = sp.cloudScore==='local' ? '只存這台電腦' : '雲端資料庫（換裝置也看得到）';
+  const scoring = sp.scoring==='no' ? '先不顯示分數' : '顯示分數';
+  switch(idx){
+    case 0: return `# 遊戲需求\n我想做一款：**躲避隕石** 小遊戲\n\n## 玩家想要什麼\n- 操作很簡單，一看就會玩\n- 越玩越緊張、越刺激\n- 想要一直挑戰更高分`;
+    case 1: return `# 核心玩法\n- 太空船左右閃避一直掉下來的隕石\n- 撞到隕石 → 遊戲結束\n- **操作方式：** ${control}`;
+    case 2: return `# 企劃 · 範圍決定（你是 PM）\n- **這一版做：** ${players}\n- 先把單人(MVP)做好，行有餘力再加多人\n- 多人＝大家連到同一台伺服器，比較難`;
+    case 3: return `# 技術選型（用什麼做）\n- **平台：** ${platform}\n- **畫圖：** 用一塊畫布 Canvas\n- **框架：** ${framework}\n- **伺服器：** 先不用`;
+    case 4: return `# 規格書 · 功能清單\n- [ ] 太空船能用${control}移動\n- [ ] 隕石會從上面掉下來\n- [ ] 撞到隕石 → 遊戲結束\n- [ ] ${scoring}\n- [ ] 可以重新開始\n- 人數：${players}`;
+    case 10: return `# 最高分存哪裡？\n- **變數**：像便條紙，遊戲關掉就不見\n- **資料庫**：像雲端成績簿，存著明天/別台都看得到\n- **這款的最高分存到：** ${cloud}\n\n## 真實世界怎麼接\n- 用 **Firebase** 或 **Supabase** 這種雲端資料庫服務\n- 申請帳號 → 開資料庫 → 拿金鑰(API Key)\n- 破紀錄就 save(分數)，開遊戲時 load() 讀回來`;
+    default: return '';
+  }
+}
+function renderArtifactBody(idx){
+  const a = ARTIFACTS[idx];
+  if(!a) return '';
+  if(a.dyn) return renderMd(dynamicMd(idx));
+  if(a.kind==='md') return renderMd(a.content);
+  if(a.kind==='code') return renderCode(a.content);
+  // 遊戲畫面類（原型 / 介面 / 上線）改由下方「遊戲預覽」呈現，避免重複兩個畫面
+  if(['wireframe','screen','launch'].includes(STAGE_VIS[idx]))
+    return '<div class="ws-note">這個檔案的即時成果，<br>請看下方的「遊戲預覽」 ↓</div>';
+  return buildVisual(idx, (S.prompts && S.prompts[idx]) || '');
+}
+
+/* =========================================================
+   WORKSPACE — 左側專案資料夾（檔案會隨進度累積）
+   ========================================================= */
+function saveArtifact(idx, promptText){
+  if(!S.prompts) S.prompts = {};
+  S.prompts[idx] = promptText || '';
+  if(!S.artifacts.includes(idx)) S.artifacts.push(idx);
+  S.selected = idx;
+  S.justSaved = idx;
+  save();
+  // 存檔動畫：先顯示「存檔中…」再揭曉內容
+  renderWorkspace(true);
+  setTimeout(() => { S.justSaved = -1; renderWorkspace(false); }, 850);
+  GamePreview.sync();
+}
+function updateLayout(){
+  const layout = document.getElementById('layout');
+  if(!layout) return;
+  const solo = (S.screen==='start' || S.screen==='recall');
+  layout.classList.toggle('solo', solo);
+}
+function renderWorkspace(saving){
+  const ws = document.getElementById('workspace');
+  if(!ws) return;
+  const list = S.artifacts.slice().sort((a,b)=>a-b);
+  if(list.length===0){
+    ws.innerHTML = `<div class="ws-head"><span class="folder">${ICON_FOLDER}</span> 我的遊戲專案</div>
+      <div class="ws-empty">你「請 AI 撰寫」的每個檔案<br>都會存進這個資料夾 →</div>`;
+    return;
+  }
+  if(typeof S.selected!=='number' || !S.artifacts.includes(S.selected)) S.selected = list[list.length-1];
+  const files = list.map(idx => {
+    const a = ARTIFACTS[idx];
+    const cls = 'ws-file' + (idx===S.selected?' active':'') + (idx===S.justSaved?' justsaved':'');
+    return `<div class="${cls}" data-idx="${idx}"><span class="fic">${ICON_FILE}</span>${a.file}</div>`;
+  }).join('');
+  const sel = S.selected;
+  const body = (saving && sel===S.justSaved)
+    ? `<div class="ws-saving"><span class="spin"></span> AI 撰寫中，存入 ${ARTIFACTS[sel].file}…</div>`
+    : renderArtifactBody(sel);
+  ws.innerHTML = `
+    <div class="ws-head"><span class="folder">${ICON_FOLDER}</span> 我的遊戲專案 <small>${list.length} 個檔案</small></div>
+    <div class="ws-files">${files}</div>
+    <div class="ws-preview">
+      <div class="ws-pname"><span class="fic" style="width:13px;height:13px">${ICON_FILE}</span> ${ARTIFACTS[sel].file}</div>
+      ${body}
+    </div>`;
+  ws.querySelectorAll('.ws-file').forEach(el => {
+    el.onclick = () => { S.selected = parseInt(el.dataset.idx,10); save(); renderWorkspace(false); };
+  });
+}
+
+/* =========================================================
+   GAME PREVIEW — 從「原型」開始彈出的浮動遊戲視窗，
+   隨著各階段完成，逐步變成一個真的能玩的躲隕石遊戲
+   ========================================================= */
+/* =========================================================
+   共用：專業質感的遊戲繪圖 + 音效（星空 / 旋轉隕石 / 粒子 / 太空船 / WebAudio）
+   ========================================================= */
+const Sfx = (function(){
+  let actx=null, on=true;
+  function ac(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(actx&&actx.state==='suspended'){ try{actx.resume();}catch(e){} } return actx; }
+  function tone(freq,dur,type,vol){ if(!on)return; const a=ac(); if(!a)return; const t=a.currentTime,o=a.createOscillator(),g=a.createGain(); o.type=type||'square'; o.frequency.setValueAtTime(freq,t); g.gain.setValueAtTime(vol||0.05,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); o.connect(g).connect(a.destination); o.start(t); o.stop(t+dur); }
+  function noise(dur,vol){ if(!on)return; const a=ac(); if(!a)return; const t=a.currentTime,n=a.createBufferSource(),b=a.createBuffer(1,Math.max(1,a.sampleRate*dur),a.sampleRate),d=b.getChannelData(0); for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length); n.buffer=b; const g=a.createGain(); g.gain.setValueAtTime(vol||0.12,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); const f=a.createBiquadFilter(); f.type='lowpass'; f.frequency.value=1400; n.connect(f).connect(g).connect(a.destination); n.start(t); n.stop(t+dur); }
+  return {
+    hit(){ noise(0.2,0.18); tone(130,0.18,'sawtooth',0.05); },
+    start(){ tone(523,0.08,'square',0.05); setTimeout(()=>tone(784,0.12,'square',0.05),90); },
+    over(){ tone(330,0.16,'square',0.05); setTimeout(()=>tone(247,0.16,'square',0.05),150); setTimeout(()=>tone(165,0.3,'square',0.05),300); },
+    score(){ tone(988,0.05,'sine',0.03); },
+    setOn(v){ on=v; }, isOn(){ return on; }
+  };
+})();
+function gStars(W,H,n){ const s=[]; for(let i=0;i<n;i++){ const layer=Math.floor(Math.random()*3); s.push({x:Math.random()*W,y:Math.random()*H,layer,r:layer===2?1.6:(layer===1?1.1:0.7),tw:Math.random()*6.28}); } return s; }
+function gUpdateStars(s,W,H){ for(const st of s){ st.y+=(st.layer*0.5+0.35); st.tw+=0.05; if(st.y>H){ st.y=-2; st.x=Math.random()*W; } } }
+function gDrawStars(ctx,s,W,H,accent){ const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#070b1a'); g.addColorStop(1,'#0c1432'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); for(const st of s){ ctx.globalAlpha=0.35+0.45*Math.sin(st.tw); ctx.fillStyle=st.layer===2?accent:'#cfe0ff'; ctx.beginPath(); ctx.arc(st.x,st.y,st.r,0,6.283); ctx.fill(); } ctx.globalAlpha=1; }
+function gAsteroid(W,scale){ scale=scale||1; const r=(8+Math.random()*6)*scale; const verts=[]; const n=7+Math.floor(Math.random()*4); for(let i=0;i<n;i++){ const ang=(i/n)*6.283, rr=r*(0.72+Math.random()*0.42); verts.push({x:Math.cos(ang)*rr,y:Math.sin(ang)*rr}); } return { x:0,y:-r,r,verts,rot:Math.random()*6.283,vr:(Math.random()-0.5)*0.07,vy:0,scored:false }; }
+function gDrawAsteroid(ctx,a){ ctx.save(); ctx.translate(a.x,a.y); ctx.rotate(a.rot); ctx.beginPath(); a.verts.forEach((v,i)=> i?ctx.lineTo(v.x,v.y):ctx.moveTo(v.x,v.y)); ctx.closePath(); const g=ctx.createLinearGradient(-a.r,-a.r,a.r,a.r); g.addColorStop(0,'#9aa6c8'); g.addColorStop(1,'#566089'); ctx.fillStyle=g; ctx.fill(); ctx.strokeStyle='#404e74'; ctx.lineWidth=1; ctx.stroke(); ctx.fillStyle='rgba(0,0,0,.2)'; ctx.beginPath(); ctx.arc(a.r*0.22,-a.r*0.1,a.r*0.22,0,6.283); ctx.arc(-a.r*0.26,a.r*0.22,a.r*0.15,0,6.283); ctx.fill(); ctx.restore(); }
+function gBurst(p,x,y,c,n){ for(let i=0;i<(n||14);i++){ const ang=Math.random()*6.283,sp=1+Math.random()*3.6; p.push({x,y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,life:1,color:c}); } }
+function gThrust(p,x,y,c){ p.push({x:x+(Math.random()-0.5)*6,y,vx:(Math.random()-0.5)*0.7,vy:1.4+Math.random(),life:0.5,color:c,thr:true}); }
+function gUpdateParts(p){ for(let i=p.length-1;i>=0;i--){ const q=p[i]; q.x+=q.vx; q.y+=q.vy; if(!q.thr){ q.vy+=0.05; q.vx*=0.98; } q.life-=q.thr?0.06:0.03; if(q.life<=0) p.splice(i,1); } }
+function gDrawParts(ctx,p){ for(const q of p){ ctx.globalAlpha=Math.max(0,q.life); ctx.fillStyle=q.color; ctx.beginPath(); ctx.arc(q.x,q.y,q.thr?2:2.4,0,6.283); ctx.fill(); } ctx.globalAlpha=1; }
+function gRR(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function gHeart(ctx,x,y,s,col){ ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(x,y+s*0.9); ctx.bezierCurveTo(x-s,y-s*0.3,x-s*0.5,y-s*1.2,x,y-s*0.4); ctx.bezierCurveTo(x+s*0.5,y-s*1.2,x+s,y-s*0.3,x,y+s*0.9); ctx.fill(); }
+function gShip(ctx,x,y,cfg,o){ o=o||{}; const s=o.big?1.4:1, accent=cfg.accent||'#5b8cff'; ctx.save(); ctx.translate(x,y);
+  if(o.thrust){ const fl=ctx.createRadialGradient(0,15*s,0,0,15*s,13*s); fl.addColorStop(0,'#ffd75e'); fl.addColorStop(1,'rgba(255,120,60,0)'); ctx.fillStyle=fl; ctx.beginPath(); ctx.ellipse(0,15*s,6*s,12*s,0,0,6.283); ctx.fill(); }
+  ctx.shadowColor=accent; ctx.shadowBlur=12*s; ctx.fillStyle=accent; ctx.strokeStyle='#fff'; ctx.lineWidth=1.5;
+  if(cfg.shipKind==='ball'){ ctx.beginPath(); ctx.arc(0,0,12*s,0,6.283); ctx.fill(); ctx.stroke(); }
+  else if(cfg.shipKind==='box'){ gRR(ctx,-11*s,-11*s,22*s,22*s,5*s); ctx.fill(); ctx.stroke(); }
+  else { ctx.beginPath(); ctx.moveTo(0,-16*s); ctx.lineTo(-12*s,9*s); ctx.lineTo(0,4*s); ctx.lineTo(12*s,9*s); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+  ctx.shadowBlur=0; ctx.fillStyle='#dceaff'; ctx.beginPath(); ctx.arc(0,-2*s,3*s,0,6.283); ctx.fill(); ctx.restore(); }
+
+const GamePreview = (function(){
+  const W=300, H=300;
+  let win=null, cv=null, ctx=null, badgeEl=null, hintEl=null, ctrlEl=null, raf=0, lastSig='';
+  let ship={x:W/2,y:H-16}, vx=0, vy=0, rocks=[], parts=[], stars=gStars(W,H,40), score=0, hp=3, over=false, spawnT=0, elapsed=0, shake=0, inv=0;
+  const keys={dec:false,inc:false};
+  // flags = 有沒有這塊功能（閘門）；P = 這塊長什麼樣（讀學生 prompt）
+  const F={proto:false,ui:false,feature:false,vars:false,bug:false,tested:false,deployed:false,live:false};
+  const P={accent:'#5b8cff',accent2:'#7c5cff',title:'我的遊戲',axis:'x',shipKind:'tri',fast:false,score:false,hp:false,multiplayer:false,hiscore:false,control:'keys'};
+  const BEST_KEY='s5w15_best';
+  function getBest(){ try{ return parseInt(localStorage.getItem(BEST_KEY))||0; }catch(e){ return 0; } }
+  function setBest(v){ try{ localStorage.setItem(BEST_KEY, String(v)); }catch(e){} }
+
+  function savedHas(i){ return S.artifacts && S.artifacts.includes(i); }
+  function computeFlags(){
+    // 新 15 站索引：原型=5、介面=6、開發/功能=8、變數=9、資料庫=10、迭代+bug=12、除錯+測試=13、發布=14
+    F.proto=savedHas(5); F.ui=savedHas(6); F.feature=savedHas(8); F.vars=savedHas(9);
+    F.bug=savedHas(12)&&!savedHas(13); F.tested=savedHas(13); F.deployed=savedHas(14); F.live=savedHas(14);
+    const spec = (S.spec)||{};
+    P.multiplayer = spec.players==='double';
+    P.hiscore = savedHas(10) && (spec.cloudScore!=='local'); // 資料庫站存了，且不是只存本機
+    P.control = spec.control || 'keys';
+    // params 從學生實際 prompt 抽出，讓畫面=他說的話
+    const ui=(S.prompts&&S.prompts[6])||'';
+    const cols=pickColors(ui); P.accent=cols[0]||'#5b8cff'; P.accent2=cols[1]||'#7c5cff'; P.title=gameName(ui)||'我的遊戲';
+    const feat=(S.prompts&&S.prompts[8])||'';
+    P.axis = (kw(feat,['上下','垂直']) && !kw(feat,['左右'])) ? 'y' : 'x';
+    P.shipKind = kw(feat,['圓','球']) ? 'ball' : (kw(feat,['方','box','正方']) ? 'box' : 'tri');
+    P.fast = kw(feat,['快','加速','變快']);
+    const vars=(S.prompts&&S.prompts[9])||'';
+    const wantScore=kw(vars,['分數','計分','得分','數字','積分']);
+    const wantHp=kw(vars,['血','命','生命','心','血量']);
+    if(F.vars){ P.score = wantScore || (!wantScore&&!wantHp); P.hp = wantHp || (!wantScore&&!wantHp); }
+    else { P.score=false; P.hp=false; }
+    if(P.score===false && spec.scoring==='no') P.score=false;
+  }
+  function shipPos(){ return P.axis==='x' ? {x:ship.x,y:H-16} : {x:W/2,y:ship.y}; }
+  function reset(){ rocks=[]; parts=[]; score=0; hp=3; over=false; ship.x=W/2; ship.y=H-16; vx=vy=0; spawnT=0; elapsed=0; shake=0; inv=0; }
+
+  function roundRect(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+  function heart(c,x,y,s,col){ c.fillStyle=col; c.beginPath(); c.moveTo(x,y+s*0.9); c.bezierCurveTo(x-s,y-s*0.3,x-s*0.5,y-s*1.2,x,y-s*0.4); c.bezierCurveTo(x+s*0.5,y-s*1.2,x+s,y-s*0.3,x,y+s*0.9); c.fill(); }
+
+  function mount(){
+    if(win) return;
+    const dock=document.getElementById('gameDock'); if(!dock) return;
+    dock.innerHTML=
+      '<div class="gpwin" id="gpwin"><div class="gp-head"><span class="gp-dots"><i></i><i></i><i></i></span>'+
+      '<span class="gp-title">遊戲預覽</span><span class="gp-badge" id="gpBadge"></span></div>'+
+      '<div class="gp-body"><canvas id="gpCanvas" width="'+W+'" height="'+H+'"></canvas>'+
+      '<div class="gp-hint" id="gpHint"></div>'+
+      '<div class="gp-ctrl" id="gpCtrl"><button data-d="dec">&#9664;</button><button data-d="inc">&#9654;</button></div></div></div>';
+    win=document.getElementById('gpwin');
+    cv=win.querySelector('#gpCanvas'); ctx=cv.getContext('2d');
+    badgeEl=win.querySelector('#gpBadge'); hintEl=win.querySelector('#gpHint'); ctrlEl=win.querySelector('#gpCtrl');
+    ctrlEl.querySelectorAll('button').forEach(b=>{
+      const d=b.dataset.d;
+      const dn=e=>{ if(e.cancelable)e.preventDefault(); keys[d]=true; };
+      const up=e=>{ keys[d]=false; };
+      b.addEventListener('mousedown',dn); b.addEventListener('touchstart',dn,{passive:false});
+      b.addEventListener('mouseup',up); b.addEventListener('mouseleave',up); b.addEventListener('touchend',up);
+    });
+    cv.addEventListener('click',()=>{ if(over && F.live) reset(); });
+    window.addEventListener('keydown',onKey); window.addEventListener('keyup',onKey);
+    if(!raf) loop();
+  }
+  function onKey(e){
+    if(!win || !F.feature) return;
+    const tag=(document.activeElement&&document.activeElement.tagName)||'';
+    if(tag==='INPUT'||tag==='TEXTAREA') return;
+    const down=e.type==='keydown';
+    if(e.key==='ArrowLeft'||e.key==='ArrowUp'){ keys.dec=down; e.preventDefault(); }
+    else if(e.key==='ArrowRight'||e.key==='ArrowDown'){ keys.inc=down; e.preventDefault(); }
+  }
+  function loop(){ raf=requestAnimationFrame(loop); update(); draw(); }
+  function update(){
+    gUpdateStars(stars,W,H);
+    if(shake>0)shake--; if(inv>0)inv--;
+    if(!F.feature || over) return;
+    elapsed++;
+    const diff = 1 + Math.min(elapsed/3000,1.2) + (P.fast?0.4:0);
+    const maxv=4.2, ac=0.7;
+    if(P.axis==='x'){ if(keys.dec)vx-=ac; if(keys.inc)vx+=ac; vx*=0.84; vx=Math.max(-maxv,Math.min(maxv,vx)); ship.x+=vx; ship.x=Math.max(16,Math.min(W-16,ship.x)); }
+    else { if(keys.dec)vy-=ac; if(keys.inc)vy+=ac; vy*=0.84; vy=Math.max(-maxv,Math.min(maxv,vy)); ship.y+=vy; ship.y=Math.max(44,Math.min(H-12,ship.y)); }
+    const sp=shipPos();
+    if((keys.dec||keys.inc)&&Math.random()<0.6) gThrust(parts, sp.x, sp.y+(P.axis==='x'?12:0), P.accent2);
+    spawnT++;
+    const interval=Math.max(16,(P.fast?38:52)/diff);
+    if(spawnT>interval){ spawnT=0; const a=gAsteroid(W,1); a.x=14+Math.random()*(W-28); a.vy=(P.fast?1.9:1.3)*diff+Math.random()*1.2; rocks.push(a); }
+    for(let i=rocks.length-1;i>=0;i--){ const a=rocks[i]; a.y+=a.vy; a.rot+=a.vr;
+      if(a.y>H+14){ rocks.splice(i,1); continue; }
+      if(Math.hypot(a.x-sp.x,a.y-sp.y)<a.r+12){
+        if(F.bug){ rocks.splice(i,1); continue; }
+        if(inv>0) continue;
+        rocks.splice(i,1);
+        if(F.vars && P.hp){ hp--; gBurst(parts,sp.x,sp.y,P.accent,16); shake=12; inv=60; Sfx.hit();
+          if(hp<=0){ over=true; if(P.hiscore && Math.floor(score)>getBest()) setBest(Math.floor(score)); Sfx.over(); } }
+        else gBurst(parts,sp.x,sp.y,P.accent2,8);
+      }
+    }
+    if(F.vars && P.score && !over) score += F.bug ? 0 : 0.06*diff;
+    gUpdateParts(parts);
+  }
+  function draw(){
+    if(!ctx) return;
+    ctx.save();
+    if(shake>0) ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake);
+    gDrawStars(ctx,stars,W,H,P.accent); ctx.textAlign='center';
+    if(F.proto && !F.ui){
+      ctx.strokeStyle='#6b7aa8'; ctx.setLineDash([5,4]); ctx.lineWidth=1.5;
+      ctx.strokeRect(12,12,W-24,24); ctx.strokeRect(12,48,W-24,H-104); ctx.strokeRect(W/2-32,H-44,64,28);
+      ctx.setLineDash([]); ctx.fillStyle='#9fb0d6'; ctx.font='11px sans-serif'; ctx.fillText('原型草圖（還不能玩）',W/2,H-26); ctx.restore(); return;
+    }
+    if(F.ui){ ctx.fillStyle=P.accent; ctx.fillRect(0,0,W,26); ctx.fillStyle='#fff'; ctx.font='700 12px sans-serif'; ctx.fillText((P.title||'我的遊戲').slice(0,9),W/2,17); }
+    rocks.forEach(a=>gDrawAsteroid(ctx,a));
+    if(F.feature){ const sp=shipPos(); const blink=inv>0&&Math.floor(inv/5)%2===0; if(!blink) gShip(ctx,sp.x,sp.y,P,{thrust:keys.dec||keys.inc});
+      if(P.multiplayer){ ctx.globalAlpha=0.4; const sp2=P.axis==='x'?{x:Math.max(16,Math.min(W-16,W-sp.x)),y:sp.y}:{x:W/2+40,y:sp.y}; gShip(ctx,sp2.x,sp2.y,P,{}); ctx.globalAlpha=1; ctx.fillStyle='#93a3c9'; ctx.font='9px sans-serif'; ctx.fillText('（雙人示意：第 2 台船今天先不能動）',W/2,H-4); } }
+    else if(F.ui){ ctx.fillStyle=P.accent; ctx.shadowColor=P.accent; ctx.shadowBlur=14; gRR(ctx,W/2-44,H/2-16,88,34,16); ctx.fill(); ctx.shadowBlur=0; ctx.fillStyle='#fff'; ctx.font='700 13px sans-serif'; ctx.fillText('開始',W/2,H/2+5); }
+    gDrawParts(ctx,parts);
+    if(F.vars && P.score){ ctx.fillStyle='#cfe0ff'; ctx.font='700 12px sans-serif'; ctx.textAlign='left'; ctx.fillText('分數 '+Math.floor(score),10,42); ctx.textAlign='center'; }
+    if(F.vars && P.hp){ for(let i=0;i<3;i++) gHeart(ctx, W-20-i*16, 38, 5, i<hp?P.accent2:'#33405f'); }
+    if(P.hiscore){ ctx.fillStyle='#ffce47'; ctx.font='700 11px sans-serif'; ctx.fillText('最高分 '+getBest()+'（雲端）', W/2, F.ui?40:14); }
+    ctx.restore();
+    if(F.bug){ ctx.fillStyle='rgba(255,93,108,.92)'; ctx.fillRect(0,H-58,W,18); ctx.fillStyle='#fff'; ctx.font='700 10px sans-serif'; ctx.textAlign='center'; ctx.fillText('BUG：撞到卻沒事、分數沒更新',W/2,H-45); }
+    if(over){ ctx.fillStyle='rgba(5,8,20,.8)'; ctx.fillRect(0,0,W,H); ctx.fillStyle='#fff'; ctx.font='800 18px sans-serif'; ctx.textAlign='center'; ctx.fillText('結束！',W/2,H/2-6);
+      ctx.fillStyle='#cfe0ff'; ctx.font='12px sans-serif'; ctx.fillText(F.live?'點一下重新開始':(P.score?('分數 '+Math.floor(score)):'再玩一次'),W/2,H/2+18); }
+  }
+  function sync(){
+    computeFlags();
+    if(!F.proto){ const dock=document.getElementById('gameDock'); if(dock) dock.innerHTML=''; win=null; if(raf){cancelAnimationFrame(raf); raf=0;} return; }
+    if(!win || !document.getElementById('gpwin')) { win=null; mount(); }
+    if(F.live){ badgeEl.className='gp-badge live'; badgeEl.textContent='● LIVE'; }
+    else { badgeEl.className='gp-badge build'; badgeEl.textContent='建置中'; }
+    ctrlEl.classList.toggle('on', F.feature);
+    const btns=ctrlEl.querySelectorAll('button');
+    if(btns.length===2){ btns[0].innerHTML = P.axis==='y'?'&#9650;':'&#9664;'; btns[1].innerHTML = P.axis==='y'?'&#9660;':'&#9654;'; }
+    const moveHint = P.axis==='y' ? '用 ▲ ▼' : '用 ◄ ►';
+    hintEl.textContent = F.live ? '完整遊戲！撞到隕石會結束，點畫面可重新開始'
+      : F.bug ? 'BUG！撞到隕石卻沒事 → 接下來要幫它除錯'
+      : F.vars ? `${moveHint} 閃避隕石${P.score?'，活越久分數越高':''}`
+      : F.feature ? `${moveHint} 移動你的太空船試試看！`
+      : F.ui ? '介面好了！「開始」按鈕長出來了'
+      : '原型階段：先看看遊戲的草圖';
+    const sig=[...Object.values(F), P.accent, P.axis, P.shipKind, P.score, P.hp, P.fast, P.multiplayer, P.hiscore].join('|');
+    if(sig!==lastSig){ lastSig=sig; if(!(F.live && over)) reset(); }
+  }
+  return { sync };
+})();
+
+/* =========================================================
+   PLAY GAME — 完成後「真的玩你做出來的遊戲」（全螢幕、依你的選擇設定）
+   ========================================================= */
+const PlayGame = (function(){
+  const W=360, H=560;
+  let ov=null, cv=null, ctx=null, raf=0, cfg=null;
+  let phase='start', ship={x:W/2,y:H-40}, vx=0, vy=0, rocks=[], parts=[], popups=[], stars=gStars(W,H,72), score=0, hp=3, best=0, spawnT=0, elapsed=0, shake=0, inv=0, newRec=false;
+  const keys={dec:false,inc:false};
+  const BEST_KEY='s5w15_best';
+  function getBest(){ try{return parseInt(localStorage.getItem(BEST_KEY))||0;}catch(e){return 0;} }
+  function setBest(v){ try{localStorage.setItem(BEST_KEY,String(v));}catch(e){} }
+  function gameConfig(){
+    const sp=S.spec||defaultSpec();
+    const ui=(S.prompts&&S.prompts[6])||''; const cols=pickColors(ui);
+    const feat=(S.prompts&&S.prompts[8])||'';
+    const vars=(S.prompts&&S.prompts[9])||'';
+    const wantScore=kw(vars,['分數','計分','得分','數字','積分']);
+    const wantHp=kw(vars,['血','命','生命','心','血量']);
+    return {
+      accent: cols[0]||'#5b8cff', accent2: cols[1]||'#7c5cff', title: gameName(ui)||'我的躲隕石遊戲',
+      axis: (kw(feat,['上下','垂直']) && !kw(feat,['左右']))?'y':'x',
+      shipKind: kw(feat,['圓','球'])?'ball':(kw(feat,['方','box','正方'])?'box':'tri'),
+      fast: kw(feat,['快','加速','變快']),
+      score: wantScore || (!wantScore && !wantHp)  // 沒提就預設計分
+    };
+  }
+  function reset(){ rocks=[]; parts=[]; popups=[]; score=0; hp=3; ship.x=W/2; ship.y=H-40; vx=vy=0; spawnT=0; elapsed=0; shake=0; inv=0; newRec=false; }
+  function open(){
+    cfg=gameConfig(); best=getBest(); phase='start'; reset();
+    ov=document.createElement('div'); ov.className='play-overlay'; ov.id='playOverlay';
+    ov.innerHTML='<div class="play-frame"><div class="play-bar"><span class="play-title">'+esc(cfg.title)+'</span><span style="display:flex;gap:8px"><button class="play-close" id="playSound">♪ 音效</button><button class="play-close" id="playClose">✕ 關閉</button></span></div>'+
+      '<canvas id="playCanvas" width="'+W+'" height="'+H+'"></canvas>'+
+      '<div class="play-ctrl"><button data-d="dec">&#9664;</button><button data-d="inc">&#9654;</button></div></div>';
+    document.body.appendChild(ov);
+    cv=ov.querySelector('#playCanvas'); ctx=cv.getContext('2d');
+    const btns=ov.querySelectorAll('.play-ctrl button');
+    btns[0].innerHTML=cfg.axis==='y'?'&#9650;':'&#9664;'; btns[1].innerHTML=cfg.axis==='y'?'&#9660;':'&#9654;';
+    btns.forEach(b=>{ const d=b.dataset.d; const dn=e=>{if(e.cancelable)e.preventDefault();keys[d]=true;}; const up=()=>{keys[d]=false;};
+      b.addEventListener('mousedown',dn);b.addEventListener('touchstart',dn,{passive:false});b.addEventListener('mouseup',up);b.addEventListener('mouseleave',up);b.addEventListener('touchend',up); });
+    cv.addEventListener('click',()=>{ if(phase!=='play'){ phase='play'; reset(); Sfx.start(); } });
+    ov.querySelector('#playSound').onclick=(e)=>{ Sfx.setOn(!Sfx.isOn()); e.target.textContent=Sfx.isOn()?'♪ 音效':'♪ 靜音'; };
+    ov.querySelector('#playClose').onclick=close;
+    window.addEventListener('keydown',onKey); window.addEventListener('keyup',onKey);
+    loop();
+  }
+  function onKey(e){
+    if(!ov) return;
+    const tag=(document.activeElement&&document.activeElement.tagName)||''; if(tag==='INPUT'||tag==='TEXTAREA') return;
+    if(e.key==='Escape'&&e.type==='keydown'){ close(); return; }
+    const down=e.type==='keydown';
+    if(e.key==='ArrowLeft'||e.key==='ArrowUp'){ keys.dec=down; e.preventDefault(); }
+    else if(e.key==='ArrowRight'||e.key==='ArrowDown'){ keys.inc=down; e.preventDefault(); }
+    else if((e.key===' '||e.key==='Enter')&&down){ if(phase!=='play'){ phase='play'; reset(); Sfx.start(); } }
+  }
+  function close(){ if(raf){cancelAnimationFrame(raf);raf=0;} window.removeEventListener('keydown',onKey); window.removeEventListener('keyup',onKey); if(ov){ov.remove();ov=null;} }
+  function shipPos(){ return cfg.axis==='x'?{x:ship.x,y:H-40}:{x:W/2,y:ship.y}; }
+  function loop(){ raf=requestAnimationFrame(loop); update(); draw(); }
+  function update(){
+    gUpdateStars(stars,W,H);
+    if(shake>0)shake--; if(inv>0)inv--;
+    if(phase!=='play') return;
+    elapsed++;
+    const diff=1+Math.min(elapsed/2600,1.4)+(cfg.fast?0.5:0);
+    const maxv=6.2, ac=0.95;
+    if(cfg.axis==='x'){ if(keys.dec)vx-=ac; if(keys.inc)vx+=ac; vx*=0.85; vx=Math.max(-maxv,Math.min(maxv,vx)); ship.x+=vx; ship.x=Math.max(20,Math.min(W-20,ship.x)); }
+    else { if(keys.dec)vy-=ac; if(keys.inc)vy+=ac; vy*=0.85; vy=Math.max(-maxv,Math.min(maxv,vy)); ship.y+=vy; ship.y=Math.max(80,Math.min(H-20,ship.y)); }
+    const sp=shipPos();
+    if((keys.dec||keys.inc)&&Math.random()<0.7) gThrust(parts,sp.x,sp.y+(cfg.axis==='x'?20:0),cfg.accent2);
+    spawnT++;
+    const interval=Math.max(13,(cfg.fast?26:40)/diff);
+    if(spawnT>interval){ spawnT=0; const a=gAsteroid(W,1.5); a.x=20+Math.random()*(W-40); a.vy=(cfg.fast?2.6:2.0)*diff+Math.random()*1.4; rocks.push(a); }
+    for(let i=rocks.length-1;i>=0;i--){ const a=rocks[i]; a.y+=a.vy; a.rot+=a.vr;
+      if(!a.scored && cfg.score && a.y>sp.y){ a.scored=true; const dx=Math.abs(a.x-sp.x); if(dx<a.r+36 && dx>a.r+18){ score+=5; popups.push({x:sp.x,y:sp.y-26,t:'+5 好險!',life:1,c:'#2bd17e'}); Sfx.score(); } }
+      if(a.y>H+18){ rocks.splice(i,1); continue; }
+      if(Math.hypot(a.x-sp.x,a.y-sp.y)<a.r+16){
+        if(inv>0) continue;
+        rocks.splice(i,1); hp--; gBurst(parts,sp.x,sp.y,cfg.accent,24); shake=16; inv=70; Sfx.hit();
+        if(hp<=0){ phase='over'; if(Math.floor(score)>best){ best=Math.floor(score); setBest(best); newRec=true; } Sfx.over(); }
+      }
+    }
+    if(cfg.score) score+=0.07*diff;
+    gUpdateParts(parts);
+    for(let i=popups.length-1;i>=0;i--){ const p=popups[i]; p.y-=0.9; p.life-=0.02; if(p.life<=0) popups.splice(i,1); }
+  }
+  function draw(){
+    if(!ctx) return;
+    ctx.save();
+    if(shake>0) ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake);
+    gDrawStars(ctx,stars,W,H,cfg.accent); ctx.textAlign='center';
+    rocks.forEach(a=>gDrawAsteroid(ctx,a));
+    if(phase!=='over'){ const sp=shipPos(); const blink=inv>0&&Math.floor(inv/5)%2===0; if(!blink) gShip(ctx,sp.x,sp.y,cfg,{big:true,thrust:keys.dec||keys.inc}); }
+    gDrawParts(ctx,parts);
+    popups.forEach(p=>{ ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.c; ctx.font='700 15px sans-serif'; ctx.fillText(p.t,p.x,p.y); }); ctx.globalAlpha=1;
+    ctx.restore();
+    ctx.fillStyle=cfg.accent; ctx.fillRect(0,0,W,40); ctx.fillStyle='#fff'; ctx.font='700 18px sans-serif'; ctx.textAlign='center'; ctx.fillText((cfg.title||'我的遊戲').slice(0,12),W/2,26);
+    if(cfg.score){ ctx.fillStyle='#cfe0ff'; ctx.font='700 16px sans-serif'; ctx.textAlign='left'; ctx.fillText('分數 '+Math.floor(score),14,66); ctx.textAlign='center'; }
+    for(let i=0;i<3;i++) gHeart(ctx, W-26-i*22, 60, 7, i<hp?cfg.accent2:'#33405f');
+    ctx.fillStyle='#ffce47'; ctx.font='700 12px sans-serif'; ctx.fillText('最高分 '+best,W/2,58);
+    if(phase==='start'){
+      ctx.fillStyle='rgba(5,8,20,.72)'; ctx.fillRect(0,40,W,H-40);
+      ctx.fillStyle='#fff'; ctx.font='800 26px sans-serif'; ctx.fillText('準備好了嗎？',W/2,H/2-26);
+      ctx.font='15px sans-serif'; ctx.fillStyle='#cfe0ff'; ctx.fillText(cfg.axis==='y'?'用 ▲ ▼（或上下鍵）閃避隕石':'用 ◄ ►（或左右鍵）閃避隕石',W/2,H/2+2);
+      ctx.fillStyle=cfg.accent; ctx.shadowColor=cfg.accent; ctx.shadowBlur=18; gRR(ctx,W/2-64,H/2+26,128,46,23); ctx.fill(); ctx.shadowBlur=0; ctx.fillStyle='#fff'; ctx.font='700 18px sans-serif'; ctx.fillText('開始',W/2,H/2+55);
+    } else if(phase==='over'){
+      ctx.fillStyle='rgba(5,8,20,.82)'; ctx.fillRect(0,40,W,H-40);
+      ctx.fillStyle='#fff'; ctx.font='800 30px sans-serif'; ctx.fillText('結束！',W/2,H/2-44);
+      if(newRec){ ctx.fillStyle='#ffce47'; ctx.font='800 18px sans-serif'; ctx.fillText('★ 新紀錄！',W/2,H/2-14); }
+      ctx.font='18px sans-serif'; ctx.fillStyle='#cfe0ff'; ctx.fillText('分數 '+Math.floor(score),W/2,H/2+14);
+      ctx.font='14px sans-serif'; ctx.fillStyle='#93a3c9'; ctx.fillText('最高分 '+best,W/2,H/2+36);
+      ctx.fillStyle=cfg.accent; ctx.shadowColor=cfg.accent; ctx.shadowBlur=18; gRR(ctx,W/2-74,H/2+50,148,46,23); ctx.fill(); ctx.shadowBlur=0; ctx.fillStyle='#fff'; ctx.font='700 17px sans-serif'; ctx.fillText('再玩一次',W/2,H/2+79);
+    }
+  }
+  return { open };
+})();
+
+/* 進度地圖 6 大關卡 → 對應新 15 站 stage index */
+const GATES = [
+  { name:"發想", icon:"idea",   at:0 },
+  { name:"設計", icon:"design", at:5 },
+  { name:"開發", icon:"code",   at:8 },
+  { name:"存檔", icon:"deploy", at:10 },
+  { name:"測試", icon:"test",   at:13 },
+  { name:"發布", icon:"launch", at:14 }
+];
+
+/* 總複習考試題庫（10 題，涵蓋整條開發流程＋資料庫/部署的真實服務） */
+const EXAM = [
+  { q:"做一款遊戲，第一步應該先做什麼？", options:["先搞懂玩家想要什麼（需求）","馬上開始寫程式","先發布上線","先想一個帥的名字"], answer:0 },
+  { q:"遊戲的第一版，聰明的做法是？", options:["先把單人做好（MVP），之後再加多人","一開始就做超複雜的多人連線","什麼都先不做","先做最難的部分"], answer:0 },
+  { q:"這種瀏覽器小遊戲，最適合用什麼做？", options:["網頁＋畫布(Canvas)，不用大框架","一定要用 Next.js 那種大框架","用紙和筆","用計算機"], answer:0 },
+  { q:"把『要做哪些功能』列成一張清單，叫什麼？", options:["規格書","廣告單","收據","日記"], answer:0 },
+  { q:"先做一個『能點、但還沒真功能』的版本，叫什麼？", options:["原型","最終成品","續集","廣告"], answer:0 },
+  { q:"畫面好不好看、按鈕放哪裡，是哪一個？", options:["UI（使用者介面）","網路速度","喇叭音量","電池電量"], answer:0 },
+  { q:"能幫程式碼存檔、改壞了回到舊版本的工具叫？", options:["版本控制（Git）","小畫家","計算機","鬧鐘"], answer:0 },
+  { q:"想記住最高分、換一台電腦也看得到，要用什麼？", options:["雲端資料庫（像 Firebase、Supabase）","一張便條紙","遊戲音效","桌布"], answer:0 },
+  { q:"程式沒有照你想的方式運作，這種錯誤叫？", options:["bug","新功能","背景音樂","封面圖"], answer:0 },
+  { q:"真實世界把網頁遊戲放上網、拿到公開網址，常用什麼服務？", options:["GitHub Pages、Vercel、Netlify","Word、Excel","小算盤","小畫家"], answer:0 }
+];
+
+const SCREENS = ['start','recall','taskA','taskB','summary','wall','exam','done'];
+const STORE = 's5w15_progress_v2';  // v2：改版後的 15 站結構，舊存檔不相容故換鍵
+
+/* 測試模式：網址加 ?test=1 才會出現「跳過這關」按鈕（正式給學生時不會顯示） */
+const TEST_MODE = /[?&]test=1/.test(location.search);
+
+/* =========================================================
+   ACCOUNT — 連 Firebase，把進度與金幣綁定登入帳號（跨裝置同步）
+   讀 app 的登入 session（localStorage['@session/currentUser']）取得 userId；
+   未登入 → 訪客模式，只存本機 localStorage。
+   ========================================================= */
+const FB_CONFIG = { apiKey:"AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78", authDomain:"gpt-clone-68b9f.firebaseapp.com", projectId:"gpt-clone-68b9f", storageBucket:"gpt-clone-68b9f.firebasestorage.app", messagingSenderId:"436942056069", appId:"1:436942056069:web:8762675dfff7b7e92017ec" };
+const Account = (function(){
+  let uid=null, uname='', db=null, ready=false;
+  function sessionUser(){ try{ const r=localStorage.getItem('@session/currentUser'); return r?JSON.parse(r):null; }catch(e){ return null; } }
+  function init(){
+    const u=sessionUser(); if(u&&u.id){ uid=u.id; uname=u.displayName||u.username||''; }
+    if(uid && window.firebase){ try{ if(!firebase.apps.length) firebase.initializeApp(FB_CONFIG); db=firebase.firestore(); ready=true; }catch(e){ console.warn('[game] firebase init failed', e); } }
+  }
+  async function loadProgress(){ if(!ready) return null; try{ const s=await db.collection('gameProgress').doc(uid).get(); return s.exists ? (s.data().s5w15||null) : null; }catch(e){ return null; } }
+  async function saveProgress(state){ if(!ready) return; try{ await db.collection('gameProgress').doc(uid).set({ s5w15: state, name: uname, updatedAt: new Date().toISOString() }, {merge:true}); }catch(e){} }
+  // 把遊戲賺到的金幣計入帳號真正餘額；以 rewardId 做冪等（同一筆獎勵只會記一次，跨裝置/重玩都不會重複）
+  async function creditCoins(rewardId, amount, reason){ if(!ready || !(amount>0)) return; const ref=db.collection('coins').doc(uid);
+    try{ await db.runTransaction(async tx=>{ const s=await tx.get(ref); const c=s.exists?s.data():{balance:0,totalEarned:0,transactions:[]}; const txs=Array.isArray(c.transactions)?c.transactions:[]; if(txs.some(t=>t&&t.id===rewardId)) return; txs.push({id:rewardId,amount,reason,timestamp:new Date().toISOString()}); tx.set(ref,{balance:(c.balance||0)+amount,totalEarned:(c.totalEarned||0)+amount,transactions:txs.slice(-120)}); }); }catch(e){ console.warn('[game] creditCoins failed', e); }
+  }
+  return { init, loadProgress, saveProgress, creditCoins, get uid(){return uid;}, get name(){return uname;}, get ready(){return ready;} };
+})();
+Account.init();
+
+/* =========================================================
+   STATE
+   ========================================================= */
+let S = loadState();
+function defaultSpec(){ return { control:'keys', platform:'web', framework:'none', players:'single', scoring:'yes', cloudScore:'cloud', mechanic:'dodge' }; }
+function defaultState(){
+  return { screen:'start', recallDone:false, done:Array(15).fill(false), coins:0, artifacts:[], prompts:{}, spec:defaultSpec(), selected:-1, justSaved:-1, examDone:false, examScore:0 };
+}
+function loadState(){
+  try {
+    const r = JSON.parse(localStorage.getItem(STORE));
+    if(r&&r.done&&r.done.length===15){
+      if(!Array.isArray(r.artifacts)) r.artifacts=[];
+      if(!r.prompts) r.prompts={};
+      if(!r.spec) r.spec=defaultSpec(); else r.spec=Object.assign(defaultSpec(), r.spec);
+      if(typeof r.selected!=='number') r.selected=-1;
+      r.justSaved=-1;
+      return r;
+    }
+  } catch(e){}
+  return defaultState();
+}
+let _cloudSaveT=null;
+function save(){ try { localStorage.setItem(STORE, JSON.stringify(S)); } catch(e){}
+  if(Account.ready){ if(_cloudSaveT) clearTimeout(_cloudSaveT); _cloudSaveT=setTimeout(()=>Account.saveProgress(S), 800); }
+}
+// 進度分數：用來比較雲端 vs 本機誰比較新（完成站數最重要）
+function progressScore(s){ if(!s) return -1; const done=Array.isArray(s.done)?s.done.filter(Boolean).length:0; const arts=Array.isArray(s.artifacts)?s.artifacts.length:0; return done*100 + arts*5 + (s.examDone?50:0) + (s.coins||0); }
+
+/* =========================================================
+   ANTI-CHEAT helpers
+   ========================================================= */
+function blockPaste(el){
+  ['paste','drop'].forEach(ev => el.addEventListener(ev, e => { e.preventDefault(); }));
+  el.addEventListener('dragover', e => e.preventDefault());
+}
+function norm(s){ return (s||'').toLowerCase().replace(/\s+/g,'').trim(); }
+function validateBlank(value, synonyms){
+  const v = norm(value);
+  if(!v) return false;
+  return synonyms.some(syn => { const n = norm(syn); return v === n || v.includes(n); });
+}
+// 常見可接受的英數術語（其餘英數雜訊視為亂打）
+const TERM_WHITELIST = new Set(['ui','ux','git','qa','mvp','web','app','ai','pm','2d','3d','copilot','prompt','canvas','next','js','html','css','bug','ok']);
+// 偵測亂打：連續重複字元、去重字數太少、或夾雜隨機英數雜訊（例如 1c8、單獨亂字母 c）
+function looksLikeGibberish(value){
+  const raw = (value||'').trim();
+  if(/(.)\1{3,}/.test(raw)) return true;
+  const uniq = new Set([...raw.replace(/\s/g,'')]).size;
+  if(uniq < 5) return true;
+  const tokens = raw.match(/[a-zA-Z0-9]+/g) || [];
+  for(const t of tokens){
+    if(TERM_WHITELIST.has(t.toLowerCase())) continue;
+    if(/[a-z]/i.test(t) && /[0-9]/.test(t)) return true;  // 英文數字混雜：1c8、a3b
+    if(/^[a-z]$/i.test(t)) return true;                    // 中文句子裡單獨一個亂英文字母：c
+  }
+  return false;
+}
+/* 白話 prompt 驗證（取代「必含術語」）：
+   字數≥12、不是亂打、而且要講到「一個東西(target)」＋「要它做什麼(behavior)」。
+   部分決策站只給單一關鍵字清單(slots.any)，命中一個即可。 */
+function validateSlots(value, slots){
+  const raw = (value||'').trim();
+  if([...raw].length < 12) return false;
+  if(looksLikeGibberish(raw)) return false;
+  const v = norm(value);
+  const hit = list => list.some(w => v.includes(norm(w)));
+  if(slots && slots.any) return hit(slots.any);
+  if(!slots || !slots.target || !slots.behavior) return [...raw].length >= 12;
+  return hit(slots.target) && hit(slots.behavior);
+}
+function lockWrongOption(el){ el.classList.add('locked'); el.disabled = true; }
+
+/* =========================================================
+   HUD render
+   ========================================================= */
+function renderHUD(){
+  document.getElementById('coinIc').innerHTML = ICON.coin;
+  document.getElementById('coinVal').textContent = S.coins;
+  const completed = S.done.filter(Boolean).length;
+  const pct = Math.round(completed/15*100);
+  document.getElementById('mapFill').style.width = pct + '%';
+  document.getElementById('pctVal').textContent = pct + '%';
+  const g = document.getElementById('gates');
+  g.innerHTML = GATES.map(gate => {
+    const lit = S.done[gate.at];
+    return `<div class="gate ${lit?'lit':''}"><div class="ic">${ICON[gate.icon]}</div><span>${gate.name}</span></div>`;
+  }).join('');
+}
+
+/* =========================================================
+   SCREEN router
+   ========================================================= */
+function go(screen){ S.screen = screen; save(); render(); window.scrollTo({top:0,behavior:'smooth'}); }
+function render(){
+  renderHUD();
+  updateLayout();
+  renderWorkspace(false);
+  GamePreview.sync();
+  const r = { start:renderStart, recall:renderRecall, taskA:renderTaskA, taskB:renderTaskB, summary:renderSummary, wall:renderWall, exam:renderExam, done:renderDone };
+  (r[S.screen] || renderStart)();
+}
+
+/* ---------- Screen 0: start ---------- */
+function renderStart(){
+  document.getElementById('screen').innerHTML = `
+    <div class="card center">
+      <div class="ai" style="justify-content:center">
+        <div class="avatar">${ICON.ai}</div>
+        <div class="bubble" style="text-align:left">AI：今天，來開發一款遊戲吧！</div>
+      </div>
+      <h1 class="mt16">遊戲開發模擬器</h1>
+      <p class="sub">我會一路陪你，把一款遊戲從「一句話想法」做到「正式發布上線」。<br>每一站，先讀懂我說的話，認出那個關鍵的<b style="color:var(--gold)">專有名詞</b>。</p>
+      <div class="key-msg" style="text-align:left">${KEY_MSG}</div>
+      <p class="muted" style="font-size:13px">難度版本：G3（一頁一格 · 內容驗證）</p>
+      <div class="row" style="justify-content:center">
+        <button class="btn" id="startBtn">開始開發 →</button>
+      </div>
+    </div>`;
+  document.getElementById('startBtn').onclick = () => go('recall');
+}
+
+/* ---------- Screen 1: recall (W14 部署) ---------- */
+function renderRecall(){
+  document.getElementById('screen').innerHTML = `
+    <div class="card">
+      <span class="stage-flag">${ICON.flag}<span>回顧 · 上週 W14</span></span>
+      <h2 class="mt16">出發前，先想想上週的事</h2>
+      <p class="sub">上週你把作品推上了網路。先回憶兩個關鍵詞，它們正是這趟旅程的終點伏筆。</p>
+
+      <div class="step" id="rq1">
+        <div class="step-label"><span class="n">1</span> 自由作答</div>
+        <p class="qtext">「上週你把作品推上 GitHub Pages，拿到一個任何人都打得開的 ____。」</p>
+        <div class="field mt16"><input class="txt" id="r1" placeholder="輸入你的答案…" autocomplete="off"></div>
+        <div class="hint">提示：別人要『打開』你的網站，需要一個什麼東西？</div>
+        <div class="feedback" id="r1fb"></div>
+      </div>
+
+      <div class="step hidden" id="rq2">
+        <div class="step-label"><span class="n">2</span> 自由作答</div>
+        <p class="qtext">「把程式碼推上去、讓網站更新，這個工具叫 ____。」</p>
+        <div class="field mt16"><input class="txt" id="r2" placeholder="輸入你的答案…" autocomplete="off"></div>
+        <div class="hint">提示：工程師的「存檔／後悔藥」工具，三個字母。</div>
+        <div class="feedback" id="r2fb"></div>
+      </div>
+
+      <div class="row">
+        <button class="btn" id="rNext" disabled>下一步</button>
+        ${TEST_MODE ? `<button class="skip-test" id="rSkip">跳過 ›</button>`:''}
+      </div>
+    </div>`;
+
+  if(TEST_MODE){ const rs=document.getElementById('rSkip'); if(rs) rs.onclick=()=>{ S.recallDone=true; save(); go('taskA'); }; }
+  const r1 = document.getElementById('r1'), r2 = document.getElementById('r2');
+  [r1,r2].forEach(blockPaste);
+  const r1syn = ["網址","url","連結"], r2syn = ["git"];
+  let p1=false, p2=false;
+  const btn = document.getElementById('rNext');
+
+  function chk(){
+    p1 = validateBlank(r1.value, r1syn);
+    document.getElementById('r1fb').textContent = r1.value ? (p1?'✓ 沒錯，就是「網址 / URL」！':'再想想，別人要「打開」你的網站需要什麼？') : '';
+    document.getElementById('r1fb').className = 'feedback ' + (r1.value?(p1?'ok':'no'):'');
+    if(p1) document.getElementById('rq2').classList.remove('hidden');
+    if(p1){
+      p2 = validateBlank(r2.value, r2syn);
+      document.getElementById('r2fb').textContent = r2.value ? (p2?'✓ 正是 Git！':'是工程師用來存檔、能回到舊版本的工具…') : '';
+      document.getElementById('r2fb').className = 'feedback ' + (r2.value?(p2?'ok':'no'):'');
+    }
+    btn.disabled = !(p1&&p2);
+  }
+  r1.addEventListener('input', chk); r2.addEventListener('input', chk);
+  btn.onclick = () => { S.recallDone = true; save(); go('taskA'); };
+}
+
+/* ---------- 通用：模擬器一格（4 步） ---------- */
+function renderStageCard(globalIndex, opts){
+  // opts: { container, onPass, isClimax }
+  const st = STAGES[globalIndex];
+  const screen = document.getElementById('screen');
+  screen.innerHTML = `
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <span class="stage-flag">${ICON[st.icon]}<span>階段 <b>${globalIndex+1}</b> / 15 · ${st.stage}</span></span>
+        <span style="display:flex;align-items:center;gap:8px">
+          ${opts.headerNote ? `<span class="muted" style="font-size:12px">${opts.headerNote}</span>`:''}
+          ${TEST_MODE ? `<button class="skip-test" id="skipStage">跳過這關 ›</button>`:''}
+        </span>
+      </div>
+
+      <div class="ai">
+        <div class="avatar">${ICON.ai}</div>
+        <div class="bubble" id="passage">${highlightTerm(st)}</div>
+      </div>
+
+      ${st.realWorld ? `
+      <details class="real-world">
+        <summary>${ICON.code} 想知道真實世界怎麼做？（點開看）</summary>
+        <div class="rw-body">
+          <div class="rw-title">${esc(st.realWorld.title)}</div>
+          <div class="rw-sub">常用的服務：</div>
+          <ul class="rw-list">${st.realWorld.services.map(s=>`<li>${esc(s)}</li>`).join('')}</ul>
+          <div class="rw-sub">怎麼接（步驟）：</div>
+          <ol class="rw-steps">${st.realWorld.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>
+        </div>
+      </details>` : ''}
+
+      <!-- Step 2: 閱讀理解（多題，需讀懂段落） -->
+      <div class="step" id="s2">
+        <div class="step-label"><span class="n">1</span> 讀懂了嗎？答對下面 ${st.quiz.length} 題才能繼續</div>
+        <div id="quizWrap"></div>
+        <div class="feedback" id="s2fb"></div>
+      </div>
+
+      <!-- Step 3: 填空 -->
+      <div class="step hidden" id="s3">
+        <div class="step-label"><span class="n">2</span> 填出這個專有名詞</div>
+        <div class="field"><input class="txt" id="blank" placeholder="輸入專有名詞…" autocomplete="off"></div>
+        <div class="hint">${st.blankHint}</div>
+        <div class="feedback" id="s3fb"></div>
+      </div>
+
+      ${st.decision ? `
+      <!-- Step 3.5: 做一個產品決定（二選一） -->
+      <div class="step hidden" id="sDecide">
+        <div class="step-label"><span class="n">★</span> 做個決定：${st.decision.q}</div>
+        <div class="decide-opts" id="decideOpts"></div>
+        <div class="feedback" id="decideFb"></div>
+      </div>` : ''}
+
+      <!-- Step 4: 用白話一句話告訴 AI 你想讓遊戲做到什麼（AI 幫你做，並自動歸檔） -->
+      <div class="step hidden" id="s4">
+        <div class="step-label"><span class="n">3</span> ${opts.isClimax ? '寫一句你要對玩家說的「上線宣言」' : '用一句話告訴 AI：這一步你想讓遊戲做到什麼？'}</div>
+        <div class="field"><textarea class="txt" id="sent" rows="2" placeholder="${opts.isClimax ? '例：我的躲隕石遊戲正式發布上線，快來挑戰你的最高分！' : (st.taskExample ? esc(st.taskExample) : '用白話講清楚你想要什麼…')}"></textarea></div>
+        <div class="hint">用一句通順的白話，講清楚你想讓遊戲做到什麼。不用講專有名詞、不用指定檔名——<b>AI 會幫你判斷寫得清不清楚、方向對不對</b>，聽懂了才會幫你做、並把成果歸到左邊資料夾。不能用貼上。</div>
+        <div class="feedback" id="s4fb"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn ghost" id="aiReview" disabled>${opts.isClimax ? '送出上線宣言' : '送出給 AI'}</button>
+          <span class="ai-status" id="aiStatus"></span>
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="btn" id="stageNext" disabled>${opts.isClimax ? '發布上線！ →' : '完成這一站 →'}</button>
+        <span class="reward" id="reward">${ICON.coin} +${STAGE_COIN[globalIndex]} 金幣</span>
+      </div>
+    </div>`;
+
+  // build comprehension quiz（多題、選項洗牌、全對才解鎖填空）
+  const quizWrap = document.getElementById('quizWrap');
+  const quizPassed = new Array(st.quiz.length).fill(false);
+  function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+  function checkQuizAll(){
+    if(quizPassed.every(Boolean)){
+      document.getElementById('s2fb').textContent = '✓ 全部答對，你真的讀懂了！';
+      document.getElementById('s2fb').className = 'feedback ok';
+      document.getElementById('s3').classList.remove('hidden');
+    }
+  }
+  st.quiz.forEach((Q, qi) => {
+    const block = document.createElement('div');
+    block.className = 'quiz-q';
+    block.innerHTML = `<div class="quiz-qtext">${qi+1}. ${Q.q}</div><div class="options"></div>`;
+    const optsEl = block.querySelector('.options');
+    const order = shuffle(Q.options.map((_, i) => i)); // 洗牌索引，避免「正確答案永遠在同一格」
+    order.forEach(origIdx => {
+      const b = document.createElement('button');
+      b.className = 'opt'; b.textContent = Q.options[origIdx];
+      b.onclick = () => {
+        if(quizPassed[qi]) return;
+        if(origIdx === Q.answer){
+          b.classList.add('correct');
+          [...optsEl.children].forEach(c => c.disabled = true);
+          quizPassed[qi] = true;
+          checkQuizAll();
+        } else {
+          lockWrongOption(b);
+          document.getElementById('s2fb').textContent = '這個選項不對，而且被鎖住了。回去把 AI 那段話再讀一次。';
+          document.getElementById('s2fb').className = 'feedback no';
+        }
+      };
+      optsEl.appendChild(b);
+    });
+    quizWrap.appendChild(block);
+  });
+
+  // 決策站：填空通過 → 先做決定 → 才解鎖 prompt；非決策站：填空通過直接解鎖 prompt
+  let decided = !st.decision;  // 沒有決策就視為已決定
+  function revealAfterBlank(){
+    if(st.decision) document.getElementById('sDecide').classList.remove('hidden');
+    else document.getElementById('s4').classList.remove('hidden');
+  }
+  if(st.decision){
+    const dOpts = document.getElementById('decideOpts');
+    st.decision.options.forEach(o => {
+      const b=document.createElement('button'); b.className='decide-btn'; b.textContent=o.label;
+      b.onclick=()=>{
+        if(!S.spec) S.spec=defaultSpec();
+        S.spec[st.decision.key]=o.val; save();
+        [...dOpts.children].forEach(c=>c.classList.remove('chosen'));
+        b.classList.add('chosen');
+        const note = st.decision.note && st.decision.note[o.val];
+        document.getElementById('decideFb').textContent = '✓ 已決定：' + o.label + (note?'　'+note:'');
+        document.getElementById('decideFb').className = 'feedback ok';
+        decided = true;
+        document.getElementById('s4').classList.remove('hidden');
+        GamePreview.sync(); renderWorkspace(false);
+        recheck();
+      };
+      dOpts.appendChild(b);
+    });
+  }
+
+  // blank
+  const blank = document.getElementById('blank'); blockPaste(blank);
+  let passBlank=false, passSent=false;
+  blank.addEventListener('input', () => {
+    passBlank = validateBlank(blank.value, st.synonyms);
+    document.getElementById('s3fb').textContent = blank.value ? (passBlank?`✓ 正確：${st.term}`:'還不太對，再讀一次 AI 段落裡被標起來的詞。') : '';
+    document.getElementById('s3fb').className = 'feedback ' + (blank.value?(passBlank?'ok':'no'):'');
+    if(passBlank) revealAfterBlank();
+    recheck();
+  });
+
+  // prompt — 本地只看「夠不夠長能送出」；亂碼/離題/語意/方向全交給 AI 判讀
+  const task = st || {};
+  const MIN_LEN = 6;  // 唯一通用門檻：太短就先別送 API
+  const sent = document.getElementById('sent'); blockPaste(sent);
+  const aiBtn = document.getElementById('aiReview');
+  const aiStatus = document.getElementById('aiStatus');
+  let aiOK = false;
+  let refineRound = 0;  // re-prompt：第一次 prompt 少了關鍵細節時，要求再講一次
+
+  sent.addEventListener('input', () => {
+    const len = [...sent.value.trim()].length;
+    passSent = len >= MIN_LEN;
+    let msg = '';
+    // re-prompt 第二輪：要補上 AI 指出缺的關鍵細節才能再送
+    if(passSent && st.refine && refineRound===1 && !st.refine.check(sent.value)){
+      passSent = false;
+    }
+    if(sent.value){
+      if(passSent) msg = '可以送出給 AI 看看（AI 會判斷你寫得清不清楚）';
+      else if(len < MIN_LEN) msg = `再多寫一點（目前 ${len} 字）`;
+      else if(st.refine && refineRound===1) msg = st.refine.hint || '再補上剛剛 AI 問你的那個細節';
+    }
+    document.getElementById('s4fb').textContent = msg;
+    document.getElementById('s4fb').className = 'feedback ' + (sent.value?(passSent?'ok':'no'):'');
+    // editing resets any previous AI verdict — must re-send
+    aiOK = false; aiStatus.textContent = ''; aiStatus.className = 'ai-status';
+    aiBtn.disabled = !passSent;
+    recheck();
+  });
+
+  aiBtn.onclick = async () => {
+    if(!passSent || aiBtn.disabled) return;
+    aiBtn.disabled = true;
+    aiStatus.className = 'ai-status loading';
+    aiStatus.innerHTML = '<span class="spin"></span> AI 正在讀你的指令…';
+    try {
+      const resp = await fetch('/api/review-sentence', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ stage: st.stage, stageGoal: task.goal || '', gameContext: '一款用左右鍵閃避掉落隕石的網頁小遊戲', term: st.term, sentence: sent.value })
+      });
+      if(!resp.ok) throw new Error('api');
+      const data = await resp.json();
+      const verdict = !!data.passed;
+      if(verdict && tryRefine()) return;  // 觸發 re-prompt → 先不算完成
+      aiOK = verdict;
+      aiStatus.className = 'ai-status ' + (aiOK?'ok':'no');
+      aiStatus.textContent = (aiOK?'✓ ':'✗ ') + (data.feedback || (aiOK?'AI：好的，我來幫你做！':'AI：我不太確定你要什麼，再講清楚一點？'));
+      aiBtn.disabled = aiOK; // pass -> lock button; fail -> allow retry after edit
+      if(!aiOK) aiBtn.disabled = false;
+      if(aiOK){ aiStatus.textContent += `（AI 幫你歸檔成 ${ARTIFACTS[globalIndex].file}，看左邊 →）`; saveArtifact(globalIndex, sent.value); }
+    } catch(e) {
+      // 離線 / 獨立開啟 / API 不可用 → 沒有 AI 可判讀，退回通用最低檢查：夠長＋不是明顯亂打
+      const ok = [...sent.value.trim()].length >= MIN_LEN && !looksLikeGibberish(sent.value);
+      if(ok && tryRefine()) return;
+      aiOK = ok;
+      aiStatus.className = 'ai-status ' + (ok?'ok':'no');
+      aiStatus.textContent = ok
+        ? `✓ 已歸檔成 ${ARTIFACTS[globalIndex].file}（離線練習模式：沒有 AI 幫你看，記得自己讀通順）`
+        : '✗ 離線練習模式：請用通順的話再寫一次（不要亂打）';
+      aiBtn.disabled = ok;
+      if(ok) saveArtifact(globalIndex, sent.value);
+    }
+    recheck();
+  };
+
+  // re-prompt：第一次 prompt 雖然方向對，但少了關鍵細節 → AI 反問，要求再講一次
+  function tryRefine(){
+    if(st.refine && refineRound===0 && st.refine.needs(sent.value)){
+      refineRound = 1;
+      aiOK = false;
+      aiBtn.disabled = true; // 必須先編輯補上細節
+      aiStatus.className = 'ai-status no';
+      aiStatus.textContent = st.refine.ask;
+      const h = document.querySelector('#s4 .hint'); if(h) h.textContent = st.refine.hint || h.textContent;
+      passSent = false;
+      recheck();
+      return true;
+    }
+    return false;
+  }
+
+  function recheck(){ document.getElementById('stageNext').disabled = !(passBlank && decided && passSent && aiOK); }
+
+  document.getElementById('stageNext').onclick = () => {
+    if(!S.done[globalIndex]){
+      S.done[globalIndex] = true;
+      S.coins += STAGE_COIN[globalIndex];
+      save();
+      Account.creditCoins('s5w15_stage_'+globalIndex, STAGE_COIN[globalIndex], '遊戲完成：'+st.stage);
+    }
+    const rw = document.getElementById('reward'); rw.classList.add('show');
+    renderHUD();
+    setTimeout(opts.onPass, 650);
+  };
+
+  // 測試模式：跳過這關（仍存入產物 + 加金幣，讓預覽/工作區照常推進）
+  if(TEST_MODE){
+    const sk = document.getElementById('skipStage');
+    if(sk) sk.onclick = () => {
+      saveArtifact(globalIndex, '（測試略過）');
+      if(!S.done[globalIndex]){ S.done[globalIndex] = true; S.coins += STAGE_COIN[globalIndex]; save(); Account.creditCoins('s5w15_stage_'+globalIndex, STAGE_COIN[globalIndex], '遊戲完成：'+st.stage); }
+      renderHUD();
+      setTimeout(opts.onPass, 150);
+    };
+  }
+}
+function highlightTerm(st){
+  // 在段落中把第一次出現的 term 標亮（閱讀提示）
+  const idx = st.passage.indexOf(st.term);
+  if(idx < 0) return st.passage;
+  return st.passage.slice(0,idx) + `<span class="term">${st.term}</span>` + st.passage.slice(idx+st.term.length);
+}
+
+/* ---------- Screen 2: taskA (stages 0-6) ---------- */
+function renderTaskA(){
+  const next = S.done.slice(0,7).findIndex(d => !d);
+  if(next === -1){ openModal('A'); return; }
+  renderStageCard(next, {
+    headerNote: 'taskA · 開發前半段',
+    onPass: () => { if(S.done.slice(0,7).every(Boolean)) openModal('A'); else renderTaskA(); }
+  });
+}
+
+/* ---------- Screen 3: taskB (stages 7-14) ---------- */
+function renderTaskB(){
+  const next = S.done.slice(7,15).findIndex(d => !d);
+  if(next === -1){ openModal('B'); return; }
+  const gi = 7 + next;
+  const climax = (gi === 14);
+  renderStageCard(gi, {
+    headerNote: 'taskB · 開發後半段',
+    isClimax: climax,
+    onPass: () => {
+      if(climax){ rocketInterstitial(); return; }
+      if(S.done.slice(7,15).every(Boolean)) openModal('B'); else renderTaskB();
+    }
+  });
+}
+
+/* taskA→taskB 過場（key message 出現處之一） */
+function taskTransition(){
+  document.getElementById('screen').innerHTML = `
+    <div class="card center">
+      <div class="badge" style="max-width:80px;margin:0 auto"><div class="bic">${ICON.code}</div></div>
+      <h2 class="mt16">前半段完成！</h2>
+      <p class="sub">你已經走過：發想 → 企劃 → 規格 → 設計 → 介面 → 開發環境 → 開發。</p>
+      <div class="key-msg" style="text-align:left">${KEY_MSG}</div>
+      <p class="muted">接下來進入後半段：讓遊戲真的會動、抓 bug、測試，一路到發布上線。</p>
+      <div class="row" style="justify-content:center"><button class="btn" id="toB">繼續開發 →</button></div>
+    </div>`;
+  document.getElementById('toB').onclick = () => go('taskB');
+}
+
+/* 發布火箭過場 */
+function rocketInterstitial(){
+  document.getElementById('screen').innerHTML = `
+    <div class="card center">
+      <h2>遊戲正式發布上線！</h2>
+      <div class="launchpad stars">
+        <div class="rocket go" id="rk">${rocketSVG()}</div>
+        <div class="flame"></div>
+      </div>
+      <p class="sub">你親手把一款遊戲從一句話的想法，送上了網路。</p>
+      <div class="row" style="justify-content:center"><button class="btn" id="afterLaunch">查看成果 →</button></div>
+    </div>`;
+  document.getElementById('afterLaunch').onclick = () => openModal('B');
+}
+
+/* ---------- Rehearsal Modal A / B ---------- */
+function openModal(which){
+  const overlay = document.getElementById('overlay');
+  const modal = document.getElementById('modal');
+
+  if(which === 'A'){
+    modal.innerHTML = `
+      <span class="stage-flag">${ICON.check}<span>排練 · 回顧前半段</span></span>
+      <h2 class="mt16">句子接龍</h2>
+      <p class="sub">把空格填對，才能繼續。（讀懂前半段就會了）</p>
+      <p class="qtext mt16">「做遊戲的第一步不是寫程式，而是先搞清楚使用者要什麼，這叫
+        <input class="txt" id="mA1" style="display:inline-block;width:140px" placeholder="____" autocomplete="off">；
+        把它列成清單就是
+        <input class="txt" id="mA2" style="display:inline-block;width:160px" placeholder="____" autocomplete="off">。」</p>
+      <div class="hint mt8">想一想：先「想清楚」還是先「寫程式」？原型是不是最終成品？UI 和 UX 一樣嗎？</div>
+      <div class="key-msg" style="text-align:left">${KEY_MSG}</div>
+      <div class="feedback" id="mAfb"></div>
+      <div class="row"><button class="btn" id="mAok" disabled>完成排練 →</button></div>`;
+    overlay.classList.add('show');
+    const a1 = modal.querySelector('#mA1'), a2 = modal.querySelector('#mA2');
+    [a1,a2].forEach(blockPaste);
+    const ok = modal.querySelector('#mAok');
+    function chk(){
+      const p1 = validateBlank(a1.value, ["需求","requirement"]);
+      const p2 = validateBlank(a2.value, ["規格書","規格","spec","功能清單"]);
+      modal.querySelector('#mAfb').textContent = (a1.value||a2.value) ? (p1&&p2?'✓ 完全正確！':'再想想：先搞清楚要什麼＝需求；列成清單＝規格書。') : '';
+      modal.querySelector('#mAfb').className = 'feedback ' + ((a1.value||a2.value)?(p1&&p2?'ok':'no'):'');
+      ok.disabled = !(p1&&p2);
+    }
+    a1.addEventListener('input',chk); a2.addEventListener('input',chk);
+    ok.onclick = () => { overlay.classList.remove('show'); taskTransition(); };
+  } else {
+    modal.innerHTML = `
+      <span class="stage-flag">${ICON.check}<span>排練 · 回顧後半段</span></span>
+      <h2 class="mt16">句子接龍（最終回）</h2>
+      <p class="sub">四個空格全對，就能抵達終點。</p>
+      <p class="qtext mt16">「程式出錯叫
+        <input class="txt" id="mB1" style="display:inline-block;width:120px" placeholder="____" autocomplete="off">，
+        把它修好叫
+        <input class="txt" id="mB2" style="display:inline-block;width:140px" placeholder="____" autocomplete="off">；
+        全部試過沒問題後，把遊戲放上網拿到網址叫
+        <input class="txt" id="mB3" style="display:inline-block;width:140px" placeholder="____" autocomplete="off">，
+        正式公開給大家玩叫
+        <input class="txt" id="mB4" style="display:inline-block;width:140px" placeholder="____" autocomplete="off">。」</p>
+      <div class="hint mt8">小心：有 bug 不能直接發布；部署 ≠ 發布；除錯不是重寫整個程式。</div>
+      <div class="feedback" id="mBfb"></div>
+      <div class="row"><button class="btn" id="mBok" disabled>抵達終點 →</button></div>`;
+    overlay.classList.add('show');
+    const ins = ['#mB1','#mB2','#mB3','#mB4'].map(s => modal.querySelector(s));
+    ins.forEach(blockPaste);
+    const ok = modal.querySelector('#mBok');
+    function chk(){
+      const p1 = validateBlank(ins[0].value, ["bug","蟲","錯誤"]);
+      const p2 = validateBlank(ins[1].value, ["除錯","debug"]);
+      const p3 = validateBlank(ins[2].value, ["部署","deploy"]);
+      const p4 = validateBlank(ins[3].value, ["發布","上線","release"]);
+      const all = p1&&p2&&p3&&p4;
+      const any = ins.some(i=>i.value);
+      modal.querySelector('#mBfb').textContent = any ? (all?'✓ 全部正確，出發！':'bug／除錯／部署／發布，對應修錯與上線的四步。') : '';
+      modal.querySelector('#mBfb').className = 'feedback ' + (any?(all?'ok':'no'):'');
+      ok.disabled = !all;
+    }
+    ins.forEach(i => i.addEventListener('input',chk));
+    ok.onclick = () => { overlay.classList.remove('show'); go('summary'); };
+  }
+}
+
+/* ---------- Screen 4: summary（句子接龍 + key message） ---------- */
+function renderSummary(){
+  document.getElementById('screen').innerHTML = `
+    <div class="card">
+      <span class="stage-flag">${ICON.flag}<span>總整理</span></span>
+      <h2 class="mt16">一句話，串起整趟旅程</h2>
+      <p class="sub">把這 15 站連成一條線，你就真的懂了一款遊戲是怎麼誕生的。</p>
+      <div class="ai">
+        <div class="avatar">${ICON.ai}</div>
+        <div class="bubble">
+          先搞懂玩家的<span class="term">需求</span>，當好<span class="term">產品經理</span>寫出<span class="term">規格書</span>；
+          做個<span class="term">原型</span>試方向，顧好<span class="term">UI / UX</span>；
+          用<span class="term">版本控制</span>存檔，把清單做成一個個<span class="term">功能</span>，用<span class="term">變數</span>記住會變的值；
+          請<span class="term">Copilot</span>協作、不斷<span class="term">迭代</span>；遇到<span class="term">bug</span> 就<span class="term">除錯</span>；
+          上線前完整<span class="term">測試</span>，<span class="term">部署</span>拿到網址，最後<span class="term">發布</span>上線！
+        </div>
+      </div>
+      <div class="key-msg">${KEY_MSG}</div>
+      <div class="row"><button class="btn" id="toWall">看我的技能牆 →</button></div>
+    </div>`;
+  document.getElementById('toWall').onclick = () => go('wall');
+}
+
+/* ---------- Screen 5: skill wall ---------- */
+function renderWall(){
+  const badges = STAGES.map((st,i) => `
+    <div class="badge ${S.done[i]?'':'dim'}">
+      <div class="bic">${ICON[st.icon]}</div>
+      <div class="bt">${st.term}</div>
+      <div class="bs">階段 ${i+1}·${st.stage}</div>
+    </div>`).join('');
+  document.getElementById('screen').innerHTML = `
+    <div class="card">
+      <h2>專有名詞技能牆</h2>
+      <p class="sub">你收集到的 15 個關鍵詞——這就是一款遊戲從想法到上線的全部地圖。</p>
+      <div class="key-msg">${KEY_MSG}</div>
+      <div class="wall">${badges}</div>
+      <div class="row"><button class="btn" id="toExam">最後一關：總複習考試 →</button></div>
+    </div>`;
+  document.getElementById('toExam').onclick = () => go('exam');
+}
+
+/* ---------- Screen: 總複習考試 ---------- */
+function renderExam(){
+  const score = { correct:0, answered:0 };
+  const total = EXAM.length;
+  const screen = document.getElementById('screen');
+  screen.innerHTML = `
+    <div class="card">
+      <span class="stage-flag">${ICON.flag}<span>總複習考試</span></span>
+      <h2 class="mt16">畢業考：你真的學會了嗎？</h2>
+      <p class="sub">把這 ${total} 題答完，看看你能拿幾分。每題作答後會立刻告訴你對不對。</p>
+      <div class="key-msg" style="margin:12px 0">${KEY_MSG}</div>
+      <div id="examWrap"></div>
+      <div id="examResult"></div>
+    </div>`;
+  const wrap = document.getElementById('examWrap');
+  function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+  EXAM.forEach((Q, qi) => {
+    const block = document.createElement('div'); block.className='quiz-q';
+    block.innerHTML = `<div class="quiz-qtext">${qi+1}. ${Q.q}</div><div class="options"></div>`;
+    const optsEl = block.querySelector('.options');
+    shuffle(Q.options.map((_,i)=>i)).forEach(origIdx => {
+      const b=document.createElement('button'); b.className='opt'; b.textContent=Q.options[origIdx];
+      b.onclick=()=>{
+        if(b.dataset.locked || optsEl.dataset.done) return;
+        optsEl.dataset.done='1';
+        score.answered++;
+        if(origIdx===Q.answer){ b.classList.add('correct'); score.correct++; }
+        else { b.classList.add('locked'); [...optsEl.children].forEach(c=>{ if(c.textContent===Q.options[Q.answer]) c.classList.add('correct'); }); }
+        [...optsEl.children].forEach(c=>c.disabled=true);
+        if(score.answered===total) finishExam();
+      };
+      optsEl.appendChild(b);
+    });
+    wrap.appendChild(block);
+  });
+  function finishExam(){
+    const bonus = score.correct*3;
+    if(!S.examDone){ S.examDone=true; S.examScore=score.correct; S.coins += bonus; save(); renderHUD(); Account.creditCoins('s5w15_exam', bonus, '遊戲：總複習考試 '+score.correct+'/'+total); }
+    const grade = score.correct===total ? '滿分！你是真正的開發者 🏆'.replace('🏆','') : score.correct>=Math.ceil(total*0.7) ? '很棒！你掌握了開發流程' : '再複習一下，你可以更好';
+    document.getElementById('examResult').innerHTML = `
+      <div class="exam-cert">
+        <div class="exam-score">${score.correct} / ${total}</div>
+        <div class="exam-grade">${grade}</div>
+        <div class="muted" style="margin-top:6px">考試獎勵 +${bonus} 金幣</div>
+        <div class="key-msg" style="text-align:left;margin-top:14px">${KEY_MSG}</div>
+        <div class="row" style="justify-content:center"><button class="btn" id="examDone">領取證書 →</button></div>
+      </div>`;
+    document.getElementById('examResult').scrollIntoView({behavior:'smooth'});
+    document.getElementById('examDone').onclick = () => go('done');
+  }
+}
+
+/* ---------- Screen 6: done ---------- */
+function renderDone(){
+  const completed = S.done.filter(Boolean).length;
+  const pct = Math.round(completed/15*100);
+  document.getElementById('screen').innerHTML = `
+    <div class="card done-banner">
+      <div class="launchpad stars">
+        <div class="rocket go">${rocketSVG()}</div>
+        <div class="flame"></div>
+      </div>
+      <div class="big-pct">${pct}%</div>
+      <h1>你的遊戲已上線！</h1>
+      <p class="sub">從一句話的想法，到正式發布——15 個階段，你全部走完了。</p>
+      ${S.examDone ? `<div style="margin-top:12px;font-weight:800;color:var(--good)">總複習考試：${S.examScore} / ${EXAM.length} 分</div>` : ''}
+      <div class="coin" style="display:inline-flex;margin-top:14px">${ICON.coin}<span>${S.coins}</span> 金幣已入袋</div>
+      <div class="key-msg" style="text-align:left;margin-top:18px">${KEY_MSG}</div>
+      <div class="row" style="justify-content:center;margin-top:14px"><button class="btn play-cta" id="playGame">▶ 玩你做好的遊戲</button></div>
+      <div><button class="restart" id="restart">重新開始這趟旅程</button></div>
+    </div>`;
+  document.getElementById('playGame').onclick = () => PlayGame.open();
+  document.getElementById('restart').onclick = () => {
+    if(confirm('確定要清除進度、重新開始嗎？')){ S = defaultState(); save(); go('start'); }
+  };
+}
+
+/* =========================================================
+   BOOT — 從上次進度繼續（先用本機即時顯示，再從雲端帳號同步）
+   ========================================================= */
+render();
+renderAccountBadge();
+
+(async function cloudSync(){
+  if(!Account.ready) return;
+  const cloud = await Account.loadProgress();
+  if(cloud && cloud.done && cloud.done.length===15){
+    // 雲端進度若 >= 本機，採用雲端（換裝置續玩）；否則把本機推上雲端
+    if(progressScore(cloud) > progressScore(S)){
+      cloud.justSaved=-1;
+      if(!cloud.spec) cloud.spec=defaultSpec(); else cloud.spec=Object.assign(defaultSpec(), cloud.spec);
+      S = cloud; save(); render();
+    } else {
+      Account.saveProgress(S);
+    }
+  } else {
+    Account.saveProgress(S); // 帳號第一次玩：把目前進度建到雲端
+  }
+  renderAccountBadge();
+})();
+
+function renderAccountBadge(){
+  let el=document.getElementById('acctBadge');
+  if(!el){ el=document.createElement('div'); el.id='acctBadge'; el.className='acct-badge'; document.body.appendChild(el); }
+  if(Account.ready){ el.innerHTML='<span class="dot ok"></span> 已綁定帳號：'+(esc(Account.name)||'已登入')+'　進度與金幣會跨裝置同步'; }
+  else { el.innerHTML='<span class="dot warn"></span> 訪客模式：進度只存這台電腦。<a href="/login">登入</a>後才會綁定帳號、跨裝置續玩'; }
+}
+</script>
+</body>
+</html>

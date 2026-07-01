@@ -1,0 +1,50 @@
+rules_version = '2';
+
+// ⚠️ 重要：這個 app 用自訂的 localStorage 登入（見 src/contexts/AuthContext.tsx），
+// 並「沒有」使用 Firebase Authentication。因此規則裡 request.auth 永遠是 null——
+// 任何依賴 request.auth 的規則都會讓整個 app（和遊戲）完全無法讀寫。
+//
+// 這裡採用符合現況的策略：
+//   1) 非過期（取代會在約 30 天後失效、之後全部壞掉的「測試模式」規則）
+//   2) 只開放 app 實際用到的 collection，其餘一律預設拒絕
+//   3) 涵蓋子集合（users/.../progress、users/.../activities、studentProgress/.../worksheets）
+//      以及本次新增的 gameProgress（遊戲進度）
+//
+// 想要「每位使用者只能改自己的資料」這種真正的權限控管，需要先導入
+// Firebase Anonymous Auth（每個 session 一個穩定 uid），再改成 per-user 規則。
+// 詳見 README 或問我，可另外幫你升級。
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 使用者資料 + 其下子集合（progress/quests、activities/*）
+    match /users/{userId} {
+      allow read, write: if true;
+      match /{sub=**} { allow read, write: if true; }
+    }
+
+    // 學生學習單進度 + worksheets 子集合
+    match /studentProgress/{studentId} {
+      allow read, write: if true;
+      match /{sub=**} { allow read, write: if true; }
+    }
+
+    // 一般 collection
+    match /memories/{id}        { allow read, write: if true; }
+    match /coins/{id}           { allow read, write: if true; }   // 金幣餘額（app / 學習單 / 遊戲共用）
+    match /battleStats/{id}     { allow read, write: if true; }
+    match /classrooms/{id}      { allow read, write: if true; }
+    match /system/{id}          { allow read, write: if true; }   // featureFlags / announcement / cardImages / questImages
+    match /settings/{id}        { allow read, write: if true; }   // activity
+    match /themes/{id}          { allow read, write: if true; }
+    match /conversations/{id}   { allow read, write: if true; }
+    match /cardCollections/{id} { allow read, write: if true; }
+    match /cardAnimations/{id}  { allow read, write: if true; }
+    match /pvpRooms/{id}        { allow read, write: if true; }
+    match /worksheets/{id}      { allow read, write: if true; }
+    match /auditLog/{id}        { allow read, write: if true; }
+    match /gameProgress/{id}    { allow read, write: if true; }   // ← S5-W15 遊戲進度（本次新增）
+
+    // 其餘未列出的路徑：預設拒絕（Firestore 沒有匹配規則即拒絕）
+  }
+}

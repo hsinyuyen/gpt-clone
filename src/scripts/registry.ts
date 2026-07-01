@@ -36,6 +36,19 @@ export function getAllScripts(): ScriptDefinition[] {
   return scriptDefinitions;
 }
 
+// External scripts — clicking opens a standalone page (game / worksheet) instead of an in-chat script
+const externalScripts: Script[] = [
+  {
+    id: "game-lab",
+    name: "遊戲開發模擬器",
+    description: "S5-W15｜學做一款躲隕石遊戲，最後真的能玩！",
+    icon: "game",
+    category: "learning",
+    isAvailable: true,
+    externalUrl: "/games/s5-w15-game-simulator.html",
+  },
+];
+
 // Placeholder scripts (not yet implemented, shown as "coming soon")
 const placeholderScripts: Script[] = [
   {
@@ -56,7 +69,7 @@ const placeholderScripts: Script[] = [
   },
 ];
 
-// Get all scripts for display (including placeholders)
+// Get all scripts for display (including external links and placeholders)
 export function getDisplayScripts(): Script[] {
-  return [...getAllScriptMetadata(), ...placeholderScripts];
+  return [...getAllScriptMetadata(), ...externalScripts, ...placeholderScripts];
 }
