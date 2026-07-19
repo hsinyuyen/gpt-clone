@@ -37,3 +37,7 @@ next-env.d.ts
 
 # dotenv variables
 .env
+
+# stray Windows reserved-name file + Claude Code worktree artifacts
+nul
+.claude/worktrees/
