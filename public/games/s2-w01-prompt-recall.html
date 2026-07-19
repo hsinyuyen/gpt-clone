@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>Prompt 記憶回放 · S2-W01</title>
+<!-- 帳號綁定（沿用 gameKey：s2w01；與 P1U 同一套 coins/gameProgress 錢包） -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --bg:#0b2036; --bg2:#071627; --panel:#0e2c46; --ink:#eaf6ff; --dim:#9fc0dd;
+    --role:#9b6bd6; --bgc:#2bb0c7; --prob:#ff7ab0;      /* 互動詞彙：角色紫/背景青/問題粉（全課一致） */
+    --good:#2bd17e; --bad:#8895a3; --gold:#ffd75e; --line:#1d456b;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; touch-action:none;}
+  html,body{margin:0;height:100%;}
+  body{background:radial-gradient(1200px 700px at 50% -10%, #12395c, var(--bg)); color:var(--ink);
+    font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif; overflow:hidden; user-select:none;}
+  #app{position:fixed; inset:0; display:flex; flex-direction:column;}
+  /* 頂列 HUD */
+  #top{display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--line); background:rgba(7,22,39,.7);}
+  #top .title{font-weight:900; font-size:15px; letter-spacing:.5px;}
+  #segs{display:flex; gap:4px; flex:1; align-items:center;}
+  .seg{height:8px; border-radius:4px; background:#123; flex:1; max-width:38px; opacity:.5; transition:.3s;}
+  .seg.on{background:var(--gold); opacity:1;}
+  .seg.cur{background:#5bc0ff; opacity:1; box-shadow:0 0 8px #5bc0ff;}
+  #coins{font-weight:900; color:var(--gold); font-size:15px; display:flex; align-items:center; gap:5px;}
+  #coins .c{width:15px;height:15px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2b0,var(--gold));box-shadow:0 0 6px var(--gold);}
+  #redo{border:1px solid var(--line); background:transparent; color:var(--dim); border-radius:8px; padding:4px 9px; font-size:12px; cursor:pointer;}
+  #redo:hover{color:var(--ink); border-color:var(--dim);}
+  /* 舞台 */
+  #stage{position:relative; flex:1; overflow:hidden;}
+  .screen{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; padding:14px; overflow:hidden;}
+  .prompttip{font-size:12px; color:var(--dim); text-align:center; margin-top:2px;}
+  h1{font-size:clamp(20px,5vw,30px); margin:6px 0; text-align:center;}
+  .memline{font-weight:900; letter-spacing:1px; text-align:center; font-size:clamp(15px,3.6vw,20px);}
+  .memline .r{color:var(--role);} .memline .b{color:var(--bgc);} .memline .p{color:var(--prob);}
+  .subq{font-size:clamp(15px,3.8vw,19px); font-weight:800; text-align:center; margin:4px 0 10px;}
+  /* 卡片 */
+  .card{position:relative; border-radius:14px; padding:10px 14px; font-weight:800; font-size:clamp(13px,3.4vw,16px);
+    color:#06202f; box-shadow:0 4px 0 rgba(0,0,0,.25),0 6px 14px rgba(0,0,0,.3); cursor:grab; touch-action:none;
+    display:flex; align-items:center; gap:7px; min-height:44px; line-height:1.25; border:2px solid rgba(255,255,255,.35);}
+  .card .tag{font-size:10px; font-weight:900; padding:1px 6px; border-radius:8px; background:rgba(0,0,0,.18); color:#fff;}
+  .card.role{background:var(--role); color:#fff;} .card.bgc{background:var(--bgc); color:#04222a;} .card.prob{background:var(--prob); color:#3a0f22;}
+  .card.dragging{cursor:grabbing; z-index:60; transform:scale(1.06); box-shadow:0 10px 24px rgba(0,0,0,.45);}
+  .card.locked{opacity:.4; filter:grayscale(.7); pointer-events:none;}
+  .card.placed{cursor:default;}
+  /* 槽位 */
+  .slot{border:3px dashed rgba(255,255,255,.35); border-radius:14px; min-height:52px; min-width:120px;
+    display:flex; align-items:center; justify-content:center; color:var(--dim); font-size:12px; font-weight:800; padding:6px; transition:.15s;}
+  .slot.role{border-color:var(--role); box-shadow:inset 0 0 0 9999px rgba(155,107,214,.08);}
+  .slot.bgc{border-color:var(--bgc); box-shadow:inset 0 0 0 9999px rgba(43,176,199,.08);}
+  .slot.prob{border-color:var(--prob); box-shadow:inset 0 0 0 9999px rgba(255,122,176,.08);}
+  .slot.hover{transform:scale(1.05); filter:brightness(1.25);}
+  .slot.filled{border-style:solid;}
+  /* 通用 UI */
+  .btn{border:0; border-radius:14px; font-weight:900; font-size:clamp(15px,4vw,19px); padding:14px 26px; cursor:pointer;
+    background:linear-gradient(180deg,#3fe08e,#20b56d); color:#03211a; box-shadow:0 5px 0 #12613b,0 8px 18px rgba(0,0,0,.35);}
+  .btn:active{transform:translateY(3px); box-shadow:0 2px 0 #12613b;}
+  .btn.sec{background:linear-gradient(180deg,#3a6ea5,#274d78); color:#eaf6ff; box-shadow:0 5px 0 #17324d;}
+  .choice{border:2px solid var(--line); background:var(--panel); color:var(--ink); border-radius:14px; padding:14px 16px;
+    font-size:clamp(14px,3.6vw,17px); font-weight:800; cursor:pointer; text-align:left; line-height:1.35; transition:.12s; max-width:520px;}
+  .choice:hover{border-color:#5bc0ff;} .choice.wrong{animation:shake .3s; border-color:var(--bad); opacity:.5;}
+  .choice.right{border-color:var(--good); box-shadow:0 0 0 3px rgba(43,209,126,.4);}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  .row{display:flex; gap:12px; flex-wrap:wrap; justify-content:center; align-items:center;}
+  .col{display:flex; flex-direction:column; gap:12px; align-items:center;}
+  .pool{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:6px;}
+  .center{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; width:100%;}
+  .qcard{background:var(--panel); border:2px solid var(--line); border-radius:16px; padding:14px 16px; max-width:560px; line-height:1.4;
+    font-size:clamp(14px,3.7vw,17px); font-weight:700;}
+  .qmark{width:38px;height:38px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;}
+  .qmark.ok{background:var(--good); color:#03211a;} .qmark.no{background:var(--bad); color:#fff;}
+  /* 品質條 + AI 回覆 */
+  .quality{width:min(90%,460px); height:16px; background:#0a2338; border-radius:9px; overflow:hidden; border:1px solid var(--line);}
+  .quality>i{display:block; height:100%; width:0; background:linear-gradient(90deg,#2bb0c7,#2bd17e); transition:width .6s cubic-bezier(.3,1,.4,1);}
+  .airesp{max-width:520px; background:#06253a; border:1px solid #2bd17e55; border-left:4px solid #2bd17e; border-radius:10px; padding:12px 14px;
+    font-size:clamp(13px,3.5vw,16px); line-height:1.45; color:#d6f7e6; min-height:20px;}
+  .airesp .who{font-size:11px; color:#7cffb0; font-weight:900; display:block; margin-bottom:4px;}
+  /* 機器人 hook 視覺（程序化） */
+  .machine{width:min(78%,300px); aspect-ratio:1/.82; position:relative; margin:6px auto;}
+  .machine .body{position:absolute; inset:14% 8% 0 8%; background:linear-gradient(180deg,#1b4a72,#0e2c46); border-radius:20px; border:3px solid #2f6fa0; box-shadow:inset 0 6px 20px rgba(0,0,0,.4);}
+  .machine .funnel{position:absolute; top:0; left:50%; transform:translateX(-50%); width:46%; height:20%; background:#2f6fa0; clip-path:polygon(0 0,100% 0,72% 100%,28% 100%);}
+  .machine .face{position:absolute; inset:34% 20% 30% 20%; background:#04121f; border-radius:12px; display:flex; align-items:center; justify-content:center; gap:14px; box-shadow:inset 0 0 18px #0af3;}
+  .machine .eye{width:16%; aspect-ratio:1; border-radius:50%; background:#5bc0ff; box-shadow:0 0 12px #5bc0ff; animation:blink 3.4s infinite;}
+  .machine.glow .face{box-shadow:inset 0 0 30px #2bd17e; }
+  .machine.glow .eye{background:#7cff9e; box-shadow:0 0 16px #7cff9e;}
+  @keyframes blink{0%,92%,100%{transform:scaleY(1)}96%{transform:scaleY(.1)}}
+  /* 磚牆 */
+  .brick{background:linear-gradient(180deg,#b5732e,#8a531c); color:#fff; border:2px solid #5a3416; border-radius:8px; padding:10px 12px;
+    font-weight:900; font-size:13px; box-shadow:0 4px 0 #5a3416; cursor:pointer;}
+  .brick.float{cursor:pointer; animation:bob 2.2s ease-in-out infinite;}
+  .brick.set{background:linear-gradient(180deg,#3fe08e,#20b56d); border-color:#12613b; box-shadow:0 4px 0 #12613b; cursor:default; animation:none;}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+  /* 徽章/撒花 */
+  #overlay{position:absolute; inset:0; background:rgba(4,14,26,.82); display:none; align-items:center; justify-content:center; flex-direction:column; gap:8px; z-index:80; text-align:center; padding:20px;}
+  #overlay.on{display:flex;} #overlay .big{font-size:clamp(24px,7vw,40px); font-weight:900;} #overlay .sub{font-size:clamp(16px,4.5vw,22px); color:var(--gold); font-weight:900;}
+  .hint-ring{position:absolute; border:4px solid var(--gold); border-radius:50%; pointer-events:none; z-index:70; animation:hp 1s ease-out infinite;}
+  @keyframes hp{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.6);opacity:0}}
+  .badge{width:120px;height:120px;border-radius:24px;background:linear-gradient(160deg,#ffe27a,#f0a93c);display:flex;align-items:center;justify-content:center;box-shadow:0 0 40px #ffd75e;position:relative;}
+  .badge b{font-size:15px;color:#5a3a10;font-weight:900;text-align:center;line-height:1.2;}
+  .confetti{position:absolute;width:9px;height:14px;top:-20px;z-index:85;border-radius:2px;}
+  .fly{position:fixed;z-index:90;pointer-events:none;}
+  .acct{position:fixed;left:8px;bottom:6px;font-size:11px;color:var(--dim);z-index:70;}
+  .acct .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;} .acct .ok{background:#2bd17e;} .acct .warn{background:#ffce47;}
+  .teach{position:absolute; top:0; left:0; }
+  .small{font-size:12px;color:var(--dim);}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <span class="title">Prompt 記憶回放</span>
+    <div id="segs"></div>
+    <span id="coins"><span class="c"></span><span id="coinN">0</span></span>
+    <button id="redo" title="這一關重來">↻ 重來</button>
+  </div>
+  <div id="stage"><div id="overlay"></div></div>
+</div>
+<div class="acct" id="acct"></div>
+<script>
+/* =========================================================================
+   S2-W01「Prompt 記憶回放」— Lab Terminal 互動課（G1–G2 / 小三下）
+   規格：D:\User\Downloads\S2-W01-課程規格-G1-G2.md（治理版 2026-06-24）
+   §G 對齊：互動詞彙(角色紫/背景青/問題粉)、In-Scope 只複習三要素、
+            防挫折 vs 反硬A 雙表、存檔續玩、金幣入錢包不重複、素材可退回色塊。
+   ========================================================================= */
+'use strict';
+const stage=document.getElementById('stage'), overlay=document.getElementById('overlay');
+const $=(s,r)=>(r||document).querySelector(s); const el=(t,c,x)=>{const e=document.createElement(t); if(c)e.className=c; if(x!=null)e.textContent=x; return e;};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)); const now=()=>performance.now();
+function shuffle(a){a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a;}
+
+/* ---------- 音效（程序化 WebAudio；靜音安全） ---------- */
+const Sfx=(()=>{let ac=null; function ctx(){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();}catch(e){} return ac;}
+  function tone(f,d,t,v){const a=ctx(); if(!a)return; const o=a.createOscillator(),g=a.createGain(); o.type=t||'sine'; o.frequency.value=f;
+    g.gain.setValueAtTime(0,a.currentTime); g.gain.linearRampToValueAtTime(v||.06,a.currentTime+.01); g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+(d||.15));
+    o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime+(d||.15));}
+  return {tick(){tone(430,.06,'triangle',.05);}, snap(){tone(680,.08,'sine',.06);}, ding(){tone(880,.12,'sine',.06); setTimeout(()=>tone(1320,.14,'sine',.05),70);},
+    pop(){tone(300,.12,'square',.05);}, win(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.16,'square',.05),i*90));}, resume(){ctx();}};
+})();
+
+/* ---------- 帳號綁定（coins 錢包 + gameProgress.s2w01 續玩） ---------- */
+const GAMEKEY='s2w01', COIN_ID='s2w01_complete', COIN_AMT=25;
+const FB={apiKey:"AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78",authDomain:"gpt-clone-68b9f.firebaseapp.com",projectId:"gpt-clone-68b9f",storageBucket:"gpt-clone-68b9f.firebasestorage.app",messagingSenderId:"436942056069",appId:"1:436942056069:web:8762675dfff7b7e92017ec"};
+const Account=(()=>{let uid=null,uname='',db=null,ready=false;
+  function su(){try{const r=localStorage.getItem('@session/currentUser'); return r?JSON.parse(r):null;}catch(e){return null;}}
+  function init(){const u=su(); if(u&&u.id){uid=u.id; uname=u.displayName||u.username||'';} if(uid&&window.firebase){try{if(!firebase.apps.length)firebase.initializeApp(FB); db=firebase.firestore(); ready=true;}catch(e){}}}
+  async function load(){if(!ready)return null; try{const s=await db.collection('gameProgress').doc(uid).get(); return s.exists?(s.data()[GAMEKEY]||null):null;}catch(e){return null;}}
+  async function save(state){if(!ready)return; try{await db.collection('gameProgress').doc(uid).set({[GAMEKEY]:state,name:uname,updatedAt:new Date().toISOString()},{merge:true});}catch(e){}}
+  async function creditCoins(id,amount,reason){if(!ready||!(amount>0))return; const ref=db.collection('coins').doc(uid);
+    try{await db.runTransaction(async tx=>{const s=await tx.get(ref); const c=s.exists?s.data():{balance:0,totalEarned:0,transactions:[]}; const txs=Array.isArray(c.transactions)?c.transactions:[];
+      if(txs.some(t=>t&&t.id===id))return; txs.push({id,amount,reason,timestamp:new Date().toISOString()}); tx.set(ref,{balance:(c.balance||0)+amount,totalEarned:(c.totalEarned||0)+amount,transactions:txs.slice(-160)});});}catch(e){}}
+  return {init,load,save,creditCoins,get ready(){return ready;},get name(){return uname;}};
+})();
+
+/* =========================================================================
+   內容庫（In-Scope：只有 角色＋背景＋問題 三要素；不碰格式/字數/語氣/自由打字）
+   ========================================================================= */
+const MEM='<span class="memline">好問法 ＝ <span class="r">角色</span> ＋ <span class="b">背景</span> ＋ <span class="p">問題</span></span>';
+const TYPES={role:{k:'role',name:'角色',cls:'role'},bg:{k:'bg',name:'背景',cls:'bgc'},prob:{k:'prob',name:'問題',cls:'prob'}};
+
+// S1 三要素配對：3 骨架，各拖 角色/背景/問題 進三槽
+const RECALL=[
+  {tpl:['請你當「','」，我正在「','」，請問「','」？'], role:'自然老師', bg:'觀察螞蟻', prob:'牠們為什麼排隊'},
+  {tpl:['你是「','」，這裡是「','」，幫我看「','」。'], role:'廚師', bg:'做早餐', prob:'蛋要煎幾分鐘'},
+  {tpl:['假裝你是「','」，我在「','」，告訴我「','」。'], role:'導遊', bg:'去海邊玩', prob:'要帶什麼東西'},
+];
+// S2 好壞問法大搜查（14）：good 含三要素、bad 模糊
+const TASKA1=[
+  {g:{role:'你當自然老師',bg:'我在觀察螞蟻',prob:'牠們為什麼排隊'},b:'螞蟻'},
+  {g:{role:'你是廚師',bg:'我想做早餐',prob:'蛋要煎幾分鐘'},b:'蛋'},
+  {g:{role:'你當歷史老師',bg:'我在讀恐龍',prob:'牠們為什麼消失'},b:'恐龍好可怕'},
+  {g:{role:'你是教練',bg:'我想學跳繩',prob:'怎麼跳比較久'},b:'跳繩'},
+  {g:{role:'你當畫畫老師',bg:'我要畫大海',prob:'藍色怎麼調'},b:'教我畫畫'},
+  {g:{role:'你是醫生',bg:'我一直流鼻水',prob:'需要多喝水嗎'},b:'我不舒服'},
+  {g:{role:'你當數學老師',bg:'我在算加法',prob:'進位怎麼算'},b:'數學好難'},
+  {g:{role:'你是導遊',bg:'我要去動物園',prob:'先看哪一區好'},b:'動物園'},
+  {g:{role:'你當音樂老師',bg:'我在學直笛',prob:'手指要怎麼放'},b:'直笛'},
+  {g:{role:'你是農夫',bg:'我種了小番茄',prob:'多久澆一次水'},b:'番茄'},
+  {g:{role:'你當作文老師',bg:'我要寫遊記',prob:'開頭怎麼寫'},b:'寫作文'},
+  {g:{role:'你是太空人',bg:'我在看月亮',prob:'上面有空氣嗎'},b:'月亮'},
+  {g:{role:'你當英文老師',bg:'我在背單字',prob:'怎麼記得比較快'},b:'英文好難'},
+  {g:{role:'你是修理工',bg:'我的腳踏車鏈子掉了',prob:'怎麼裝回去'},b:'壞掉了啦'},
+];
+// S3 缺什麼補完整（12）：present 兩塊 + missing 一塊；options=正解 + 兩張別型干擾
+const TASKA2=[
+  {have:[['bg','我在學游泳'],['prob','怎麼換氣']], miss:['role','你當游泳教練']},
+  {have:[['role','你是廚師'],['prob','要放多少鹽']], miss:['bg','我在煮一鍋湯']},
+  {have:[['role','你當老師'],['bg','我在讀故事書']], miss:['prob','這個字怎麼念']},
+  {have:[['bg','我在種花'],['prob','為什麼葉子黃了']], miss:['role','你當園丁']},
+  {have:[['role','你是醫生'],['prob','要冰敷嗎']], miss:['bg','我跌倒膝蓋破皮']},
+  {have:[['role','你當教練'],['bg','我在練跑步']], miss:['prob','怎麼跑才不會累']},
+  {have:[['bg','我在看星星'],['prob','哪一顆最亮']], miss:['role','你當天文老師']},
+  {have:[['role','你是導遊'],['prob','要帶雨傘嗎']], miss:['bg','我明天要去爬山']},
+  {have:[['role','你當廚師'],['bg','我在做蛋糕']], miss:['prob','烤箱要開幾度']},
+  {have:[['bg','我在寫日記'],['prob','可以寫什麼']], miss:['role','你當作文老師']},
+  {have:[['role','你是自然老師'],['prob','牠平常吃什麼']], miss:['bg','我養了一隻烏龜']},
+  {have:[['role','你當音樂老師'],['bg','我在學唱歌']], miss:['prob','高音上不去怎麼辦']},
+];
+// S4 組裝工廠（20）：情境 → 拖 角色/背景/問題 各一 → 品質條 + AI 短回覆
+const TASKB1=[
+  {sc:'想知道怎麼照顧小狗',role:'你當獸醫',bg:'我養了一隻小狗',prob:'一天要餵幾次',ai:'小狗一天餵 2～3 次，固定時間最好喔！'},
+  {sc:'想學摺紙飛機',role:'你當摺紙老師',bg:'我在摺紙飛機',prob:'怎麼飛得遠',ai:'把機翼摺對稱，輕輕往前推，就會飛得遠！'},
+  {sc:'想把房間整理乾淨',role:'你當整理達人',bg:'我的桌子很亂',prob:'先收哪一個',ai:'先從最大的東西開始收，桌面很快就清空囉！'},
+  {sc:'想知道彩虹怎麼來的',role:'你當自然老師',bg:'剛剛下過雨',prob:'為什麼有彩虹',ai:'陽光穿過小水滴會分成七種顏色，就變成彩虹！'},
+  {sc:'想學會綁鞋帶',role:'你當體育老師',bg:'我的鞋帶鬆了',prob:'怎麼綁才不會鬆',ai:'打兩個結、拉緊蝴蝶結，就不容易鬆開了！'},
+  {sc:'想煮一顆好吃的蛋',role:'你當廚師',bg:'我在煮水煮蛋',prob:'要煮幾分鐘',ai:'滾水煮 8 分鐘，蛋黃剛剛好不會太硬！'},
+  {sc:'想知道怎麼保護牙齒',role:'你當牙醫',bg:'我剛吃完糖果',prob:'現在要做什麼',ai:'記得刷牙或漱口，糖留在牙齒上會蛀牙喔！'},
+  {sc:'想學會騎腳踏車',role:'你當教練',bg:'我在學騎車',prob:'怎麼保持平衡',ai:'眼睛看前面、慢慢踩，車子動起來就穩了！'},
+  {sc:'想種一盆小盆栽',role:'你當園丁',bg:'我剛種下種子',prob:'要放在哪裡',ai:'放在有陽光的窗邊，記得每天澆一點水！'},
+  {sc:'想知道月亮為什麼會變',role:'你當天文老師',bg:'我在看月亮',prob:'為什麼有時圓有時彎',ai:'月亮被太陽照到的角度不同，看起來就會變形狀！'},
+  {sc:'想畫一隻可愛的貓',role:'你當畫畫老師',bg:'我在畫貓咪',prob:'耳朵怎麼畫',ai:'畫兩個小三角形在頭上，貓耳朵就出現了！'},
+  {sc:'想寫一篇好看的日記',role:'你當作文老師',bg:'我今天去公園',prob:'開頭怎麼寫',ai:'先寫「今天天氣很好」，再說你做了什麼，很順喔！'},
+  {sc:'想認識海裡的動物',role:'你當海洋老師',bg:'我在看水族館',prob:'海豚聰明嗎',ai:'海豚很聰明，還會用聲音互相聊天呢！'},
+  {sc:'想學會跳一支舞',role:'你當舞蹈老師',bg:'我在學跳舞',prob:'手要怎麼擺',ai:'跟著節拍，手輕輕打開再收回，就很好看！'},
+  {sc:'想知道怎麼交朋友',role:'你當輔導老師',bg:'我是新來的同學',prob:'怎麼開口說話',ai:'先微笑說「你好」，再問對方喜歡玩什麼就好了！'},
+  {sc:'想做一張生日卡片',role:'你當美術老師',bg:'我要送給媽媽',prob:'寫什麼比較好',ai:'寫「媽媽我愛你，生日快樂」，媽媽一定很開心！'},
+  {sc:'想知道下雨要注意什麼',role:'你當氣象老師',bg:'外面在下大雨',prob:'出門要帶什麼',ai:'帶雨傘、穿防滑的鞋，走路慢慢走比較安全！'},
+  {sc:'想學會拍球',role:'你當籃球教練',bg:'我在練運球',prob:'手要用多大力',ai:'用手指輕輕拍，球彈到腰的高度剛剛好！'},
+  {sc:'想照顧生病的同學',role:'你當保健老師',bg:'同學發燒了',prob:'我可以幫什麼',ai:'請他多休息、告訴老師，再幫他倒一杯溫水！'},
+  {sc:'想知道星星為什麼會亮',role:'你當天文老師',bg:'晚上抬頭看天空',prob:'星星為什麼發光',ai:'星星是很大的火球，自己會發出光和熱喔！'},
+];
+// S5 角色扮演回放（11）：情境要 AI 當某角色 → 拖對角色卡 → AI 用該口吻回一句
+const TASKB2=[
+  {sc:'想請 AI 用「老師」的口氣教你算數學',role:'老師',ai:'我們一步一步來，先把十位數對齊，你試試看第一題～'},
+  {sc:'想請 AI 當「醫生」告訴你感冒怎麼辦',role:'醫生',ai:'多喝溫水、早點睡覺，記得跟爸媽說喔，很快就會好！'},
+  {sc:'想請 AI 當「導遊」介紹動物園',role:'導遊',ai:'各位小朋友這邊走～前面就是可愛的長頸鹿區囉！'},
+  {sc:'想請 AI 當「廚師」教你做點心',role:'廚師',ai:'來！先把麵粉和糖攪一攪，等一下就有香香的餅乾！'},
+  {sc:'想請 AI 當「教練」幫你加油',role:'教練',ai:'很好！再撐五秒，你比昨天更棒了，加油！'},
+  {sc:'想請 AI 當「說故事的人」講睡前故事',role:'說書人',ai:'很久很久以前，森林裡住著一隻愛冒險的小兔子……'},
+  {sc:'想請 AI 當「科學家」解釋為什麼會打雷',role:'科學家',ai:'雲裡的電擠在一起放出來，就會發出轟隆隆的聲音！'},
+  {sc:'想請 AI 當「園丁」教你種花',role:'園丁',ai:'把種子種下去，給它陽光和水，它就會慢慢長大囉～'},
+  {sc:'想請 AI 當「機器人」用機器人的口氣說話',role:'機器人',ai:'嗶—嗶—收到指令—開始—幫—你—回答—問題—！'},
+  {sc:'想請 AI 當「圖書館員」推薦一本書',role:'圖書館員',ai:'噓～小聲點喔。這本《海底歷險》很好看，推薦給你！'},
+  {sc:'想請 AI 當「太空人」介紹外太空',role:'太空人',ai:'在太空裡沒有重力，東西都會飄起來，超級神奇！'},
+];
+// 角色卡池（供 taskB2 的干擾用）
+const ROLE_POOL=['老師','醫生','導遊','廚師','教練','說書人','科學家','園丁','機器人','圖書館員','太空人','農夫','畫家'];
+// 句子接龍（Rehearsal + summary 用）
+const CHAIN=[
+  {q:'好問法 ＝ <span class="r">角色</span> ＋ ____ ＋ <span class="p">問題</span>', ans:'背景', opts:['背景','表情','顏色']},
+  {q:'好問法 ＝ ____ ＋ <span class="b">背景</span> ＋ <span class="p">問題</span>', ans:'角色', opts:['角色','天氣','名字']},
+  {q:'好問法 ＝ <span class="r">角色</span> ＋ <span class="b">背景</span> ＋ ____', ans:'問題', opts:['問題','貼圖','數字']},
+];
+// summary 4 反例
+const BADEX=[
+  {t:'「恐龍」', why:'只有問題的東西，沒有角色也沒有背景'},
+  {t:'「你當老師」', why:'只有角色，沒說背景和問題'},
+  {t:'「asdfghjkl」', why:'亂打的字，AI 看不懂'},
+  {t:'「（抄同學的）」', why:'複製別人的，不是自己想的問題'},
+];
+// 技能牆磚塊
+const WALL=['問 AI 基本','角色＋背景＋問題','好壞問法比較','缺什麼就補什麼','角色扮演'];
+
+/* =========================================================================
+   狀態 / 存檔
+   ========================================================================= */
+const VERSION=1;
+const SCREENS=['start','recall','taskA1','taskA2','rehearsalA','taskB1','taskB2','rehearsalB','summary','wall','done'];
+const ROUNDS={recall:3,taskA1:14,taskA2:12,rehearsalA:1,taskB1:20,taskB2:11,rehearsalB:1,summary:5,wall:5}; // summary=1填空+4反例
+const SEGCOUNT=SCREENS.length-2; // start/done 不計段
+function defaultState(){return {v:VERSION, screen:'start', round:0, coins:0, done:false, pct:0};}
+const STORE='s2w01_progress';
+let S=load();
+function load(){try{const r=JSON.parse(localStorage.getItem(STORE)); if(r&&r.v===VERSION&&r.screen)return r;}catch(e){} return defaultState();}
+function screenIdx(s){return SCREENS.indexOf(s);}
+function totalRounds(){let t=0; for(const k in ROUNDS)t+=ROUNDS[k]; return t;}
+function doneRounds(){let t=0; for(let i=1;i<screenIdx(S.screen);i++){t+=ROUNDS[SCREENS[i]]||0;} return t+(S.round||0);}
+function overallPct(){if(S.done)return 1; return clamp(doneRounds()/totalRounds(),0,1);}
+function progressScore(s){if(!s||s.v!==VERSION)return -1; let r=0; for(let i=1;i<screenIdx(s.screen);i++)r+=ROUNDS[SCREENS[i]]||0; return screenIdx(s.screen)*1000+r+(s.round||0)+(s.done?500:0);}
+function save(){S.pct=S.done?1:overallPct(); try{localStorage.setItem(STORE,JSON.stringify(S));}catch(e){} if(Account.ready){clearTimeout(save._t); save._t=setTimeout(()=>Account.save(S),700);}}
+
+/* ---------- HUD ---------- */
+function renderTop(){const segs=$('#segs'); segs.innerHTML=''; const cur=screenIdx(S.screen);
+  for(let i=1;i<=SEGCOUNT;i++){const d=el('div','seg'); if(i<cur||S.done)d.classList.add('on'); else if(i===cur)d.classList.add('cur'); segs.appendChild(d);}
+  $('#coinN').textContent=S.coins;}
+document.getElementById('redo').onclick=()=>{redoScreen();};
+
+/* =========================================================================
+   通用拖拉引擎（指標事件；判定放大、靠近吸附；失誤靜音回彈 = 防挫折 M2/M4）
+   ========================================================================= */
+function makeDraggable(card, getSlots, onDrop){
+  let drag=null;
+  card.addEventListener('pointerdown', e=>{
+    if(card.classList.contains('placed')||card.classList.contains('locked'))return;
+    Sfx.resume(); card.setPointerCapture(e.pointerId);
+    const r=card.getBoundingClientRect(); drag={dx:e.clientX-r.left, dy:e.clientY-r.top, x0:r.left, y0:r.top};
+    card.classList.add('dragging'); card.style.position='fixed'; card.style.left=r.left+'px'; card.style.top=r.top+'px'; card.style.width=r.width+'px'; card.style.margin='0';
+    Sfx.tick();
+  });
+  card.addEventListener('pointermove', e=>{ if(!drag)return; card.style.left=(e.clientX-drag.dx)+'px'; card.style.top=(e.clientY-drag.dy)+'px';
+    const s=nearestSlot(getSlots(),e.clientX,e.clientY); getSlots().forEach(sl=>sl.classList.toggle('hover', sl===s)); });
+  const end=e=>{ if(!drag)return; card.classList.remove('dragging');
+    const slots=getSlots(); const s=nearestSlot(slots,e.clientX,e.clientY); slots.forEach(sl=>sl.classList.remove('hover'));
+    const ok = s && onDrop(card,s);
+    if(!ok){ card.style.transition='left .18s,top .18s'; card.style.left=drag.x0+'px'; card.style.top=drag.y0+'px';
+      setTimeout(()=>{card.style.position=''; card.style.left=card.style.top=card.style.width=card.style.transition=card.style.margin=''; },190); }
+    drag=null;
+  };
+  card.addEventListener('pointerup', end); card.addEventListener('pointercancel', end);
+}
+function nearestSlot(slots,x,y){let best=null,bd=1e9; slots.forEach(s=>{const r=s.getBoundingClientRect(); const cx=r.left+r.width/2, cy=r.top+r.height/2;
+  const inside=x>=r.left-40&&x<=r.right+40&&y>=r.top-40&&y<=r.bottom+40; const d=Math.hypot(x-cx,y-cy);   // 判定放大 ±40
+  if(inside&&d<bd){bd=d;best=s;}}); return (best&&bd<=Math.max(160, best.getBoundingClientRect().width))?best:best;}
+function placeInto(card,slot){ // 把 card 視覺塞進 slot
+  card.classList.add('placed'); card.style.position=''; card.style.left=card.style.top=card.style.width=card.style.transition=card.style.margin='';
+  slot.classList.add('filled'); slot.innerHTML=''; slot.appendChild(card); Sfx.snap();}
+
+/* ---------- 防挫折：逾時提示 → 再逾時靜音放行 ---------- */
+let roundTimer=null, hintRing=null;
+function armAntiStuck(getHintTargets, autoPass){ clearAntiStuck();
+  roundTimer=setTimeout(()=>{ showHint(getHintTargets()); roundTimer=setTimeout(()=>{ clearAntiStuck(); autoPass(); }, 15000); }, 22000); }
+function showHint(targets){ (targets||[]).forEach(t=>{ if(!t)return; const r=t.getBoundingClientRect(); const ring=el('div','hint-ring');
+  const sz=Math.max(r.width,r.height)+24; ring.style.width=ring.style.height=sz+'px'; ring.style.left=(r.left+r.width/2-sz/2)+'px'; ring.style.top=(r.top+r.height/2-sz/2)+'px'; stage.appendChild(ring); setTimeout(()=>ring.remove(),3000); }); }
+function clearAntiStuck(){ clearTimeout(roundTimer); roundTimer=null; }
+
+/* ---------- 過場 ---------- */
+function transition(text,sub,dur,then){ overlay.innerHTML=''; overlay.appendChild(el('div','big',text)); if(sub){const s=el('div','sub'); s.innerHTML=sub; overlay.appendChild(s);} overlay.classList.add('on');
+  setTimeout(()=>{overlay.classList.remove('on'); overlay.innerHTML=''; if(then)then();}, dur||1500); }
+
+/* ---------- 撒花 / 碎片飛向金幣 ---------- */
+function confetti(){ const cols=['#ffd75e','#2bd17e','#5bc0ff','#ff7ab0','#9b6bd6']; for(let i=0;i<70;i++){ const c=el('div','confetti'); c.style.left=Math.random()*100+'%'; c.style.background=cols[i%cols.length];
+  c.style.transform='rotate('+Math.random()*360+'deg)'; stage.appendChild(c); const dur=1200+Math.random()*1400; c.animate([{transform:c.style.transform,top:'-20px',opacity:1},{top:'110%',opacity:.9}],{duration:dur,easing:'cubic-bezier(.3,.7,.5,1)'}); setTimeout(()=>c.remove(),dur);} }
+function flyCoin(fromEl){ const t=$('#coins').getBoundingClientRect(); const r=(fromEl||stage).getBoundingClientRect(); const f=el('div','fly'); f.style.width=f.style.height='16px'; f.style.borderRadius='50%'; f.style.background='radial-gradient(circle at 35% 30%,#fff2b0,#ffd75e)'; f.style.left=(r.left+r.width/2)+'px'; f.style.top=(r.top+r.height/2)+'px'; document.body.appendChild(f);
+  f.animate([{left:f.style.left,top:f.style.top,opacity:1},{left:(t.left+10)+'px',top:(t.top+10)+'px',opacity:.4}],{duration:650,easing:'cubic-bezier(.4,0,.3,1)'}); setTimeout(()=>f.remove(),650); }
+
+/* =========================================================================
+   關卡渲染
+   ========================================================================= */
+function setScreen(name,round){ S.screen=name; S.round=round||0; save(); renderTop(); render(); }
+function nextRound(){ const total=ROUNDS[S.screen]||0; if(S.round+1>=total){ nextScreen(); } else { S.round++; save(); renderTop(); render(); } }
+function nextScreen(){ const i=screenIdx(S.screen); const nx=SCREENS[i+1]; clearAntiStuck(); setScreen(nx,0); }
+function redoScreen(){ clearAntiStuck(); S.round=0; save(); render(); }
+
+function clearStage(){ [...stage.children].forEach(c=>{ if(c.id!=='overlay')c.remove(); }); }
+function passRound(fromEl){ clearAntiStuck(); Sfx.ding(); save(); const total=ROUNDS[S.screen]||1;
+  if(S.round+1>=total){ setTimeout(()=>nextRound(),620); } else { setTimeout(()=>nextRound(),520); } }
+
+function roundBadge(){ const total=ROUNDS[S.screen]||1; return el('div','small','第 '+(S.round+1)+' / '+total+' 回合'); }
+
+const R={}; // 各關 renderer
+
+// S0 start
+R.start=()=>{ const s=el('div','screen'); s.appendChild(el('h1',null,'Prompt 記憶回放'));
+  const m=el('div'); m.innerHTML='<div class="prompttip">還記得怎麼問 AI 嗎？把「好問法」投進機器，就會吐出好答案！</div>'; s.appendChild(m);
+  const mac=el('div','machine'); mac.innerHTML='<div class="funnel"></div><div class="body"></div><div class="face"><div class="eye"></div><div class="eye"></div></div>'; s.appendChild(mac);
+  const mem=el('div'); mem.innerHTML=MEM; mem.style.margin='6px 0'; s.appendChild(mem);  // 記憶點①
+  const b=el('button','btn','▶ 開始闖關'); b.onclick=()=>{Sfx.win(); nextScreen();}; s.appendChild(b);
+  if(progressScore(S)>progressScore(defaultState())&&screenIdx(S.screen)>0){} stage.appendChild(s); };
+
+// S1 三要素配對
+R.recall=()=>{ const d=RECALL[S.round%RECALL.length]; const s=el('div','screen'); s.appendChild(roundBadge());
+  s.appendChild(hcap('把三張卡拖進對應顏色的空格')); const center=el('div','center');
+  // prompt 骨架含 3 槽
+  const frame=el('div','qcard'); frame.style.maxWidth='600px'; frame.style.display='flex'; frame.style.flexWrap='wrap'; frame.style.alignItems='center'; frame.style.gap='6px'; frame.style.justifyContent='center';
+  const slots={}; const order=['role','bg','prob'];
+  frame.appendChild(txt(d.tpl[0]));
+  slots.role=mkSlot('role'); frame.appendChild(slots.role); frame.appendChild(txt(d.tpl[1]));
+  slots.bg=mkSlot('bg'); frame.appendChild(slots.bg); frame.appendChild(txt(d.tpl[2]));
+  slots.prob=mkSlot('prob'); frame.appendChild(slots.prob); frame.appendChild(txt(d.tpl[3]));
+  center.appendChild(frame);
+  const pool=el('div','pool'); const cards=shuffle(order).map(t=>mkCard(t,d[t]==='牠們為什麼排隊'?d[t]:d[t]));
+  let done=0;
+  cards.forEach(card=>{ pool.appendChild(card);
+    makeDraggable(card, ()=>Object.values(slots), (c,slot)=>{ const want=slot.dataset.type; if(c.dataset.type!==want)return false; if(slot.classList.contains('filled'))return false;
+      placeInto(c,slot); done++; if(done===3){ okFx(frame); passRound(); } return true; }); });
+  center.appendChild(pool); s.appendChild(center);
+  armAntiStuck(()=>Object.values(slots), ()=>passRound());
+  stage.appendChild(s); };
+
+// S2 好壞問法大搜查
+R.taskA1=()=>{ const d=TASKA1[S.round%TASKA1.length]; const s=el('div','screen'); s.appendChild(roundBadge());
+  s.appendChild(hcap('哪一個是「比較好」的問法？點選它'));
+  const center=el('div','center'); const goodText=d.g.role+'，'+d.g.bg+'，'+d.g.prob+'？';
+  let opts=shuffle([{txt:goodText,good:true},{txt:d.b,good:false}]);
+  const wrap=el('div','col');
+  const step2=el('div','col'); step2.style.display='none';
+  opts.forEach(o=>{ const c=el('button','choice'); c.textContent=o.txt; c.onclick=()=>{ if(o.good){ c.classList.add('right'); Sfx.snap(); [...wrap.children].forEach(x=>x.disabled=true); startStep2(); }
+      else { c.classList.add('wrong'); c.disabled=true; Sfx.pop(); /* 反硬A：點錯永久鎖定＋洗牌 */ reshuffle(wrap); } }; wrap.appendChild(c); });
+  function reshuffle(w){ const kids=shuffle([...w.children]); kids.forEach(k=>w.appendChild(k)); }
+  function startStep2(){ s.querySelector('.hcap').innerHTML='把「角色・背景・問題」三張標籤，拖到好問法對應的部分'; step2.style.display='flex';
+    const chunks={role:d.g.role,bg:d.g.bg,prob:d.g.prob}; const line=el('div','qcard'); line.style.display='flex'; line.style.flexWrap='wrap'; line.style.gap='6px'; line.style.justifyContent='center'; line.style.maxWidth='600px';
+    const slots={}; ['role','bg','prob'].forEach((t,i)=>{ const box=el('div'); box.style.textAlign='center'; const seg=el('div'); seg.textContent=chunks[t]; seg.style.fontWeight='800'; seg.style.marginBottom='4px';
+      const sl=mkSlot(t); sl.style.minWidth='84px'; sl.textContent=''; slots[t]=sl; box.appendChild(seg); box.appendChild(sl); line.appendChild(box); if(i<2)line.appendChild(txt('＋')); });
+    step2.appendChild(line);
+    const pool=el('div','pool'); let done=0;
+    shuffle(['role','bg','prob']).forEach(t=>{ const tag=mkTag(t); pool.appendChild(tag);
+      makeDraggable(tag, ()=>Object.values(slots), (cc,slot)=>{ if(slot.dataset.type!==cc.dataset.type||slot.classList.contains('filled'))return false; placeInto(cc,slot); done++; if(done===3){okFx(line); passRound();} return true; }); });
+    step2.appendChild(pool);
+    armAntiStuck(()=>Object.values(slots), ()=>passRound());
+  }
+  center.appendChild(wrap); center.appendChild(step2); s.appendChild(center); stage.appendChild(s); };
+
+// S3 缺什麼補完整
+R.taskA2=()=>{ const d=TASKA2[S.round%TASKA2.length]; const s=el('div','screen'); s.appendChild(roundBadge());
+  const missName=TYPES[d.miss[0]].name; s.appendChild(hcap('這個問法「缺了什麼」？把正確的卡片補進空格'));
+  const center=el('div','center'); const line=el('div','qcard'); line.style.display='flex'; line.style.flexWrap='wrap'; line.style.gap='6px'; line.style.justifyContent='center'; line.style.alignItems='center'; line.style.maxWidth='600px';
+  // present chunks + one empty slot（依原順序 role,bg,prob 混排：這裡用 have 順序，缺的插在中間）
+  const parts=[]; d.have.forEach(h=>parts.push({type:h[0],txt:h[1],have:true})); parts.push({type:d.miss[0],txt:null,have:false});
+  const ordered=shuffle(parts);
+  const slot=mkSlot(d.miss[0]); slot.textContent='缺「'+missName+'」';
+  ordered.forEach((p,i)=>{ if(p.have){ const c=el('div','card '+TYPES[p.type].cls); c.appendChild(el('span','tag',TYPES[p.type].name)); c.appendChild(txt(p.txt)); c.classList.add('placed'); line.appendChild(c); }
+    else line.appendChild(slot); if(i<ordered.length-1)line.appendChild(txt('，')); });
+  center.appendChild(line);
+  // options：正解 + 兩張別型干擾
+  const others=['role','bg','prob'].filter(t=>t!==d.miss[0]);
+  const opts=shuffle([ {type:d.miss[0],txt:d.miss[1]}, {type:others[0],txt:distractor(others[0])}, {type:others[1],txt:distractor(others[1])} ]);
+  const pool=el('div','pool');
+  opts.forEach(o=>{ const c=mkCard(o.type,o.txt); pool.appendChild(c);
+    makeDraggable(c, ()=>[slot], (cc,sl)=>{ if(cc.dataset.type!==d.miss[0]){ return false; } placeInto(cc,sl); okFx(line); passRound(); return true; }); });
+  center.appendChild(pool); s.appendChild(center);
+  armAntiStuck(()=>[slot], ()=>passRound()); stage.appendChild(s); };
+
+// S4 組裝工廠（產出看得見）
+R.taskB1=()=>{ const d=TASKB1[S.round%TASKB1.length]; const s=el('div','screen'); s.appendChild(roundBadge());
+  if(S.round===0){ const mem=el('div'); mem.innerHTML=MEM; mem.style.margin='2px 0 6px'; s.appendChild(mem); }  // 記憶點②
+  s.appendChild(hcap('情境：'+d.sc+'。把 角色＋背景＋問題 各拖一張，組成好問法！'));
+  const center=el('div','center');
+  const frame=el('div','qcard'); frame.style.maxWidth='600px'; frame.style.display='flex'; frame.style.flexWrap='wrap'; frame.style.gap='6px'; frame.style.alignItems='center'; frame.style.justifyContent='center';
+  const slots={role:mkSlot('role'),bg:mkSlot('bg'),prob:mkSlot('prob')};
+  frame.appendChild(slots.role); frame.appendChild(txt('＋')); frame.appendChild(slots.bg); frame.appendChild(txt('＋')); frame.appendChild(slots.prob);
+  const quality=el('div','quality'); const qi=el('i'); quality.appendChild(qi);
+  const resp=el('div','airesp'); resp.innerHTML='<span class="who">AI 終端機</span><span class="txt">組好問法，我就會回答囉～</span>';
+  center.appendChild(frame); center.appendChild(quality); center.appendChild(resp);
+  // 卡池：正解 3 + 干擾（別回合的）
+  const pool=el('div','pool'); let done=0;
+  const cards=[mkCard('role',d.role),mkCard('bg',d.bg),mkCard('prob',d.prob),
+    mkCard('role',distractor('role',d.role)),mkCard('bg',distractor('bg',d.bg)),mkCard('prob',distractor('prob',d.prob))];
+  shuffle(cards).forEach(c=>{ pool.appendChild(c);
+    makeDraggable(c, ()=>Object.values(slots), (cc,slot)=>{ if(slot.dataset.type!==cc.dataset.type||slot.classList.contains('filled'))return false;
+      // 只有「正解卡」算對；干擾卡雖同色也允許放（避免懲罰），但要三張正解到位才通關 → 用文字比對
+      placeInto(cc,slot); slot.dataset.val=cc.dataset.val; recompute(); return true; }); });
+  function recompute(){ let n=0; ['role','bg','prob'].forEach(t=>{ if(slots[t].dataset.val)n++; }); qi.style.width=Math.round(n/3*100)+'%';
+    const allRight = slots.role.dataset.val===d.role && slots.bg.dataset.val===d.bg && slots.prob.dataset.val===d.prob;
+    if(n===3){ if(allRight){ qi.style.width='100%'; resp.querySelector('.txt').textContent=d.ai; resp.style.borderColor='#2bd17e'; okFx(frame); Sfx.win(); passRound(); }
+      else { resp.querySelector('.txt').textContent='嗯…有一張放得不太對，換一張看看？'; } } }
+  center.appendChild(pool); s.appendChild(center);
+  armAntiStuck(()=>Object.values(slots), ()=>{ resp.querySelector('.txt').textContent=d.ai; passRound(); }); stage.appendChild(s); };
+
+// S5 角色扮演回放
+R.taskB2=()=>{ const d=TASKB2[S.round%TASKB2.length]; const s=el('div','screen'); s.appendChild(roundBadge());
+  s.appendChild(hcap(d.sc+'。把正確的「角色卡」拖進去！'));
+  const center=el('div','center');
+  const frame=el('div','qcard'); frame.style.maxWidth='560px'; frame.style.display='flex'; frame.style.flexWrap='wrap'; frame.style.gap='6px'; frame.style.alignItems='center'; frame.style.justifyContent='center';
+  frame.appendChild(txt('請你當「')); const slot=mkSlot('role'); slot.style.minWidth='96px'; frame.appendChild(slot); frame.appendChild(txt('」，回我一句話。'));
+  const resp=el('div','airesp'); resp.innerHTML='<span class="who">AI 終端機</span><span class="txt">選對角色，我就用它的口氣回你～</span>';
+  center.appendChild(frame); center.appendChild(resp);
+  const distr=shuffle(ROLE_POOL.filter(r=>r!==d.role)).slice(0,2);
+  const pool=el('div','pool');
+  shuffle([d.role,...distr]).forEach(rn=>{ const c=mkCard('role',rn); pool.appendChild(c);
+    makeDraggable(c, ()=>[slot], (cc,sl)=>{ placeInto(cc,sl);
+      if(cc.dataset.val===d.role){ resp.querySelector('.txt').textContent='（'+d.role+'）'+d.ai; resp.style.borderColor='#2bd17e'; okFx(frame); passRound(); }
+      else { // 錯角色：靜音回彈、卡片可重來（防挫折）
+        resp.querySelector('.txt').textContent='這個角色不太對，換一個試試？'; setTimeout(()=>{ cc.classList.remove('placed'); sl.classList.remove('filled'); sl.textContent=''; pool.appendChild(cc); },250); }
+      return true; }); });
+  center.appendChild(pool); s.appendChild(center);
+  armAntiStuck(()=>[slot], ()=>{ resp.querySelector('.txt').textContent='（'+d.role+'）'+d.ai; passRound(); }); stage.appendChild(s); };
+
+// Rehearsal（taskA 群 / taskB 群 後）：句子接龍
+R.rehearsalA=()=>rehearsal('小複習：好問法有哪三樣？');
+R.rehearsalB=()=>rehearsal('再複習一次：好問法的公式');
+function rehearsal(cap){ const d=CHAIN[Math.floor(Math.random()*CHAIN.length)]; const s=el('div','screen'); s.appendChild(hcap(cap));
+  const center=el('div','center'); const q=el('div','qcard'); q.style.fontSize='clamp(16px,4.4vw,22px)'; q.style.fontWeight='900'; q.innerHTML=d.q; center.appendChild(q);
+  const row=el('div','row'); shuffle(d.opts).forEach(o=>{ const b=el('button','choice'); b.textContent=o; b.style.textAlign='center'; b.onclick=()=>{ if(o===d.ans){ b.classList.add('right'); okFx(q); passRound(); } else { b.classList.add('wrong'); b.disabled=true; Sfx.pop(); } }; row.appendChild(b); });
+  center.appendChild(row); s.appendChild(center); stage.appendChild(s); }
+
+// S6 summary：填空 + 4 反例
+R.summary=()=>{ const s=el('div','screen');
+  if(S.round===0){ // 填空
+    s.appendChild(hcap('把公式填完整'));
+    const center=el('div','center'); const q=el('div','qcard'); q.style.fontSize='clamp(18px,4.8vw,24px)'; q.style.fontWeight='900';
+    q.innerHTML='好問法 ＝ <span class="r">角色</span> ＋ ____ ＋ <span class="p">問題</span>'; center.appendChild(q);
+    const row=el('div','row'); shuffle(['背景','表情','顏色','名字']).forEach(o=>{ const b=el('button','choice'); b.textContent=o; b.style.textAlign='center';
+      b.onclick=()=>{ if(o==='背景'){ b.classList.add('right'); okFx(q); passRound(); } else { b.classList.add('wrong'); b.disabled=true; Sfx.pop(); } }; row.appendChild(b); });
+    center.appendChild(row); s.appendChild(center);
+  } else { // 反例 1..4：這是好問法嗎？
+    const d=BADEX[(S.round-1)%BADEX.length]; s.appendChild(roundBadge()); s.appendChild(hcap('這是「好問法」嗎？'));
+    const center=el('div','center'); const q=el('div','qcard'); q.style.fontSize='clamp(16px,4.4vw,20px)'; q.textContent=d.t; center.appendChild(q);
+    const row=el('div','row');
+    const no=el('button','choice'); no.innerHTML='<span class="qmark no">✕</span> 不好'; no.style.display='flex'; no.style.alignItems='center'; no.style.gap='8px';
+    const yes=el('button','choice'); yes.innerHTML='<span class="qmark ok">✓</span> 很好'; yes.style.display='flex'; yes.style.alignItems='center'; yes.style.gap='8px';
+    no.onclick=()=>{ no.classList.add('right'); const w=el('div','small',d.why); w.style.marginTop='8px'; center.appendChild(w); okFx(q); passRound(); };
+    yes.onclick=()=>{ yes.classList.add('wrong'); yes.disabled=true; Sfx.pop(); };
+    shuffle([no,yes]).forEach(b=>row.appendChild(b)); center.appendChild(row); s.appendChild(center);
+  }
+  stage.appendChild(s); };
+
+// S7 wall：技能牆
+R.wall=()=>{ const s=el('div','screen'); s.appendChild(hcap('你學會的技能，一塊一塊點進牆裡！'));
+  const center=el('div','center'); const wall=el('div','row'); wall.style.minHeight='60px'; wall.style.alignItems='flex-end';
+  const floatRow=el('div','row'); let set=0;
+  WALL.forEach((name,i)=>{ const b=el('div','brick float'); b.textContent=name; b.style.animationDelay=(i*.2)+'s';
+    b.onclick=()=>{ if(b.classList.contains('set'))return; b.classList.remove('float'); b.classList.add('set'); Sfx.snap(); const r=b.getBoundingClientRect();
+      floatRow.removeChild(b); wall.appendChild(b); set++; if(set===WALL.length){ okFx(wall); Sfx.win(); setTimeout(()=>nextScreen(),700); } }; floatRow.appendChild(b); });
+  center.appendChild(wall); center.appendChild(el('div','small','（點擊上面的磚塊）')); center.appendChild(floatRow); s.appendChild(center); stage.appendChild(s); };
+
+// S8 done：Deliver + 翻轉教育
+R.done=()=>{ const s=el('div','screen'); const mac=el('div','machine glow'); mac.innerHTML='<div class="funnel"></div><div class="body"></div><div class="face"><div class="eye"></div><div class="eye"></div></div>'; s.appendChild(mac);
+  s.appendChild(hbig('你是 Prompt 高手！'));
+  const badge=el('div','badge'); badge.innerHTML='<b>三要素<br>徽章</b>'; const bw=el('div'); bw.style.display='flex'; bw.style.justifyContent='center'; bw.style.margin='6px 0'; bw.appendChild(badge); s.appendChild(bw);
+  const mem=el('div'); mem.innerHTML=MEM; s.appendChild(mem);  // 記憶點③
+  const coinLine=el('div'); coinLine.style.margin='6px 0'; coinLine.style.fontWeight='900'; coinLine.style.color='var(--gold)'; coinLine.style.fontSize='20px'; coinLine.textContent='+'+COIN_AMT+' 金幣 已存入錢包'; s.appendChild(coinLine);
+  const row=el('div','row');
+  const raise=el('button','btn','🙋 舉手告訴老師'.replace('🙋','')); raise.textContent='舉手告訴老師！'; raise.onclick=()=>{ raise.textContent='已通知老師 ✓'; raise.disabled=true; markRaise(); };
+  const ta=el('button','btn sec','我是小老師 · 去教一位同學'); ta.onclick=()=>{ ta.textContent='已成為小老師 ✓（+TA 12 點）'; ta.disabled=true; markTA(); };
+  row.appendChild(raise); row.appendChild(ta); s.appendChild(row);
+  stage.appendChild(s);
+  if(!S._delivered){ S._delivered=true; deliver(); } };
+
+function deliver(){ S.done=true; S.coins=Math.max(S.coins,COIN_AMT); save(); Account.creditCoins(COIN_ID,COIN_AMT,'S2-W01 Prompt 記憶回放'); renderTop(); confetti(); Sfx.win(); document.getElementById('redo').style.display='none';
+  const c=$('#coinN'); if(c)c.textContent=S.coins; }
+function markRaise(){ S.raised=true; save(); Account.save&&Account.save(S); }
+function markTA(){ S.ta=true; save(); Account.creditCoins('s2w01_ta',12,'S2-W01 小老師 TA'); }
+
+/* ---------- 小工具 ---------- */
+function hcap(t){ const c=el('div','subq hcap'); c.textContent=t; return c; }
+function hbig(t){ return el('h1',null,t); }
+function txt(t){ const s=el('span'); s.textContent=t; s.style.fontWeight='800'; return s; }
+function mkSlot(type){ const s=el('div','slot '+TYPES[type].cls); s.dataset.type=type; s.textContent=TYPES[type].name; return s; }
+function mkCard(type,val){ const c=el('div','card '+TYPES[type].cls); c.dataset.type=type; c.dataset.val=val; c.appendChild(el('span','tag',TYPES[type].name)); c.appendChild(txt(val)); return c; }
+function mkTag(type){ const c=el('div','card '+TYPES[type].cls); c.dataset.type=type; c.style.minHeight='40px'; c.textContent=TYPES[type].name; return c; }
+function okFx(node){ if(!node)return; node.animate([{boxShadow:'0 0 0 0 rgba(43,209,126,.6)'},{boxShadow:'0 0 0 8px rgba(43,209,126,0)'}],{duration:600}); }
+// 干擾字（別回合借用，避免與正解相同）
+function distractor(type,avoid){ const pool={role:[],bg:[],prob:[]};
+  TASKB1.forEach(d=>{pool.role.push(d.role);pool.bg.push(d.bg);pool.prob.push(d.prob);});
+  TASKA1.forEach(d=>{pool.role.push(d.g.role);pool.bg.push(d.g.bg);pool.prob.push(d.g.prob);});
+  const cand=pool[type].filter(x=>x&&x!==avoid); return cand[Math.floor(Math.random()*cand.length)]||({role:'你當老師',bg:'我在上課',prob:'這個怎麼做'})[type]; }
+
+/* ---------- 主渲染 ---------- */
+function render(){ clearStage(); document.getElementById('redo').style.display=(S.screen==='start'||S.screen==='done')?'none':'inline-block';
+  (R[S.screen]||R.start)(); }
+
+/* ---------- 啟動（含帳號續玩） ---------- */
+function boot(){ Account.init(); renderTop(); render(); renderAcct();
+  (async()=>{ if(!Account.ready)return; const cloud=await Account.load(); if(cloud&&cloud.v===VERSION&&cloud.screen){ if(progressScore(cloud)>progressScore(S)){ S=cloud; save(); renderTop(); render(); } else { Account.save(S); } } else { Account.save(S); } renderAcct(); })(); }
+function renderAcct(){ const a=$('#acct'); if(Account.ready){ a.innerHTML='<span class="dot ok"></span> 已綁定帳號：'+(Account.name||'已登入')+'　金幣會存進帳號'; } else { a.innerHTML='<span class="dot warn"></span> 訪客模式：進度只存這台電腦。<a href="/login" style="color:#8fd0ff">登入</a>後綁定'; } }
+boot();
+</script>
+</body>
+</html>
