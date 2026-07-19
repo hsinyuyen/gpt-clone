@@ -39,6 +39,15 @@ export function getAllScripts(): ScriptDefinition[] {
 // External scripts — clicking opens a standalone page (game / worksheet) instead of an in-chat script
 const externalScripts: Script[] = [
   {
+    id: "ai-picturebook",
+    name: "AI 繪本製作",
+    description: "4 堂示範課｜選一堂開始，做一本自己的繪本。第 1 堂：認識你的主角。",
+    icon: "picturebook",
+    category: "creative",
+    isAvailable: true,
+    externalUrl: "/courses/ai-picturebook.html",
+  },
+  {
     id: "game-lab",
     name: "遊戲開發模擬器",
     description: "S5-W15｜學做一款躲隕石遊戲，最後真的能玩！",
