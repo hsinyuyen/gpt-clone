@@ -1,45 +1,62 @@
-# ChatGPT Clone
+# gpt-clone — AI 程式教育平台
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+給國小中高年級（小三～小六）用的繁體中文 AI 學習平台：AI 助理聊天、AI 繪本製作課、學習單、課堂小遊戲、卡牌對戰等。
 
-ChatGPT Clone is a fully functional clone of ChatGPT, an AI-powered chatbot, built using Next.js and Tailwind CSS. It allows users to have interactive conversations with the chatbot, powered by the OpenAI GPT-3.5 language model.
+- **正式站**：https://gpt-clone-beta-six.vercel.app
+- **框架**：Next.js 13 + Tailwind CSS + Firebase（Firestore）
+- **AI**：OpenAI（聊天/TTS/STT/故事）、Google Gemini（繪本算圖 + AI 審核）
 
-**Try it now:** https://chat-clone-gpt.vercel.app/
+## 快速開始
 
-🎥 **Watch the Demo Video**
+```bash
+git clone https://github.com/hsinyuyen/gpt-clone.git
+cd gpt-clone
+npm install
+cp .env.example .env      # 然後填入金鑰（見下方）
+npm run dev               # 開 http://localhost:3000
+```
 
-[![Demo Video](./demo-screenshot.png)](https://www.loom.com/share/ff91d8df35b7479a8da6ad41da05c4c8)
+> 套件管理用 **npm**（不是 yarn）。Node 18+。
 
-## Technology Choices
+## 環境變數
 
-ChatGPT Clone utilizes the following technologies:
+複製 `.env.example` 成 `.env` 填值。核心必填：`OPENAI_API_KEY`、`GEMINI_API_KEY`、`MIXPANEL_PROJECT_TOKEN`、`APP_ENV`、`APP_NAME`；其餘為選用功能的金鑰。完整清單與說明見 [.env.example](.env.example)。
 
-| Technology       | Version |
-| ---------------- | ------- |
-| Next.js          | 13.3.0  |
-| Tailwind CSS     | 3.3.1   |
-| React            | 18.2.0  |
-| TypeScript       | 5.0.4   |
-| Axios            | 1.3.5   |
-| dotenv           | 16.0.3  |
-| OpenAI           | 3.2.1   |
-| mixpanel-browser | 2.46.0  |
-| uuid             | 9.0.0   |
+- Firebase 前端設定是**寫死**在 `src/lib/firebase.ts`（專案**沒有 Firebase Auth**，改用 localStorage 當 session；Firestore 規則採每個 collection 白名單制）。
 
-## Getting Started
+## 專案結構（重點）
 
-To get started with ChatGPT Clone, follow these steps:
+| 路徑 | 說明 |
+| --- | --- |
+| `src/pages/api/` | 後端 API（`openai`、`generate-image-gemini`、`review-drawing`、`review-design`、`tts`、`transcribe`…）|
+| `src/scripts/` | 對話式腳本（create-avatar、story-helper…）與註冊表 `registry.ts` |
+| `src/components/` | UI（Chat、ScriptPanel、Sidebar…）|
+| `src/lib/firestore.ts` | Firestore 存取層 |
+| `public/courses/` | AI 繪本課（靜態 HTML，如 `l1-character.html`）|
+| `public/games/` | 課堂小遊戲（靜態 HTML）|
+| `src/pages/admin/` | 老師後台（學習單、班級、可見性設定…）|
 
-1. Clone the repository: `git clone https://github.com/your-username/ChatGPT-Clone.git`
-2. Install the dependencies: `yarn`
-3. Set up your environment variables by creating a `.env` file and adding the necessary values.
-4. Run the development server: `yarn dev`
-5. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
+## 部署
 
-## Contributing
+Vercel（專案 `gpt-clone`，正式站 `gpt-clone-beta-six.vercel.app`）。CLI 部署：
 
-Contributions are welcome! If you find ChatGPT Clone useful, consider starring the repository on GitHub.
+```bash
+vercel --prod        # 直接把本機檔案打包上線（不經過 GitHub）
+```
 
-## License
+環境變數設在 Vercel 專案設定。`.vercelignore` 已排除 `.claude`/`scripts`/`docs`/`nul`/`.env*`。
 
-This project is open source and available under the [MIT License](https://opensource.org/licenses/MIT).
+## 協作流程（版控）
+
+`main` 是正式分支。**不要直接推 `main`**，一律走分支 + PR：
+
+```bash
+git checkout main && git pull
+git checkout -b feat/你的功能        # 開功能分支
+# ...改動、commit...
+git push -u origin feat/你的功能
+gh pr create --base main             # 開 PR，審核後再 merge
+```
+
+- commit 訊息用 `type(scope): 說明`（如 `feat(picturebook): …`、`fix(worksheets): …`）。
+- `.env`、`node_modules`、`.next` 都已被 gitignore，不要提交。
