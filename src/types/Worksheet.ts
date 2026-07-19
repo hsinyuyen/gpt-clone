@@ -13,7 +13,8 @@ export interface Worksheet {
   week: number;
   markdownContent: string;
   tasks: Task[];
-  classId: string;
+  classId: string;              // 主帶班級（進度歸屬 / 顯示用；classIds 的第一個）
+  classIds?: string[];          // 可看見此學習單的所有班級（含 classId）。舊資料可能沒有此欄位，查詢時以 classId 後援。
   isPublished: boolean;
   publishedAt: string | null;
   createdAt: string;
@@ -23,6 +24,10 @@ export interface Worksheet {
   styledHtmlGeneratedAt: string | null;
   styledHtmlStatus: 'pending' | 'generating' | 'ready' | 'error';
   gammaUrl: string | null;
+  // P1（動作技能）等互動遊戲型學習單：卡片點擊後直接開這個單檔遊戲，
+  // 進度/金幣由遊戲自己寫入 gameProgress/{uid} 的 gameKey 欄位（不走 studentProgress 逐任務審核）。
+  externalGameUrl?: string | null;
+  gameKey?: string | null;
 }
 
 export interface TaskProgress {

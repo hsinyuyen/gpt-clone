@@ -25,6 +25,9 @@ export default function WorksheetsPage() {
   const [previewHtml, setPreviewHtml] = useState<{ id: string; html: string } | null>(null);
   const [editingGammaId, setEditingGammaId] = useState<string | null>(null);
   const [gammaUrlInput, setGammaUrlInput] = useState("");
+  const [editingClassesId, setEditingClassesId] = useState<string | null>(null);
+  const [classSel, setClassSel] = useState<string[]>([]);
+  const [savingClasses, setSavingClasses] = useState(false);
 
   const isAdmin = user && ADMIN_USERNAMES.includes(user.username.toLowerCase());
 
@@ -63,6 +66,27 @@ export default function WorksheetsPage() {
 
   const getClassName = (classId: string) =>
     classrooms.find((c) => c.id === classId)?.name || classId;
+
+  // 可看見班級：新資料讀 classIds，舊資料退回單一 classId
+  const visibleClassIds = (ws: Worksheet): string[] =>
+    ws.classIds && ws.classIds.length > 0 ? ws.classIds : [ws.classId];
+
+  const openClassEditor = (ws: Worksheet) => {
+    setEditingClassesId(editingClassesId === ws.id ? null : ws.id);
+    setClassSel(visibleClassIds(ws));
+  };
+
+  const handleSaveClasses = async (ws: Worksheet) => {
+    if (classSel.length === 0) { alert("至少要選一個班級"); return; }
+    setSavingClasses(true);
+    // 保留原主帶班級為第一個（若仍在勾選中），否則以第一個勾選者為主帶
+    const primary = classSel.includes(ws.classId) ? ws.classId : classSel[0];
+    const ordered = [primary, ...classSel.filter((c) => c !== primary)];
+    await saveWorksheet({ ...ws, classId: primary, classIds: ordered, updatedAt: new Date().toISOString() });
+    setSavingClasses(false);
+    setEditingClassesId(null);
+    await loadData();
+  };
 
   const handleSaveGammaUrl = async (ws: Worksheet) => {
     const url = gammaUrlInput.trim();
@@ -147,12 +171,20 @@ export default function WorksheetsPage() {
             </button>
             <h1 className="text-xl font-bold">學習單管理</h1>
           </div>
-          <button
-            onClick={() => setShowUpload(true)}
-            className="px-4 py-2 bg-[var(--terminal-primary)] text-[var(--terminal-bg)] font-bold hover:opacity-90 transition-opacity"
-          >
-            + 新增學習單
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => router.push("/admin/worksheets/visibility")}
+              className="px-4 py-2 border border-cyan-500 text-cyan-400 hover:bg-cyan-900/20 transition-colors"
+            >
+              🏫 班級 × 系列
+            </button>
+            <button
+              onClick={() => setShowUpload(true)}
+              className="px-4 py-2 bg-[var(--terminal-primary)] text-[var(--terminal-bg)] font-bold hover:opacity-90 transition-opacity"
+            >
+              + 新增學習單
+            </button>
+          </div>
         </div>
 
         {worksheets.length === 0 ? (
@@ -179,8 +211,8 @@ export default function WorksheetsPage() {
                       <span className="text-xs text-[var(--terminal-primary-dim)]">
                         {ws.semester} W{String(ws.week).padStart(2, "0")}
                       </span>
-                      <span className="text-xs text-[var(--terminal-primary-dim)]">
-                        {getClassName(ws.classId)}
+                      <span className="text-xs text-cyan-400/90" title="可看見的班級">
+                        👁 {visibleClassIds(ws).map(getClassName).join("、")}
                       </span>
                     </div>
                     <h2 className="font-bold truncate">{ws.title}</h2>
@@ -218,6 +250,16 @@ export default function WorksheetsPage() {
                       className="px-3 py-1.5 text-xs border border-[var(--terminal-primary-dim)] hover:bg-[var(--terminal-primary)]/10"
                     >
                       進度矩陣
+                    </button>
+                    <button
+                      onClick={() => openClassEditor(ws)}
+                      className={`px-3 py-1.5 text-xs border ${
+                        editingClassesId === ws.id
+                          ? "border-cyan-500 text-cyan-300 bg-cyan-900/30"
+                          : "border-cyan-700 text-cyan-400 hover:bg-cyan-900/20"
+                      }`}
+                    >
+                      可看見班級
                     </button>
                     <button
                       onClick={() => {
@@ -278,6 +320,63 @@ export default function WorksheetsPage() {
                     </button>
                   </div>
                 </div>
+                {/* Inline 可看見班級 editor */}
+                {editingClassesId === ws.id && (
+                  <div className="mt-3 pt-3 border-t border-[var(--terminal-primary-dim)]/30">
+                    <p className="text-xs text-[var(--terminal-primary-dim)] mb-2">
+                      勾選可看見這份學習單的班級（可多選）：
+                    </p>
+                    {classrooms.length === 0 ? (
+                      <p className="text-yellow-400 text-sm">尚無班級</p>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {classrooms.map((c) => {
+                          const checked = classSel.includes(c.id);
+                          return (
+                            <label
+                              key={c.id}
+                              className={`flex items-center gap-2 px-3 py-2 border cursor-pointer text-sm ${
+                                checked
+                                  ? "border-cyan-500 bg-cyan-900/20 text-cyan-300"
+                                  : "border-[var(--terminal-primary-dim)] text-[var(--terminal-primary-dim)] hover:border-cyan-600"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() =>
+                                  setClassSel((prev) =>
+                                    prev.includes(c.id) ? prev.filter((x) => x !== c.id) : [...prev, c.id]
+                                  )
+                                }
+                                className="accent-cyan-500"
+                              />
+                              <span className="truncate">{c.name}</span>
+                              {checked && (classSel.includes(ws.classId) ? ws.classId : classSel[0]) === c.id && (
+                                <span className="ml-auto text-[10px] px-1 bg-cyan-500/20 border border-cyan-700">主帶</span>
+                              )}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 mt-3">
+                      <button
+                        onClick={() => handleSaveClasses(ws)}
+                        disabled={savingClasses || classSel.length === 0}
+                        className="px-3 py-1.5 text-xs bg-cyan-600 text-black font-bold hover:opacity-90 disabled:opacity-40"
+                      >
+                        {savingClasses ? "儲存中..." : "儲存"}
+                      </button>
+                      <button
+                        onClick={() => setEditingClassesId(null)}
+                        className="px-3 py-1.5 text-xs border border-[var(--terminal-primary-dim)] hover:bg-[var(--terminal-primary)]/10"
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {/* Inline Gamma URL editor */}
                 {editingGammaId === ws.id && (
                   <div className="mt-3 pt-3 border-t border-[var(--terminal-primary-dim)]/30">
@@ -371,10 +470,13 @@ function UploadModal({
   const [title, setTitle] = useState("");
   const [semester, setSemester] = useState("S1");
   const [week, setWeek] = useState(1);
-  const [classId, setClassId] = useState(classrooms[0]?.id || "");
+  const [classIds, setClassIds] = useState<string[]>(classrooms[0] ? [classrooms[0].id] : []);
   const [saving, setSaving] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [gammaUrl, setGammaUrl] = useState("");
+
+  const toggleClass = (cid: string) =>
+    setClassIds((prev) => (prev.includes(cid) ? prev.filter((c) => c !== cid) : [...prev, cid]));
 
   const handleFile = (file: File) => {
     if (!file.name.endsWith(".md")) {
@@ -414,7 +516,7 @@ function UploadModal({
   const hasMissingCoins = editedTasks.some((t) => t.coinsMissing);
 
   const handleSave = async (publish: boolean) => {
-    if (!title.trim() || !classId || editedTasks.length === 0) return;
+    if (!title.trim() || classIds.length === 0 || editedTasks.length === 0) return;
     if (hasMissingCoins) {
       alert("請先補填所有缺少金幣數的任務");
       return;
@@ -439,7 +541,8 @@ function UploadModal({
       week,
       markdownContent: markdown,
       tasks,
-      classId,
+      classId: classIds[0],
+      classIds,
       isPublished: publish,
       publishedAt: publish ? now : null,
       createdAt: now,
@@ -568,22 +671,46 @@ function UploadModal({
                     </div>
                     <div className="col-span-2">
                       <label className="text-sm text-[var(--terminal-primary-dim)] block mb-1">
-                        班級
+                        可看見的班級（可多選）
                       </label>
                       {classrooms.length === 0 ? (
                         <p className="text-yellow-400 text-sm">
                           尚無班級，請先到班級管理建立班級
                         </p>
                       ) : (
-                        <select
-                          value={classId}
-                          onChange={(e) => setClassId(e.target.value)}
-                          className="w-full bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-3 py-2 outline-none"
-                        >
-                          {classrooms.map((c) => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
-                        </select>
+                        <>
+                          <div className="grid grid-cols-2 gap-2">
+                            {classrooms.map((c) => {
+                              const checked = classIds.includes(c.id);
+                              return (
+                                <label
+                                  key={c.id}
+                                  className={`flex items-center gap-2 px-3 py-2 border cursor-pointer text-sm ${
+                                    checked
+                                      ? "border-[var(--terminal-primary)] bg-[var(--terminal-primary)]/10 text-[var(--terminal-primary)]"
+                                      : "border-[var(--terminal-primary-dim)] text-[var(--terminal-primary-dim)] hover:border-[var(--terminal-primary)]"
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => toggleClass(c.id)}
+                                    className="accent-[var(--terminal-primary)]"
+                                  />
+                                  <span className="truncate">{c.name}</span>
+                                  {checked && classIds[0] === c.id && (
+                                    <span className="ml-auto text-[10px] px-1 bg-[var(--terminal-primary)]/20 border border-[var(--terminal-primary-dim)]">
+                                      主帶
+                                    </span>
+                                  )}
+                                </label>
+                              );
+                            })}
+                          </div>
+                          <p className="text-xs text-[var(--terminal-primary-dim)] mt-1">
+                            勾選的班級都看得到這份學習單；第一個勾選的為「主帶班級」（進度歸屬）。
+                          </p>
+                        </>
                       )}
                     </div>
                     <div className="col-span-2">
@@ -673,14 +800,14 @@ function UploadModal({
                     <div className="flex gap-3">
                       <button
                         onClick={() => handleSave(false)}
-                        disabled={saving || !classId || hasMissingCoins}
+                        disabled={saving || classIds.length === 0 || hasMissingCoins}
                         className="px-4 py-2 border border-[var(--terminal-primary-dim)] hover:bg-[var(--terminal-primary)]/10 disabled:opacity-40"
                       >
                         {saving ? "儲存中..." : "儲存草稿"}
                       </button>
                       <button
                         onClick={() => handleSave(true)}
-                        disabled={saving || !classId || hasMissingCoins}
+                        disabled={saving || classIds.length === 0 || hasMissingCoins}
                         className="px-4 py-2 bg-[var(--terminal-primary)] text-[var(--terminal-bg)] font-bold hover:opacity-90 disabled:opacity-40"
                       >
                         {saving ? "儲存中..." : "儲存並發布"}

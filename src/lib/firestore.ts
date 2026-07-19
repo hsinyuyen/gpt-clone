@@ -607,21 +607,83 @@ export async function getWorksheet(id: string): Promise<Worksheet | null> {
 }
 
 export async function getPublishedWorksheetsByClass(classId: string): Promise<Worksheet[]> {
-  const q = query(
+  // 新資料以 classIds（可多班可見）查詢；舊資料只有單一 classId，用第二個查詢後援，最後依 doc id 去重。
+  const qNew = query(
+    collection(db, "worksheets"),
+    where("classIds", "array-contains", classId),
+    where("isPublished", "==", true)
+  );
+  const qLegacy = query(
     collection(db, "worksheets"),
     where("classId", "==", classId),
     where("isPublished", "==", true)
   );
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => d.data() as Worksheet);
+  const [snapNew, snapLegacy] = await Promise.all([getDocs(qNew), getDocs(qLegacy)]);
+  const map = new Map<string, Worksheet>();
+  [...snapNew.docs, ...snapLegacy.docs].forEach((d) => map.set(d.id, d.data() as Worksheet));
+  return Array.from(map.values());
+}
+
+// ============ Series Visibility（系列 → 開放班級）============
+// 單一真相：system/seriesVisibility.map = { [semester]: classId[] }。
+// 好處：只要把一個系列開放給某班，之後「新出的同系列學習單」一發布就自動可見，不用再逐份指派班級。
+export type SeriesVisibility = Record<string, string[]>;
+
+export async function getSeriesVisibility(): Promise<SeriesVisibility> {
+  const snap = await getDoc(doc(db, "system", "seriesVisibility"));
+  return snap.exists() ? (((snap.data() as any).map as SeriesVisibility) || {}) : {};
+}
+
+export async function saveSeriesVisibility(map: SeriesVisibility): Promise<void> {
+  await setDoc(doc(db, "system", "seriesVisibility"), {
+    map,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * 學生端可見學習單：已發布，且（該系列開放給這班 ⋁ 舊的逐份 classIds 仍含這班，向下相容）。
+ * 用系列即時判斷 → 新出的同系列學習單發布後自動出現，毋須手動指派班級。
+ */
+export async function getPublishedWorksheetsForClass(classId: string): Promise<Worksheet[]> {
+  const [snap, vis] = await Promise.all([
+    getDocs(query(collection(db, "worksheets"), where("isPublished", "==", true))),
+    getSeriesVisibility(),
+  ]);
+  const openSemesters = new Set(
+    Object.entries(vis)
+      .filter(([, ids]) => Array.isArray(ids) && ids.includes(classId))
+      .map(([sem]) => sem)
+  );
+  return snap.docs
+    .map((d) => d.data() as Worksheet)
+    .filter((w) => {
+      if (openSemesters.has(w.semester)) return true;
+      const ids =
+        w.classIds && w.classIds.length > 0 ? w.classIds : w.classId ? [w.classId] : [];
+      return ids.includes(classId);
+    });
 }
 
 export async function saveWorksheet(worksheet: Worksheet): Promise<void> {
-  await setDoc(doc(db, "worksheets", worksheet.id), worksheet);
+  // 永遠讓 classIds 存在且包含 classId（去重），確保 array-contains 查詢找得到，且 classId 為主帶班級。
+  const classIds = Array.from(
+    new Set([worksheet.classId, ...(worksheet.classIds || [])].filter(Boolean))
+  );
+  const primary = classIds[0] || worksheet.classId;
+  await setDoc(doc(db, "worksheets", worksheet.id), { ...worksheet, classId: primary, classIds });
 }
 
 export async function deleteWorksheet(id: string): Promise<void> {
   await deleteDoc(doc(db, "worksheets", id));
+}
+
+// 讀取單檔遊戲型學習單的進度（gameProgress/{userId}），供瀏覽頁顯示完成狀態/金幣。
+export async function getGameProgress(
+  userId: string
+): Promise<Record<string, any> | null> {
+  const snap = await getDoc(doc(db, "gameProgress", userId));
+  return snap.exists() ? (snap.data() as Record<string, any>) : null;
 }
 
 // ============ Student Worksheet Progress ============
