@@ -1,0 +1,12 @@
+/.git
+/.claude
+/node_modules
+/.next
+/out
+/build
+/scripts
+/docs
+/nul
+/.env
+/.env.*
+*.tsbuildinfo

@@ -263,6 +263,7 @@ const ScriptPanel: React.FC<ScriptPanelProps> = ({
                     <>
                       {script.id === "create-avatar" && "[+]"}
                       {script.id === "story-helper" && "[S]"}
+                      {script.id === "ai-picturebook" && "[📖]"}
                       {script.id === "game-lab" && "[▶]"}
                       {script.id === "math-tutor" && "[#]"}
                       {script.id === "english-buddy" && "[A]"}

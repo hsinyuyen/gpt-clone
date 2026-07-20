@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>阿問偵探社 · S2-W01</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --bg:#0b1a2e; --bg2:#081422; --panel:#14304f; --panel2:#0f2540; --ink:#eef5ff; --ink2:#c3d6ef; --dim:#93b0d4;
+    --paper:#f5ecd6; --paper2:#efe3c6; --ink-dk:#2c2417; --ink-dk2:#5a4a30;
+    --role:#b07dff; --bgc:#3fc6dd; --prob:#ff8fbb;      /* 亮化過的三要素色，深底上高對比 */
+    --gold:#ffcf5c; --amber:#ff9f43; --good:#4fe08a; --bad:#94a6bd; --line:#28517d;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;}
+  html,body{height:100%;}
+  body{background:var(--bg);color:var(--ink);font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
+    overflow:hidden;user-select:none;font-size:16px;line-height:1.5;}
+  .serif{font-family:"Baskerville","Iowan Old Style","Songti TC","Noto Serif TC",Georgia,serif;}
+  #app{position:fixed;inset:0;display:flex;flex-direction:column;}
+  /* 背景大圖 + 暗化，保證文字可讀 */
+  #bg{position:fixed;inset:0;z-index:0;background:radial-gradient(1200px 700px at 50% 0%,#1a3a5e,var(--bg));}
+  #bg .bgimg{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.28;}
+  #bg .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,18,34,.55),rgba(8,18,34,.82));}
+  /* ---- 頂列 HUD ---- */
+  #top{position:relative;z-index:5;display:flex;align-items:center;gap:10px;padding:10px 14px;background:linear-gradient(180deg,rgba(8,16,30,.92),rgba(8,16,30,.6));border-bottom:1px solid var(--line);backdrop-filter:blur(4px);}
+  #top .brand{font-weight:900;font-size:18px;letter-spacing:.5px;display:flex;align-items:center;gap:7px;}
+  #top .brand .lens{width:22px;height:22px;}
+  .rankchip{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:800;color:#3a2c08;background:linear-gradient(180deg,#ffe08a,#f0b53c);border-radius:20px;padding:4px 11px;box-shadow:0 2px 6px rgba(0,0,0,.3);}
+  .spacer{flex:1;}
+  .coinchip{display:flex;align-items:center;gap:6px;font-weight:900;color:var(--gold);font-size:16px;}
+  .coinchip .c{width:17px;height:17px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2b0,var(--gold));box-shadow:0 0 7px var(--gold);}
+  .iconbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:rgba(20,48,79,.7);color:var(--ink);font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;}
+  .iconbtn:hover{border-color:var(--gold);} .iconbtn .dot{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;border-radius:9px;background:var(--amber);color:#2a1600;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;}
+  .iconbtn.skip{font-size:16px;opacity:.62;border-style:dashed;} .iconbtn.skip:hover{opacity:1;}
+  /* ---- 進度條 ---- */
+  #prog{position:relative;z-index:5;display:flex;align-items:center;gap:10px;padding:8px 16px;background:rgba(8,16,30,.55);border-bottom:1px solid var(--line);}
+  #prog .lbl{font-size:12.5px;font-weight:800;color:var(--ink2);white-space:nowrap;}
+  #prog .bar{flex:1;height:12px;border-radius:7px;background:#0a1e34;border:1px solid var(--line);overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,.5);}
+  #prog .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--amber),var(--gold));transition:width .6s cubic-bezier(.3,1,.4,1);box-shadow:0 0 10px rgba(255,207,92,.6);}
+  #prog .pips{display:flex;gap:5px;}
+  #prog .pip{width:11px;height:11px;border-radius:50%;background:#0a1e34;border:1.5px solid var(--line);}
+  #prog .pip.on{background:var(--gold);border-color:var(--gold);box-shadow:0 0 7px var(--gold);}
+  #prog .pip.cur{border-color:#5bc0ff;box-shadow:0 0 7px #5bc0ff;}
+  /* ---- 舞台 ---- */
+  #stage{position:relative;z-index:4;flex:1;overflow-y:auto;overflow-x:hidden;}
+  .screen{min-height:100%;max-width:720px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:16px;padding:22px 18px 40px;}
+  h1{font-size:clamp(26px,6vw,38px);text-align:center;font-weight:900;line-height:1.15;}
+  h1 .sub{display:block;font-size:clamp(13px,3.2vw,15px);font-weight:800;color:var(--gold);letter-spacing:3px;margin-top:6px;}
+  .lead{font-size:clamp(16px,4vw,19px);line-height:1.6;text-align:center;color:var(--ink2);max-width:600px;}
+  .muted{font-size:13.5px;color:var(--dim);font-weight:700;}
+  .img{display:block;} .img img{width:100%;height:100%;object-fit:contain;display:block;} .img.fail img{display:none;} .img.fail{background:linear-gradient(160deg,#1c3d5f,#12263f);border-radius:16px;}
+  /* 阿問角色 + 對話泡泡 */
+  .awenrow{display:flex;gap:14px;align-items:flex-start;max-width:640px;width:100%;}
+  .awenrow .face{width:74px;height:74px;flex:0 0 auto;}
+  .awenrow .face.fail{border-radius:16px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 18px #0af6;}
+  .awenrow .face.fail::after{content:"◕‿◕";color:#7fdfff;font-weight:900;font-size:15px;}
+  .bubble{flex:1;position:relative;background:linear-gradient(180deg,#173355,#122843);border:1.5px solid var(--line);border-radius:16px;border-top-left-radius:4px;padding:13px 16px;font-size:clamp(15px,3.9vw,17.5px);line-height:1.55;color:var(--ink);box-shadow:0 6px 18px rgba(0,0,0,.3);}
+  .bubble .who{font-size:12px;color:#7fe0c0;font-weight:900;display:block;margin-bottom:4px;letter-spacing:.5px;}
+  .bubble.happy{border-color:var(--good);} .bubble.think{opacity:.9;}
+  /* 卡片：案情信 / 證物（米色紙，深墨字，超好讀） */
+  .paper{background:linear-gradient(180deg,var(--paper),var(--paper2));color:var(--ink-dk);border-radius:16px;padding:18px 20px;max-width:600px;width:100%;
+    box-shadow:0 8px 24px rgba(0,0,0,.35),inset 0 0 0 1px rgba(120,90,40,.25);position:relative;}
+  .paper h3{font-size:15px;color:var(--ink-dk2);margin-bottom:8px;letter-spacing:1px;font-weight:900;}
+  .paper .body{font-size:clamp(16px,4vw,18px);line-height:1.65;font-weight:600;}
+  .paper.evidence{border:2px solid var(--good);}
+  .stampSolved{position:absolute;top:8px;right:10px;transform:rotate(-14deg);border:3px solid #d4453e;color:#d4453e;font-weight:900;font-size:20px;padding:3px 12px;border-radius:8px;letter-spacing:3px;opacity:.85;font-family:serif;}
+  /* 場景插圖框 */
+  .scene{width:min(100%,460px);aspect-ratio:1/1;border-radius:20px;overflow:hidden;position:relative;box-shadow:0 12px 30px rgba(0,0,0,.4);border:2px solid rgba(255,207,92,.35);background:linear-gradient(160deg,#1c3d5f,#0f2136);}
+  .scene .img,.scene .img img{width:100%;height:100%;}
+  .scene.small{width:120px;aspect-ratio:1/1;border-radius:14px;}
+  /* 三要素儀表燈 */
+  .gauge{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;}
+  .lamp{display:flex;align-items:center;gap:7px;border:2px solid var(--line);border-radius:22px;padding:6px 14px;font-size:13.5px;font-weight:900;color:var(--dim);opacity:.65;transition:.2s;background:rgba(10,26,44,.5);}
+  .lamp .b{width:12px;height:12px;border-radius:50%;background:#2a3f5a;transition:.2s;}
+  .lamp.role.on{color:var(--role);border-color:var(--role);opacity:1;} .lamp.role.on .b{background:var(--role);box-shadow:0 0 10px var(--role);}
+  .lamp.bg.on{color:var(--bgc);border-color:var(--bgc);opacity:1;} .lamp.bg.on .b{background:var(--bgc);box-shadow:0 0 10px var(--bgc);}
+  .lamp.prob.on{color:var(--prob);border-color:var(--prob);opacity:1;} .lamp.prob.on .b{background:var(--prob);box-shadow:0 0 10px var(--prob);}
+  .lamp.miss{animation:missp .7s infinite;} @keyframes missp{0%,100%{transform:scale(1)}50%{transform:scale(1.13)}}
+  /* 組問句：三格輸入（大、好點、好讀） */
+  .composer{max-width:600px;width:100%;display:flex;flex-direction:column;gap:12px;}
+  .field{border:2px solid var(--line);border-radius:14px;padding:12px 14px;background:rgba(11,26,46,.85);}
+  .field.role{border-color:var(--role);} .field.bg{border-color:var(--bgc);} .field.prob{border-color:var(--prob);}
+  .field .lab{font-size:13px;font-weight:900;display:flex;align-items:center;gap:7px;margin-bottom:8px;}
+  .field.role .lab{color:var(--role);} .field.bg .lab{color:var(--bgc);} .field.prob .lab{color:var(--prob);}
+  .field .lab .b{width:11px;height:11px;border-radius:50%;}
+  .field.role .lab .b{background:var(--role);} .field.bg .lab .b{background:var(--bgc);} .field.prob .lab .b{background:var(--prob);}
+  .field .row{display:flex;align-items:center;gap:8px;}
+  .field .pre{font-size:16px;color:var(--ink2);font-weight:800;white-space:nowrap;}
+  .field input{flex:1;background:transparent;border:0;outline:0;color:#fff;font-size:clamp(16px,4.2vw,18px);font-weight:700;font-family:inherit;min-width:40px;padding:2px 0;}
+  .field input::placeholder{color:#6b88ab;font-weight:600;}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px;}
+  .chip{border:1.5px dashed;border-radius:18px;padding:5px 13px;font-size:14px;font-weight:800;cursor:pointer;background:rgba(255,255,255,.04);}
+  .chip.role{border-color:var(--role);color:#d5bcff;} .chip.bg{border-color:var(--bgc);color:#a9ecf7;} .chip.prob{border-color:var(--prob);color:#ffc6de;}
+  .chip:active{transform:scale(.95);}
+  .chip.role.sel{background:var(--role);color:#fff;border-style:solid;} .chip.prob.sel{background:var(--prob);color:#3a0f22;border-style:solid;}
+  /* 委託人泡泡 */
+  .clientface{border-radius:16px;background:linear-gradient(160deg,#3a5a78,#26405a);display:flex;align-items:center;justify-content:center;}
+  .clientface::after{content:"🧑";font-size:34px;}
+  .bubble.client{background:linear-gradient(180deg,#2c4a2e,#22391f);border-color:#4a7a3a;border-top-left-radius:4px;} .bubble.client .who{color:#bff0a8;}
+  /* 段落標題 */
+  .sectlbl{align-self:stretch;max-width:640px;margin:2px auto 0;font-size:14.5px;font-weight:900;color:var(--gold);letter-spacing:.5px;}
+  .scene.mid{width:min(88%,320px);}
+  /* 案發現場：可點擊熱點（在場景圖上找線索） */
+  .scene.invest{width:min(100%,440px);cursor:crosshair;}
+  .hotspot{position:absolute;transform:translate(-50%,-50%);background:none;border:0;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;z-index:3;}
+  .hotspot .lens{position:relative;width:40px;height:40px;border-radius:50%;background:rgba(255,207,92,.94);color:#2a1c00;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px rgba(255,207,92,.35),0 3px 9px rgba(0,0,0,.45);}
+  .hotspot .ring{position:absolute;top:20px;left:50%;width:40px;height:40px;border-radius:50%;border:3px solid var(--gold);transform:translate(-50%,-50%);animation:hspulse 1.5s ease-out infinite;}
+  @keyframes hspulse{0%{transform:translate(-50%,-50%) scale(1);opacity:.85}100%{transform:translate(-50%,-50%) scale(2.2);opacity:0}}
+  .hotspot .hlabel{font-size:11.5px;font-weight:900;color:#fff;background:rgba(6,16,30,.88);border:1px solid var(--gold);border-radius:11px;padding:2px 8px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.4);}
+  .hotspot:active .lens{transform:scale(.92);}
+  .hotspot.done .lens{background:var(--good);color:#03271a;box-shadow:0 0 0 3px rgba(79,224,138,.4);} .hotspot.done .ring{display:none;} .hotspot.done .hlabel{border-color:var(--good);color:#bff3d4;}
+  .clickrip{position:absolute;top:20px;left:50%;width:40px;height:40px;border-radius:50%;transform:translate(-50%,-50%);border:3px solid #fff;animation:hspulse .55s ease-out;}
+  /* 搜查式找線索 */
+  .scene.invest.hunt{cursor:zoom-in;}
+  .foundmark{position:absolute;transform:translate(-50%,-50%);width:32px;height:32px;border-radius:50%;background:var(--good);color:#03271a;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 0 0 3px rgba(79,224,138,.35),0 2px 6px rgba(0,0,0,.4);z-index:3;pointer-events:none;animation:pop .3s ease-out;}
+  .foundmark.herring{background:#8494a8;color:#fff;width:26px;height:26px;font-size:15px;}
+  @keyframes pop{0%{transform:translate(-50%,-50%) scale(0)}70%{transform:translate(-50%,-50%) scale(1.2)}100%{transform:translate(-50%,-50%) scale(1)}}
+  .huntsweep{position:absolute;transform:translate(-50%,-50%);width:42px;height:42px;border-radius:50%;border:3px solid rgba(255,255,255,.75);animation:hsweep .65s ease-out;pointer-events:none;z-index:3;}
+  .huntsweep.hint{border-color:var(--gold);width:52px;height:52px;box-shadow:0 0 14px rgba(255,207,92,.7);animation:hsweep 1.3s ease-out;}
+  @keyframes hsweep{0%{transform:translate(-50%,-50%) scale(.35);opacity:.9}100%{transform:translate(-50%,-50%) scale(1.9);opacity:0}}
+  .findcount{font-size:16px;font-weight:900;color:var(--gold);} .findcount b{font-size:19px;}
+  .compblock{width:100%;display:flex;flex-direction:column;align-items:center;gap:14px;}
+  .compblock.locked .compinner{display:none;}
+  .compblock .locknote{font-size:14.5px;font-weight:800;color:var(--dim);background:rgba(0,0,0,.22);border:1px dashed var(--line);border-radius:12px;padding:11px 18px;text-align:center;}
+  .compblock:not(.locked) .locknote{display:none;}
+  .compinner{width:100%;display:flex;flex-direction:column;align-items:center;gap:14px;animation:fadeup .4s ease;}
+  /* 觀察事實托盤 */
+  .traywrap{max-width:600px;width:100%;background:rgba(63,198,221,.06);border:1.5px dashed var(--bgc);border-radius:14px;padding:10px 12px;}
+  .traylbl{font-size:13px;font-weight:900;color:var(--bgc);margin-bottom:8px;}
+  .tray{display:flex;gap:8px;flex-wrap:wrap;min-height:24px;}
+  .traytip{color:var(--dim);font-size:13.5px;font-style:italic;}
+  .factcard{border:2px solid var(--bgc);background:rgba(63,198,221,.1);color:#c2f0f8;border-radius:12px;padding:8px 12px;font-size:14.5px;font-weight:700;cursor:pointer;font-family:inherit;text-align:left;}
+  .factcard:active{transform:scale(.96);} .factcard.sel{background:var(--bgc);color:#04222a;border-style:solid;}
+  /* 已填格顯示行 */
+  .slotline{font-size:15.5px;font-weight:700;color:var(--dim);padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.18);line-height:1.5;}
+  .slotline.filled{color:#fff;background:rgba(255,255,255,.06);}
+  /* 按鈕 */
+  .btn{border:0;border-radius:16px;font-weight:900;font-size:clamp(16px,4.2vw,20px);padding:15px 30px;cursor:pointer;font-family:inherit;
+    background:linear-gradient(180deg,#ffcf5c,#f0a52e);color:#3a2405;box-shadow:0 6px 0 #b4741a,0 10px 22px rgba(0,0,0,.35);transition:transform .06s;}
+  .btn:active{transform:translateY(4px);box-shadow:0 2px 0 #b4741a;} .btn:disabled{opacity:.5;filter:grayscale(.4);}
+  .btn.green{background:linear-gradient(180deg,#5fe89a,#22b56c);color:#03271a;box-shadow:0 6px 0 #147a45,0 10px 22px rgba(0,0,0,.35);}
+  .btn.blue{background:linear-gradient(180deg,#5bb3f0,#2f7fc4);color:#04223c;box-shadow:0 6px 0 #1c4f7e;}
+  /* 選項卡（對照 / 測驗） */
+  .opt{border:2px solid var(--line);background:linear-gradient(180deg,#16304f,#102540);color:var(--ink);border-radius:16px;padding:16px 18px;
+    font-size:clamp(15px,4vw,18px);font-weight:700;cursor:pointer;text-align:left;line-height:1.5;max-width:600px;width:100%;transition:.12s;}
+  .opt:hover{border-color:#5bc0ff;transform:translateY(-1px);} .opt.wrong{border-color:var(--bad);opacity:.5;animation:shake .3s;} .opt.right{border-color:var(--good);box-shadow:0 0 0 3px rgba(79,224,138,.4);}
+  .opt:disabled{cursor:not-allowed;} .lockmsg{display:none;font-size:14.5px;font-weight:800;color:var(--gold);background:rgba(0,0,0,.22);border:1px dashed #6a5320;border-radius:12px;padding:8px 16px;}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  /* 高亮字：主要出現在奶油紙卡上 → 用「深色飽和字」才讀得清（原本亮色是給深底用的） */
+  .hl{padding:2px 6px;border-radius:6px;font-weight:900;} .hl.role{background:rgba(155,107,214,.22);color:#6a2fae;} .hl.bg{background:rgba(43,176,199,.24);color:#0d6577;} .hl.prob{background:rgba(255,122,176,.26);color:#b32f61;}
+  /* 若高亮字出現在深底容器（泡泡/選項），改用亮色 */
+  .bubble .hl.role,.opt .hl.role,.filmcard .hl.role{color:#d9c4f5;background:rgba(176,125,255,.28);}
+  .bubble .hl.bg,.opt .hl.bg,.filmcard .hl.bg{color:#bdeef7;background:rgba(63,198,221,.28);}
+  .bubble .hl.prob,.opt .hl.prob,.filmcard .hl.prob{color:#ffd0e2;background:rgba(255,143,187,.28);}
+  .col{display:flex;flex-direction:column;gap:12px;align-items:center;width:100%;}
+  /* ---- 偵探筆記本 overlay ---- */
+  #nb{position:fixed;inset:0;z-index:40;background:rgba(4,10,20,.8);display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px);}
+  #nb.on{display:flex;}
+  .book{background:linear-gradient(180deg,#f7efdb,#ece0c2);color:var(--ink-dk);width:min(560px,100%);max-height:88vh;border-radius:14px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.6);position:relative;border-left:14px solid #7a4a24;}
+  .book .bh{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:linear-gradient(180deg,#8a5a2c,#6e4420);color:#ffe9c9;}
+  .book .bh .t{font-weight:900;font-size:18px;letter-spacing:1px;display:flex;gap:8px;align-items:center;}
+  .book .bh .x{cursor:pointer;font-size:22px;color:#ffe9c9;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:9px;}
+  .book .bh .x:hover{background:rgba(0,0,0,.2);}
+  .book .pages{padding:14px 20px 22px;overflow-y:auto;max-height:calc(88vh - 58px);
+    background-image:repeating-linear-gradient(transparent,transparent 33px,rgba(120,90,40,.18) 34px);}
+  .nbcase{margin-bottom:16px;}
+  .nbcase .ch{display:flex;align-items:center;gap:10px;font-weight:900;font-size:15px;color:#6e4420;border-bottom:2px solid rgba(120,90,40,.3);padding-bottom:5px;margin-bottom:6px;}
+  .nbcase .ch .th{width:34px;height:34px;border-radius:8px;overflow:hidden;flex:0 0 auto;box-shadow:0 1px 4px rgba(0,0,0,.3);}
+  .nbentry{display:flex;gap:9px;align-items:flex-start;padding:6px 2px;font-size:15.5px;line-height:1.55;font-weight:600;}
+  .nbentry .n{flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:#6e4420;color:#ffe9c9;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;}
+  .nbentry.solvedmark{color:#1f7a4a;font-weight:800;} .nbentry.solvedmark .n{background:#22b56c;}
+  .nbempty{color:#8a6a3a;font-style:italic;text-align:center;padding:20px;}
+  /* 過場 / toast / 撒花 */
+  #overlay{position:fixed;inset:0;z-index:45;background:rgba(4,12,24,.9);display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;text-align:center;padding:24px;}
+  #overlay.on{display:flex;} #overlay .big{font-size:clamp(28px,8vw,46px);font-weight:900;} #overlay .sub{font-size:clamp(16px,4.6vw,22px);color:var(--gold);font-weight:900;}
+  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);z-index:46;background:#1f7a4a;color:#eafff2;font-weight:900;padding:11px 20px;border-radius:24px;box-shadow:0 8px 24px rgba(0,0,0,.4);opacity:0;transition:.3s;font-size:15px;}
+  #toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+  .confetti{position:fixed;width:10px;height:15px;top:-20px;z-index:47;border-radius:2px;}
+  .fly{position:fixed;z-index:48;pointer-events:none;}
+  .shards{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;}
+  .shard{width:26px;height:26px;}
+  .badgeimg{width:150px;height:150px;}
+  .badgeimg.fail{border-radius:26px;background:radial-gradient(circle at 40% 35%,#ffe08a,#e6a02c);display:flex;align-items:center;justify-content:center;box-shadow:0 0 40px #ffcf5c;}
+  .badgeimg.fail::after{content:"★";color:#7a4a10;font-size:64px;}
+  .wall{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
+  .poster{width:96px;text-align:center;}
+  .poster .th{width:96px;height:96px;border-radius:12px;overflow:hidden;border:2px solid var(--good);box-shadow:0 4px 12px rgba(0,0,0,.4);position:relative;}
+  .poster .cap{font-size:12px;font-weight:800;color:var(--good);margin-top:5px;}
+  /* 序章故事 */
+  .story{animation:fadeup .45s ease;} @keyframes fadeup{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .filmcard{background:rgba(6,14,26,.74);border:1px solid var(--line);border-left:5px solid var(--gold);border-radius:16px;padding:24px 26px;max-width:600px;width:100%;
+    color:#f4ead2;font-size:clamp(17px,4.5vw,22px);line-height:1.95;text-align:center;letter-spacing:1px;box-shadow:0 12px 34px rgba(0,0,0,.45);}
+  .filmcard b{color:var(--gold);}
+  /* 城鎮地圖 + 壞蛋戰 */
+  .townmap{position:relative;width:min(100%,620px);aspect-ratio:3/2;border-radius:18px;overflow:hidden;border:2px solid rgba(255,207,92,.4);box-shadow:0 12px 30px rgba(0,0,0,.45);background:linear-gradient(160deg,#1c3d5f,#0f2136);}
+  .townmap .img,.townmap .img img{width:100%;height:100%;} .townmap .img img{object-fit:cover;}
+  .heroav{position:absolute;bottom:10%;left:8%;width:72px;height:72px;z-index:2;transition:left 1.1s cubic-bezier(.4,0,.3,1);} .heroav.far{left:74%;}
+  .heroav .img,.heroav .img img{width:100%;height:100%;} .heroav .img img{object-fit:contain;filter:drop-shadow(0 4px 6px rgba(0,0,0,.4));}
+  .arena{position:relative;width:min(100%,400px);aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;}
+  .villain{position:relative;width:82%;height:82%;} .villain .img,.villain .img img{width:100%;height:100%;} .villain .img img{object-fit:contain;filter:drop-shadow(0 6px 10px rgba(0,0,0,.4));}
+  .villain.hurt{animation:vhurt .3s;} @keyframes vhurt{0%,100%{filter:none}50%{filter:brightness(1.8) sepia(.6) hue-rotate(-25deg)}}
+  .weakspot{position:absolute;transform:translate(-50%,-50%);background:none;border:0;cursor:pointer;font-size:32px;z-index:4;line-height:1;}
+  .weakspot .tr{position:absolute;top:50%;left:50%;width:56px;height:56px;border-radius:50%;border:3px solid #ff5d6c;transform:translate(-50%,-50%);animation:hspulse 1.1s ease-out infinite;pointer-events:none;}
+  .weakspot:active{transform:translate(-50%,-50%) scale(.9);}
+  .vhp{width:min(82%,380px);height:16px;background:#3a1420;border-radius:9px;overflow:hidden;border:1px solid #6a2531;}
+  .vhp>i{display:block;height:100%;background:linear-gradient(90deg,#ff8a3c,#ff5d6c);transition:width .4s;}
+  .hearts{display:flex;gap:7px;} .hrt{font-size:24px;color:#ff5d6c;} .hrt.off{color:#39404c;}
+  /* 戰鬥舞台（大地圖遇敵）：背景 + 小偵探 vs 壞蛋 + 動畫 */
+  .battlestage{position:relative;width:min(100%,560px);aspect-ratio:8/5;border-radius:18px;overflow:hidden;border:2px solid rgba(255,207,92,.4);box-shadow:0 12px 30px rgba(0,0,0,.45);background:linear-gradient(160deg,#26314f,#0f1a2e);}
+  .battlestage .bgimg{position:absolute;inset:0;z-index:0;} .battlestage .bgimg img{width:100%;height:100%;object-fit:cover;}
+  .battlestage .bgimg.fail{background:linear-gradient(180deg,#3a3560 0%,#5a4a78 55%,#2e5a44 55%,#245038 100%);}
+  .bfHero{position:absolute;bottom:9%;left:9%;width:29%;height:50%;z-index:3;}
+  .bfHero .img,.bfHero .img img{width:100%;height:100%;} .bfHero .img img{object-fit:contain;filter:drop-shadow(0 5px 8px rgba(0,0,0,.5));}
+  .bfHero .img.fail{border-radius:50% 50% 44% 44%;background:radial-gradient(circle at 45% 32%,#c98a4a,#7a4a24);}
+  .bfVillain{position:absolute;bottom:11%;right:7%;width:40%;height:62%;z-index:2;}
+  .bfVillain .img,.bfVillain .img img{width:100%;height:100%;} .bfVillain .img img{object-fit:contain;filter:drop-shadow(0 7px 12px rgba(0,0,0,.5));}
+  .bfVillain .img.fail{border-radius:46%;background:radial-gradient(circle at 42% 34%,#8a90a4,#4b5164);}
+  .bfShadow{position:absolute;bottom:7%;height:5%;border-radius:50%;background:rgba(0,0,0,.28);z-index:1;filter:blur(1px);}
+  .bfShadow.h{left:12%;width:22%;} .bfShadow.v{right:11%;width:30%;}
+  /* 攻擊：小偵探撲向壞蛋 */
+  @keyframes bfLunge{0%{transform:translateX(0)}42%{transform:translateX(120%) scale(1.06)}62%{transform:translateX(120%) scale(1.06)}100%{transform:translateX(0)}}
+  .bfHero.atk{animation:bfLunge .5s ease;}
+  /* 壞蛋受擊 */
+  @keyframes bfHurt{0%,100%{filter:none;transform:translateX(0)}18%{filter:brightness(1.9) hue-rotate(-25deg);transform:translateX(10px) rotate(3deg)}55%{transform:translateX(-8px) rotate(-2deg)}}
+  .bfVillain.hurt .img img{animation:bfHurt .45s;}
+  /* 敵人攻擊：壞蛋撲向小偵探 */
+  @keyframes bfVLunge{0%{transform:translateX(0)}40%{transform:translateX(-95%) rotate(-5deg) scale(1.05)}60%{transform:translateX(-95%) rotate(-5deg)}100%{transform:translateX(0)}}
+  .bfVillain.lunge{animation:bfVLunge .6s ease;}
+  /* 小偵探被打到 */
+  @keyframes bfHit{0%,100%{transform:translateX(0)}20%{transform:translateX(-12px) rotate(-9deg);filter:brightness(1.5) sepia(.5)}50%{transform:translateX(10px) rotate(6deg)}80%{transform:translateX(-4px)}}
+  .bfHero.hit .img img{animation:bfHit .5s;}
+  /* 閃避 */
+  @keyframes bfDodgeL{0%{transform:translateX(0)}50%{transform:translateX(-55%) rotate(-12deg)}100%{transform:translateX(0)}}
+  @keyframes bfDodgeR{0%{transform:translateX(0)}50%{transform:translateX(75%) rotate(12deg)}100%{transform:translateX(0)}}
+  @keyframes bfDodgeD{0%{transform:translateY(0)}50%{transform:translateY(38%) scaleY(.66)}100%{transform:translateY(0)}}
+  .bfHero.dodL{animation:bfDodgeL .55s ease;} .bfHero.dodR{animation:bfDodgeR .55s ease;} .bfHero.dodD{animation:bfDodgeD .55s ease;}
+  /* 命中/受擊飄字 */
+  .bfPop{position:absolute;top:14%;left:50%;transform:translateX(-50%);z-index:6;font-weight:900;font-size:26px;text-shadow:0 2px 6px rgba(0,0,0,.6);animation:bfPopUp 1s ease forwards;pointer-events:none;}
+  .bfPop.hit{color:#ffd75e;} .bfPop.miss{color:#ff8a8a;}
+  @keyframes bfPopUp{0%{opacity:0;transform:translate(-50%,10px) scale(.6)}25%{opacity:1;transform:translate(-50%,-6px) scale(1.15)}100%{opacity:0;transform:translate(-50%,-42px) scale(1)}}
+  .victoryimg{width:min(100%,520px);border-radius:20px;box-shadow:0 14px 36px rgba(0,0,0,.5);border:3px solid rgba(255,207,92,.55);display:block;}
+  .victoryimg.fail{aspect-ratio:3/2;background:radial-gradient(circle at 50% 40%,#ffe08a,#e6a02c);display:flex;align-items:center;justify-content:center;}
+  .victoryimg.fail::after{content:"🎉🏅🎉";font-size:52px;}
+  .dodgerow{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
+  /* 大地圖 RPG */
+  .screen.world{padding:10px 12px 16px;gap:8px;justify-content:flex-start;}
+  .owwrap{width:100%;max-width:760px;display:flex;justify-content:center;}
+  .owcanvas{width:100%;max-width:760px;border-radius:14px;border:2px solid var(--line);box-shadow:0 10px 26px rgba(0,0,0,.45);background:#6fb050;display:block;image-rendering:auto;}
+  .owbar{font-size:14.5px;font-weight:800;color:var(--ink2);} .owbar b{color:var(--gold);font-size:16px;}
+  .owhint{font-size:14px;font-weight:900;color:#2a1c00;background:var(--gold);border-radius:20px;padding:6px 16px;box-shadow:0 3px 8px rgba(0,0,0,.35);}
+  .owpad{display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(3,56px);gap:7px;justify-content:center;margin-top:2px;}
+  .dbtn{border:2px solid var(--line);background:rgba(20,48,79,.9);color:var(--ink);border-radius:12px;font-size:22px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:none;}
+  .dbtn.up{grid-area:1/2;} .dbtn.left{grid-area:2/1;} .dbtn.act{grid-area:2/2;background:linear-gradient(180deg,#ffcf5c,#f0a52e);color:#3a2405;font-size:24px;} .dbtn.right{grid-area:2/3;} .dbtn.down{grid-area:3/2;}
+  .dbtn:active{filter:brightness(1.35);transform:scale(.95);}
+  .storyart{width:min(100%,540px);aspect-ratio:3/2;border-radius:18px;overflow:hidden;border:2px solid rgba(255,207,92,.4);box-shadow:0 14px 36px rgba(0,0,0,.5);background:linear-gradient(160deg,#1c3d5f,#0f2136);}
+  .storyart .img,.storyart .img img{width:100%;height:100%;} .storyart .img img{object-fit:cover;}
+  .awenbig{display:flex;flex-direction:column;align-items:center;gap:16px;max-width:600px;width:100%;}
+  .bigface{width:128px;height:128px;animation:bob 3s ease-in-out infinite;} @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+  .bubble.big{font-size:clamp(16px,4.3vw,19.5px);line-height:1.85;padding:18px 22px;border-radius:18px;text-align:center;} .bubble.big b{color:#ffe6a6;}
+  .storydots{display:flex;gap:8px;margin-top:2px;} .sd{width:9px;height:9px;border-radius:50%;background:#2a3f5a;transition:.25s;} .sd.on{background:var(--gold);box-shadow:0 0 7px var(--gold);}
+  .skiplink{background:none;border:0;color:var(--dim);font-size:13px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:4px;}
+  .skiplink:hover{color:var(--ink2);}
+  .acct{position:fixed;left:10px;bottom:8px;font-size:11.5px;color:var(--dim);z-index:6;}
+  .acct .d{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;} .acct .ok{background:var(--good);} .acct .warn{background:var(--gold);}
+  .offtag{font-size:11px;color:var(--gold);border:1px solid #6a5320;border-radius:12px;padding:1px 8px;}
+</style>
+</head>
+<body>
+<div id="bg"><div class="bgimg" id="bgimg"></div><div class="veil"></div></div>
+<div id="app">
+  <div id="top">
+    <span class="brand serif"><span class="lens" id="brandlens"></span>阿問偵探社</span>
+    <span class="spacer"></span>
+    <span class="rankchip"><span id="rank">實習偵探</span></span>
+    <button class="iconbtn" id="nbBtn" title="偵探筆記本">📓<span class="dot" id="nbCount" style="display:none">0</span></button>
+    <button class="iconbtn skip" id="skipBtn" title="跳過這一關">⏭</button>
+    <span class="coinchip"><span class="c"></span><span id="coinN">0</span></span>
+  </div>
+  <div id="prog">
+    <span class="lbl" id="progLbl">序章</span>
+    <div class="bar"><i id="progFill"></i></div>
+    <span class="pips" id="pips"></span>
+  </div>
+  <div id="stage"></div>
+</div>
+<div id="nb"><div class="book"><div class="bh"><span class="t serif">📖 偵探筆記本</span><span class="x" id="nbX">✕</span></div><div class="pages" id="nbPages"></div></div></div>
+<div id="overlay"></div>
+<div id="toast"></div>
+<div class="acct" id="acct"></div>
+<script>
+'use strict';
+/* =========================================================================
+   S2-W01《阿問偵探社》v2.1 — 專業改版 UI/UX
+   邏輯（AI 訊問迴圈 / 本地三要素閘門 / 存檔 / 金幣）不變；重建整個呈現層：
+   大字高對比、場景插圖、真進度條、偵探筆記本、破案儀式感。
+   ========================================================================= */
+const stage=document.getElementById('stage'), overlay=document.getElementById('overlay');
+const $=(s,r)=>(r||document).querySelector(s);
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const now=()=>performance.now();
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+// 圖片元件：載入失敗→退回 CSS 色塊（離線也不開天窗）
+function pic(name,cls){const w=el('div','img'+(cls?' '+cls:''));const im=document.createElement('img');im.src='assets/'+name+'.png';im.alt='';im.onerror=()=>w.classList.add('fail');w.appendChild(im);return w;}
+
+/* ---------- 音效 ---------- */
+const Sfx=(()=>{let ac=null;function ctx(){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();}catch(e){}return ac;}
+  function tone(f,d,t,v){const a=ctx();if(!a)return;const o=a.createOscillator(),g=a.createGain();o.type=t||'sine';o.frequency.value=f;
+    g.gain.setValueAtTime(0,a.currentTime);g.gain.linearRampToValueAtTime(v||.06,a.currentTime+.01);g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+(d||.15));
+    o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+(d||.15));}
+  return {tick(){tone(430,.05,'triangle',.05);},unlock(){tone(620,.09,'square',.05);setTimeout(()=>tone(940,.1,'sine',.05),70);setTimeout(()=>tone(1240,.12,'sine',.05),150);},
+    ding(){tone(880,.12,'sine',.06);setTimeout(()=>tone(1320,.14,'sine',.05),70);},pop(){tone(260,.12,'square',.05);},
+    win(){[523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>tone(f,.17,'square',.05),i*95));},resume(){ctx();}};
+})();
+
+/* ---------- 帳號綁定（沿用 gameKey s2w01：同一份學習單/錢包） ---------- */
+const GAMEKEY='s2w01', COIN_ID='s2w01_complete', COIN_AMT=25, COIN_PER_CASE=60; // 每破一案 60，6 案共 360
+const FB={apiKey:"AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78",authDomain:"gpt-clone-68b9f.firebaseapp.com",projectId:"gpt-clone-68b9f",storageBucket:"gpt-clone-68b9f.firebasestorage.app",messagingSenderId:"436942056069",appId:"1:436942056069:web:8762675dfff7b7e92017ec"};
+const Account=(()=>{let uid=null,uname='',db=null,ready=false;
+  function su(){try{const r=localStorage.getItem('@session/currentUser');return r?JSON.parse(r):null;}catch(e){return null;}}
+  function init(){const u=su();if(u&&u.id){uid=u.id;uname=u.displayName||u.username||'';}if(uid&&window.firebase){try{if(!firebase.apps.length)firebase.initializeApp(FB);db=firebase.firestore();ready=true;}catch(e){}}}
+  async function load(){if(!ready)return null;try{const s=await db.collection('gameProgress').doc(uid).get();return s.exists?(s.data()[GAMEKEY]||null):null;}catch(e){return null;}}
+  async function save(state){if(!ready)return;try{await db.collection('gameProgress').doc(uid).set({[GAMEKEY]:state,name:uname,updatedAt:new Date().toISOString()},{merge:true});}catch(e){}}
+  async function creditCoins(id,amount,reason){if(!ready||!(amount>0))return;const ref=db.collection('coins').doc(uid);
+    try{await db.runTransaction(async tx=>{const s=await tx.get(ref);const c=s.exists?s.data():{balance:0,totalEarned:0,transactions:[]};const txs=Array.isArray(c.transactions)?c.transactions:[];
+      if(txs.some(t=>t&&t.id===id))return;txs.push({id,amount,reason,timestamp:new Date().toISOString()});tx.set(ref,{balance:(c.balance||0)+amount,totalEarned:(c.totalEarned||0)+amount,transactions:txs.slice(-160)});});}catch(e){}}
+  return {init,load,save,creditCoins,get ready(){return ready;},get name(){return uname;}};
+})();
+
+/* =========================================================================
+   案件資料（本地預寫線索鏈；AI 只潤飾當層口吻。scene=場景插圖 key）
+   ========================================================================= */
+// 每層：client=委託人這關的話(疑點)；spots=案發現場可點選調查的「客觀觀察事實」(不含因果)；
+//       roles=可選角色；probs=可問的問題；seed=阿問推理出的「答案/因果」(只在此揭曉)。
+const CASES=[
+ { id:'fish', title:'水缸謎案', scene:'det-fish', client:'小海', victim:'一年級的小海哭著跑來：「我養的魚都躲起來不出來，是不是生病了？嗚嗚…」',
+   compare:{ good:{role:'養魚達人', bg:'水缸在窗邊、中午太陽很大、水溫溫的', prob:'太陽會不會害魚不舒服'}, bad:'魚為什麼躲？' },
+   solveQ:{q:'把線索拼起來——小海的魚一直躲，真正的原因是？',opts:['水缸太曬、又沒地方躲，魚很沒安全感','魚生病了要看醫生','有人偷偷把魚嚇跑'],ans:0},
+   solved:'破案！把水缸移開陽光、加了水草給魚躲，小海的魚兒終於出來游泳了！你救了那條魚！',
+   layers:[
+     { client:'小海說：我一「靠近」水缸，魚就馬上躲起來！', img:'sc-fish-0',
+       spots:[{s:'看小魚',f:'魚躲在最角落',x:22,y:72},{s:'看影子',f:'你一靠近、影子就蓋住水缸',x:52,y:17},{s:'聽周圍',f:'旁邊很安靜、沒有聲音',x:84,y:52}],
+       roles:['養魚達人','獸醫','太空人'], probs:['是我的影子嚇到牠嗎','明天會下雨嗎'], bad:['太空人','明天會下雨嗎'],
+       seed:'魚會怕突然出現的大影子！你一靠近，影子就嚇到牠，牠才躲起來的。' },
+     { client:'小海說：奇怪，白天「太陽」照到水缸時，魚躲得更兇！', img:'sc-fish-1',
+       spots:[{s:'看窗戶',f:'水缸就放在窗戶邊',x:80,y:46},{s:'看太陽',f:'現在中午、太陽很大',x:84,y:16},{s:'摸水溫',f:'水摸起來溫溫的',x:47,y:78}],
+       roles:['自然老師','養魚達人','廚師'], probs:['太陽把水曬熱會害魚不舒服嗎','幾點放學'], bad:['廚師','幾點放學'],
+       seed:'沒錯！陽光讓水變熱又反光，魚覺得不舒服，就一直躲——把水缸移開太陽就好多了。' },
+     { client:'小海說：移開太陽後好一點，但魚還是有點怕怕的。', img:'sc-fish-2',
+       spots:[{s:'看空水缸',f:'水缸裡空空的、什麼都沒有',x:33,y:45},{s:'看別人水缸',f:'別人的水缸有水草和石頭',x:75,y:52},{s:'看小魚',f:'魚一直貼著角落',x:20,y:71}],
+       roles:['養魚達人','水族館員','司機'], probs:['是不是要給牠地方躲才安心','怎麼去公園'], bad:['司機','怎麼去公園'],
+       seed:'答對了！水缸空空的沒地方躲，魚沒安全感；放些水草和石頭給牠躲，就安心了。' },
+   ] },
+ { id:'pudding', title:'布丁失蹤案', scene:'det-pudding', client:'阿福', victim:'值日生阿福被冤枉偷吃布丁！營養午餐的布丁午休後不見了，快幫他洗清嫌疑！',
+   compare:{ good:{role:'小偵探', bg:'午休門開著、阿福在睡覺、布丁放窗邊', prob:'會不會有東西從門或窗進來'}, bad:'布丁咧？' },
+   solveQ:{q:'把線索拼起來——布丁到底是被誰拿走的？',opts:['從窗戶進來的橘貓','值日生阿福偷吃','隔壁班的同學'],ans:0},
+   solved:'真相大白！布丁是被貪吃的橘貓從窗戶叼走的，垃圾桶找到空盒——阿福無罪！',
+   layers:[
+     { client:'阿福說：我被冤枉了！午休後布丁就不見了。', img:'sc-pud-0',
+       spots:[{s:'看教室門',f:'午休時教室門是開著的',x:16,y:46},{s:'看阿福',f:'阿福午休時趴著睡覺',x:50,y:62},{s:'看布丁位置',f:'布丁本來放在窗邊桌上',x:82,y:44}],
+       roles:['小偵探','警察','歌手'], probs:['會不會有人或動物進來拿走','午餐吃什麼'], bad:['歌手','午餐吃什麼'],
+       seed:'門開著，任何人、甚至小動物都可能進來——阿福又在睡覺，先別急著怪他！' },
+     { client:'班長說：調監視器！可是好像沒拍到人進來。', img:'sc-pud-1',
+       spots:[{s:'看監視器',f:'鏡頭只拍得到門口',x:18,y:20},{s:'看窗台',f:'窗台上有一排小小的腳印',x:80,y:50},{s:'看地板',f:'地上有幾滴布丁',x:50,y:82}],
+       roles:['鑑識員','小偵探','農夫'], probs:['窗戶那邊會不會有線索','幾點下課'], bad:['農夫','幾點下課'],
+       seed:'關鍵在窗台！那排小腳印代表是從「窗戶」進來的，不是門口——難怪監視器沒拍到。' },
+     { client:'班長說：窗台的腳印圓圓的、有肉墊…會是誰？', img:'sc-pud-2',
+       spots:[{s:'量腳印',f:'腳印小小的、圓圓的',x:24,y:56},{s:'看形狀',f:'有四顆肉墊的形狀',x:50,y:48},{s:'翻垃圾桶',f:'垃圾桶有吃光的布丁空盒',x:80,y:54}],
+       roles:['動物專家','小偵探','畫家'], probs:['這種肉墊腳印是哪種動物','紅色怎麼調'], bad:['畫家','紅色怎麼調'],
+       seed:'是貓！圓圓的肉墊腳印＋垃圾桶的空盒——是常來的橘貓叼走了布丁。阿福無罪！' },
+   ] },
+ { id:'buzz', title:'操場怪聲案', scene:'det-buzz', client:'班長', victim:'放學後操場一直傳出奇怪的「嗡嗡」聲，同學都不敢去玩，去查清楚吧！',
+   compare:{ good:{role:'昆蟲專家', bg:'傍晚才有聲音、燈柱上有一團東西、蟲飛回去', prob:'那團會不會是蟲窩'}, bad:'操場好吵喔' },
+   solveQ:{q:'把線索拼起來——操場的嗡嗡聲，真正的來源是？',opts:['燈柱上的虎頭蜂窩','操場真的有鬼','是機器壞掉的聲音'],ans:0},
+   solved:'破案！原來是燈柱上的虎頭蜂窩，你沒有亂靠近，而是通報老師請專業的人安全移除——操場又能玩了！',
+   layers:[
+     { client:'班長說：操場傍晚一直有嗡嗡聲，同學都不敢去。', img:'sc-buzz-0',
+       spots:[{s:'記錄時間',f:'嗡嗡聲只有傍晚才有',x:18,y:20},{s:'查白天',f:'白天完全沒有聲音',x:50,y:15},{s:'看路燈',f:'傍晚路燈剛好會打開',x:82,y:46}],
+       roles:['自然老師','工程師','歌手'], probs:['聲音會不會跟路燈有關','今天午餐吃什麼'], bad:['歌手','今天午餐吃什麼'],
+       seed:'觀察得好！聲音跟路燈同時出現——傍晚燈一開聲音就來了，兩件事一定有關。' },
+     { client:'班長說：聲音好像從燈柱「上面」傳下來…', img:'sc-buzz-1',
+       spots:[{s:'聽方向',f:'聲音從燈柱高處傳來',x:50,y:56},{s:'抬頭看',f:'燈柱上面有一團大大的東西',x:50,y:18},{s:'看飛蟲',f:'傍晚很多蟲飛回那團東西',x:66,y:32}],
+       roles:['昆蟲專家','自然老師','太空人'], probs:['燈柱上那團會不會是蟲窩','幾點放學'], bad:['太空人','幾點放學'],
+       seed:'沒錯！那是虎頭蜂窩，傍晚蜂群回巢，一大群嗡嗡叫，就是那個聲音。' },
+     { client:'班長說：找到蜂窩了！那該怎麼辦才安全？', img:'sc-buzz-2',
+       spots:[{s:'想危險',f:'虎頭蜂會螫人、很危險',x:24,y:30},{s:'看告示牌',f:'牌子寫「有狀況要找老師」',x:80,y:44},{s:'能自己弄嗎',f:'自己戳蜂窩超危險',x:50,y:78}],
+       roles:['安全老師','導護老師','司機'], probs:['我該找誰來安全處理','操場有多大'], bad:['司機','操場有多大'],
+       seed:'完全正確！千萬別自己靠近，要趕快告訴老師，請專業的人來安全移除。' },
+   ] },
+ { id:'smell', title:'教室怪味案', scene:'sc-smell-0', client:'阿明',
+   victim:'同學阿明摀著鼻子跑來：「教室裡有一股怪味道，好臭！大家都受不了了，快查查！」',
+   compare:{ good:{role:'清潔隊長', bg:'味道從角落抽屜飄來、窗戶都關著', prob:'臭味是從哪裡來的'}, bad:'好臭喔' },
+   solveQ:{q:'把線索拼起來——教室的怪味道，真正的原因是？',opts:['抽屜裡放到發霉的便當','有人放屁','牆壁壞掉了'],ans:0},
+   solved:'破案！原來是抽屜裡忘記的便當發霉了，丟掉＋打開窗戶通風，教室馬上清新！',
+   layers:[
+     { client:'阿明說：一走進教室就聞到一股怪味，好臭！', img:'sc-smell-0',
+       spots:[{s:'聞味道',f:'臭味好像從角落飄出來',x:50,y:42},{s:'看窗戶',f:'窗戶全部關得緊緊的',x:84,y:30},{s:'看抽屜',f:'有個抽屜關不太緊',x:24,y:64}],
+       roles:['清潔隊長','自然老師','魔術師'], probs:['臭味是從哪裡來的','今天星期幾'], bad:['魔術師','今天星期幾'],
+       seed:'味道是從那個關不緊的抽屜飄出來的，窗戶又都關著，臭味散不掉才越來越濃。' },
+     { client:'阿明說：打開那個抽屜，裡面有東西！', img:'sc-smell-1',
+       spots:[{s:'看便當盒',f:'裡面有一個便當盒',x:50,y:55},{s:'看發霉',f:'便當上長了綠綠的霉',x:34,y:44},{s:'看日期',f:'便當是上禮拜的',x:70,y:38}],
+       roles:['清潔隊長','營養師','司機'], probs:['食物放太久會怎樣','幾點放學'], bad:['司機','幾點放學'],
+       seed:'是上禮拜忘記帶回家的便當！食物放太久會發霉、長細菌，就發出臭味了。' },
+     { client:'阿明說：那要怎麼讓教室不臭啊？', img:'sc-smell-2',
+       spots:[{s:'開窗戶',f:'窗戶其實可以打開',x:82,y:34},{s:'看垃圾桶',f:'壞掉的東西要丟垃圾桶',x:24,y:60},{s:'想通風',f:'空氣要流動才會散味',x:54,y:30}],
+       roles:['清潔隊長','自然老師','畫家'], probs:['怎麼讓臭味散掉','紅色怎麼調'], bad:['畫家','紅色怎麼調'],
+       seed:'把發霉便當丟進垃圾桶，再打開窗戶讓空氣流通，臭味很快就散光光了。' },
+   ] },
+ { id:'light', title:'鬼燈疑案', scene:'sc-light-0', client:'小美',
+   victim:'值日生小美發抖著說：「晚上走廊的燈…會自己亮起來！是不是有鬼啊？我好怕…」',
+   compare:{ good:{role:'電工', bg:'燈只在晚上亮、牆上有個感應盒、有東西動才亮', prob:'是不是有東西經過才亮'}, bad:'燈好奇怪' },
+   solveQ:{q:'把線索拼起來——走廊的燈自己亮，真正的原因是？',opts:['貓經過、觸發了感應燈','走廊真的有鬼','電線壞掉漏電'],ans:0},
+   solved:'破案！原來是「感應燈」＋晚上溜進來的貓，不是鬧鬼！請老師把門關好就不會再亮了。',
+   layers:[
+     { client:'小美說：晚上走廊的燈會自己亮，好可怕！', img:'sc-light-0',
+       spots:[{s:'記錄時間',f:'燈只有晚上才會亮',x:50,y:20},{s:'看燈',f:'燈亮一下又暗掉',x:50,y:34},{s:'看牆上',f:'牆上有個小盒子',x:80,y:40}],
+       roles:['電工','自然老師','歌手'], probs:['燈為什麼會自己亮','午餐吃什麼'], bad:['歌手','午餐吃什麼'],
+       seed:'燈不是一直亮，是「有東西經過」才亮一下——牆上那個小盒子好像有關係。' },
+     { client:'小美說：牆上那個小盒子到底是什麼？', img:'sc-light-1',
+       spots:[{s:'看盒子',f:'盒子上有一個小鏡頭',x:80,y:40},{s:'看說明',f:'旁邊寫著「感應燈」',x:30,y:50},{s:'揮揮手',f:'手一揮、燈就亮了',x:55,y:56}],
+       roles:['電工','發明家','農夫'], probs:['這個盒子怎麼讓燈亮','幾點下課'], bad:['農夫','幾點下課'],
+       seed:'那是「感應燈」！只要前面有東西在動，它就會自動把燈打開，其實一點都不可怕。' },
+     { client:'小美說：可是晚上沒有人，是什麼在動？', img:'sc-light-2',
+       spots:[{s:'看地板',f:'地上有一排小腳印',x:40,y:70},{s:'看轉角',f:'轉角閃過一個影子',x:76,y:50},{s:'找動物',f:'有一隻貓走過去',x:54,y:55}],
+       roles:['動物專家','警察','畫家'], probs:['晚上是什麼動物在走','紅色怎麼調'], bad:['畫家','紅色怎麼調'],
+       seed:'是一隻晚上溜進來的貓！貓一經過，感應燈就自動亮了——根本不是鬼。' },
+   ] },
+ { id:'turtle', title:'小烏龜失蹤案', scene:'sc-turtle-0', client:'小杰',
+   victim:'飼養股長小杰急得快哭了：「班上的小烏龜不見了！箱子空空的，牠會跑去哪裡？」',
+   compare:{ good:{role:'動物專家', bg:'箱蓋有縫、地上有濕痕、通到暖燈牆角', prob:'烏龜是不是自己爬去找溫暖'}, bad:'烏龜咧' },
+   solveQ:{q:'把線索拼起來——小烏龜不見了，真正的原因是？',opts:['牠從箱縫爬出去找溫暖的地方','被人抓走了','憑空消失了'],ans:0},
+   solved:'破案！小烏龜從箱縫爬出去，找有暖燈的角落曬太陽——平安找到！把箱蓋蓋緊就不會再跑囉。',
+   layers:[
+     { client:'小杰說：早上來，烏龜箱就空了，牠去哪了？', img:'sc-turtle-0',
+       spots:[{s:'看箱蓋',f:'箱蓋有一道縫沒蓋好',x:50,y:44},{s:'看地板',f:'地上有一條濕濕的痕跡',x:40,y:70},{s:'看窗邊',f:'窗邊有溫暖的陽光',x:80,y:30}],
+       roles:['動物專家','自然老師','太空人'], probs:['烏龜會不會自己爬出來','明天天氣如何'], bad:['太空人','明天天氣如何'],
+       seed:'箱蓋有縫、地上又有濕痕——是烏龜自己爬出來的！牠往有陽光、溫暖的方向走了。' },
+     { client:'小杰說：這條濕痕，通到哪裡去？', img:'sc-turtle-1',
+       spots:[{s:'跟著痕跡',f:'濕痕一路通到牆角',x:58,y:64},{s:'看牆角',f:'牆角有一盞暖暖的燈',x:80,y:40},{s:'摸地板',f:'那邊的地板暖暖的',x:44,y:60}],
+       roles:['動物專家','自然老師','廚師'], probs:['烏龜為什麼往暖的地方爬','幾點放學'], bad:['廚師','幾點放學'],
+       seed:'烏龜是「冷血動物」，身體不會自己產熱，所以牠會去找暖暖的地方，像那盞暖燈。' },
+     { client:'小杰說：找到牠了！那要怎麼照顧才好？', img:'sc-turtle-2',
+       spots:[{s:'找到烏龜',f:'烏龜在暖燈下曬太陽',x:55,y:55},{s:'看狀態',f:'牠好好的、沒有受傷',x:34,y:50},{s:'想預防',f:'箱蓋要蓋緊才行',x:76,y:40}],
+       roles:['動物專家','飼養員','司機'], probs:['怎麼照顧才不會再跑掉','怎麼去公園'], bad:['司機','怎麼去公園'],
+       seed:'牠只是去曬暖，沒事的！輕輕把牠放回箱子、把箱蓋蓋緊，再放一盞暖燈，就不會再跑出來了。' },
+   ] },
+];
+const RANKS=[[0,'實習偵探'],[3,'見習偵探'],[6,'正式偵探'],[9,'名偵探']];
+function rankName(sh){let n='實習偵探';RANKS.forEach(r=>{if(sh>=r[0])n=r[1];});return n;}
+const QUIZ=[
+ { q:'剛剛小海的魚，到底為什麼一直躲起來？', opts:['水缸太曬、又沒有地方可以躲','魚生病了要看醫生','有人把魚偷走了'], ans:0 },
+ { q:'好問法 ＝ <span class="hl role">角色</span> ＋ ____ ＋ <span class="hl prob">問題</span>', opts:['背景','表情','顏色'], ans:0 },
+ { q:'阿問說這句「訊號模糊」，因為少了哪一格？<br><span style="font-size:16px;color:#cfe0f5">「我想問牠是不是在怕什麼？」</span>', opts:['青色的「背景」和紫色的「角色」','粉色的「問題」','什麼都不缺'], ans:0 },
+ { q:'新來一件貓咪謎案，第一句話該先跟阿問怎麼說？', opts:['你當獸醫，我家的貓一直抓沙發，牠為什麼這樣？','貓。','為什麼？'], ans:0 },
+];
+
+/* =========================================================================
+   狀態 / 存檔（notebook 記到每案的線索）
+   ========================================================================= */
+const VERSION=2;
+const STORE='s2w01_progress';
+function defaultState(){return {v:VERSION,phase:'start',storyStep:0,owMode:false,owHero:null,caseIdx:0,layerIdx:0,sub:'intro',compared:false,shards:0,solved:[],notebook:{},quizIdx:0,coins:0,done:false,pct:0};}
+let S=load();
+function load(){try{const r=JSON.parse(localStorage.getItem(STORE));if(r&&r.v===VERSION&&r.phase){r.notebook=r.notebook||{};return r;}}catch(e){}return defaultState();}
+const PHASES=['start','tutorial','case','quiz','done'];
+function nbCount(){let n=0;const nb=S.notebook||{};for(const k in nb)n+=(nb[k]||[]).length;return n;}
+function totalSteps(){let t=2;CASES.forEach(c=>t+=c.layers.length+1);t+=QUIZ.length;return t;}
+function stepsDone(){let d=0;if(PHASES.indexOf(S.phase)>0)d+=1;if(PHASES.indexOf(S.phase)>1)d+=1;for(let i=0;i<S.caseIdx;i++)d+=CASES[i].layers.length+1;if(S.phase==='case')d+=S.layerIdx;if(S.phase==='quiz'||S.phase==='done')d+=(S.quizIdx||0);return d;}
+function overallPct(){return S.done?1:clamp(stepsDone()/totalSteps(),0,1);}
+function progressScore(s){if(!s||s.v!==VERSION)return -1;
+  if(s.done)return 9000;
+  const nsolved=(s.solved&&s.solved.length)||0;
+  if(s.phase==='world'||s.phase==='battle')return 2000+nsolved*100+40;
+  if(s.owMode&&s.phase==='case')return 2000+nsolved*100+60+(s.layerIdx||0)*5;   // 大地圖模式下的案件
+  if(s.phase==='travel')return 2000+((s.caseIdx||1)-1)*100+95;
+  let base=PHASES.indexOf(s.phase)*1000;base+=(s.caseIdx||0)*100+(s.layerIdx||0)*10+(s.quizIdx||0);return base;}
+function save(){S.pct=S.done?1:overallPct();try{localStorage.setItem(STORE,JSON.stringify(S));}catch(e){}if(Account.ready){clearTimeout(save._t);save._t=setTimeout(()=>Account.save(S),700);}}
+
+/* ---------- HUD + 進度條 ---------- */
+function renderTop(){ $('#coinN').textContent=S.coins; $('#rank').textContent=rankName(S.shards);
+  const cnt=nbCount(); const badge=$('#nbCount'); badge.textContent=cnt; badge.style.display=cnt?'flex':'none';
+  // 進度條：案件內線索進度 + 案件 pips
+  const pips=$('#pips'); pips.innerHTML='';
+  CASES.forEach((c,i)=>{const p=el('div','pip');if((S.solved||[]).indexOf(c.id)>=0)p.classList.add('on');else if(S.phase==='case'&&i===S.caseIdx)p.classList.add('cur');pips.appendChild(p);});
+  let lbl='序章', frac=0;
+  if(S.phase==='case'){const c=CASES[S.caseIdx];const got=((S.notebook||{})[c.id]||[]).length;lbl=c.title+'　線索 '+got+'/'+c.layers.length;frac=got/c.layers.length;}
+  else if(S.phase==='quiz'){lbl='偵探結業考 '+(S.quizIdx+1)+'/'+QUIZ.length;frac=(S.quizIdx)/QUIZ.length;}
+  else if(S.phase==='done'){lbl='全部破案！';frac=1;}
+  else if(S.phase==='start'){lbl='序章 · 故事';frac=((S.storyStep||0)/STORY.length)*.9;}
+  else if(S.phase==='tutorial'){lbl='訊問術教學';frac=.95;}
+  $('#progLbl').textContent=lbl; $('#progFill').style.width=Math.round(frac*100)+'%';}
+
+/* ---------- 偵探筆記本 ---------- */
+function openNB(){renderNB();$('#nb').classList.add('on');}
+function closeNB(){$('#nb').classList.remove('on');}
+function renderNB(){const p=$('#nbPages');p.innerHTML='';const nb=S.notebook||{};let any=false;
+  CASES.forEach(c=>{const clues=nb[c.id]||[];if(!clues.length)return;any=true;
+    const sec=el('div','nbcase');const h=el('div','ch');const th=el('div','th');th.appendChild(pic(c.scene));h.appendChild(th);h.appendChild(el('span',null,c.title));sec.appendChild(h);
+    clues.forEach((t,i)=>{const e=el('div','nbentry');e.innerHTML='<span class="n">'+(i+1)+'</span><span>'+t+'</span>';sec.appendChild(e);});
+    if((S.solved||[]).indexOf(c.id)>=0){const e=el('div','nbentry solvedmark');e.innerHTML='<span class="n">✓</span><span>'+c.solved+'</span>';sec.appendChild(e);}
+    p.appendChild(sec);});
+  if(!any)p.appendChild(el('div','nbempty','還沒有線索。去訊問阿問，破解第一條線索吧！'));}
+$('#nbBtn').onclick=openNB; $('#nbX').onclick=closeNB; $('#nb').addEventListener('click',e=>{if(e.target.id==='nb')closeNB();});
+/* 跳過這一關（老師/測試用：往下一個階段前進；跳過案件會自動補齊線索、記為破案） */
+function skipStage(){ Sfx.tick();
+  if(S.phase==='start'){ S.phase='tutorial'; S.storyStep=0; }
+  else if(S.phase==='tutorial'){ S.owMode=true; S.phase='world'; }
+  else if(S.phase==='world'||S.phase==='battle'){ tv=null; S.notebook=S.notebook||{}; S.solved=S.solved||[]; // 跳過探索→全部標記破案→結案考
+    CASES.forEach(c=>{ S.notebook[c.id]=c.layers.map(l=>l.seed); if(S.solved.indexOf(c.id)<0)S.solved.push(c.id); });
+    S.shards=Object.values(S.notebook).reduce((a,arr)=>a+(arr?arr.length:0),0); S.phase='quiz'; S.quizIdx=0; }
+  else if(S.phase==='case'){ const c=CASES[S.caseIdx]; S.notebook=S.notebook||{}; S.notebook[c.id]=c.layers.map(l=>l.seed);
+    S.solved=S.solved||[]; if(S.solved.indexOf(c.id)<0)S.solved.push(c.id); S.shards=Object.values(S.notebook).reduce((a,arr)=>a+(arr?arr.length:0),0);
+    if(S.owMode){ S.phase='world'; } else { S.caseIdx++; S.compared=false; S.layerIdx=0; if(S.caseIdx>=CASES.length){S.phase='quiz';S.quizIdx=0;}else{S.sub='intro';} } }
+  else if(S.phase==='travel'){ tv=null; S.phase='case'; S.sub='intro'; S.layerIdx=0; }
+  else if(S.phase==='quiz'){ S.phase='done'; }
+  else return; // done：沒東西可跳
+  owStop(); overlay&&overlay.classList&&overlay.classList.remove('on'); save(); render(); }
+$('#skipBtn').onclick=skipStage;
+
+/* ---------- 過場 / toast / 撒花 ---------- */
+function transition(text,sub,dur,then){overlay.innerHTML='';overlay.appendChild(el('div','big serif',text));if(sub){const s=el('div','sub');s.innerHTML=sub;overlay.appendChild(s);}overlay.classList.add('on');
+  setTimeout(()=>{overlay.classList.remove('on');overlay.innerHTML='';if(then)then();},dur||1500);}
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('on'),1600);}
+function confetti(){const cols=['#ffcf5c','#4fe08a','#5bc0ff','#ff8fbb','#b07dff'];for(let i=0;i<72;i++){const c=el('div','confetti');c.style.left=Math.random()*100+'%';c.style.background=cols[i%cols.length];c.style.transform='rotate('+Math.random()*360+'deg)';document.body.appendChild(c);const dur=1300+Math.random()*1400;c.animate([{top:'-20px',opacity:1},{top:'110vh',opacity:.9}],{duration:dur,easing:'cubic-bezier(.3,.7,.5,1)'});setTimeout(()=>c.remove(),dur);}}
+function flyTo(target,from,make){const t=(typeof target==='string'?$(target):target).getBoundingClientRect();const r=(from||stage).getBoundingClientRect();const f=make();f.classList.add('fly');f.style.left=(r.left+r.width/2-13)+'px';f.style.top=(r.top+r.height/2-13)+'px';document.body.appendChild(f);
+  f.animate([{left:f.style.left,top:f.style.top,opacity:1,transform:'scale(1.3)'},{left:(t.left+t.width/2-13)+'px',top:(t.top+t.height/2-13)+'px',opacity:.2,transform:'scale(.5)'}],{duration:700,easing:'cubic-bezier(.4,0,.3,1)'});setTimeout(()=>f.remove(),700);}
+
+/* =========================================================================
+   畫面
+   ========================================================================= */
+function clearStage(){stage.innerHTML='';}
+function awenRow(mood,txt){const r=el('div','awenrow');const f=pic('det-awen','face');r.appendChild(f);const b=el('div','bubble'+(mood?' '+mood:''));b.innerHTML='<span class="who">阿問終端機</span><span class="t">'+txt+'</span>';r.appendChild(b);
+  // 若圖失敗，face 用向量退回
+  const im=f.querySelector('img');im.addEventListener('error',()=>f.classList.add('fail'));return r;}
+
+function render(){ if(S.phase!=='world'&&owRAF){cancelAnimationFrame(owRAF);owRAF=0;} clearStage();renderTop();
+  ({start:scrStart,tutorial:scrTutorial,world:scrWorld,case:scrCase,travel:scrTravel,battle:()=>drawTravel(),quiz:scrQuiz,done:scrDone}[S.phase]||scrStart)();}
+
+const STORY=[
+ {who:'narrator', art:'story-rain', text:'海底小鎮的雨，下了一整晚。<br>街角一間小小的事務所，還亮著一盞燈——<br>門牌上寫著：<b>「阿問偵探社」</b>。'},
+ {who:'narrator', art:'story-desk', text:'今天，是你當偵探的<b>第一天</b>。<br>你推開木門，一股舊書和熱可可的味道飄過來。<br>桌上，一台圓圓的終端機「叮」地亮了起來……'},
+ {who:'awen', text:'嗶嗶——歡迎歡迎！我是「阿問」，這間偵探社的搭檔終端機。<br>這座小鎮的大小謎案，只要問對問題，我幾乎都查得到！'},
+ {who:'awen', text:'不過我有個<b>怪脾氣</b>先說好——<br>你問得不清不楚，我就會裝傻、給不出線索；<br>只要你說清楚「要我當誰、現在發生什麼、你想問什麼」，我就幫你查到底！'},
+ {who:'awen', text:'還有最重要的：當偵探<b>不能用猜的</b>！<br>要親自到「案發現場」，看清楚每一個<b>事實</b>，<br>再用你「看到的事實」來問我——這樣，我們什麼案子都破得了！'},
+ {who:'narrator', art:'story-door', text:'就在這時候——<br><b>「叮鈴鈴——！」</b><br>事務所的門突然被推開，<br>一個哭紅了眼睛的小朋友衝了進來……'},
+];
+function awenBig(txt){const w=el('div','awenbig');w.appendChild(pic('det-awen','bigface'));const b=el('div','bubble big');b.innerHTML='<span class="who">阿問</span><span class="t">'+txt+'</span>';w.appendChild(b);return w;}
+function scrStart(){const i=clamp(S.storyStep||0,0,STORY.length-1);const beat=STORY[i];const s=el('div','screen story');
+  if(i===0){const h=el('h1','serif');h.innerHTML='阿問偵探社<span class="sub">A-WEN　DETECTIVE　AGENCY</span>';s.appendChild(h);}
+  if(beat.who==='awen')s.appendChild(awenBig(beat.text));
+  else{ if(beat.art){const art=el('div','storyart');art.appendChild(pic(beat.art));s.appendChild(art);} const card=el('div','filmcard serif');card.innerHTML=beat.text;s.appendChild(card);}
+  const dots=el('div','storydots');STORY.forEach((_,k)=>dots.appendChild(el('div','sd'+(k<=i?' on':''))));s.appendChild(dots);
+  const last=i>=STORY.length-1;
+  const b=el('button','btn',last?'接下第一件案子　▶':'繼續　▶');
+  b.onclick=()=>{Sfx.resume();if(last){Sfx.win();S.phase='tutorial';S.storyStep=0;save();render();}else{Sfx.tick();S.storyStep=i+1;save();render();}};
+  s.appendChild(b);
+  if(!last){const skip=el('button','skiplink','跳過故事 ⏩');skip.onclick=()=>{S.phase='tutorial';S.storyStep=0;save();render();};s.appendChild(skip);}
+  stage.appendChild(s);}
+
+function scrTutorial(){const s=el('div','screen');
+  s.appendChild(el('h1','serif','訊問術：把話問清楚'));
+  s.appendChild(awenRow('happy','當偵探有兩步：先到「案發現場」點一點、找出看到的事實；再用事實組一句好問題來問我。好問題要「三格全亮」：'));
+  const g=el('div','gauge');g.appendChild(mkLamp('role','角色',true));g.appendChild(mkLamp('bg','背景',true));g.appendChild(mkLamp('prob','問題',true));s.appendChild(g);
+  const ex=el('div','paper');ex.innerHTML='<h3>好問題長這樣</h3><div class="body">請你當<span class="hl role">養魚達人</span>，我在現場看到<span class="hl bg">水缸在窗邊、太陽很大、水溫溫的</span>，我想問<span class="hl prob">太陽會害魚不舒服嗎</span>？</div>';s.appendChild(ex);
+  const lead=el('div','lead');lead.innerHTML='<span style="color:var(--role);font-weight:900">紫</span>＝要我當誰　<span style="color:var(--bgc);font-weight:900">青</span>＝你在現場「看到的事實」　<span style="color:var(--prob);font-weight:900">粉</span>＝你想問什麼。<br>把「看到的事實」當背景，我才推理得出答案！';s.appendChild(lead);
+  const b=el('button','btn','出發探索！　▶');b.onclick=()=>{Sfx.win();S.owMode=true;S.phase='world';save();transition('偵探社','用方向鍵或下方按鈕走路，去地圖上找 ❗ 案件！',1800,render);};s.appendChild(b);
+  stage.appendChild(s);}
+function mkLamp(k,name,on){const d=el('div','lamp '+k+(on?' on':''));d.innerHTML='<span class="b"></span>'+name;d.dataset.k=k;return d;}
+
+function scrCase(){const c=CASES[S.caseIdx];if(!c){S.phase='quiz';S.quizIdx=0;save();return render();}
+  if(S.sub==='intro')return caseIntro(c);
+  if(S.sub==='compare')return caseCompare(c);
+  if(S.sub==='deduce')return caseDeduce(c);
+  if(S.sub==='solved')return caseSolved(c);
+  if(S.sub==='reveal')return null; // reveal 由 revealClue 直接畫
+  return caseCompose(c);}
+function caseDeduce(c){const s=el('div','screen');
+  s.appendChild(el('h1','serif','🧩 結案推理'));
+  const sc=el('div','scene mid');sc.appendChild(pic(c.scene));s.appendChild(sc);
+  // 把這案蒐集到的線索攤出來
+  const clues=(S.notebook||{})[c.id]||[];
+  if(clues.length){const cf=el('div','paper');let h='<h3>🗂 你蒐集到的線索</h3>';clues.forEach((t,i)=>{h+='<div class="body" style="font-size:15px">'+(i+1)+'. '+t+'</div>';});cf.innerHTML=h;s.appendChild(cf);}
+  s.appendChild(awenRow('happy','把線索全部拼起來想想看——真相到底是什麼？'));
+  const q=c.solveQ||{q:'真相是？',opts:['—'],ans:0};
+  const card=el('div','paper');card.innerHTML='<div class="body" style="text-align:center;font-weight:900">'+q.q+'</div>';s.appendChild(card);
+  const note=el('div','lockmsg');let wrongN=0;const opts=[];
+  shuffle(q.opts.map((t,i)=>({t,i}))).forEach(o=>{const b=el('button','opt',o.t);opts.push(b);b.onclick=()=>{
+    if(o.i===q.ans){b.classList.add('right');Sfx.win();confetti();opts.forEach(x=>x.disabled=true);setTimeout(()=>{S.sub='solved';save();render();},900);}
+    else{b.classList.add('wrong');Sfx.pop();wrongN++;lockChoices(opts,wrongN,note);}
+  };s.appendChild(b);});
+  s.appendChild(note);stage.appendChild(s);}
+
+function caseIntro(c){const s=el('div','screen');
+  s.appendChild(el('h1','serif','案件 '+(S.caseIdx+1)+'　'+c.title));
+  const sc=el('div','scene');sc.appendChild(pic(c.scene));s.appendChild(sc);
+  const f=el('div','paper');f.innerHTML='<h3>📩 案情</h3><div class="body">'+c.victim+'</div>';s.appendChild(f);
+  s.appendChild(awenRow('','準備好了嗎？我把第一個疑點給你，你來問我！'));
+  const b=el('button','btn','開始查案　▶');b.onclick=()=>{S.layerIdx=0;S.sub='compose';save();render();};s.appendChild(b);
+  stage.appendChild(s);}
+
+let failCount=0;
+function clientRow(name,txt){const r=el('div','awenrow');const f=el('div','face clientface');r.appendChild(f);
+  const b=el('div','bubble client');b.innerHTML='<span class="who">委託人 '+(name||'')+'</span><span class="t">'+txt+'</span>';r.appendChild(b);return r;}
+const DISTRACT=[ // 無關觀察：會變成「線索卡」但不是這件案子的關鍵；選進背景會被阿問打回（教「挑對的線索」）
+ {s:'看牆上',f:'牆上掛著一幅畫',x:8,y:15},
+ {s:'看架上',f:'架子上有一本舊書',x:92,y:14},
+ {s:'看地上',f:'地上有一點小灰塵',x:9,y:87},
+ {s:'看角落',f:'角落擺著一把雨傘',x:91,y:86},
+ {s:'看桌上',f:'桌上有一支鉛筆',x:50,y:9},
+ {s:'看窗簾',f:'窗簾是藍色的',x:14,y:50},
+];
+function caseCompose(c){const layer=c.layers[S.layerIdx];
+  const st={role:'',bg:[],prob:''};
+  const realSpots=layer.spots.map(sp=>({s:sp.s,f:sp.f,x:sp.x,y:sp.y,good:true,done:false}));
+  const distSpots=shuffle(DISTRACT).slice(0,2).map(h=>({s:h.s,f:h.f,x:h.x,y:h.y,good:false,done:false}));
+  const allSpots=shuffle(realSpots.concat(distSpots));
+  const total=allSpots.length; let found=0, emptyClicks=0;
+  st._good=new Set(realSpots.map(sp=>sp.f)); st._goodCount=realSpots.length;
+  const s=el('div','screen');
+  s.appendChild(clientRow(c.client,layer.client));
+  // ① 搜查式找線索：不給位置提示，自己在圖上點點找（找齊才解鎖 ②）
+  s.appendChild(sect('① 案發現場搜查：拿放大鏡在圖上「到處點點看」，把線索都找出來！'));
+  const scene=el('div','scene invest hunt');scene.appendChild(pic(layer.img||c.scene));s.appendChild(scene);
+  const findc=el('div','findcount');findc.innerHTML='🔎 找到觀察 <b>0</b> / '+total;s.appendChild(findc);
+  const tray=el('div','tray');const tip=el('span','traytip','（在上面圖裡點點看，找出所有觀察…）');tray.appendChild(tip);
+  const trayWrap=el('div','traywrap');trayWrap.appendChild(el('div','traylbl','🔎 你找到的觀察　（從中「挑出 '+st._goodCount+' 個對案子有用的線索」放進背景）'));trayWrap.appendChild(tray);s.appendChild(trayWrap);
+  // ② 組問題（找齊線索前鎖住）
+  const compBlock=el('div','compblock locked');s.appendChild(compBlock);
+  compBlock.appendChild(el('div','locknote','🔒 先把現場 '+total+' 個觀察都找出來，才能組問題！'));
+  const ci=el('div','compinner');compBlock.appendChild(ci);
+  ci.appendChild(sect('② 用「找到的線索」組一句好問題，去問阿問'));
+  const gauge=el('div','gauge');const L={role:mkLamp('role','角色'),bg:mkLamp('bg','背景'),prob:mkLamp('prob','問題')};[L.role,L.bg,L.prob].forEach(x=>gauge.appendChild(x));ci.appendChild(gauge);
+  const comp=el('div','composer');ci.appendChild(comp);
+  const roleF=el('div','field role');roleF.innerHTML='<div class="lab"><span class="b"></span>角色（你要阿問當誰）</div>';
+  const roleSlot=el('div','slotline','（點下面選一個）');roleF.appendChild(roleSlot);
+  const roleChips=el('div','chips');shuffle(layer.roles).forEach(r=>{const ch=el('button','chip role',r);ch.onclick=()=>{st.role=r;[...roleChips.children].forEach(x=>x.classList.remove('sel'));ch.classList.add('sel');Sfx.tick();refresh();};roleChips.appendChild(ch);});roleF.appendChild(roleChips);comp.appendChild(roleF);
+  const bgF=el('div','field bg');bgF.innerHTML='<div class="lab"><span class="b"></span>背景（你在現場「找到的線索」）</div>';
+  const bgSlot=el('div','slotline','（把找到的線索放進來）');bgF.appendChild(bgSlot);comp.appendChild(bgF);
+  const probF=el('div','field prob');probF.innerHTML='<div class="lab"><span class="b"></span>問題（你想問什麼）</div>';
+  const prow=el('div','row');prow.appendChild(el('span','pre','我想問'));const inp=el('input');inp.type='text';inp.placeholder='例：太陽會害魚不舒服嗎';inp.maxLength=30;inp.addEventListener('paste',e=>e.preventDefault());inp.addEventListener('input',()=>{st.prob=inp.value.trim();refresh();});prow.appendChild(inp);prow.appendChild(el('span','pre','？'));probF.appendChild(prow);
+  const probChips=el('div','chips');shuffle(layer.probs).forEach(p=>{const ch=el('button','chip prob',p);ch.onclick=()=>{inp.value=p;st.prob=p;[...probChips.children].forEach(x=>x.classList.remove('sel'));ch.classList.add('sel');Sfx.tick();refresh();};probChips.appendChild(ch);});probF.appendChild(probChips);comp.appendChild(probF);
+  const resp=el('div');resp.style.cssText='max-width:640px;width:100%';ci.appendChild(resp);
+  const send=el('button','btn blue','🔍　問阿問！');ci.appendChild(send);
+  // 搜查點擊：命中隱藏熱點→揭線索；空點→掃一下；卡住給提示閃爍
+  let hintTimer=setTimeout(()=>doHint(),20000);
+  scene.addEventListener('pointerdown',e=>{Sfx.resume();
+    const r=scene.getBoundingClientRect();const px=(e.clientX-r.left)/r.width*100,py=(e.clientY-r.top)/r.height*100;
+    let hit=null,hd=1e9;allSpots.forEach(sp=>{if(sp.done)return;const d=Math.hypot(px-sp.x,py-sp.y);if(d<13&&d<hd){hd=d;hit=sp;}});
+    if(hit){hit.done=true;mark(hit);Sfx.unlock();
+      if(tray.querySelector('.traytip'))tray.querySelector('.traytip').remove();addFact(hit.f);found++;findc.querySelector('b').textContent=found;
+      if(found>=total){clearTimeout(hintTimer);unlock();}
+    }else{emptyClicks++;sweep(px,py,'');if(emptyClicks%4===0)doHint();}
+  });
+  function mark(sp){const m=el('div','foundmark');m.style.left=sp.x+'%';m.style.top=sp.y+'%';m.textContent='✓';scene.appendChild(m);}
+  function sweep(x,y,cls){const w=el('div','huntsweep '+cls);w.style.left=x+'%';w.style.top=y+'%';scene.appendChild(w);setTimeout(()=>w.remove(),650);}
+  function doHint(){allSpots.forEach(sp=>{if(sp.done)return;sweep(sp.x,sp.y,'hint');});}
+  function unlock(){compBlock.classList.remove('locked');Sfx.win();toast('✅ 全部觀察都找到了！挑出對的線索組問題');setTimeout(()=>{try{compBlock.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}},220);}
+  function addFact(f){const card=el('button','factcard',f);card.onclick=()=>{const i=st.bg.indexOf(f);if(i>=0){st.bg.splice(i,1);card.classList.remove('sel');}else{st.bg.push(f);card.classList.add('sel');}Sfx.tick();refresh();};tray.appendChild(card);}
+  function refresh(){L.role.classList.toggle('on',!!st.role);L.bg.classList.toggle('on',st.bg.length>0);L.prob.classList.toggle('on',!!st.prob);['role','bg','prob'].forEach(k=>L[k].classList.remove('miss'));
+    roleSlot.textContent=st.role?('請你當「'+st.role+'」'):'（點下面選一個）';roleSlot.classList.toggle('filled',!!st.role);
+    bgSlot.textContent=st.bg.length?('我在現場找到：'+st.bg.join('、')):'（把找到的線索放進來）';bgSlot.classList.toggle('filled',st.bg.length>0);}
+  const ui={scene,tray,addFact,roleChips,probChips,inp,refresh,allSpots,mark,unlock};
+  send.onclick=()=>submitQuestion(c,layer,st,L,resp,send,ui);
+  refresh();stage.appendChild(s);}
+function sect(t){return el('div','sectlbl',t);}
+function ripple2(node){const r=el('span','clickrip');node.appendChild(r);setTimeout(()=>r.remove(),600);}
+/* 反硬A：選擇題選錯 → 鎖住全部選項 (2+N) 秒，倒數提示，時間到才能再選 */
+function lockChoices(opts,wrongN,note){ const secs=2+wrongN; opts.forEach(b=>{ if(!b.classList.contains('right'))b.disabled=true; });
+  let left=secs; const show=()=>{note.textContent='🔒 想一想…（'+left+' 秒後可再選）';note.style.display='block';};show();
+  const iv=setInterval(()=>{ left--; if(left<=0){ clearInterval(iv); note.textContent='';note.style.display='none'; opts.forEach(b=>{ if(!b.classList.contains('wrong')&&!b.classList.contains('right'))b.disabled=false; }); } else show(); },1000); }
+function localGibberish(q){const cjk=(q.match(/[一-鿿ㄅ-ㄯ]/g)||[]).length;const latin=(q.match(/[a-zA-Z0-9]/g)||[]).length;
+  if(cjk<3)return true;if(/(.)\1{3,}/.test(q.replace(/\s/g,'')))return true;if(latin>cjk)return true;return false;}
+function autoDemo(c,layer,st,ui){ // 連錯 3 次：阿問自動示範（幫忙挑對線索、把問題排好）——不懲罰
+  (ui.allSpots||[]).forEach(sp=>{if(!sp.done){sp.done=true;ui.mark(sp);if(ui.tray.querySelector('.traytip'))ui.tray.querySelector('.traytip').remove();ui.addFact(sp.f);}});
+  if(ui.unlock)ui.unlock();
+  st.role=layer.roles[0];st.bg=layer.spots.map(sp=>sp.f);st.prob=layer.probs[0]; // 只選 3 個對的關鍵線索
+  [...ui.roleChips.children].forEach(x=>x.classList.toggle('sel',x.textContent===st.role));
+  [...ui.tray.querySelectorAll('.factcard')].forEach(x=>x.classList.toggle('sel',st.bg.indexOf(x.textContent)>=0));
+  ui.inp.value=st.prob;[...ui.probChips.children].forEach(x=>x.classList.toggle('sel',x.textContent===st.prob));ui.refresh();}
+function lockSend2(send,resp,wrongN){ const secs=2+wrongN; send.disabled=true; const note=el('div','lockmsg');resp.appendChild(note);
+  let left=secs;const show=()=>note.textContent='🔒 想一想…（'+left+' 秒後可再問阿問）';show();
+  const iv=setInterval(()=>{left--;if(left<=0){clearInterval(iv);note.remove();if(send)send.disabled=false;}else show();},1000); }
+function composeReject(c,layer,st,ui,send,resp){ st._w=(st._w||0)+1; // 反硬A：選錯角色/問題 → 鎖問阿問鈕 (2+N) 秒；連錯 3 次自動示範不卡死
+  if(st._w>=3){ st._w=0; autoDemo(c,layer,st,ui); resp.appendChild(el('div','muted','阿問先幫你把問題排好了，按「問阿問」試試！')); }
+  else { lockSend2(send,resp,st._w); } }
+async function submitQuestion(c,layer,st,L,resp,send,ui){Sfx.resume();
+  const miss=[];if(!st.role)miss.push('role');if(!st.bg.length)miss.push('bg');if(!st.prob)miss.push('prob');
+  if(miss.length){miss.forEach(k=>L[k].classList.add('miss'));Sfx.pop();
+    const names={role:'你要阿問當誰（紫色格）',bg:'去現場調查，把「看到的事實」放進背景（青色格）',prob:'你想問什麼（粉色格）'};
+    resp.innerHTML='';resp.appendChild(awenRow('','還差一點點！請補上：「'+miss.map(k=>names[k]).join('」和「')+'」，我就給你線索！'));return;}
+  // 嚴格把關①（本地，可靠＋離線也擋）：明顯亂選的干擾角色 / 離題問題 → 不放行
+  const bad=layer.bad||[];
+  if(bad.indexOf(st.role)>=0){L.role.classList.add('miss');Sfx.pop();resp.innerHTML='';resp.appendChild(awenRow('','「'+st.role+'」幫不上這件案子的忙耶～換一個「懂這件事」的角色！'));composeReject(c,layer,st,ui,send,resp);return;}
+  if(bad.indexOf(st.prob)>=0){L.prob.classList.add('miss');Sfx.pop();resp.innerHTML='';resp.appendChild(awenRow('','這個問題跟案子沒關係喔～想想你到底要查什麼？'));composeReject(c,layer,st,ui,send,resp);return;}
+  // 背景：選到「無關觀察」→ 打回並鎖秒；選不夠「對的線索」→ 提示
+  const distrBg=st._good?st.bg.filter(f=>!st._good.has(f)):[];
+  if(distrBg.length){L.bg.classList.add('miss');Sfx.pop();resp.innerHTML='';resp.appendChild(awenRow('','「'+distrBg[0]+'」跟這件案子沒關係，別放進背景！把它拿掉～'));composeReject(c,layer,st,ui,send,resp);return;}
+  if(st._goodCount&&st.bg.length<st._goodCount){L.bg.classList.add('miss');Sfx.pop();resp.innerHTML='';resp.appendChild(awenRow('','背景還不夠！要挑出「'+st._goodCount+'個」對案子有用的關鍵線索喔～'));return;}
+  const question='請你當「'+st.role+'」，我在現場看到：'+st.bg.join('、')+'，我想問：'+st.prob+'？';
+  if(localGibberish(st.prob)){Sfx.pop();resp.innerHTML='';resp.appendChild(awenRow('','阿問看不太懂你的「問題」耶～用一句話講清楚你想問什麼好嗎？'));composeReject(c,layer,st,ui,send,resp);return;}
+  // 通過本地嚴格把關 → 呼叫 AI 只為「一句個人化反應」（best-effort，不擋關）；線索用本地 seed
+  resp.innerHTML='';resp.appendChild(awenRow('think','阿問思考中…嗶嗶…'));send.disabled=true;
+  let reaction='';
+  try{if(navigator.onLine){const r=await fetch('/api/interrogate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({caseTitle:c.title,suspicion:layer.client,clueSeed:layer.seed,question})});const j=await r.json();if(j.ok!==false&&!j.offline)reaction=(j.reply||'').trim();}}catch(e){}
+  send.disabled=false;failCount=0;Sfx.unlock();revealClue(c,layer,reaction);}
+
+function revealClue(c,layer,reaction){ S.notebook=S.notebook||{};S.notebook[c.id]=S.notebook[c.id]||[];S.notebook[c.id].push(layer.seed);S.shards++;S.sub='reveal';save();renderTop();
+  clearStage();const s=el('div','screen');
+  s.appendChild(el('div','muted','案件 '+(S.caseIdx+1)+'　'+c.title));
+  s.appendChild(awenRow('happy','嗶——線索解鎖！'+(reaction?'　'+reaction:'')));
+  const ev=el('div','paper evidence');ev.innerHTML='<h3 style="color:#1f7a4a">🔓 新線索</h3><div class="body">'+layer.seed+'</div>';s.appendChild(ev);
+  const sh=el('div','shards');for(let i=0;i<S.shards;i++)sh.appendChild(pic('det-magnifier','shard'));s.appendChild(sh);
+  const cont=el('button','btn green','繼續查　▶');
+  cont.onclick=()=>{ if(S.layerIdx===0&&!S.compared){S.sub='compare';save();render();return;} advanceLayer(c); };
+  s.appendChild(cont);stage.appendChild(s);
+  // 碎片飛向 rank、線索記進筆記本
+  flyTo('#rank',ev,()=>pic('det-magnifier','shard'));
+  setTimeout(()=>{toast('✍️ 已記進偵探筆記本');flyTo('#nbBtn',ev,()=>{const d=el('div');d.textContent='📝';d.style.fontSize='22px';return d;});},400);
+}
+function advanceLayer(c){S.layerIdx++;if(S.layerIdx>=c.layers.length){S.sub='deduce';}else{S.sub='compose';}save();render();}
+
+function caseCompare(c){const s=el('div','screen');
+  s.appendChild(el('h1','serif','訊問回放'));
+  s.appendChild(awenRow('','同一件事，這兩位前輩偵探問過——哪一句我才會給線索？'));
+  const g=c.compare.good,goodText='請你當「'+g.role+'」，'+g.bg+'，我想問：'+g.prob+'？';
+  const opts=shuffle([{t:goodText,good:true,g:g},{t:c.compare.bad,good:false}]);
+  const wrap=el('div','col');const note=el('div','lockmsg');let wrongN=0;const bopts=[];
+  opts.forEach(o=>{const b=el('button','opt',o.t);bopts.push(b);b.onclick=()=>{if(o.good){b.classList.add('right');bopts.forEach(x=>x.disabled=true);Sfx.ding();revealCompare(s,wrap,o.g);}else{b.classList.add('wrong');Sfx.pop();wrongN++;lockChoices(bopts,wrongN,note);}};wrap.appendChild(b);});
+  s.appendChild(wrap);s.appendChild(note);stage.appendChild(s);}
+function revealCompare(s,wrap,g){[...wrap.querySelectorAll('.opt')].forEach(b=>b.disabled=true);
+  const p=el('div','paper');p.innerHTML='<h3>為什麼？</h3><div class="body" style="margin-bottom:8px">好的那句三格全亮：請你當<span class="hl role">'+g.role+'</span>，<span class="hl bg">'+g.bg+'</span>，<span class="hl prob">'+g.prob+'</span>？</div><div class="body" style="color:#5a4a30">另一句只有<span class="hl prob">問題</span>一格，少了角色和背景——阿問就查不到線索了。同一件事，問清楚才有用！</div>';s.appendChild(p);
+  const b=el('button','btn','學會了！繼續　▶');b.onclick=()=>{S.compared=true;advanceLayer(CASES[S.caseIdx]);};s.appendChild(b);}
+
+function caseSolved(c){ S.solved=S.solved||[]; const fresh=S.solved.indexOf(c.id)<0;
+  if(fresh){ S.solved.push(c.id); S.coins=(S.coins||0)+COIN_PER_CASE; Account.creditCoins('s2w01_case_'+c.id,COIN_PER_CASE,'S2-W01 破案：'+c.title); }
+  save();renderTop();
+  const s=el('div','screen');confetti();Sfx.win();
+  s.appendChild(el('h1','serif','🎉 破案！'));
+  const sc=el('div','scene');sc.appendChild(pic(c.scene));const stamp=el('div','stampSolved','破案');sc.appendChild(stamp);s.appendChild(sc);
+  s.appendChild(awenRow('happy',c.solved));
+  const cl=el('div');cl.style.cssText='font-weight:900;color:var(--gold);font-size:21px;text-align:center';cl.textContent=(fresh?'＋'+COIN_PER_CASE+' 金幣 已存入錢包！':'（本案金幣已領取）')+'　·　放大鏡碎片 '+S.shards;s.appendChild(cl);
+  const allDone=(S.solved||[]).length>=CASES.length;
+  const b=el('button','btn',allDone?'回偵探社結案　▶':'回地圖繼續探索　▶');
+  b.onclick=()=>{ S.phase='world'; save(); transition('破案！',allDone?'全部破完了！回 ★ 偵探社結案報告！':'回到地圖，還有案子等你！',1500,render); }; // 回大地圖
+  s.appendChild(b);stage.appendChild(s);}
+
+/* ===== 案件之間：城鎮地圖行走 ＋ 壞蛋戰（問阿問→找弱點→點擊攻擊／問阿問→怎麼躲→點擊閃避）===== */
+const VILLAINS=[
+ {name:'淘氣浣熊大盜', img:'vil-raccoon', hp:3, weak:'他最怕「癢癢」！快點他圓圓的肚子攻擊！', wx:50, wy:60},
+ {name:'黏答答生氣怪', img:'vil-slime',  hp:3, weak:'他頭上的泡泡一戳就破！快點那顆泡泡！', wx:52, wy:16},
+ {name:'故障搗蛋機器人', img:'vil-robot', hp:3, weak:'他頭頂有紅色關機按鈕！快點那顆紅按鈕！', wx:50, wy:14},
+];
+const DODGES=[{k:'left',t:'⬅ 往左跳',w:'左'},{k:'right',t:'往右閃 ➡',w:'右'},{k:'duck',t:'⬇ 蹲下',w:'蹲'}];
+const HEARTS_MAX=3;
+let tv=null, tvTimer=null;
+function clrTv(){if(tvTimer){clearTimeout(tvTimer);tvTimer=null;}}
+function scrTravel(){ const vil=VILLAINS[Math.max(0,(S.caseIdx||1)-1)%VILLAINS.length];
+  tv={stage:'walk',vil,vhp:vil.hp,hearts:HEARTS_MAX,phase:null,dodge:null,beaten:false,hurt:false,msg2:''};
+  drawTravel(); }
+function drawTravel(){ clrTv(); clearStage(); const s=el('div','screen travel'); const vil=tv.vil;
+  if(tv.stage==='walk'){
+    s.appendChild(el('h1','serif','前往下一個現場'));
+    const map=el('div','townmap');map.appendChild(pic('map-town'));
+    const hero=el('div','heroav'+(tv.beaten?' far':''));hero.appendChild(pic('hero'));map.appendChild(hero);
+    s.appendChild(map);
+    if(!tv.beaten){ s.appendChild(awenRow('','沿著街道往前走，去找下一樁謎案吧！'));
+      const b=el('button','btn','往前走　👣');b.onclick=()=>{Sfx.tick();tv.stage='battle';tv.phase='weakAsk';tv.msg2='';drawTravel();};s.appendChild(b);}
+    else{ s.appendChild(awenRow('happy','壞蛋清掉了、路通了！前面就是下一個現場！'));
+      const b=el('button','btn','抵達現場　▶');b.onclick=()=>arriveCase();s.appendChild(b);}
+  }
+  else if(tv.stage==='battle'){
+    s.appendChild(el('div','muted','⚔️ 路上遇到壞蛋：'+vil.name+'！'));
+    const st=el('div','battlestage'); const bg=el('div','bgimg'); bg.appendChild(pic('det-alley')); st.appendChild(bg);
+    st.appendChild(el('div','bfShadow h')); st.appendChild(el('div','bfShadow v'));
+    const heroEl=el('div','bfHero'); heroEl.appendChild(pic('hero')); st.appendChild(heroEl);
+    const vilEl=el('div','bfVillain'); vilEl.appendChild(pic(vil.img)); st.appendChild(vilEl);
+    if(tv.phase==='weakHit'){const tgt=el('button','weakspot');tgt.style.left=vil.wx+'%';tgt.style.top=vil.wy+'%';tgt.innerHTML='<span class="tr"></span>🎯';tgt.onclick=()=>attackVillain();vilEl.appendChild(tgt);}
+    s.appendChild(st);
+    const hp=el('div','vhp');const hi=el('i');hi.style.width=Math.round(tv.vhp/vil.hp*100)+'%';hp.appendChild(hi);s.appendChild(hp);
+    const hearts=el('div','hearts');for(let i=0;i<HEARTS_MAX;i++){const h=el('span','hrt'+(i<tv.hearts?'':' off'));h.textContent='❤';hearts.appendChild(h);}s.appendChild(hearts);
+    if(tv.phase==='weakAsk'){ s.appendChild(awenRow('','壞蛋擋路了！先問我他的「弱點」，才打得中！'));
+      const b=el('button','btn blue','🔍 問阿問：弱點在哪？');b.onclick=()=>{tv.phase='weakHit';drawTravel();};s.appendChild(b);}
+    else if(tv.phase==='weakHit'){ s.appendChild(awenRow('happy',vil.weak)); s.appendChild(el('div','muted','👆 點畫面上發光的 🎯 弱點，攻擊他！'));
+      tvTimer=setTimeout(()=>attackVillain(),9000);}
+    else if(tv.phase==='dodgeAsk'){ s.appendChild(awenRow('','⚠️ 壞蛋要反擊了！快問我「怎麼躲」！'));
+      const b=el('button','btn blue','🛡 問阿問：怎麼躲？');b.onclick=()=>{tv.dodge=DODGES[Math.floor(Math.random()*DODGES.length)];tv.phase='dodgeAct';drawTravel();};s.appendChild(b);}
+    else if(tv.phase==='dodgeAct'){ s.appendChild(awenRow('happy','阿問：快往「'+tv.dodge.w+'」邊躲！點下面對的那個按鈕！'));
+      const row=el('div','dodgerow');shuffle(DODGES).forEach(d=>{const b=el('button','btn sec',d.t);b.onclick=()=>resolveDodge(d.k);row.appendChild(b);});s.appendChild(row);
+      vilEl.classList.add('lunge'); // 敵人攻擊：壞蛋撲過來（預告）
+      tvTimer=setTimeout(()=>resolveDodge(tv.dodge.k),9000);}
+    if(tv.msg2){const m=el('div','muted');m.textContent=tv.msg2;s.appendChild(m);}
+    tv.animating=false; // 新畫面畫好即解鎖操作
+  }
+  else if(tv.stage==='done'){ confetti();
+    s.appendChild(el('h1','serif','💥 打倒壞蛋！'));
+    s.appendChild(awenRow('happy','漂亮！你用「先問我、再出手」打退了'+vil.name+'！繼續探索吧！'));
+    const b=el('button','btn','繼續探索　▶');b.onclick=()=>{ if(tv&&tv.fromWorld){tv=null;S.phase='world';save();render();} else {tv.beaten=true;tv.stage='walk';drawTravel();} };s.appendChild(b);
+  }
+  stage.appendChild(s);
+}
+function bfPop(kind,txt){ const st=$('.battlestage'); if(!st)return; const p=el('div','bfPop '+kind,txt); st.appendChild(p); setTimeout(()=>{p.remove();},1000); }
+function attackVillain(){ if(tv.animating)return; tv.animating=true; clrTv();Sfx.unlock();
+  const hero=$('.bfHero'), vil=$('.bfVillain'), ws=$('.weakspot'); if(ws)ws.remove();
+  if(hero)hero.classList.add('atk'); if(vil)vil.classList.add('hurt'); bfPop('hit','命中！');
+  tv.vhp--;
+  tvTimer=setTimeout(()=>{ if(tv.vhp<=0){ tv.stage='done'; } else { tv.msg2='命中！壞蛋剩下 '+tv.vhp+' 滴血～'; tv.phase='dodgeAsk'; } drawTravel(); },520); }
+function resolveDodge(k){ if(tv.animating)return; tv.animating=true; clrTv();
+  const hero=$('.bfHero'), vil=$('.bfVillain');
+  if(k===tv.dodge.k){ Sfx.ding(); const cls=k==='left'?'dodL':k==='right'?'dodR':'dodD'; if(hero)hero.classList.add(cls); bfPop('hit','閃過了！🌟'); tv.msg2='閃過了！🌟'; }
+  else { Sfx.pop(); if(vil)vil.classList.add('lunge'); if(hero)hero.classList.add('hit'); bfPop('miss','被碰到了！'); tv.hearts--; tv.msg2='哎呀被碰到了～沒關係！'; if(tv.hearts<=0){tv.hearts=HEARTS_MAX;tv.msg2='站穩了！補滿血再來～';} }
+  tvTimer=setTimeout(()=>{ tv.phase='weakAsk'; drawTravel(); },600); }
+function arriveCase(){ tv=null;S.phase='case';S.sub='intro';S.layerIdx=0;save();transition('抵達！','案件 '+(S.caseIdx+1)+'：'+CASES[S.caseIdx].title,1400,render); }
+
+/* ==========================================================================
+   大地圖 RPG 探索：自由走 (方向鍵/WASD/觸控 D-pad)、地圖捲動、走到案件點解案、
+   隨機遇敵進戰鬥、全破回偵探社結案。單張大地圖 (40×30 磚) 相機跟隨。
+   ========================================================================== */
+const TILE=32;
+const OW_IMG={}; ['hero','det-magnifier'].forEach(n=>{const i=new Image();i.src='assets/'+n+'.png';OW_IMG[n]=i;});
+let ow=null, owRAF=0, owLast=0; const owKeys={};
+// 磚：0草 1路 2水(擋) 3樹(擋) 5花 6籬(擋)
+function buildWorld(){ const W=40,H=30; const map=[]; for(let y=0;y<H;y++)map.push(new Array(W).fill(0));
+  for(let x=0;x<W;x++){map[0][x]=map[1][x]=3;map[H-1][x]=map[H-2][x]=3;}
+  for(let y=0;y<H;y++){map[y][0]=map[y][1]=3;map[y][W-1]=map[y][W-2]=3;}
+  for(let x=2;x<W-2;x++)map[15][x]=1;                 // 橫向大道
+  for(let y=2;y<H-2;y++)map[y][20]=1;                 // 縱向大道
+  for(let y=8;y<=15;y++)map[y][10]=1;                 // 支線→教室怪味
+  for(let y=15;y<=22;y++)map[y][30]=1;                // 支線→操場
+  for(let y=5;y<9;y++)for(let x=5;x<9;x++)map[y][x]=2; // 池塘
+  [[32,6],[8,23],[33,23],[15,7],[27,9],[13,20],[26,24]].forEach(([cx,cy])=>{ // 樹叢
+    [[-1,0],[1,0],[0,-1],[0,1],[0,0],[1,1],[-1,1]].forEach(([dx,dy])=>{const x=cx+dx,y=cy+dy;if(map[y]&&map[y][x]===0)map[y][x]=3;});});
+  [[24,17],[16,18],[34,10],[6,18],[24,7],[12,12]].forEach(([x,y])=>{if(map[y]&&map[y][x]===0)map[y][x]=5;}); // 花
+  const events=[
+   {id:'agency', tx:19,ty:15, caseIdx:-1, label:'偵探社', roof:'#8a5a2c'},
+   {id:'fish',   tx:5, ty:15, caseIdx:0,  label:'水缸謎案', roof:'#3f8bff'},
+   {id:'pudding',tx:20,ty:4,  caseIdx:1,  label:'布丁失蹤案', roof:'#ff8a3c'},
+   {id:'buzz',   tx:30,ty:22, caseIdx:2,  label:'操場怪聲案', roof:'#2bd17e'},
+   {id:'smell',  tx:10,ty:8,  caseIdx:3,  label:'教室怪味案', roof:'#b07dff'},
+   {id:'light',  tx:20,ty:26, caseIdx:4,  label:'鬼燈疑案', roof:'#ffce47'},
+   {id:'turtle', tx:35,ty:15, caseIdx:5,  label:'小烏龜失蹤案', roof:'#3fc6dd'},
+  ];
+  events.forEach(e=>{ if(map[e.ty][e.tx]!==1)map[e.ty][e.tx]=1; }); // 事件點踩得到
+  return {W,H,map,events,start:{tx:19,ty:15}};
+}
+function initWorld(){ const w=buildWorld(); const start=(S.owHero&&typeof S.owHero.tx==='number')?S.owHero:w.start;
+  ow={W:w.W,H:w.H,map:w.map,events:w.events,cam:{x:0,y:0},grassSteps:0,dpad:null,
+    hero:{tx:start.tx,ty:start.ty,px:start.tx*TILE,py:start.ty*TILE,dir:'down',moving:false}}; }
+function owBlocked(x,y){ if(x<0||y<0||x>=ow.W||y>=ow.H)return true; const t=ow.map[y][x]; return t===2||t===3||t===6; }
+function owDir(){ if(owKeys.up||ow.dpad==='up')return{dx:0,dy:-1,name:'up'}; if(owKeys.down||ow.dpad==='down')return{dx:0,dy:1,name:'down'};
+  if(owKeys.left||ow.dpad==='left')return{dx:-1,dy:0,name:'left'}; if(owKeys.right||ow.dpad==='right')return{dx:1,dy:0,name:'right'}; return null; }
+function owUpdate(dt){ const h=ow.hero;
+  if(!h.moving){ const d=owDir(); if(d){ h.dir=d.name; const nx=h.tx+d.dx,ny=h.ty+d.dy;
+    if(!owBlocked(nx,ny)){ h.moving=true;h.fx=h.px;h.fy=h.py;h.ntx=nx;h.nty=ny;h.mt=0; } } }
+  if(h.moving){ h.mt+=dt/150; const t=Math.min(1,h.mt); h.px=h.fx+(h.ntx*TILE-h.fx)*t; h.py=h.fy+(h.nty*TILE-h.fy)*t;
+    if(t>=1){ h.moving=false;h.tx=h.ntx;h.ty=h.nty;h.px=h.tx*TILE;h.py=h.ty*TILE; owArrive(); } }
+  const vw=ow.canvas.width,vh=ow.canvas.height;
+  ow.cam.x=clamp(h.px+TILE/2-vw/2,0,Math.max(0,ow.W*TILE-vw));
+  ow.cam.y=clamp(h.py+TILE/2-vh/2,0,Math.max(0,ow.H*TILE-vh)); }
+function owArrive(){ const h=ow.hero; S.owHero={tx:h.tx,ty:h.ty}; owSaveThrottle();
+  if(ow.map[h.ty][h.tx]===0){ ow.grassSteps++; if(ow.grassSteps>3 && Math.random()<0.12){ ow.grassSteps=0; startEncounter(); return; } }
+  owHintEl && owUpdateHint(); }
+let _owSaveT=0; function owSaveThrottle(){ if(_owSaveT)return; _owSaveT=setTimeout(()=>{_owSaveT=0;save();},1200); }
+function nearestEvent(){ const h=ow.hero; let best=null,bd=99; ow.events.forEach(ev=>{ const d=Math.abs(ev.tx-h.tx)+Math.abs(ev.ty-h.ty); if(d<=1&&d<bd){bd=d;best=ev;} }); return best; }
+function owInteract(){ const ev=nearestEvent(); if(!ev){ toast('走到地圖上的 ❗ 旁邊，按 🔍 調查！'); return; }
+  if(ev.caseIdx<0){ // 偵探社
+    if((S.solved||[]).length>=CASES.length){ owStop(); S.phase='quiz'; S.quizIdx=0; save(); transition('全部破案！','回偵探社結案報告…',1500,render); }
+    else { toast('還有 '+(CASES.length-(S.solved||[]).length)+' 件案子沒破，去地圖上找 ❗！'); } return; }
+  if((S.solved||[]).indexOf(CASES[ev.caseIdx].id)>=0){ toast('這件案子已經破了 ✓'); return; }
+  owStop(); S.caseIdx=ev.caseIdx; S.layerIdx=0; S.sub='intro'; S.compared=false; S.phase='case'; save();
+  transition('抵達現場！','案件：'+CASES[ev.caseIdx].title,1300,render); }
+function startEncounter(){ owStop(); tv={stage:'battle',vil:VILLAINS[Math.floor(Math.random()*VILLAINS.length)],phase:'weakAsk',dodge:null,hurt:false,msg2:'',fromWorld:true};
+  tv.vhp=tv.vil.hp; tv.hearts=HEARTS_MAX; S.phase='battle'; save(); render(); }
+/* ---- 繪圖 ---- */
+function owDrawTile(g,t,sx,sy,gx,gy){ const T=TILE;
+  // 草底
+  const g1=((gx+gy)&1)?'#67a949':'#6fb050'; g.fillStyle=(t===1||t===5||t===6)?g1:g1; g.fillRect(sx,sy,T,T);
+  if(t!==2){ if(((gx*7+gy*13)%11)===0){ g.fillStyle='#5c9a44'; g.fillRect(sx+6,sy+18,3,6);g.fillRect(sx+11,sy+20,3,5);g.fillRect(sx+16,sy+17,3,7);} }
+  if(t===1){ g.fillStyle='#d9bd77'; g.fillRect(sx,sy,T,T); g.fillStyle='#cbab63'; if((gx+gy*3)%4===0)g.fillRect(sx+7,sy+9,4,4); if((gx*2+gy)%5===0)g.fillRect(sx+18,sy+16,4,4); }
+  else if(t===2){ g.fillStyle='#3f8fd0'; g.fillRect(sx,sy,T,T); g.strokeStyle='rgba(255,255,255,.35)';g.lineWidth=2; const ph=now()/400; g.beginPath(); for(let i=0;i<T;i+=2){g.lineTo(sx+i,sy+10+Math.sin((gx*4+i)/6+ph)*2.2);} g.stroke(); g.beginPath(); for(let i=0;i<T;i+=2){g.lineTo(sx+i,sy+22+Math.sin((gx*4+i)/6+ph+1)*2.2);} g.stroke(); }
+  else if(t===3){ const cx=sx+T/2,cy=sy+T/2; g.fillStyle='rgba(0,0,0,.18)';g.beginPath();g.ellipse(cx,sy+T-4,11,4,0,0,7);g.fill();
+    g.fillStyle='#6b4a24';g.fillRect(cx-3,cy,6,T/2-2); g.fillStyle='#2e6b34';g.beginPath();g.arc(cx,cy-2,12,0,7);g.fill(); g.fillStyle='#3c8544';g.beginPath();g.arc(cx-4,cy-5,7,0,7);g.arc(cx+5,cy-3,6,0,7);g.fill(); }
+  else if(t===5){ g.fillStyle=['#ff7ab0','#ffd75e','#b07dff'][(gx+gy)%3]; [[10,12],[20,18],[14,22]].forEach(([ox,oy])=>{g.beginPath();g.arc(sx+ox,sy+oy,3,0,7);g.fill();}); g.fillStyle='#ffe27a';[[10,12],[20,18],[14,22]].forEach(([ox,oy])=>{g.beginPath();g.arc(sx+ox,sy+oy,1.3,0,7);g.fill();}); }
+}
+function owDrawEvent(g,ev,sx,sy){ const T=TILE; const done=(S.solved||[]).indexOf(ev.caseIdx>=0?CASES[ev.caseIdx].id:'__')>=0;
+  // 房子畫在事件磚上方
+  const bx=sx-T*0.5, by=sy-T*1.35, bw=T*2, bh=T*1.3;
+  g.fillStyle='rgba(0,0,0,.2)';g.beginPath();g.ellipse(sx+T/2,sy+T-3,T*0.8,5,0,0,7);g.fill();
+  g.fillStyle='#f0e4cf';g.fillRect(bx,by+bh*0.42,bw,bh*0.62); // 牆
+  g.fillStyle=ev.roof;g.beginPath();g.moveTo(bx-4,by+bh*0.5);g.lineTo(bx+bw/2,by-2);g.lineTo(bx+bw+4,by+bh*0.5);g.closePath();g.fill(); // 屋頂
+  g.fillStyle='#7a4a24';g.fillRect(sx+T/2-6,by+bh*0.6,12,bh*0.42); // 門
+  // 標記
+  const my=by-14+Math.sin(now()/300)*3;
+  g.font='900 20px sans-serif';g.textAlign='center';g.textBaseline='middle';
+  if(done){ g.fillStyle='#2bd17e';g.beginPath();g.arc(sx+T/2,my,12,0,7);g.fill();g.fillStyle='#03271a';g.fillText('✓',sx+T/2,my+1); }
+  else if(ev.caseIdx<0){ g.fillStyle='#ffd75e';g.beginPath();g.arc(sx+T/2,my,12,0,7);g.fill();g.fillStyle='#3a2405';g.fillText('★',sx+T/2,my+1); }
+  else { g.fillStyle='#ff5d6c';g.beginPath();g.arc(sx+T/2,my,12,0,7);g.fill();g.fillStyle='#fff';g.fillText('!',sx+T/2,my+1); }
+  g.textBaseline='alphabetic'; }
+function owDrawHero(g,sx,sy){ const h=ow.hero; const im=OW_IMG.hero; const bob=h.moving?Math.abs(Math.sin(now()/90))*3:0; const sz=TILE*1.15;
+  g.save(); g.translate(sx+TILE/2, sy+TILE/2-bob);
+  g.fillStyle='rgba(0,0,0,.22)';g.beginPath();g.ellipse(0,TILE*0.5,10,4,0,0,7);g.fill();
+  if(h.dir==='left')g.scale(-1,1);
+  if(im&&im.complete&&im.naturalWidth){ g.drawImage(im,-sz/2,-sz*0.62,sz,sz); }
+  else { g.fillStyle='#6b4a24';g.beginPath();g.arc(0,-6,10,0,7);g.fill(); }
+  g.restore(); }
+function owDraw(){ const g=ow.ctx; const {cam,map,W,H}=ow; const vw=ow.canvas.width,vh=ow.canvas.height;
+  g.clearRect(0,0,vw,vh);
+  const x0=Math.max(0,Math.floor(cam.x/TILE)),y0=Math.max(0,Math.floor(cam.y/TILE)),x1=Math.min(W,Math.ceil((cam.x+vw)/TILE)),y1=Math.min(H,Math.ceil((cam.y+vh)/TILE));
+  for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)owDrawTile(g,map[y][x],x*TILE-cam.x,y*TILE-cam.y,x,y);
+  ow.events.forEach(ev=>{ if(ev.tx*TILE-cam.x>-TILE*2&&ev.tx*TILE-cam.x<vw+TILE)owDrawEvent(g,ev,ev.tx*TILE-cam.x,ev.ty*TILE-cam.y); });
+  owDrawHero(g,ow.hero.px-cam.x,ow.hero.py-cam.y); }
+let owHintEl=null;
+function owUpdateHint(){ if(!owHintEl)return; const ev=nearestEvent(); if(ev&&!(ev.caseIdx>=0&&(S.solved||[]).indexOf(CASES[ev.caseIdx].id)>=0)){ owHintEl.textContent=(ev.caseIdx<0?'★ '+ev.label:'❗ '+ev.label)+'　按 🔍 調查'; owHintEl.style.display='block'; } else owHintEl.style.display='none'; }
+function owStep(t){ if(S.phase!=='world'){owRAF=0;return;} const dt=Math.min(50,t-(owLast||t));owLast=t; owUpdate(dt); owDraw(); owRAF=requestAnimationFrame(owStep); }
+function owStop(){ if(owRAF){cancelAnimationFrame(owRAF);owRAF=0;} }
+function scrWorld(){ if(!ow)initWorld(); const s=el('div','screen world');
+  const wrap=el('div','owwrap'); const cv=el('canvas','owcanvas'); wrap.appendChild(cv); s.appendChild(wrap);
+  // 進度提示 + 案件計數
+  const bar=el('div','owbar'); const solved=(S.solved||[]).length; bar.innerHTML='🗺 探索地圖　·　已破案 <b>'+solved+' / '+CASES.length+'</b>'+(solved>=CASES.length?'　·　回 ★ 偵探社結案！':''); s.appendChild(bar);
+  const hint=el('div','owhint'); hint.style.display='none'; s.appendChild(hint); owHintEl=hint;
+  // D-pad + 調查鈕
+  const pad=el('div','owpad');
+  ['up','left','act','right','down'].forEach(k=>{ const b=el('button','dbtn '+k, k==='up'?'▲':k==='down'?'▼':k==='left'?'◀':k==='right'?'▶':'🔍');
+    if(k==='act'){ b.onclick=()=>owInteract(); }
+    else { const set=v=>{ow.dpad=v?k:(ow.dpad===k?null:ow.dpad);}; b.addEventListener('pointerdown',e=>{e.preventDefault();set(1);}); b.addEventListener('pointerup',e=>{e.preventDefault();set(0);}); b.addEventListener('pointerleave',()=>set(0)); b.addEventListener('pointercancel',()=>set(0)); }
+    pad.appendChild(b); });
+  s.appendChild(pad);
+  stage.appendChild(s);
+  // 尺寸
+  const fit=()=>{ cv.width=Math.min(wrap.clientWidth||520,760); cv.height=Math.round(cv.width*0.62); };
+  ow.canvas=cv; ow.ctx=cv.getContext('2d'); fit();
+  owClearInput(); owLast=0; owStop(); owRAF=requestAnimationFrame(owStep); owUpdateHint(); }
+function owClearInput(){ owKeys.up=owKeys.down=owKeys.left=owKeys.right=0; if(ow)ow.dpad=null; }
+// 鍵盤（只在大地圖時才吃方向鍵；其他畫面不設鍵，避免殘留按鍵讓角色自己走）
+window.addEventListener('keydown',e=>{ if(S.phase!=='world')return; const k=e.key.toLowerCase();
+  if(['arrowup','w'].includes(k))owKeys.up=1; else if(['arrowdown','s'].includes(k))owKeys.down=1; else if(['arrowleft','a'].includes(k))owKeys.left=1; else if(['arrowright','d'].includes(k))owKeys.right=1; else if([' ','enter'].includes(k))owInteract();
+  if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault(); });
+window.addEventListener('keyup',e=>{ const k=e.key.toLowerCase(); if(['arrowup','w'].includes(k))owKeys.up=0; else if(['arrowdown','s'].includes(k))owKeys.down=0; else if(['arrowleft','a'].includes(k))owKeys.left=0; else if(['arrowright','d'].includes(k))owKeys.right=0; });
+// 失焦 / 切到別的分頁 → 清空所有輸入（keyup 可能沒收到，否則角色會一直往某方向走）
+window.addEventListener('blur',owClearInput);
+document.addEventListener('visibilitychange',()=>{ if(document.hidden)owClearInput(); });
+
+function scrQuiz(){const q=QUIZ[S.quizIdx];if(!q){S.phase='done';save();return render();}
+  const s=el('div','screen');s.appendChild(el('h1','serif','偵探結業考'));
+  s.appendChild(awenRow('happy','第 '+(S.quizIdx+1)+' 題，考考你這位小偵探！'));
+  const card=el('div','paper');card.innerHTML='<div class="body" style="text-align:center">'+q.q+'</div>';s.appendChild(card);
+  const note=el('div','lockmsg');let wrongN=0;const opts=[];
+  shuffle(q.opts.map((t,i)=>({t,i}))).forEach(o=>{const b=el('button','opt',o.t);opts.push(b);b.onclick=()=>{if(o.i===q.ans){b.classList.add('right');opts.forEach(x=>x.disabled=true);Sfx.ding();setTimeout(()=>{S.quizIdx++;save();render();},600);}else{b.classList.add('wrong');Sfx.pop();wrongN++;lockChoices(opts,wrongN,note);}};s.appendChild(b);});
+  s.appendChild(note);stage.appendChild(s);}
+
+function scrDone(){const s=el('div','screen');
+  s.appendChild(el('h1','serif','🎉 恭喜破案！你是名偵探！'));
+  const bw=el('div');bw.style.cssText='display:flex;justify-content:center';bw.appendChild(pic('det-victory','victoryimg'));s.appendChild(bw);
+  s.appendChild(awenRow('happy','太強了！你學會「要我當誰＋現在發生什麼＋你想問什麼」——把問題問清楚，我什麼案子都幫你查！'));
+  const total=COIN_PER_CASE*CASES.length;
+  const coinLine=el('div');coinLine.style.cssText='font-weight:900;color:var(--gold);font-size:24px;text-align:center';coinLine.textContent='🪙 本關共獲得 '+total+' 金幣 已存入錢包！';s.appendChild(coinLine);
+  const wall=el('div','wall');(S.solved||[]).forEach(id=>{const c=CASES.find(x=>x.id===id);if(!c)return;const p=el('div','poster');const th=el('div','th');th.appendChild(pic(c.scene));p.appendChild(th);p.appendChild(el('div','cap','✔ '+c.title));wall.appendChild(p);});s.appendChild(wall);
+  const row=el('div');row.style.cssText='display:flex;gap:12px;flex-wrap:wrap;justify-content:center';
+  const ta=el('button','btn blue','我是小偵探教官 · 去教一位同學');ta.onclick=()=>{ta.textContent='已成為教官 ✓（+TA 12 金幣）';ta.disabled=true;Account.creditCoins('s2w01_ta',12,'S2-W01 小老師 TA');S.coins=(S.coins||0)+12;S.ta=true;save();renderTop();};
+  const nbb=el('button','btn','📖 翻開偵探筆記本');nbb.style.fontSize='16px';nbb.onclick=openNB;
+  row.appendChild(ta);row.appendChild(nbb);s.appendChild(row);
+  if(!S._delivered){S._delivered=true;S.done=true;save();renderTop();confetti();Sfx.win();}
+  stage.appendChild(s);}
+
+/* ---------- 啟動 ---------- */
+function renderAcct(){const a=$('#acct');const on=navigator.onLine;
+  if(Account.ready){a.innerHTML='<span class="d ok"></span> 已綁定：'+(Account.name||'已登入')+(on?'':'　·　<span class="offtag">離線辦案</span>');}
+  else{a.innerHTML='<span class="d warn"></span> 訪客模式'+(on?'':'　·　<span class="offtag">離線辦案</span>')+'　<a href="/login" style="color:#8fd0ff">登入</a>';}}
+function boot(){$('#bgimg').style.backgroundImage="url('assets/det-bg.png')";$('#brandlens').appendChild(pic('det-magnifier'));
+  Account.init();renderTop();render();renderAcct();
+  window.addEventListener('online',renderAcct);window.addEventListener('offline',renderAcct);
+  (async()=>{if(!Account.ready)return;const cloud=await Account.load();if(cloud&&cloud.v===VERSION&&cloud.phase){if(progressScore(cloud)>progressScore(S)){S=cloud;S.notebook=S.notebook||{};save();render();}else{Account.save(S);}}else{Account.save(S);}renderAcct();renderTop();})();}
+boot();
+</script>
+</body>
+</html>

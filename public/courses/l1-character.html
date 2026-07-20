@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>第 1 堂 · 認識你的主角</title>
+<style>
+  :root{
+    --paper:#fdf6ec; --ink:#3a2f27; --muted:#7a6a5c; --line:#e7d8c4;
+    --card:#fffaf2; --accent:#e8703a; --accent2:#f4a259; --good:#5faa63;
+    --shadow:0 8px 26px rgba(90,60,30,.14);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{background:radial-gradient(120% 80% at 50% 0%,#fff8ee,var(--paper));color:var(--ink);
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.6;overflow-x:hidden;}
+  .wrap{max-width:min(940px,96vw);margin:0 auto;padding:0 16px 44px;}
+  .topbar{position:sticky;top:0;z-index:20;background:rgba(253,246,236,.92);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);padding:9px 16px;display:flex;align-items:center;gap:10px;}
+  .back{text-decoration:none;color:var(--muted);font-weight:700;font-size:14px;padding:5px 11px;border:1px solid var(--line);border-radius:999px;background:var(--card);}
+  .back:active{transform:scale(.95);}
+  .topbar .t{font-weight:900;font-size:15px;}
+  .steps{display:flex;gap:6px;justify-content:center;margin:16px 0 6px;}
+  .steps .s{flex:1;max-width:120px;text-align:center;font-size:12px;font-weight:800;color:var(--muted);
+    padding:7px 4px;border-radius:10px;border:1px solid var(--line);background:var(--card);opacity:.6;display:flex;align-items:center;justify-content:center;gap:5px;}
+  .steps .s.on{opacity:1;color:#fff;background:var(--accent);border-color:var(--accent);box-shadow:var(--shadow);}
+  .steps .s.done{opacity:1;color:var(--good);border-color:var(--good);}
+  .steps .n{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:rgba(0,0,0,.12);font-size:11px;}
+  .steps .s.on .n{background:rgba(255,255,255,.3);}
+  h1{font-family:"Noto Serif TC",serif;font-size:23px;font-weight:900;margin:14px 0 2px;text-align:center;}
+  .hint{color:var(--muted);text-align:center;margin:0 0 14px;font-size:14.5px;}
+  .panel{display:none;} .panel.on{display:block;animation:fade .3s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .gbadge{margin-left:auto;font-size:12px;font-weight:900;color:#fff;background:var(--accent);border-radius:999px;padding:3px 11px;display:none;}
+  .gbadge.on{display:inline-block;}
+  .gradepick{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:8px auto 0;max-width:620px;}
+  @media(max-width:480px){.gradepick{grid-template-columns:1fr;}}
+  .gradebtn{border:2px solid var(--line);background:var(--card);border-radius:18px;padding:22px 16px;cursor:pointer;text-align:center;box-shadow:var(--shadow);transition:.12s;}
+  .gradebtn:active{transform:scale(.97);}
+  .gradebtn:hover{border-color:var(--accent2);}
+  .gradebtn .gt{font-family:"Noto Serif TC",serif;font-size:26px;font-weight:900;}
+  .gradebtn .gs{color:var(--accent);font-weight:800;margin-top:2px;}
+  .gradebtn .gd{color:var(--muted);font-size:14px;margin-top:8px;}
+  .txtin{width:100%;border:2px solid var(--line);border-radius:12px;padding:11px 13px;font-size:15px;font-family:inherit;background:#fff;}
+  .txtin:focus{outline:none;border-color:var(--accent);}
+  /* 高年級：不可複製貼上的靈感建議 */
+  .nocopy{margin-top:10px;background:#fff8ee;border:1px dashed var(--accent2);border-radius:12px;padding:10px 12px;}
+  .nchint{font-size:12.5px;color:var(--muted);font-weight:800;margin-bottom:7px;}
+  .nchint b{color:var(--accent);}
+  .nclist{display:flex;flex-wrap:wrap;gap:7px;}
+  .ncchip{background:#fff;border:1px solid var(--line);border-radius:10px;padding:5px 11px;font-size:13.5px;font-weight:700;color:var(--ink);
+    user-select:none;-webkit-user-select:none;-moz-user-select:none;-webkit-touch-callout:none;pointer-events:none;cursor:default;}
+  .txtin.nopaste{animation:shk .35s;border-color:#c0563a;}
+  /* intro (前述) */
+  .introcard{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);overflow:hidden;margin:8px auto 0;max-width:600px;}
+  .introcard .pic{width:100%;aspect-ratio:16/10;background:#f3e7d4 center/cover no-repeat;}
+  .introcard .body{padding:18px 20px;}
+  .introcard h2{font-family:"Noto Serif TC",serif;font-size:22px;margin:0 0 4px;}
+  .introcard .lead{color:var(--muted);margin:0 0 14px;}
+  .todo{list-style:none;margin:0;padding:0;counter-reset:t;}
+  .todo li{position:relative;padding:9px 0 9px 42px;border-top:1px dashed var(--line);font-weight:700;}
+  .todo li:first-child{border-top:0;}
+  .todo li::before{counter-increment:t;content:counter(t);position:absolute;left:0;top:8px;width:28px;height:28px;border-radius:50%;
+    background:var(--accent);color:#fff;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:15px;}
+  /* element pickers */
+  .group{margin:14px 0;}
+  .group>.lbl{font-weight:900;font-size:15px;margin-bottom:8px;}
+  .opts{display:flex;flex-wrap:wrap;gap:8px;}
+  .opt{border:2px solid var(--line);background:var(--card);border-radius:14px;padding:8px 13px;font-size:15px;font-weight:700;cursor:pointer;transition:.12s;}
+  .opt:active{transform:scale(.95);}
+  .opt.sel{border-color:var(--accent);background:#fff1e6;box-shadow:0 0 0 3px rgba(232,112,58,.18);}
+  /* species with real image */
+  .spgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  @media(max-width:460px){.spgrid{grid-template-columns:repeat(3,1fr);}}
+  .sp{border:2px solid var(--line);background:var(--card);border-radius:14px;padding:8px 4px 6px;cursor:pointer;text-align:center;transition:.12s;}
+  .sp:active{transform:scale(.95);}
+  .sp.sel{border-color:var(--accent);background:#fff1e6;box-shadow:0 0 0 3px rgba(232,112,58,.18);}
+  .sp img{width:100%;aspect-ratio:1;object-fit:contain;display:block;}
+  .sp.noimg img{display:none;} .sp .fb{display:none;} .sp.noimg .fb{display:block;font-size:26px;font-weight:900;color:var(--muted);}
+  .sp .nm{font-size:13px;font-weight:800;margin-top:2px;}
+  .sw{width:38px;height:38px;border-radius:50%;border:3px solid #fff;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15);outline:2px solid transparent;}
+  .sw.sel{outline:3px solid var(--accent);outline-offset:2px;transform:scale(1.08);}
+  /* canvas */
+  .canvwrap{display:flex;flex-direction:column;align-items:center;gap:10px;}
+  .canvbox{position:relative;background:#fff;border:3px solid var(--accent2);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;touch-action:none;}
+  #pad{display:block;width:min(74vh,90vw,880px);height:min(74vh,90vw,880px);touch-action:none;cursor:crosshair;}
+  .tools{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;}
+  .pen{width:34px;height:34px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.2);cursor:pointer;}
+  .pen.sel{outline:3px solid var(--ink);outline-offset:2px;}
+  .sizebtn,.toolbtn{border:2px solid var(--line);background:var(--card);border-radius:12px;padding:7px 12px;font-weight:800;font-size:14px;cursor:pointer;}
+  .sizebtn.sel{border-color:var(--ink);background:#f0e6d6;}
+  .sizebtn .dot{display:inline-block;border-radius:50%;background:var(--ink);vertical-align:middle;}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:8px 0;}
+  .chip{background:#fff1e6;border:1px solid var(--accent2);border-radius:999px;padding:3px 11px;font-size:13px;font-weight:800;color:var(--accent);}
+  /* buttons */
+  .btn{display:block;width:100%;max-width:420px;margin:18px auto 0;border:0;border-radius:16px;padding:15px;font-size:18px;font-weight:900;color:#fff;
+    background:linear-gradient(180deg,var(--accent2),var(--accent));cursor:pointer;box-shadow:0 8px 20px rgba(232,112,58,.35);}
+  .btn:active{transform:translateY(1px) scale(.99);}
+  .btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;}
+  .btn.ghost{background:none;color:var(--muted);box-shadow:none;border:2px solid var(--line);}
+  .btnrow{display:flex;gap:10px;max-width:420px;margin:12px auto 0;}
+  .btnrow .btn{margin:0;}
+  /* 次要小連結：縮小、低調，避免反射點擊 */
+  .minorrow{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:14px;}
+  .minorbtn{background:none;border:0;color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;padding:6px 6px;
+    text-decoration:underline;text-underline-offset:3px;opacity:.75;}
+  .minorbtn:active{transform:scale(.96);} .minorbtn:hover{color:var(--ink);opacity:1;}
+  .dotsep{color:var(--line);font-weight:900;}
+  /* generating */
+  .genwrap{text-align:center;padding:10px 0;}
+  .genwrap .mine{width:150px;height:150px;object-fit:contain;background:#fff;border:2px dashed var(--line);border-radius:16px;}
+  .bar{height:12px;background:#efe1cf;border-radius:8px;overflow:hidden;max-width:360px;margin:16px auto 0;}
+  .bar>i{display:block;height:100%;width:8%;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .5s;}
+  .genmsg{color:var(--muted);margin-top:10px;font-weight:700;min-height:1.4em;}
+  /* results */
+  .compare{display:flex;gap:12px;align-items:flex-start;justify-content:center;flex-wrap:wrap;margin-bottom:6px;}
+  .mine{text-align:center;}
+  .mine img{width:120px;height:120px;object-fit:contain;background:#fff;border:2px dashed var(--line);border-radius:14px;}
+  .mine .cap{font-size:12px;color:var(--muted);font-weight:800;margin-top:4px;}
+  .results{display:flex;justify-content:center;gap:12px;margin-top:6px;}
+  .res{position:relative;width:min(340px,82vw);background:var(--card);border:3px solid var(--line);border-radius:16px;overflow:hidden;cursor:pointer;aspect-ratio:1;box-shadow:var(--shadow);transition:.12s;}
+  .res img{width:100%;height:100%;object-fit:contain;background:#fff;display:block;}
+  .res.sel{border-color:var(--good);box-shadow:0 0 0 4px rgba(95,170,99,.25);}
+  .res.sel::after{content:"定裝";position:absolute;top:6px;right:6px;background:var(--good);color:#fff;font-weight:900;font-size:12px;padding:2px 10px;border-radius:999px;}
+  .res.load,.res.fail{display:flex;align-items:center;justify-content:center;color:var(--muted);font-weight:800;font-size:13px;flex-direction:column;gap:6px;}
+  .res.fail{color:#c0563a;}
+  .spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite;}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .donemsg{text-align:center;background:#eaf6ea;border:1px solid #bfe2c0;border-radius:14px;padding:12px;margin-top:14px;font-weight:800;color:#2f7a3a;display:none;}
+  .donemsg.on{display:block;animation:fade .3s;}
+  .err{background:#fdece6;border:1px solid #f2c3ad;color:#b0492a;border-radius:12px;padding:10px 12px;font-size:14px;font-weight:700;margin:10px auto;max-width:420px;text-align:center;display:none;}
+  .err.on{display:block;}
+  /* 前述 story beats（放大） */
+  .beatcard{background:var(--card);border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);overflow:hidden;max-width:min(880px,96vw);margin:14px auto 0;}
+  .beatpic{width:100%;aspect-ratio:16/10;background:#f3e7d4 center/cover no-repeat;}
+  .beatbody{padding:24px 30px 26px;}
+  .beatbody h2{font-family:"Noto Serif TC",serif;font-size:28px;margin:0 0 10px;line-height:1.35;}
+  .beatp{color:var(--muted);font-size:18px;margin:0;min-height:1.2em;line-height:1.6;}
+  .skillrow{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px;}
+  .skill{background:#fbe9dd;border:1px solid var(--accent2);color:var(--accent);border-radius:12px;padding:7px 14px;font-weight:800;font-size:15.5px;}
+  .dragzone{margin-top:6px;}
+  .dragzone .dqpool{min-height:52px;}
+  .beatnav{display:flex;align-items:center;gap:14px;margin-top:20px;}
+  .beatnav .btn{margin:0;flex:1;max-width:none;}
+  .beatdots{display:flex;gap:7px;}
+  .bdot{width:9px;height:9px;border-radius:50%;background:var(--line);transition:.15s;}
+  .bdot.on{background:var(--accent);transform:scale(1.25);}
+  /* 拖拉複習 */
+  .dq{margin-top:4px;}
+  .dqpool{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;min-height:56px;padding:12px;border:2px dashed var(--line);border-radius:16px;background:var(--card);}
+  .dqbuckets{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px;}
+  @media(max-width:520px){.dqbuckets{grid-template-columns:1fr;}}
+  .bucket{border:2px solid var(--line);border-radius:18px;background:var(--card);box-shadow:var(--shadow);overflow:hidden;}
+  .bucket .bt{font-weight:900;text-align:center;padding:10px;color:#fff;background:var(--accent);font-size:16px;}
+  .bucket[data-b="you"] .bt{background:var(--good);}
+  .bucket .drop{min-height:96px;padding:12px;display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start;}
+  .dchip{background:#fff;border:2px solid var(--accent2);border-radius:14px;padding:10px 14px;font-weight:800;font-size:15.5px;cursor:grab;
+    box-shadow:0 3px 8px rgba(0,0,0,.1);touch-action:none;user-select:none;color:var(--ink);}
+  .dchip.dragging{cursor:grabbing;box-shadow:0 10px 24px rgba(0,0,0,.25);transform:rotate(-2deg);}
+  .dchip.locked{cursor:default;border-color:var(--good);background:#eaf6ea;color:#2f7a3a;}
+  .dchip.shake{animation:shk .4s;}
+  @keyframes shk{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  .dqmsg{text-align:center;font-weight:800;margin:16px auto 0;min-height:1.4em;color:var(--muted);}
+  .dqmsg.ok{color:#2f7a3a;}
+  /* 設計關：預覽 + 有趣量表 */
+  .designwrap{display:grid;grid-template-columns:1fr;gap:20px;}
+  @media(min-width:760px){.designwrap{grid-template-columns:1.1fr .9fr;align-items:start;}.pv{position:sticky;top:66px;}}
+  .pv{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:16px;}
+  .pvstage{width:100%;aspect-ratio:1;border-radius:16px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#faf1e2;transition:background .3s;}
+  .pvstage img{width:82%;height:82%;object-fit:contain;filter:drop-shadow(0 6px 12px rgba(0,0,0,.18));}
+  .pvempty{color:var(--muted);font-weight:800;}
+  .pvchips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px;min-height:26px;}
+  .meter{margin-top:14px;}
+  .mtop{display:flex;justify-content:space-between;align-items:center;font-weight:900;font-size:14px;margin-bottom:6px;}
+  .mbar{height:16px;background:#efe1cf;border-radius:10px;overflow:hidden;}
+  .mbar>i{display:block;height:0;border-radius:10px;transition:width .35s,background .35s;background:#e8703a;}
+  .mbar>i.low{background:#e8703a;} .mbar>i.mid{background:#f4c430;} .mbar>i.hi{background:var(--good);}
+  /* 存到帳號 訊息 */
+  .savemsg{text-align:center;font-weight:800;margin:10px auto 0;min-height:1.2em;font-size:14px;color:var(--muted);max-width:440px;}
+  .savemsg.ok{color:#2f7a3a;} .savemsg.warn{color:#b0492a;}
+  /* 暖身猜猜猜 */
+  .guesswrap{max-width:min(820px,96vw);margin:0 auto;}
+  .gpic{width:100%;max-width:420px;aspect-ratio:1;margin:0 auto 16px;border-radius:20px;background:#fff center/contain no-repeat;border:2px solid var(--line);box-shadow:var(--shadow);}
+  .gq{margin-bottom:14px;} .gq .lbl{font-weight:900;margin-bottom:8px;}
+  .opt.correct{border-color:var(--good);background:#eaf6ea;box-shadow:0 0 0 3px rgba(95,170,99,.28);}
+  .sw.correct{outline:3px solid var(--good);outline-offset:2px;transform:scale(1.08);}
+  .gwmsg{text-align:center;font-weight:800;margin:14px auto 0;min-height:1.3em;color:var(--muted);}
+  .gwmsg.ok{color:#2f7a3a;}
+  /* 畫主角：畫布 + 任務引導 */
+  .drawwrap{display:grid;grid-template-columns:1fr;gap:16px;align-items:start;}
+  @media(min-width:820px){.drawwrap{grid-template-columns:auto 260px;justify-content:center;}}
+  .canvcol{display:flex;flex-direction:column;align-items:center;gap:10px;}
+  .trace{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:.2;pointer-events:none;}
+  .gcard{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:16px;position:sticky;top:66px;}
+  .gch{font-weight:900;font-size:16px;margin-bottom:10px;}
+  .quest{list-style:none;margin:0;padding:0;}
+  .qitem{display:flex;align-items:center;gap:10px;padding:9px 6px;border-radius:10px;cursor:pointer;font-weight:700;border-top:1px dashed var(--line);}
+  .qitem:first-child{border-top:0;}
+  .qbox{width:22px;height:22px;border-radius:7px;border:2px solid var(--line);flex:0 0 auto;position:relative;}
+  .qitem.done .qbox{background:var(--good);border-color:var(--good);}
+  .qitem.done .qbox::after{content:"";position:absolute;left:6px;top:2px;width:6px;height:11px;border:solid #fff;border-width:0 3px 3px 0;transform:rotate(45deg);}
+  .qitem.done .qtx{color:var(--muted);text-decoration:line-through;}
+  .gtip{margin-top:10px;padding:10px;background:#fff6ec;border:1px solid var(--accent2);border-radius:10px;font-size:13.5px;line-height:1.5;color:var(--ink);min-height:2.4em;}
+  /* 角色小檔案 */
+  .profilewrap{display:grid;grid-template-columns:1fr;gap:18px;max-width:min(820px,96vw);margin:0 auto;}
+  @media(min-width:720px){.profilewrap{grid-template-columns:280px 1fr;align-items:start;}}
+  .pfpic{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:14px;}
+  .pfpic img{width:100%;aspect-ratio:1;object-fit:contain;background:#fff;border-radius:12px;display:block;}
+  .namesugg{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px;}
+  .sugg{background:#fff1e6;border:1px dashed var(--accent2);color:var(--accent);border-radius:999px;padding:5px 12px;font-weight:800;font-size:13.5px;cursor:pointer;}
+  .sugg:active{transform:scale(.96);}
+  /* 角色卡 / 分享 */
+  .charcard{max-width:min(560px,96vw);margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);padding:22px;text-align:center;}
+  .ccpair{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;}
+  .ccmine img,.ccai img{width:132px;height:132px;object-fit:contain;background:#fff;border-radius:14px;border:2px solid var(--line);display:block;}
+  .ccmine .cap,.ccai .cap{font-size:12px;color:var(--muted);font-weight:800;margin-top:4px;}
+  .ccmine img{border-style:dashed;} .ccai img{border-color:var(--good);}
+  .ccarrow{font-size:26px;font-weight:900;color:var(--accent);}
+  .ccname{font-family:"Noto Serif TC",serif;font-size:27px;font-weight:900;margin:16px 0 10px;}
+  .ccfacts{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;}
+  /* AI 老師審核彈窗 */
+  .teacher{position:fixed;inset:0;z-index:50;background:rgba(40,28,18,.5);display:flex;align-items:center;justify-content:center;padding:16px;animation:fade .25s;}
+  .tcard{background:var(--card);border-radius:22px;box-shadow:0 18px 50px rgba(0,0,0,.35);max-width:440px;width:100%;padding:22px;text-align:center;max-height:92vh;overflow:auto;}
+  .tavatar{width:92px;height:92px;margin:0 auto 4px;border-radius:50%;background:#fff center/cover no-repeat;border:3px solid var(--accent2);box-shadow:var(--shadow);}
+  .tname{font-weight:900;color:var(--accent);font-size:13px;margin-bottom:8px;letter-spacing:.05em;}
+  .tstate{font-family:"Noto Serif TC",serif;font-size:24px;font-weight:900;min-height:1.2em;margin:4px 0 8px;}
+  .tstate.ok{color:var(--good);} .tstate.warn{color:var(--accent);}
+  .tstate .spin{width:30px;height:30px;margin:6px auto;}
+  .tmsg{font-size:16px;color:var(--ink);font-weight:700;margin-bottom:10px;line-height:1.55;}
+  .tcheck{list-style:none;margin:10px 0;padding:0;text-align:left;display:inline-block;}
+  .tcheck li{display:flex;align-items:center;gap:9px;padding:5px 0;font-weight:700;font-size:14.5px;}
+  .tck{width:20px;height:20px;border-radius:6px;flex:0 0 auto;position:relative;}
+  .tcheck li.y .tck{background:var(--good);} .tcheck li.n .tck{background:#e6d6c4;}
+  .tcheck li.y .tck::after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid #fff;border-width:0 3px 3px 0;transform:rotate(45deg);}
+  .tcheck li.n .tck::after{content:"";position:absolute;left:5px;top:8px;width:10px;height:3px;background:#fff;border-radius:2px;}
+  .tcheck li.n{color:var(--muted);}
+  .tsug{text-align:left;background:#fff6ec;border:1px solid var(--accent2);border-radius:12px;padding:12px 14px;margin-top:6px;}
+  .tsugh{font-weight:900;margin-bottom:4px;font-size:14px;}
+  .tsug ul{margin:0;padding-left:20px;} .tsug li{margin:4px 0;font-size:14px;line-height:1.5;}
+  .tbtns{margin-top:16px;display:flex;flex-direction:column;gap:9px;align-items:center;}
+  .tbtns .btn{margin:0;width:100%;max-width:none;}
+  /* 元素配方（加法預覽）+ 成品揭曉 */
+  .rectitle{font-weight:900;font-size:15px;text-align:center;margin-bottom:10px;color:var(--muted);}
+  .recipe,.reveal{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;}
+  .rslot{width:64px;height:64px;border-radius:16px;background:#faf1e2;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 auto;transition:background .3s;position:relative;}
+  .rslot img{width:84%;height:84%;object-fit:contain;}
+  .rslot .rph{font-size:24px;font-weight:900;color:#d9c3a8;}
+  .rslot .rlab{position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:9px;font-weight:800;color:var(--muted);}
+  .rslot.filled{border-color:var(--accent2);background:#fff;}
+  .rslot.pop{animation:slotpop .38s;}
+  @keyframes slotpop{0%{transform:scale(.4);opacity:.2}55%{transform:scale(1.2)}100%{transform:scale(1)}}
+  .rplus{font-size:19px;font-weight:900;color:var(--accent);}
+  .req{font-size:22px;font-weight:900;color:var(--good);}
+  .rmystery{background:linear-gradient(135deg,#ffe6c7,#ffd0a3);border-color:var(--accent2);border-style:dashed;}
+  .rmystery .rgift{font-size:26px;font-weight:900;color:var(--accent);animation:wobble 1.6s ease-in-out 4;}
+  @keyframes wobble{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+  /* p4 揭曉 */
+  .reveal{margin:8px auto 2px;}
+  .rslot.rsketch{border-style:dashed;} .rslot.rsketch img{background:#fff;}
+  .revresult{position:relative;width:min(320px,80vw);aspect-ratio:1;margin:14px auto 0;border-radius:18px;border:3px solid var(--line);background:var(--card);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:default;}
+  .revresult .revq{font-size:64px;font-weight:900;color:var(--accent2);animation:wobble 1.6s ease-in-out 6;}
+  .revresult .revspin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite;}
+  .revresult img{width:100%;height:100%;object-fit:contain;background:#fff;display:none;}
+  .revresult.ready{cursor:pointer;} .revresult.ready .revq,.revresult.ready .revspin{display:none;}
+  .revresult.ready img{display:block;animation:revealpop .7s cubic-bezier(.2,1.3,.4,1);}
+  @keyframes revealpop{0%{transform:scale(.2) rotate(-14deg);opacity:0}60%{transform:scale(1.08) rotate(4deg);opacity:1}100%{transform:scale(1) rotate(0)}}
+  .revresult.sel{border-color:var(--good);box-shadow:0 0 0 4px rgba(95,170,99,.3);}
+  .revresult.sel::after{content:"定裝";position:absolute;top:8px;right:8px;background:var(--good);color:#fff;font-weight:900;font-size:12px;padding:2px 10px;border-radius:999px;z-index:3;}
+  .sparkles{position:absolute;inset:0;pointer-events:none;z-index:2;}
+  .spk{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px;background:radial-gradient(circle,#ffd75e 30%,rgba(255,215,94,0) 70%);border-radius:50%;opacity:0;}
+  .revresult.ready .spk{animation:spark .85s ease-out forwards;}
+  @keyframes spark{0%{opacity:1;transform:translate(0,0) scale(.3)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(2.2)}}
+  /* 畫主角：分階段指引 */
+  .stagebar{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin:2px auto 16px;max-width:660px;}
+  .stagestep{display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:999px;border:2px solid var(--line);background:var(--card);font-weight:900;font-size:15px;color:var(--muted);}
+  .stagestep .snum{width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.14);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;}
+  .stagestep.on{color:#fff;background:var(--accent);border-color:var(--accent);box-shadow:var(--shadow);}
+  .stagestep.on .snum{background:rgba(255,255,255,.4);}
+  .stagestep.done{color:var(--good);border-color:var(--good);} .stagestep.done .snum{background:var(--good);}
+  .stepcard{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:22px;text-align:center;position:sticky;top:66px;}
+  .stepnum{font-weight:900;color:var(--accent);font-size:16px;letter-spacing:.03em;}
+  .steptitle{font-family:"Noto Serif TC",serif;font-size:27px;font-weight:900;margin:5px 0 14px;line-height:1.3;}
+  .stepbig{display:flex;flex-direction:column;align-items:center;gap:8px;margin:6px 0 14px;}
+  .stepbigimg{width:128px;height:128px;object-fit:contain;filter:drop-shadow(0 6px 14px rgba(0,0,0,.16));}
+  .stepcolor{width:104px;height:104px;border-radius:50%;border:5px solid #fff;box-shadow:0 5px 14px rgba(0,0,0,.22);}
+  .stepbiglabel{font-weight:900;font-size:20px;color:var(--ink);}
+  .steptip{font-size:16px;color:var(--muted);line-height:1.6;margin-bottom:18px;min-height:2.6em;}
+  .stepcard .btn{margin:0;width:100%;max-width:none;}
+  /* 每關最低 5 分鐘倒數提示 */
+  .stagecd{background:#fff6ec;border:1px solid var(--accent2);border-radius:12px;padding:10px 12px;margin-bottom:12px;
+    font-weight:800;font-size:14.5px;color:var(--accent);line-height:1.5;text-align:center;}
+  .stagecd b{font-family:"Noto Serif TC",serif;font-size:18px;}
+  /* 續作提示橫幅 */
+  .resumebar{max-width:min(880px,96vw);margin:10px auto 0;background:#eaf6ea;border:1px solid #bfe2c0;color:#2f7a3a;
+    border-radius:12px;padding:10px 14px;font-weight:800;font-size:14px;text-align:center;}
+  /* 低年級注音：台灣課本樣式——注音直排在漢字右側，聲調在注音右側、輕聲在上方（比照 P1）。只在 body.zy 生效 */
+  .zy .zc{position:relative;display:inline-block;margin-right:1.2em;line-height:1.75;}
+  .zy .zb{position:absolute;left:100%;top:50%;transform:translateY(-50%);margin-left:.1em;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-size:.5em;line-height:1.05;font-weight:500;color:inherit;opacity:.92;
+    white-space:nowrap;pointer-events:none;user-select:none;-webkit-user-select:none;}
+  .zy .zb .zs{display:block;}
+  .zy .zb .zt{position:absolute;left:100%;top:50%;transform:translate(-22%,-50%);font-size:.85em;}
+  .zy .zb.light .zt{left:50%;top:0;transform:translate(-50%,-86%);font-size:1em;}
+  /* 低年級：注音在字右側佔空間，字級略放大讓注音也看得清楚 */
+  .zy .hint{font-size:16px;} .zy .opt,.zy .sp .nm{font-size:16px;} .zy .beatp{font-size:19px;}
+  .zy .steptip{font-size:17px;} .zy .lbl,.zy .group>.lbl{font-size:16px;}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<div class="topbar">
+  <a class="back" href="/courses/ai-picturebook.html">← 課程</a>
+  <span class="t">第 1 堂 · 認識你的主角</span>
+  <span id="gradeBadge" class="gbadge"></span>
+</div>
+
+<div class="wrap">
+  <div class="steps" id="stepbar" style="display:none">
+    <!-- 「猜猜看」暖身關暫時隱藏（pw 面板與程式碼保留，之後要復原把這關加回、STEP_OF 與 beatNext 改回即可）-->
+    <div class="s" data-k="1"><span class="n">1</span>選元素</div>
+    <div class="s" data-k="2"><span class="n">2</span>畫主角</div>
+    <div class="s" data-k="3"><span class="n">3</span>AI 定裝</div>
+    <div class="s" data-k="4"><span class="n">4</span>角色卡</div>
+  </div>
+
+  <!-- 難度選擇：先選年級 -->
+  <div class="panel on" id="pg">
+    <h1>你是哪個年級？</h1>
+    <p class="hint">先選一個，課程會用最適合你的方式進行。</p>
+    <div class="gradepick">
+      <button class="gradebtn" data-g="high">
+        <div class="gt">高年級</div>
+        <div class="gs">小四、小五、小六</div>
+        <div class="gd">可以自己打字描述、自由發揮</div>
+      </button>
+      <button class="gradebtn" data-g="low">
+        <div class="gt">低年級</div>
+        <div class="gs">小二、小三</div>
+        <div class="gd">用圖示點一點、簡單好上手</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 0：前述（故事頁 + 拖拉頁交錯）-->
+  <div class="panel" id="p0">
+    <div class="beatcard">
+      <div class="beatpic" id="beatPic"></div>
+      <div class="beatbody">
+        <h2 id="beatH"></h2>
+        <p class="beatp" id="beatP"></p>
+        <div class="skillrow" id="beatSkills" style="display:none"></div>
+        <div class="dragzone" id="dragZone" style="display:none">
+          <div class="dqpool" id="beatPool"></div>
+          <div class="dqbuckets" id="beatBuckets"></div>
+          <div class="dqmsg" id="beatDqMsg"></div>
+        </div>
+        <div class="beatnav">
+          <div class="beatdots" id="beatDots"></div>
+          <button class="btn" id="beatNext" disabled>下一步</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 暖身：關鍵字猜猜猜 -->
+  <div class="panel" id="pw">
+    <h1>暖身：關鍵字猜猜猜</h1>
+    <p class="hint">AI 畫角色，是照「元素」畫的。看看這隻——牠用了哪些元素？<span id="gwCount"></span></p>
+    <div class="guesswrap">
+      <div class="gpic" id="gwPic"></div>
+      <div class="gq"><div class="lbl">牠是什麼？</div><div class="opts" id="gwSpecies"></div></div>
+      <div class="gq"><div class="lbl">什麼顏色？</div><div class="opts" id="gwColors"></div></div>
+      <div class="gwmsg" id="gwMsg"></div>
+      <div class="btnrow">
+        <button class="btn" id="gwReveal" disabled>揭曉答案</button>
+        <button class="btn" id="gwNext" style="display:none">下一題</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 1：設計關（預覽 + 有趣量表） -->
+  <div class="panel" id="p1">
+    <h1>設計你的主角</h1>
+    <p class="hint">一邊選，右邊即時預覽，還有「有趣量表」。加點特色，衝過 <b>65 分</b>就能去畫牠！</p>
+    <div class="designwrap">
+      <div id="pickers">
+        <div class="group" id="spGroup"><div class="lbl">牠是什麼？</div><div class="spgrid" id="species"></div></div>
+        <div class="group" id="colGroup"><div class="lbl">什麼顏色？</div><div class="opts" id="colors"></div></div>
+        <!-- 高年級：物種、顏色改成自己打字（不再點選） -->
+        <div class="group" id="spInputWrap" style="display:none">
+          <div class="lbl">① 牠是什麼生物？（自己打）</div>
+          <input id="spCustom" class="txtin" type="text" maxlength="24" autocomplete="off" placeholder="例如：會噴火的小恐龍、機器貓、雲朵羊…">
+        </div>
+        <div class="group" id="colInputWrap" style="display:none">
+          <div class="lbl">② 什麼顏色？（自己打）</div>
+          <input id="colCustom" class="txtin" type="text" maxlength="24" autocomplete="off" placeholder="例如：漸層藍紫、銀河色、亮橘配金…">
+        </div>
+        <div class="group" id="featGroup"><div class="lbl">一個特徵</div><div class="spgrid" id="feature"></div></div>
+        <div class="group" id="accGroup"><div class="lbl">一個配件</div><div class="spgrid" id="accessory"></div></div>
+        <div class="group" id="descWrap" style="display:none">
+          <div class="lbl">③ 用一兩句話描述你的主角特色（自己打字，越具體越好）</div>
+          <input id="custom" class="txtin" type="text" maxlength="60" autocomplete="off" placeholder="牠有什麼特別的地方？在做什麼？心情如何？">
+          <div class="nocopy">
+            <div class="nchint">靈感參考（<b>不能複製</b>，讀完用自己的話打）：</div>
+            <div class="nclist" id="descSugg"></div>
+          </div>
+        </div>
+      </div>
+      <div class="pv">
+        <div class="rectitle">你的主角配方（選越多越有趣）</div>
+        <div class="recipe" id="recipe">
+          <div class="rslot" id="rSpecies"><span class="rph">?</span><span class="rlab">物種</span></div>
+          <span class="rplus">+</span>
+          <div class="rslot" id="rFeature"><span class="rph">?</span><span class="rlab">特徵</span></div>
+          <span class="rplus" id="pAcc">+</span>
+          <div class="rslot" id="rAccessory"><span class="rph">?</span><span class="rlab">配件</span></div>
+          <span class="req">=</span>
+          <div class="rslot rmystery" id="rResult"><span class="rgift">?</span></div>
+        </div>
+        <div class="pvchips" id="pvChips"></div>
+        <div class="meter">
+          <div class="mtop"><span>有趣量表</span><span id="mLabel">先選物種和顏色</span></div>
+          <div class="mbar"><i id="mFill" class="low"></i></div>
+        </div>
+      </div>
+    </div>
+    <button class="btn" id="toDraw" disabled>衝過量表，來畫主角</button>
+  </div>
+
+  <!-- STEP 2：畫主角（一步一步指引 + 多階段審核）-->
+  <div class="panel" id="p2">
+    <h1>親手畫出你的主角</h1>
+    <p class="hint">一步一步跟著畫，每畫好一步，<b>AI 老師</b>都會看一下、給你建議。畫完就送去算圖！</p>
+    <div class="stagebar" id="stageBar"></div>
+    <div class="drawwrap">
+      <div class="canvcol">
+        <div class="canvbox">
+          <canvas id="pad" width="768" height="768"></canvas>
+          <img id="trace" class="trace" alt="" style="display:none">
+        </div>
+        <div class="tools" id="pens"></div>
+        <div class="tools">
+          <button class="sizebtn sel" data-size="12"><span class="dot" style="width:6px;height:6px"></span> 細</button>
+          <button class="sizebtn" data-size="24"><span class="dot" style="width:11px;height:11px"></span> 中</button>
+          <button class="sizebtn" data-size="45"><span class="dot" style="width:18px;height:18px"></span> 粗</button>
+          <button class="toolbtn" id="eraser">橡皮擦</button>
+          <button class="toolbtn" id="undo">上一步</button>
+          <button class="toolbtn" id="clear">清空</button>
+          <button class="toolbtn" id="traceBtn">描一描</button>
+        </div>
+      </div>
+      <div class="guidecol">
+        <div class="stepcard">
+          <div class="stepnum" id="stepNum"></div>
+          <div class="steptitle" id="stepTitle"></div>
+          <div class="stepbig" id="stepBig"></div>
+          <div class="steptip" id="stepTip"></div>
+          <div class="stagecd" id="stageCountdown" style="display:none"></div>
+          <button class="btn" id="stageCheck">完成這步，給老師看</button>
+        </div>
+      </div>
+    </div>
+    <div class="btnrow">
+      <button class="btn ghost" id="backTo1">← 回選元素</button>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="panel" id="p3">
+    <h1>AI 正在算出你的主角…</h1>
+    <div class="genwrap">
+      <img class="mine" id="genMine" alt="你畫的">
+      <div class="bar"><i id="genbar"></i></div>
+      <div class="genmsg" id="genmsg">把你選的元素＋你畫的圖，變成一隻漂亮的主角…</div>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="panel" id="p4">
+    <h1>見證魔法：你的主角登場！</h1>
+    <p class="hint">你選的元素 ＋ 你親手畫的圖，AI 施展魔法，變出你的定裝主角——點一下選牠當定裝。</p>
+    <div class="reveal" id="revEq">
+      <div class="rslot" id="revSpecies"><span class="rph">?</span></div>
+      <span class="rplus">+</span>
+      <div class="rslot" id="revFeature"><span class="rph">?</span></div>
+      <span class="rplus" id="revPAcc">+</span>
+      <div class="rslot" id="revAccessory"><span class="rph">?</span></div>
+      <span class="rplus">+</span>
+      <div class="rslot rsketch"><img id="myDraw" alt="你畫的"></div>
+      <span class="req">=</span>
+    </div>
+    <div class="revresult load" id="revResult"><div class="revspin"></div></div>
+    <div class="err" id="err"></div>
+    <div class="donemsg" id="doneMsg">定裝完成！先用音樂喚醒牠，再回來幫牠取名字。</div>
+    <button class="btn" id="toProfile" disabled style="background:linear-gradient(180deg,#b98ce0,#8a5cd6);box-shadow:0 8px 20px rgba(138,92,214,.4)">▶ 用音樂喚醒你的主角！</button>
+    <div class="minorrow">
+      <button class="minorbtn" id="download">下載圖檔</button>
+      <span class="dotsep">·</span>
+      <button class="minorbtn" id="regen">再算一張（<span id="regenLeft">3</span>）</button>
+      <span class="dotsep">·</span>
+      <button class="minorbtn" id="restart">重新做一隻</button>
+    </div>
+  </div>
+
+  <!-- STEP 5a：角色小檔案（取名 + 一件事，餵給 L2）-->
+  <div class="panel" id="pf">
+    <h1>幫主角做一張小檔案</h1>
+    <p class="hint">名字，加上一個小秘密，牠就更有生命了——這些之後會被寫進你的故事裡。</p>
+    <div class="profilewrap">
+      <div class="pfpic"><img id="pfImg" alt="你的主角"></div>
+      <div class="pfform">
+        <div class="group">
+          <div class="lbl">① 幫牠取個名字</div>
+          <input id="charName" class="txtin" type="text" maxlength="12" placeholder="打一個你喜歡的名字">
+          <div class="namesugg" id="nameSugg"></div>
+        </div>
+        <div class="group"><div class="lbl">② 牠最愛吃什麼？</div><div class="opts" id="likeOpts"></div></div>
+        <div class="group"><div class="lbl">③ 牠有一個小本領</div><div class="opts" id="skillOpts"></div></div>
+      </div>
+    </div>
+    <button class="btn" id="toShare" disabled>完成小檔案 →</button>
+  </div>
+
+  <!-- STEP 5b：分享 / 角色卡 + 存到帳號 -->
+  <div class="panel" id="ps">
+    <h1>你的主角完成了！</h1>
+    <p class="hint">這是你的角色卡。存進帳號，之後每一堂課、每一頁都會是牠。</p>
+    <div class="charcard" id="charCard">
+      <div class="ccpair">
+        <div class="ccmine"><img id="ccDraw" alt="你畫的"><div class="cap">你畫的</div></div>
+        <div class="ccarrow">→</div>
+        <div class="ccai"><img id="ccAI" alt="AI 定裝"><div class="cap">AI 定裝</div></div>
+      </div>
+      <div class="ccname" id="ccName"></div>
+      <div class="ccfacts" id="ccFacts"></div>
+    </div>
+    <button class="btn" id="saveAcct" disabled>存到我的帳號</button>
+    <div class="savemsg" id="saveMsg"></div>
+    <div class="minorrow">
+      <button class="minorbtn" id="download2">下載主角圖</button>
+      <span class="dotsep">·</span>
+      <button class="minorbtn" id="restart2">重新做一隻</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI 老師審核彈窗 -->
+<div class="teacher" id="teacher" style="display:none">
+  <div class="tcard">
+    <div class="tavatar" id="tAvatar"></div>
+    <div class="tname">AI 美術老師</div>
+    <div class="tstate" id="tState"></div>
+    <div id="tBody"></div>
+    <div class="tbtns" id="tBtns"></div>
+  </div>
+</div>
+
+<script>
+const $=(s,r)=>(r||document).querySelector(s), $$=(s,r)=>[...(r||document).querySelectorAll(s)];
+const state={ grade:null, species:null, color:null, feature:null, accessory:null, name:'', like:null, cskill:null };
+const AST='/courses/assets/';
+
+// ── 低年級注音：把畫面上出現的中文字即時包成 <ruby>字<rt>注音</rt></ruby> ──
+//   只在低年級啟用；用 MutationObserver 自動處理靜態與 JS 動態產生的文字。
+const ZHUYIN={
+'一':'ㄧ','三':'ㄙㄢ','上':'ㄕㄤˋ','下':'ㄒㄧㄚˋ','不':'ㄅㄨˋ','中':'ㄓㄨㄥ','主':'ㄓㄨˇ','久':'ㄐㄧㄡˇ','之':'ㄓ','也':'ㄧㄝˇ','乾':'ㄍㄢ',
+'了':'˙ㄌㄜ','事':'ㄕˋ','二':'ㄦˋ','五':'ㄨˇ','些':'ㄒㄧㄝ','交':'ㄐㄧㄠ','享':'ㄒㄧㄤˇ','亮':'ㄌㄧㄤˋ','人':'ㄖㄣˊ','什':'ㄕㄣˊ','以':'ㄧˇ',
+'件':'ㄐㄧㄢˋ','任':'ㄖㄣˋ','但':'ㄉㄢˋ','低':'ㄉㄧ','住':'ㄓㄨˋ','你':'ㄋㄧˇ','來':'ㄌㄞˊ','個':'ㄍㄜˋ','們':'˙ㄇㄣ','做':'ㄗㄨㄛˋ',
+'備':'ㄅㄟˋ','像':'ㄒㄧㄤˋ','元':'ㄩㄢˊ','先':'ㄒㄧㄢ','光':'ㄍㄨㄤ','免':'ㄇㄧㄢˇ','兔':'ㄊㄨˋ','入':'ㄖㄨˋ','全':'ㄑㄩㄢˊ','六':'ㄌㄧㄡˋ',
+'共':'ㄍㄨㄥˋ','具':'ㄐㄩˋ','再':'ㄗㄞˋ','冒':'ㄇㄠˋ','冠':'ㄍㄨㄢ','冰':'ㄅㄧㄥ','出':'ㄔㄨ','分':'ㄈㄣ','別':'ㄅㄧㄝˊ','到':'ㄉㄠˋ',
+'前':'ㄑㄧㄢˊ','剛':'ㄍㄤ','力':'ㄌㄧˋ','功':'ㄍㄨㄥ','加':'ㄐㄧㄚ','動':'ㄉㄨㄥˋ','務':'ㄨˋ','包':'ㄅㄠ','卡':'ㄎㄚˇ','印':'ㄧㄣˋ','即':'ㄐㄧˊ',
+'原':'ㄩㄢˊ','去':'ㄑㄩˋ','參':'ㄘㄢ','反':'ㄈㄢˇ','取':'ㄑㄩˇ','句':'ㄐㄩˋ','只':'ㄓˇ','召':'ㄓㄠˋ','可':'ㄎㄜˇ','右':'ㄧㄡˋ','吃':'ㄔ',
+'合':'ㄏㄜˊ','名':'ㄇㄧㄥˊ','吧':'˙ㄅㄚ','呢':'˙ㄋㄜ','命':'ㄇㄧㄥˋ','和':'ㄏㄜˊ','咖':'ㄎㄚ','品':'ㄆㄧㄣˇ','哪':'ㄋㄚˇ','啡':'ㄈㄟ','喔':'ㄛ',
+'喚':'ㄏㄨㄢˋ','喜':'ㄒㄧˇ','單':'ㄉㄢ','嗎':'˙ㄇㄚ','嘴':'ㄗㄨㄟˇ','器':'ㄑㄧˋ','噴':'ㄆㄣ','囉':'ㄌㄨㄛ','四':'ㄙˋ','回':'ㄏㄨㄟˊ','因':'ㄧㄣ',
+'圍':'ㄨㄟˊ','圓':'ㄩㄢˊ','圖':'ㄊㄨˊ','在':'ㄗㄞˋ','地':'ㄉㄧˋ','堂':'ㄊㄤˊ','場':'ㄔㄤˇ','塗':'ㄊㄨˊ','填':'ㄊㄧㄢˊ','多':'ㄉㄨㄛ',
+'大':'ㄉㄚˋ','太':'ㄊㄞˋ','失':'ㄕ','好':'ㄏㄠˇ','始':'ㄕˇ','子':'˙ㄗ','字':'ㄗˋ','存':'ㄘㄨㄣˊ','學':'ㄒㄩㄝˊ','它':'ㄊㄚ','完':'ㄨㄢˊ',
+'定':'ㄉㄧㄥˋ','密':'ㄇㄧˋ','審':'ㄕㄣˇ','寫':'ㄒㄧㄝˇ','寶':'ㄅㄠˇ','射':'ㄕㄜˋ','專':'ㄓㄨㄢ','對':'ㄉㄨㄟˋ','導':'ㄉㄠˇ','小':'ㄒㄧㄠˇ',
+'尖':'ㄐㄧㄢ','就':'ㄐㄧㄡˋ','尾':'ㄨㄟˇ','展':'ㄓㄢˇ','左':'ㄗㄨㄛˇ','己':'ㄐㄧˇ','已':'ㄧˇ','巴':'˙ㄅㄚ','巾':'ㄐㄧㄣ','布':'ㄅㄨˋ','師':'ㄕ',
+'帳':'ㄓㄤˋ','帽':'ㄇㄠˋ','幫':'ㄅㄤ','年':'ㄋㄧㄢˊ','幾':'ㄐㄧˇ','度':'ㄉㄨˋ','建':'ㄐㄧㄢˋ','式':'ㄕˋ','引':'ㄧㄣˇ','張':'ㄓㄤ','彈':'ㄉㄢˋ',
+'形':'ㄒㄧㄥˊ','彩':'ㄘㄞˇ','很':'ㄏㄣˇ','後':'ㄏㄡˋ','得':'˙ㄉㄜ','從':'ㄘㄨㄥˊ','徵':'ㄓㄥ','心':'ㄒㄧㄣ','忙':'ㄇㄤˊ','快':'ㄎㄨㄞˋ',
+'性':'ㄒㄧㄥˋ','怪':'ㄍㄨㄞˋ','恐':'ㄎㄨㄥˇ','息':'ㄒㄧ','想':'ㄒㄧㄤˇ','愛':'ㄞˋ','感':'ㄍㄢˇ','憶':'ㄧˋ','成':'ㄔㄥˊ','我':'ㄨㄛˇ',
+'或':'ㄏㄨㄛˋ','戴':'ㄉㄞˋ','所':'ㄙㄨㄛˇ','手':'ㄕㄡˇ','才':'ㄘㄞˊ','打':'ㄉㄚˇ','把':'ㄅㄚˇ','披':'ㄆㄧ','拉':'ㄌㄚ','拖':'ㄊㄨㄛ','指':'ㄓˇ',
+'按':'ㄢˋ','捨':'ㄕㄜˇ','排':'ㄆㄞˊ','接':'ㄐㄧㄝ','控':'ㄎㄨㄥˋ','描':'ㄇㄧㄠˊ','換':'ㄏㄨㄢˋ','揭':'ㄐㄧㄝ','揮':'ㄏㄨㄟ','擇':'ㄗㄜˊ',
+'擊':'ㄐㄧ','擦':'ㄘㄚ','放':'ㄈㄤˋ','故':'ㄍㄨˋ','敗':'ㄅㄞˋ','數':'ㄕㄨˋ','文':'ㄨㄣˊ','新':'ㄒㄧㄣ','方':'ㄈㄤ','施':'ㄕ','星':'ㄒㄧㄥ',
+'是':'ㄕˋ','時':'ㄕˊ','暖':'ㄋㄨㄢˇ','曉':'ㄒㄧㄠˇ','更':'ㄍㄥˋ','書':'ㄕㄨ','最':'ㄗㄨㄟˋ','會':'ㄏㄨㄟˋ','有':'ㄧㄡˇ','本':'ㄅㄣˇ',
+'朵':'ㄉㄨㄛˇ','東':'ㄉㄨㄥ','果':'ㄍㄨㄛˇ','核':'ㄏㄜˊ','案':'ㄢˋ','桶':'ㄊㄨㄥˇ','條':'ㄊㄧㄠˊ','棒':'ㄅㄤˋ','樂':'ㄌㄜˋ','標':'ㄅㄧㄠ',
+'樣':'ㄧㄤˋ','橘':'ㄐㄩˊ','機':'ㄐㄧ','橡':'ㄒㄧㄤˋ','檔':'ㄉㄤˋ','次':'ㄘˋ','欣':'ㄒㄧㄣ','歡':'ㄏㄨㄢ','正':'ㄓㄥˋ','步':'ㄅㄨˋ','段':'ㄉㄨㄢˋ',
+'每':'ㄇㄟˇ','比':'ㄅㄧˇ','毛':'ㄇㄠˊ','氣':'ㄑㄧˋ','水':'ㄕㄨㄟˇ','決':'ㄐㄩㄝˊ','沒':'ㄇㄟˊ','法':'ㄈㄚˇ','泳':'ㄩㄥˇ','淇':'ㄑㄧˊ',
+'淋':'ㄌㄧㄣˊ','清':'ㄑㄧㄥ','游':'ㄧㄡˊ','準':'ㄓㄨㄣˇ','滑':'ㄏㄨㄚˊ','滾':'ㄍㄨㄣˇ','滿':'ㄇㄢˇ','漂':'ㄆㄧㄠˋ','火':'ㄏㄨㄛˇ','為':'ㄨㄟˋ',
+'無':'ㄨˊ','照':'ㄓㄠˋ','熊':'ㄒㄩㄥˊ','片':'ㄆㄧㄢˋ','版':'ㄅㄢˇ','牙':'ㄧㄚˊ','牠':'ㄊㄚ','物':'ㄨˋ','特':'ㄊㄜˋ','狀':'ㄓㄨㄤˋ','狗':'ㄍㄡˇ',
+'猜':'ㄘㄞ','玩':'ㄨㄢˊ','現':'ㄒㄧㄢˋ','生':'ㄕㄥ','用':'ㄩㄥˋ','由':'ㄧㄡˊ','畫':'ㄏㄨㄚˋ','當':'ㄉㄤ','登':'ㄉㄥ','發':'ㄈㄚ','的':'˙ㄉㄜ',
+'皇':'ㄏㄨㄤˊ','皮':'ㄆㄧˊ','目':'ㄇㄨˋ','直':'ㄓˊ','看':'ㄎㄢˋ','眼':'ㄧㄢˇ','睛':'ㄐㄧㄥ','確':'ㄑㄩㄝˋ','示':'ㄕˋ','秀':'ㄒㄧㄡˋ',
+'秘':'ㄇㄧˋ','程':'ㄔㄥˊ','種':'ㄓㄨㄥˇ','空':'ㄎㄨㄥ','窗':'ㄔㄨㄤ','第':'ㄉㄧˋ','答':'ㄉㄚˊ','算':'ㄙㄨㄢˋ','範':'ㄈㄢˋ','簡':'ㄐㄧㄢˇ',
+'粉':'ㄈㄣˇ','粗':'ㄘㄨ','系':'ㄒㄧˋ','紅':'ㄏㄨㄥˊ','紋':'ㄨㄣˊ','級':'ㄐㄧˊ','素':'ㄙㄨˋ','紫':'ㄗˇ','細':'ㄒㄧˋ','結':'ㄐㄧㄝˊ','給':'ㄍㄟˇ',
+'統':'ㄊㄨㄥˇ','經':'ㄐㄧㄥ','綠':'ㄌㄩˋ','線':'ㄒㄧㄢˋ','編':'ㄅㄧㄢ','緩':'ㄏㄨㄢˇ','練':'ㄌㄧㄢˋ','縮':'ㄙㄨㄛ','繪':'ㄏㄨㄟˋ','繼':'ㄐㄧˋ',
+'續':'ㄒㄩˋ','美':'ㄇㄟˇ','翁':'ㄨㄥ','翅':'ㄔˋ','習':'ㄒㄧˊ','翻':'ㄈㄢ','老':'ㄌㄠˇ','考':'ㄎㄠˇ','耳':'ㄦˇ','背':'ㄅㄟ','能':'ㄋㄥˊ',
+'膀':'ㄅㄤˇ','臉':'ㄌㄧㄢˇ','自':'ㄗˋ','色':'ㄙㄜˋ','茸':'ㄖㄨㄥˊ','著':'˙ㄓㄜ','薩':'ㄙㄚˋ','藍':'ㄌㄢˊ','號':'ㄏㄠˋ','虹':'ㄏㄨㄥˊ',
+'蜂':'ㄈㄥ','蜜':'ㄇㄧˋ','蝴':'ㄏㄨˊ','蝶':'ㄉㄧㄝˊ','行':'ㄒㄧㄥˊ','術':'ㄕㄨˋ','衝':'ㄔㄨㄥ','表':'ㄅㄧㄠˇ','被':'ㄅㄟˋ','裝':'ㄓㄨㄤ',
+'裡':'ㄌㄧˇ','製':'ㄓˋ','複':'ㄈㄨˋ','西':'ㄒㄧ','要':'ㄧㄠˋ','見':'ㄐㄧㄢˋ','親':'ㄑㄧㄣ','覽':'ㄌㄢˇ','角':'ㄐㄩㄝˊ','觸':'ㄔㄨˋ','計':'ㄐㄧˋ',
+'訊':'ㄒㄩㄣˋ','記':'ㄐㄧˋ','設':'ㄕㄜˋ','試':'ㄕˋ','話':'ㄏㄨㄚˋ','認':'ㄖㄣˋ','說':'ㄕㄨㄛ','誰':'ㄕㄟˊ','課':'ㄎㄜˋ','調':'ㄉㄧㄠˋ',
+'請':'ㄑㄧㄥˇ','證':'ㄓㄥˋ','識':'ㄕˊ','議':'ㄧˋ','讀':'ㄉㄨˊ','變':'ㄅㄧㄢˋ','讓':'ㄖㄤˋ','貓':'ㄇㄠ','負':'ㄈㄨˋ','責':'ㄗㄜˊ','貼':'ㄊㄧㄝ',
+'賞':'ㄕㄤˇ','超':'ㄔㄠ','越':'ㄩㄝˋ','趣':'ㄑㄩˋ','跑':'ㄆㄠˇ','跟':'ㄍㄣ','跳':'ㄊㄧㄠˋ','身':'ㄕㄣ','較':'ㄐㄧㄠˋ','載':'ㄗㄞˋ','輕':'ㄑㄧㄥ',
+'述':'ㄕㄨˋ','送':'ㄙㄨㄥˋ','這':'ㄓㄜˋ','連':'ㄌㄧㄢˊ','進':'ㄐㄧㄣˋ','過':'ㄍㄨㄛˋ','適':'ㄕˋ','選':'ㄒㄩㄢˇ','避':'ㄅㄧˋ','還':'ㄏㄞˊ',
+'邊':'ㄅㄧㄢ','那':'ㄋㄚˋ','部':'ㄅㄨˋ','都':'ㄉㄡ','配':'ㄆㄟˋ','醒':'ㄒㄧㄥˇ','重':'ㄔㄨㄥˊ','量':'ㄌㄧㄤˋ','錯':'ㄘㄨㄛˋ','鍵':'ㄐㄧㄢˋ',
+'鏡':'ㄐㄧㄥˋ','長':'ㄓㄤˇ','門':'ㄇㄣˊ','開':'ㄎㄞ','關':'ㄍㄨㄢ','階':'ㄐㄧㄝ','險':'ㄒㄧㄢˇ','隱':'ㄧㄣˇ','隻':'ㄓ','難':'ㄋㄢˊ','電':'ㄉㄧㄢˋ',
+'靈':'ㄌㄧㄥˊ','面':'ㄇㄧㄢˋ','音':'ㄧㄣ','頁':'ㄧㄝˋ','預':'ㄩˋ','領':'ㄌㄧㄥˇ','頭':'ㄊㄡˊ','題':'ㄊㄧˊ','顏':'ㄧㄢˊ','顯':'ㄒㄧㄢˇ',
+'風':'ㄈㄥ','飛':'ㄈㄟ','餅':'ㄅㄧㄥˇ','餵':'ㄨㄟˋ','首':'ㄕㄡˇ','馬':'ㄇㄚˇ','驗':'ㄧㄢˋ','體':'ㄊㄧˇ','高':'ㄍㄠ','鬆':'ㄙㄨㄥ','魔':'ㄇㄛˊ',
+'魚':'ㄩˊ','鳥':'ㄋㄧㄠˇ','麼':'˙ㄇㄜ','黃':'ㄏㄨㄤˊ','黑':'ㄏㄟ','點':'ㄉㄧㄢˇ','鼠':'ㄕㄨˇ','龍':'ㄌㄨㄥˊ'
+};
+const ZY_WORDS={'音樂':['ㄧㄣ','ㄩㄝˋ'],'長尾巴':['ㄔㄤˊ','ㄨㄟˇ','˙ㄅㄚ']};
+const ZY_KEYS=Object.keys(ZY_WORDS).sort((a,b)=>b.length-a.length);
+const ZY_HAN=/[一-鿿]/;
+const ZY_TONES=new Set(['ˊ','ˇ','ˋ','˙','ˉ']);
+let zyOn=false;
+// 拆出注音符號與聲調：輕聲˙在字典裡放最前、其餘 ˊˇˋ 放最後
+function zySplit(z){ const a=[...z];
+  if(a[0]==='˙') return {syms:a.slice(1), tone:'˙', light:true};
+  const last=a[a.length-1];
+  if(ZY_TONES.has(last)) return {syms:a.slice(0,-1), tone:last==='ˉ'?'':last, light:false};
+  return {syms:a, tone:'', light:false}; }
+// 台灣課本樣式：注音直排在漢字右側
+function zyRuby(ch,zy){ const cell=document.createElement('span'); cell.className='zc'; cell.appendChild(document.createTextNode(ch));
+  if(zy){ const s=zySplit(zy); const zb=document.createElement('span'); zb.className='zb'+(s.light?' light':'');
+    for(const sym of s.syms){ const e=document.createElement('span'); e.className='zs'; e.textContent=sym; zb.appendChild(e); }
+    if(s.tone){ const t=document.createElement('span'); t.className='zt'; t.textContent=s.tone; zb.appendChild(t); }
+    cell.appendChild(zb); }
+  return cell; }
+function zyRejectAncestor(n){ let p=n.parentNode; while(p&&p.nodeType===1){ const tg=p.tagName;
+  if(tg==='SCRIPT'||tg==='STYLE'||tg==='CANVAS'||tg==='TEXTAREA'||tg==='INPUT') return true;
+  if(p.classList&&(p.classList.contains('zc')||p.classList.contains('steps'))) return true; // 頂部進度列不加注音（太小、且會撐破手機版）
+  p=p.parentNode; } return false; }
+function zyRubifyTextNode(node){ const t=node.nodeValue; if(!t||!ZY_HAN.test(t))return; const p=node.parentNode; if(!p)return;
+  const frag=document.createDocumentFragment(); let i=0;
+  while(i<t.length){ const ch=t[i];
+    if(!ZY_HAN.test(ch)){ let j=i; while(j<t.length&&!ZY_HAN.test(t[j]))j++; frag.appendChild(document.createTextNode(t.slice(i,j))); i=j; continue; }
+    let w=null; for(const k of ZY_KEYS){ if(t.startsWith(k,i)){ w=k; break; } }
+    if(w){ const zs=ZY_WORDS[w]; for(let m=0;m<w.length;m++) frag.appendChild(zyRuby(w[m],zs[m])); i+=w.length; continue; }
+    frag.appendChild(zyRuby(ch, ZHUYIN[ch]||'')); i++; }
+  p.replaceChild(frag,node); }
+function zyRubifyTree(root){
+  if(root.nodeType===3){ if(!zyRejectAncestor(root)) zyRubifyTextNode(root); return; }
+  if(root.nodeType!==1)return; const tg=root.tagName;
+  if(tg==='RUBY'||tg==='RT'||tg==='SCRIPT'||tg==='STYLE'||tg==='CANVAS'||tg==='TEXTAREA'||tg==='INPUT')return;
+  const nodes=[], w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode(n){
+    return (n.nodeValue&&ZY_HAN.test(n.nodeValue)&&!zyRejectAncestor(n))?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT; }});
+  let n; while(n=w.nextNode())nodes.push(n); nodes.forEach(zyRubifyTextNode); }
+function enableZhuyin(){ if(zyOn)return; zyOn=true; document.body.classList.add('zy'); zyRubifyTree(document.body);
+  new MutationObserver(muts=>{ for(const mu of muts){
+    if(mu.type==='characterData') zyRubifyTree(mu.target);
+    else mu.addedNodes.forEach(nd=>{ if(nd.nodeType===1||nd.nodeType===3) zyRubifyTree(nd); }); }
+  }).observe(document.body,{childList:true,subtree:true,characterData:true}); }
+
+// data
+const SPECIES=[["機器人","sp-robot"],["小貓","sp-cat"],["小狗","sp-dog"],["小恐龍","sp-dino"],["兔子","sp-rabbit"],["小龍","sp-dragon"],["小熊","sp-bear"],["小鳥","sp-bird"]];
+const COLORS=[["紅","#e8493a"],["橘","#f08a2c"],["黃","#f4c430"],["綠","#4faa5a"],["藍","#3b82c4"],["紫","#8a5cd6"],["粉","#ef86b3"],["咖啡","#9c6b45"],["黑","#3a3a3a"],["彩虹","linear-gradient(135deg,#e8493a,#f4c430,#4faa5a,#3b82c4,#8a5cd6)"]];
+const FEATURE=[["大眼睛","ic-bigeyes"],["翅膀","ic-wings"],["尖耳朵","ic-pointyears"],["圓滾滾","ic-round"],["毛茸茸","ic-fluffy"],["長尾巴","ic-longtail"],["尖牙","ic-fangs"],["星星紋","ic-stars"]];
+const ACCESSORY=[["帽子","ic-hat"],["披風","ic-cape"],["眼鏡","ic-glasses"],["背包","ic-backpack"],["圍巾","ic-scarf"],["蝴蝶結","ic-bow"],["皇冠","ic-crown"],["沒有配件",null]];
+const FEAT_IC=Object.fromEntries(FEATURE), ACC_IC=Object.fromEntries(ACCESSORY), SP_IC=Object.fromEntries(SPECIES);
+
+// ── step nav（以 panel id 為主）──
+const STEP_OF={p1:1,p2:2,p3:3,p4:3,pf:4,ps:4}; // 「猜猜看」暖身關(pw)暫時隱藏，故不列入步驟
+function go(id){ $$('.panel').forEach(p=>p.classList.remove('on')); $('#'+id).classList.add('on');
+  const step=STEP_OF[id]||0; $('#stepbar').style.display=step>=1?'flex':'none';
+  $$('.steps .s').forEach(s=>{ const k=+s.dataset.k; s.classList.toggle('on',k===step); s.classList.toggle('done',k<step); });
+  window.scrollTo({top:0,behavior:'smooth'}); }
+
+// ── 難度：先選年級 → 進前述 ──
+let N_OPTIONS=3;
+$$('.gradebtn').forEach(b=>b.onclick=()=>{ state.grade=b.dataset.g; applyGrade(); bi=0; renderCard(); go('p0'); });
+function applyGrade(){ const high=state.grade==='high';
+  N_OPTIONS=1; regenLeft=high?4:3; const rl=$('#regenLeft'); if(rl)rl.textContent=regenLeft;
+  $('#descWrap').style.display=high?'':'none';
+  $('#featGroup').style.display=high?'none':''; $('#accGroup').style.display=high?'none':'';
+  // 高年級：物種、顏色改「自己打字」——隱藏點選式物種格與色票，改顯示輸入框
+  $('#spGroup').style.display=high?'none':''; $('#colGroup').style.display=high?'none':'';
+  $('#spInputWrap').style.display=high?'':'none'; $('#colInputWrap').style.display=high?'':'none';
+  const hint=$('#p1 .hint'); if(hint) hint.innerHTML=high
+    ? '這一關<b>全部自己打字</b>：打出主角的物種、顏色，再用一兩句話描述特色。寫得越具體，AI 畫得越準！'
+    : '一邊選，右邊即時預覽，還有「有趣量表」。加點特色，衝過 <b>65 分</b>就能去畫牠！';
+  const gb=$('#gradeBadge'); gb.textContent=high?'高年級':'低年級'; gb.classList.add('on');
+  if(high)buildDescSugg(); else enableZhuyin(); updateDesign(); }
+function descText(){ const c=$('#custom'); return (state.grade==='high'&&c)?c.value.trim():''; }
+
+// ── 前述：故事頁 + 拖拉頁交錯（每 1–2 頁一個拖拉）──
+const FLOW=[
+  {type:'story',img:'pb-b1',h:'一本好看的繪本…',p:'翻開它，你會一頁接著一頁，捨不得放下。'},
+  {type:'story',img:'pb-b2',h:'可是，做一本繪本超級難！',p:'因為你要會好多本領，每一樣都要練好久。',skills:['會畫圖','會編故事','會設計角色','一頁一頁上色']},
+  {type:'drag',h:'小考驗：哪些是「做繪本」用得到的本領？',hint:'把卡片拖進正確的桶子。',
+    buckets:[{b:'need',label:'做繪本要會'},{b:'no',label:'這個用不到'}],
+    items:[{t:'會畫圖',b:'need'},{t:'會編故事',b:'need'},{t:'會上色',b:'need'},{t:'會游泳',b:'no'},{t:'會打電動',b:'no'}],
+    pass:'對！做繪本要會這麼多，難怪這麼難。'},
+  {type:'story',img:'pb-b3',h:'但是——現在有 AI 幫忙',p:'剛剛那些最難的本領，都可以交給它。'},
+  {type:'story',img:'pb-b4',h:'你只要負責最好玩的：',p:'想點子、做決定。這樣，連你也能輕鬆做出、還能開心欣賞自己的繪本！'},
+  {type:'drag',h:'小考驗：這些事，誰來做？',hint:'難的交給 AI，你負責做決定——把卡片拖到正確的桶子。',
+    buckets:[{b:'ai',label:'AI 幫你做'},{b:'you',label:'你自己決定'}],
+    items:[{t:'把圖畫漂亮',b:'ai'},{t:'幫忙上色',b:'ai'},{t:'排版成書',b:'ai'},{t:'想點子',b:'you'},{t:'決定主角',b:'you'},{t:'選故事發展',b:'you'}],
+    pass:'答對了！所以你只要專心想點子、做決定就好。'},
+  {type:'story',img:'pb-b5',h:'做繪本的第一步',p:'先決定這本書的主人翁——主角。牠會從頭到尾出現在每一頁。'},
+  {type:'drag',h:'小考驗：第一步，先決定什麼？',hint:'把「第一步要先決定的」拖進左邊桶子。',
+    buckets:[{b:'first',label:'第一步先決定'},{b:'later',label:'之後再決定'}],
+    items:[{t:'主角長什麼樣',b:'first'},{t:'書名',b:'later'},{t:'要印幾本',b:'later'}],
+    pass:'沒錯！先有主角，才有後面的故事。'},
+  {type:'story',img:'pb-b6',h:'什麼樣的角色比較好呢？',p:'讓人一眼就喜歡、記得住的角色最棒。我們馬上來設計一個！',last:true},
+];
+let bi=0;
+function renderDots(){ const d=$('#beatDots'); d.innerHTML='';
+  FLOW.forEach((_,i)=>{ const dot=document.createElement('span'); dot.className='bdot'+(i===bi?' on':i<bi?' done':''); d.appendChild(dot); }); }
+function renderCard(){ const c=FLOW[bi]; renderDots();
+  if(c.type==='drag'){
+    $('#beatPic').style.display='none'; $('#beatSkills').style.display='none';
+    $('#beatH').textContent=c.h; const bp=$('#beatP'); bp.textContent=c.hint||''; bp.style.display=c.hint?'':'none';
+    $('#dragZone').style.display='block';
+    $('#beatNext').disabled=true; $('#beatNext').textContent=c.last?'完成！開始設計主角':'下一步';
+    buildDrag(c);
+  } else {
+    $('#beatPic').style.display=''; $('#beatPic').style.backgroundImage="url('"+AST+c.img+".png')";
+    $('#dragZone').style.display='none';
+    $('#beatH').textContent=c.h; const bp=$('#beatP'); bp.textContent=c.p||''; bp.style.display=c.p?'':'none';
+    const sk=$('#beatSkills'); sk.innerHTML=''; sk.style.display=c.skills?'flex':'none';
+    (c.skills||[]).forEach(s=>{ const e=document.createElement('span'); e.className='skill'; e.textContent=s; sk.appendChild(e); });
+    $('#beatNext').disabled=false; $('#beatNext').textContent=c.last?'開始設計主角':'下一步';
+  }
+  window.scrollTo({top:0,behavior:'smooth'}); }
+$('#beatNext').onclick=()=>{ if($('#beatNext').disabled)return; if(bi<FLOW.length-1){ bi++; renderCard(); } else { go('p1'); } }; // 暖身「猜猜看」已隱藏 → 前述後直接進設計關
+
+// ── 暖身：關鍵字猜猜猜（秀 AI 角色 → 猜用了哪些元素）──
+const GUESS=[ {img:'gg-1',species:'小恐龍',color:'藍'},{img:'gg-2',species:'兔子',color:'粉'},{img:'gg-3',species:'機器人',color:'綠'} ];
+let gwi=0, gwSp=null, gwCo=null, gwLocked=false;
+function renderGuess(){ const g=GUESS[gwi]; gwSp=null; gwCo=null; gwLocked=false;
+  $('#gwPic').style.backgroundImage="url('"+AST+g.img+".png')";
+  $('#gwCount').textContent='（第 '+(gwi+1)+' / '+GUESS.length+' 題）';
+  const sp=$('#gwSpecies'); sp.innerHTML='';
+  SPECIES.forEach(([name])=>{ const b=document.createElement('button'); b.className='opt'; b.textContent=name; b.dataset.name=name;
+    b.onclick=()=>{ if(gwLocked)return; gwSp=name; $$('.opt',sp).forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); $('#gwReveal').disabled=!(gwSp&&gwCo); }; sp.appendChild(b); });
+  const co=$('#gwColors'); co.innerHTML='';
+  COLORS.forEach(([name,c])=>{ const b=document.createElement('button'); b.className='sw'; b.style.background=c; b.title=name;
+    b.onclick=()=>{ if(gwLocked)return; gwCo=name; $$('.sw',co).forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); $('#gwReveal').disabled=!(gwSp&&gwCo); }; co.appendChild(b); });
+  $('#gwMsg').textContent=''; $('#gwMsg').className='gwmsg';
+  $('#gwReveal').disabled=true; $('#gwReveal').style.display=''; $('#gwNext').style.display='none'; }
+$('#gwReveal').onclick=()=>{ const g=GUESS[gwi]; gwLocked=true;
+  const ok=(gwSp===g.species)&&(gwCo===g.color); const m=$('#gwMsg');
+  if(ok){ m.textContent='答對了！這就是牠用的元素。'; m.className='gwmsg ok'; }
+  else { m.textContent='正確答案：'+g.species+'、'+g.color+'色。看到了嗎——換元素，就換一隻！'; m.className='gwmsg'; }
+  $$('.opt',$('#gwSpecies')).forEach(b=>{ if(b.dataset.name===g.species)b.classList.add('correct'); });
+  $$('.sw',$('#gwColors')).forEach(b=>{ if(b.title===g.color)b.classList.add('correct'); });
+  $('#gwReveal').style.display='none'; $('#gwNext').style.display='';
+  $('#gwNext').textContent=gwi<GUESS.length-1?'下一題':'學會了！去設計主角'; };
+$('#gwNext').onclick=()=>{ if(gwi<GUESS.length-1){ gwi++; renderGuess(); } else { go('p1'); } };
+
+// 拖拉小考驗（滑鼠＋觸控；建在目前這張卡上）
+function buildDrag(card){
+  const pool=$('#beatPool'), bwrap=$('#beatBuckets'), msg=$('#beatDqMsg');
+  pool.innerHTML=''; bwrap.innerHTML=''; msg.textContent=''; msg.className='dqmsg';
+  card.buckets.forEach(bk=>{ const el=document.createElement('div'); el.className='bucket'; el.dataset.b=bk.b;
+    el.innerHTML='<div class="bt">'+bk.label+'</div><div class="drop"></div>'; bwrap.appendChild(el); });
+  const buckets=$$('.bucket',bwrap);
+  const bucketAt=(x,y)=>buckets.find(bk=>{ const r=bk.getBoundingClientRect(); return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom; });
+  let placed=0; const need=card.items.length;
+  card.items.forEach(it=>{ const c=document.createElement('div'); c.className='dchip'; c.textContent=it.t; pool.appendChild(c);
+    let drag=null;
+    const moveTo=(x,y)=>{ c.style.position='fixed'; c.style.left=(x-drag.dx)+'px'; c.style.top=(y-drag.dy)+'px'; c.style.zIndex=999; };
+    const reset=()=>{ c.classList.remove('dragging'); c.style.cssText=''; drag=null; pool.appendChild(c); };
+    c.addEventListener('pointerdown',e=>{ if(c.classList.contains('locked'))return; e.preventDefault(); try{c.setPointerCapture(e.pointerId);}catch(_){}
+      const r=c.getBoundingClientRect(); drag={dx:e.clientX-r.left,dy:e.clientY-r.top}; c.classList.add('dragging'); c.style.width=r.width+'px'; moveTo(e.clientX,e.clientY); });
+    c.addEventListener('pointermove',e=>{ if(drag)moveTo(e.clientX,e.clientY); });
+    c.addEventListener('pointerup',e=>{ if(!drag)return; const t=bucketAt(e.clientX,e.clientY);
+      if(t&&t.dataset.b===it.b){ c.classList.remove('dragging'); c.classList.add('locked'); c.style.cssText=''; $('.drop',t).appendChild(c); drag=null; placed++;
+        if(placed===need){ msg.textContent=card.pass; msg.className='dqmsg ok'; $('#beatNext').disabled=false; } }
+      else { reset(); c.classList.add('shake'); setTimeout(()=>c.classList.remove('shake'),400);
+        msg.textContent=t?'放錯桶子了，再想想～':'把卡片拖到桶子裡喔'; msg.className='dqmsg'; } });
+    c.addEventListener('pointercancel',()=>{ if(drag)reset(); }); }); }
+
+// ── 元素選擇 UI ──
+SPECIES.forEach(([name,img])=>{ const b=document.createElement('button'); b.className='sp';
+  b.innerHTML='<img alt="'+name+'"><span class="fb">'+name.charAt(name.length-1)+'</span><span class="nm">'+name+'</span>';
+  const im=$('img',b); im.src=AST+img+'.png'; im.onerror=()=>b.classList.add('noimg');
+  b.onclick=()=>{ state.species=name; $$('.sp',$('#species')).forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); updateDesign(); };
+  $('#species').appendChild(b); });
+function iconRow(el,list,key){ list.forEach(([name,ic])=>{ const b=document.createElement('button'); b.className='sp';
+  b.innerHTML=(ic?'<img alt="'+name+'">':'')+'<span class="fb">'+(ic?name.slice(-1):'無')+'</span><span class="nm">'+name+'</span>';
+  if(ic){ const im=$('img',b); im.src=AST+ic+'.png'; im.onerror=()=>b.classList.add('noimg'); } else b.classList.add('noimg');
+  b.onclick=()=>{ state[key]=name; $$('.sp',el).forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); updateDesign(); }; el.appendChild(b); }); }
+iconRow($('#feature'),FEATURE,'feature');
+iconRow($('#accessory'),ACCESSORY,'accessory');
+COLORS.forEach(([name,c])=>{ const b=document.createElement('button'); b.className='sw'; b.style.background=c; b.title=name;
+  b.onclick=()=>{ state.color=name; $$('.sw',$('#colors')).forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); updateDesign(); };
+  $('#colors').appendChild(b); });
+const cu=$('#custom'); if(cu){ cu.addEventListener('input',updateDesign);
+  const noPaste=e=>{ e.preventDefault(); cu.classList.add('nopaste'); setTimeout(()=>cu.classList.remove('nopaste'),400);
+    const h=$('#descWrap .nchint'); if(h){ const o=h.innerHTML; h.innerHTML='<b style="color:#c0563a">不能貼上喔，請自己讀、自己打！</b>'; setTimeout(()=>h.innerHTML=o,1600); } };
+  cu.addEventListener('paste',noPaste); cu.addEventListener('drop',noPaste); }
+// 高年級：物種／顏色改自己打字（同樣禁止貼上，逼他自己寫）
+[['#spCustom','species'],['#colCustom','color']].forEach(([sel,key])=>{ const inp=$(sel); if(!inp)return;
+  inp.addEventListener('input',()=>{ state[key]=inp.value.trim(); updateDesign(); });
+  const np=e=>{ e.preventDefault(); inp.classList.add('nopaste'); setTimeout(()=>inp.classList.remove('nopaste'),400); };
+  inp.addEventListener('paste',np); inp.addEventListener('drop',np); });
+const DESC_SUGG=['戴著太空帽、會發光的藍色小恐龍','毛茸茸、有一對翅膀的粉紅色小貓','背著小背包、愛冒險的橘色機器人','頭上有星星紋、拖著長尾巴的紫色小龍','戴眼鏡、圓滾滾的綠色小熊'];
+let descSuggBuilt=false;
+function buildDescSugg(){ if(descSuggBuilt)return; descSuggBuilt=true; const el=$('#descSugg'); if(!el)return; el.innerHTML='';
+  DESC_SUGG.forEach(t=>{ const c=document.createElement('span'); c.className='ncchip'; c.textContent=t; el.appendChild(c); }); }
+function tintOf(v){ return v.startsWith('#')?`radial-gradient(circle at 50% 42%, ${v}44, ${v}12)`:v; }
+// 高年級自由打字用：去掉結尾「色」以利比對/組字；顯示時保證有「色」
+function colBare(){ return state.color?state.color.replace(/色$/,''):''; }
+function colLabel(){ const c=state.color||''; return c?(/色$/.test(c)?c:c+'色'):''; }
+function fillSlot(id,imgSrc,lab){ const el=$('#'+id); const cur=imgSrc||''; if(el.dataset.val===cur) return; el.dataset.val=cur;
+  el.innerHTML=(imgSrc?'<img src="'+imgSrc+'" alt="">':'<span class="rph">?</span>')+'<span class="rlab">'+lab+'</span>';
+  el.classList.toggle('filled',!!imgSrc); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+// 自由打字的物種沒有圖示 → 在配方格顯示文字（用 textContent 避免注入）
+function fillTextSlot(id,text,lab){ const el=$('#'+id); if(el.dataset.val==='t:'+text) return; el.dataset.val='t:'+text;
+  el.innerHTML=''; const t=document.createElement('span'); t.className='rph';
+  t.style.cssText='font-size:11px;line-height:1.15;font-weight:800;color:#5faa63;padding:2px;text-align:center;word-break:break-all'; t.textContent=text;
+  const l=document.createElement('span'); l.className='rlab'; l.textContent=lab; el.appendChild(t); el.appendChild(l);
+  el.classList.add('filled'); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+function updateDesign(){
+  const high=state.grade==='high', desc=descText();
+  const spSlug=state.species?SP_IC[state.species]:null;
+  if(high&&state.species&&!spSlug) fillTextSlot('rSpecies', state.species, '物種'); // 自由打字的物種：顯示文字
+  else fillSlot('rSpecies', spSlug?AST+spSlug+'.png':null, '物種');
+  const col=state.color?COLORS.find(c=>c[0]===colBare()):null;
+  $('#rSpecies').style.background = col?tintOf(col[1]):(state.species?'#fff':'#faf1e2');
+  if(high){ // 高年級：配方 = 物種 + 你的描述（打字）
+    $('#rAccessory').style.display='none'; $('#pAcc').style.display='none';
+    const rf=$('#rFeature'); rf.dataset.val='d'+(desc?1:0);
+    rf.innerHTML='<span class="rph" style="color:'+(desc?'#5faa63':'#d9c3a8')+'">'+(desc?'✓':'?')+'</span><span class="rlab">你的描述</span>';
+    rf.classList.toggle('filled',!!desc);
+  } else {
+    $('#rAccessory').style.display=''; $('#pAcc').style.display='';
+    fillSlot('rFeature', state.feature?AST+FEAT_IC[state.feature]+'.png':null, '特徵');
+    const accIc=(state.accessory&&state.accessory!=='沒有配件')?ACC_IC[state.accessory]:null;
+    fillSlot('rAccessory', accIc?AST+accIc+'.png':null, '配件');
+  }
+  const ch=$('#pvChips'); ch.innerHTML='';
+  (high ? [state.color&&colLabel(), desc].filter(Boolean)
+        : [state.color&&state.color+'色',state.feature,(state.accessory&&state.accessory!=='沒有配件')?state.accessory:null].filter(Boolean))
+    .forEach(t=>{ const s=document.createElement('span'); s.className='chip'; s.textContent=t; ch.appendChild(s); });
+  let sc,ready,pass,lab,tier;
+  if(high){ sc=Math.min(100,(state.species?25:0)+(state.color?15:0)+Math.min(60,desc.length*4));
+    ready=!!(state.species&&state.color); pass=ready&&desc.length>=8;
+    lab=!state.species?'先打出牠是什麼生物':(!state.color?'再打出牠的顏色':(!desc?'用一兩句話描述特色（自己打字）':(desc.length<8?'再多寫一點，越具體越好':'很有畫面！可以去畫牠了')));
+    tier=!ready?'low':(pass?'hi':'mid');
+  } else { sc=0; if(state.species)sc+=25; if(state.color)sc+=20; if(state.feature)sc+=25;
+    if(state.accessory==='沒有配件')sc+=5; else if(state.accessory)sc+=20; sc=Math.min(100,sc);
+    ready=!!(state.species&&state.color); pass=ready&&sc>=65;
+    lab=!ready?'先選物種和顏色':(sc<65?'不錯！再加一個特色更有記憶點':'很有個性！可以去畫牠了'); tier=!ready?'low':(sc<65?'mid':'hi');
+  }
+  const fill=$('#mFill'); fill.style.width=sc+'%'; fill.className=tier;
+  const ml=$('#mLabel'); ml.textContent=lab; ml.style.color=tier==='hi'?'#2f7a3a':'';
+  $('#toDraw').disabled=!pass; }
+updateDesign();
+
+// nav buttons
+function startDrawing(){ hideTeacher(); buildStages(); stageIdx=0; renderStage(); go('p2'); }
+// 高年級自己打字設計 → 先 AI 審核擋亂寫；低年級是點選、直接去畫
+$('#toDraw').onclick=async()=>{
+  if(state.grade!=='high'){ startDrawing(); return; }
+  const local=localDesignGibberish();
+  if(local.length){ showDesignFail({praise:'快好了！有幾個地方要寫清楚一點：',problems:local}); return; }
+  showDesignLoading();
+  let v; try{ v=await reviewDesignText(); }catch(e){ v={pass:true}; } // fail-open：AI 掛了也別擋孩子
+  if(v.pass) startDrawing(); else showDesignFail(v);
+};
+$('#backTo1').onclick=()=>go('p1');
+$('#restart').onclick=()=>{ clearProgress(); location.reload(); };
+
+// 畫主角：一步一步指引（每步的目標元素放大顯示）+ 多階段審核
+let STAGES=[], stageIdx=0;
+// ── 進度記錄（中途跳出可續作）；已取消畫圖階段的最低時限（STAGE_MIN_SEC=0 → 完成鈕永遠可按、不顯示倒數）──
+const STAGE_MIN_SEC=0, PROG_KEY='l1:draw-progress';
+let stageSec=0, stageTimer=null, nextStageStartSec=0;
+function fmtMMSS(s){ s=Math.max(0,Math.ceil(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+function progUid(){ try{ const u=JSON.parse(localStorage.getItem('@session/currentUser')||'null'); return (u&&u.id)?u.id:'anon'; }catch(e){ return 'anon'; } }
+function saveProgress(){ if(!$('#p2').classList.contains('on'))return;
+  try{ localStorage.setItem(PROG_KEY, JSON.stringify({ v:1, uid:progUid(), grade:state.grade, species:state.species, color:state.color,
+    feature:state.feature, accessory:state.accessory, desc:descText(), stageIdx, stageSec, canvas:pad.toDataURL('image/png') })); }catch(e){} }
+function clearProgress(){ try{ localStorage.removeItem(PROG_KEY); }catch(e){} }
+function updateStageLock(){ const remain=STAGE_MIN_SEC-stageSec; const btn=$('#stageCheck'), cd=$('#stageCountdown');
+  if(remain>0){ btn.disabled=true;
+    if(cd){ cd.style.display=''; cd.innerHTML='這一關至少要用心畫 5 分鐘～還有 <b>'+fmtMMSS(remain)+'</b><br>趁現在多加細節，畫得越仔細越棒！'; } }
+  else { btn.disabled=false; if(cd)cd.style.display='none'; } }
+function startStageTimer(fromSec){ clearInterval(stageTimer); stageSec=fromSec||0; updateStageLock(); let tick=0;
+  stageTimer=setInterval(()=>{ if(document.visibilityState!=='visible')return; if(!$('#p2').classList.contains('on'))return;
+    stageSec++; updateStageLock(); if(++tick%15===0)saveProgress(); },1000); }
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden')saveProgress(); });
+window.addEventListener('pagehide',saveProgress);
+function buildStages(){ STAGES=[]; const high=state.grade==='high', desc=descText();
+  STAGES.push({key:'body',title:'畫出身體大形狀',icon:SP_IC[state.species]?AST+SP_IC[state.species]+'.png':null,label:state.species,
+    tip:'先畫一個大大的'+state.species+'身體，圓的方的都行，畫大一點比較好加東西！'});
+  if(high){
+    STAGES.push({key:'face',title:'畫出你描述的特色',label:desc||'你的特色',text:true,
+      tip:'照你打的描述畫：「'+(desc||'你的主角')+'」，把最特別的地方畫出來。'});
+  } else {
+    STAGES.push({key:'face',title:'畫臉和特徵',icon:state.feature?AST+FEAT_IC[state.feature]+'.png':null,label:state.feature||'臉',
+      tip:'加上眼睛、嘴巴'+(state.feature?('，還有你的特徵「'+state.feature+'」'):'')+'。'});
+    if(state.accessory&&state.accessory!=='沒有配件') STAGES.push({key:'accessory',title:'加上配件',icon:AST+ACC_IC[state.accessory]+'.png',label:state.accessory,
+      tip:'把「'+state.accessory+'」畫到牠身上，AI 會照著幫你加。'});
+  }
+  const cbare=(state.color||'').replace(/色$/,'');
+  STAGES.push({key:'color',title:'塗上顏色',color:cbare,label:cbare+'色',
+    tip:'用「'+cbare+'色」把牠塗滿，AI 會參考你的配色。'}); }
+function renderStageBar(){ const bar=$('#stageBar'); bar.innerHTML='';
+  STAGES.forEach((st,i)=>{ const e=document.createElement('div'); e.className='stagestep'+(i===stageIdx?' on':i<stageIdx?' done':'');
+    e.innerHTML='<span class="snum">'+(i<stageIdx?'✓':(i+1))+'</span>'+st.title; bar.appendChild(e); }); }
+function renderStage(){ const st=STAGES[stageIdx];
+  $('#stepNum').textContent='第 '+(stageIdx+1)+' 步 / 共 '+STAGES.length+' 步';
+  $('#stepTitle').textContent=st.title;
+  const big=$('#stepBig');
+  if(st.color){ const col=COLORS.find(c=>c[0]===st.color); big.innerHTML='<span class="stepcolor" style="background:'+(col?col[1]:'#ccc')+'"></span><div class="stepbiglabel">'+st.label+'</div>'; }
+  else if(st.icon){ big.innerHTML='<img class="stepbigimg" src="'+st.icon+'" alt=""><div class="stepbiglabel">'+st.label+'</div>'; }
+  else big.innerHTML='<div class="stepbiglabel"'+(st.text?' style="font-size:16px;line-height:1.45;max-width:230px"':'')+'>'+st.label+'</div>';
+  $('#stepTip').textContent=st.tip;
+  $('#stageCheck').textContent=(stageIdx===STAGES.length-1)?'完成！給老師看':'完成這步，給老師看';
+  renderStageBar();
+  setTrace(st.key==='body'); // 畫身體時預設顯示物種範本可描
+  startStageTimer(nextStageStartSec); nextStageStartSec=0; // 開始這一關的 5 分鐘最低時限
+  window.scrollTo({top:0,behavior:'smooth'}); }
+function setTrace(on){ const t=$('#trace');
+  const sp=(on&&state.species)?SPECIES.find(s=>s[0]===state.species):null; // 自由打字的物種可能沒有範本
+  if(sp){ t.src=AST+sp[1]+'.png'; t.style.display='block'; } else { t.style.display='none'; }
+  const btn=$('#traceBtn'); if(btn)btn.classList.toggle('sel',on&&!!sp); }
+$('#traceBtn').onclick=()=>{ setTrace($('#trace').style.display==='none'); };
+
+// canvas
+const pad=$('#pad'), ctx=pad.getContext('2d');
+let drawing=false, penColor='#3a3a3a', penSize=12, erasing=false, last=null; const undoStack=[];
+function clearPad(){ ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,pad.width,pad.height); } clearPad();
+function snapshot(){ try{ undoStack.push(ctx.getImageData(0,0,pad.width,pad.height)); if(undoStack.length>25)undoStack.shift(); }catch(e){} }
+const PENS=['#3a3a3a','#e8493a','#f08a2c','#f4c430','#4faa5a','#3b82c4','#8a5cd6','#ef86b3','#9c6b45','#ffffff'];
+PENS.forEach((c,i)=>{ const b=document.createElement('button'); b.className='pen'+(i===0?' sel':''); b.style.background=c; if(c==='#ffffff')b.style.borderColor='#ccc';
+  b.onclick=()=>{ penColor=c; erasing=false; $$('.pen').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); $('#eraser').style.outline=''; };
+  $('#pens').appendChild(b); });
+$$('.sizebtn').forEach(b=>b.onclick=()=>{ penSize=+b.dataset.size; $$('.sizebtn').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); });
+$('#eraser').onclick=()=>{ erasing=true; $$('.pen').forEach(x=>x.classList.remove('sel')); $('#eraser').style.outline='3px solid var(--ink)'; };
+$('#clear').onclick=()=>{ snapshot(); clearPad(); };
+$('#undo').onclick=()=>{ if(undoStack.length) ctx.putImageData(undoStack.pop(),0,0); };
+function posOf(e){ const r=pad.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return { x:(t.clientX-r.left)/r.width*pad.width, y:(t.clientY-r.top)/r.height*pad.height }; }
+function start(e){ e.preventDefault(); drawing=true; snapshot(); last=posOf(e); dot(last); }
+function move(e){ if(!drawing)return; e.preventDefault(); const p=posOf(e); line(last,p); last=p; }
+function end(){ drawing=false; last=null; }
+function dot(p){ ctx.fillStyle=erasing?'#ffffff':penColor; ctx.beginPath(); ctx.arc(p.x,p.y,penSize/2,0,7); ctx.fill(); }
+function line(a,b){ ctx.strokeStyle=erasing?'#ffffff':penColor; ctx.lineWidth=penSize; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+pad.addEventListener('mousedown',start); pad.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+pad.addEventListener('touchstart',start,{passive:false}); pad.addEventListener('touchmove',move,{passive:false}); pad.addEventListener('touchend',end);
+
+// generation
+let regenLeft=3, chosen=null;
+function buildPrompt(){
+  if(state.grade==='high'){ const d=descText(); const c=(state.color||'').replace(/色$/,''); return `一隻${c}色的${state.species}${d?('。'+d):''}`; }
+  const acc=(state.accessory&&state.accessory!=='沒有配件')?('，配件是'+state.accessory):'，沒有配件';
+  return `一隻${state.color}色的${state.species}，特徵是${state.feature||'可愛'}${acc}`; }
+const GEN_MSGS=['把你的線條變成漂亮的角色…','幫牠上色、打光…','加上你選的配件…','快好了，牠超可愛！'];
+async function genOne(sketch,prompt){
+  const r=await fetch('/api/generate-image-gemini',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,image:sketch,aspectRatio:'1:1'})});
+  if(!r.ok){ let m='生成失敗'; try{m=(await r.json()).error||m;}catch(e){} throw new Error(m); }
+  const d=await r.json(); if(!d.imageUrl) throw new Error('沒有圖'); return d.imageUrl; }
+function toStep4(sketch){ go('p4'); $('#err').classList.remove('on'); $('#doneMsg').classList.remove('on'); chosen=null; $('#toProfile').disabled=true;
+  // 揭曉算式：填入選的元素 + 手繪圖
+  const spSlug=state.species?SP_IC[state.species]:null;
+  if(spSlug) $('#revSpecies').innerHTML='<img src="'+AST+spSlug+'.png" alt="">';
+  else if(state.grade==='high'&&state.species){ $('#revSpecies').innerHTML=''; const s=document.createElement('span'); s.className='rph';
+    s.style.cssText='font-size:11px;line-height:1.15;font-weight:800;color:#5faa63;padding:2px;text-align:center;word-break:break-all'; s.textContent=state.species; $('#revSpecies').appendChild(s); }
+  else $('#revSpecies').innerHTML='<span class="rph">?</span>';
+  const cb=(state.color||'').replace(/色$/,''); const col=cb?COLORS.find(c=>c[0]===cb):null; $('#revSpecies').style.background=col?tintOf(col[1]):'#fff';
+  if(state.grade==='high'){ $('#revFeature').innerHTML='<span class="rph" style="color:#5faa63">✓</span>'; $('#revAccessory').style.display='none'; $('#revPAcc').style.display='none'; }
+  else { $('#revAccessory').style.display=''; $('#revPAcc').style.display='';
+    $('#revFeature').innerHTML=state.feature?'<img src="'+AST+FEAT_IC[state.feature]+'.png" alt="">':'<span class="rph">?</span>';
+    const accIc=(state.accessory&&state.accessory!=='沒有配件')?ACC_IC[state.accessory]:null;
+    $('#revAccessory').innerHTML=accIc?'<img src="'+AST+accIc+'.png" alt="">':'<span class="rph">?</span>'; }
+  $('#myDraw').src=sketch;
+  const rr=$('#revResult'); rr.className='revresult load'; rr.innerHTML='<div class="revspin"></div>'; rr.onclick=null;
+  const prompt=buildPrompt();
+  (async()=>{ try{ const url=await genOne(sketch,prompt);
+      rr.className='revresult'; rr.innerHTML='<img alt="AI 主角" src="'+url+'"><div class="sparkles"></div>';
+      const sk=$('.sparkles',rr); for(let i=0;i<7;i++){ const s=document.createElement('span'); s.className='spk'; const a=i/7*Math.PI*2;
+        s.style.setProperty('--dx',(Math.cos(a)*95).toFixed(0)+'px'); s.style.setProperty('--dy',(Math.sin(a)*95).toFixed(0)+'px'); s.style.animationDelay=(i*0.04)+'s'; sk.appendChild(s); }
+      void rr.offsetWidth; rr.classList.add('ready'); rr.onclick=()=>choose(rr,url);
+    }catch(e){ rr.className='revresult fail'; rr.innerHTML='<div style="padding:14px;color:#c0563a;font-weight:800">沒算成功</div>';
+      $('#err').textContent='AI 這次沒算出來，點「再算一張」試試看。'; $('#err').classList.add('on'); } })(); }
+function choose(rr,url){ rr.classList.add('sel'); chosen=url;
+  $('#doneMsg').classList.add('on'); $('#toProfile').disabled=false;
+  window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); }
+$('#download').onclick=()=>{ if(!chosen)return; const a=document.createElement('a'); a.href=chosen; a.download='我的主角.png'; a.click(); };
+
+// ── 角色小檔案（pf）→ 分享角色卡（ps）──
+const LIKES=['餅乾','冰淇淋','水果','披薩','蜂蜜','小魚乾'];
+const CSKILLS=['會飛','會噴火','跑超快','會隱形','力氣超大','會發光'];
+function pfRow(el,list,key){ list.forEach(name=>{ const b=document.createElement('button'); b.className='opt'; b.textContent=name;
+  b.onclick=()=>{ state[key]=name; $$('.opt',el).forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); pfCheck(); }; el.appendChild(b); }); }
+pfRow($('#likeOpts'),LIKES,'like'); pfRow($('#skillOpts'),CSKILLS,'cskill');
+$('#charName').addEventListener('input',()=>{ state.name=$('#charName').value.trim(); pfCheck(); });
+function pfCheck(){ $('#toShare').disabled=!(state.name&&state.like&&state.cskill); }
+function buildNameSugg(){ const el=$('#nameSugg'); el.innerHTML='';
+  const s=(state.species||'').replace('小',''), c=state.color||'';
+  const ideas=[...new Set(['小'+c, c+'寶', '小'+s, s+s])].filter(x=>x&&x.length>=2&&x.length<=5).slice(0,4);
+  ideas.forEach(n=>{ const b=document.createElement('button'); b.className='sugg'; b.textContent=n;
+    b.onclick=()=>{ $('#charName').value=n; state.name=n; pfCheck(); }; el.appendChild(b); }); }
+// 定裝完成 → 先進靈感召喚門用音樂喚醒（緩衝）→ 玩完回來自動接「取名」
+$('#toProfile').onclick=async()=>{ if(!chosen)return; const btn=$('#toProfile'); btn.disabled=true; btn.textContent='準備魔法中…';
+  try{ const cThumb=await makeThumb(chosen,768,0.9); const dThumb=await makeThumb($('#myDraw').src,480,0.85);
+    sessionStorage.setItem('l1:resume', JSON.stringify({ chosen:cThumb, draw:dThumb, grade:state.grade, species:state.species, color:state.color, feature:state.feature, accessory:state.accessory, desc:descText() }));
+    sessionStorage.setItem('ig:reveal', JSON.stringify({ img:cThumb, title:'你的主角現身了！', sub:'用音樂把牠喚醒了！接下來幫牠取名字。' }));
+  }catch(e){}
+  location.href='/games/inspiration-gate.html?back=/courses/l1-character.html'; };
+$('#toShare').onclick=()=>{ $('#ccDraw').src=$('#myDraw').src; $('#ccAI').src=chosen;
+  $('#ccName').textContent=state.name;
+  const cf=$('#ccFacts'); cf.innerHTML='';
+  [ (state.color?state.color+'色':'')+(state.species||''), '最愛吃 '+state.like, '小本領：'+state.cskill ].filter(Boolean)
+    .forEach(t=>{ const s=document.createElement('span'); s.className='chip'; s.textContent=t; cf.appendChild(s); });
+  const sa=$('#saveAcct'); sa.disabled=false; sa.textContent='存到我的帳號'; $('#saveMsg').textContent=''; $('#saveMsg').className='savemsg';
+  go('ps'); };
+$('#download2').onclick=()=>{ if(!chosen)return; const a=document.createElement('a'); a.href=chosen; a.download=(state.name||'我的主角')+'.png'; a.click(); };
+$('#restart2').onclick=()=>{ clearProgress(); location.reload(); };
+
+// ── 存到帳號（users/{uid}/picturebook/main；縮成 640² JPEG 直接存文件）──
+const FB={apiKey:"AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78",authDomain:"gpt-clone-68b9f.firebaseapp.com",projectId:"gpt-clone-68b9f",storageBucket:"gpt-clone-68b9f.firebasestorage.app",messagingSenderId:"436942056069",appId:"1:436942056069:web:8762675dfff7b7e92017ec"};
+const Account=(()=>{ let uid=null,uname='',db=null,ready=false;
+  const su=()=>{ try{ const r=localStorage.getItem('@session/currentUser'); return r?JSON.parse(r):null; }catch(e){ return null; } };
+  function init(){ const u=su(); if(u&&u.id){ uid=u.id; uname=u.displayName||u.username||''; }
+    if(uid&&window.firebase){ try{ if(!firebase.apps.length)firebase.initializeApp(FB); db=firebase.firestore(); ready=true; }catch(e){} } }
+  async function saveCharacter(payload){ if(!ready)throw new Error('not-ready');
+    await db.collection('users').doc(uid).collection('picturebook').doc('main')
+      .set({ lesson:'l1', owner:uname, updatedAt:new Date().toISOString(), ...payload },{merge:true}); }
+  init();
+  return { get ready(){return ready;}, get uid(){return uid;}, get name(){return uname;}, saveCharacter }; })();
+function makeThumb(dataUrl,size,quality){ return new Promise((res,rej)=>{ const im=new Image();
+  im.onload=()=>{ try{ const c=document.createElement('canvas'); c.width=size; c.height=size; const g=c.getContext('2d');
+    g.fillStyle='#ffffff'; g.fillRect(0,0,size,size);
+    const r=Math.min(size/im.width,size/im.height), w=im.width*r, h=im.height*r; g.drawImage(im,(size-w)/2,(size-h)/2,w,h);
+    res(c.toDataURL('image/jpeg',quality)); }catch(e){ rej(e); } };
+  im.onerror=()=>rej(new Error('img')); im.src=dataUrl; }); }
+$('#saveAcct').onclick=async()=>{ if(!chosen)return; const btn=$('#saveAcct'), msg=$('#saveMsg');
+  if(!Account.ready){ msg.className='savemsg warn'; msg.textContent='要先登入帳號才能存到系統（從首頁進來會自動登入）。你也可以先「下載主角圖」。'; return; }
+  btn.disabled=true; const old=btn.textContent; btn.textContent='存檔中…'; msg.className='savemsg'; msg.textContent='';
+  try{ const thumb=await makeThumb(chosen,640,0.85);
+    await Account.saveCharacter({ imageData:thumb,
+      character:{ name:state.name, like:state.like, skill:state.cskill },
+      elements:{ grade:state.grade, species:state.species, color:state.color, feature:state.feature, accessory:state.accessory, custom:(state.grade==='high'&&$('#custom'))?$('#custom').value.trim():'' } });
+    btn.textContent='已存到我的帳號 ✓'; msg.className='savemsg ok'; msg.textContent=(state.name||'你的主角')+' 已經存進你的帳號了！之後每一堂課都會用牠。';
+  }catch(e){ btn.disabled=false; btn.textContent=old; msg.className='savemsg warn'; msg.textContent='存檔沒成功，再按一次，或先「下載主角圖」。'; } };
+$('#regen').onclick=()=>{ if(regenLeft<=0){ $('#err').textContent='再算次數用完囉，就用現在這張當定裝吧。'; $('#err').classList.add('on'); return; }
+  regenLeft--; $('#regenLeft').textContent=regenLeft; startGen(); };
+let genTimer=null;
+function startGen(sketch){ sketch=sketch||pad.toDataURL('image/png'); go('p3'); $('#genMine').src=sketch;
+  let p=8; $('#genbar').style.width=p+'%'; let mi=0; $('#genmsg').textContent=GEN_MSGS[0]; clearInterval(genTimer);
+  genTimer=setInterval(()=>{ p=Math.min(92,p+Math.random()*10); $('#genbar').style.width=p+'%'; mi=(mi+1)%GEN_MSGS.length; $('#genmsg').textContent=GEN_MSGS[mi]; },900);
+  setTimeout(()=>{ clearInterval(genTimer); $('#genbar').style.width='100%'; toStep4(sketch); },1200); }
+// ── AI 老師「多階段」審核（每一步用 Gemini vision 看一下）──
+$('#tAvatar').style.backgroundImage="url('"+AST+"pb-teacher.png')";
+const esc=s=>String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+function hideTeacher(){ $('#teacher').style.display='none'; }
+async function reviewDrawing(sketch,stage){ const high=state.grade==='high', d=descText();
+  const els = high ? {species:state.species,color:state.color,feature:d,accessory:''}
+                   : {species:state.species,color:state.color,feature:state.feature,accessory:state.accessory};
+  const r=await fetch('/api/review-drawing',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({image:sketch,elements:els,grade:state.grade,stage:stage||'final'})});
+  if(!r.ok) throw new Error('review http '+r.status); return r.json(); }
+function stageAdvance(){ hideTeacher();
+  if(stageIdx>=STAGES.length-1){ clearProgress(); startGen(pad.toDataURL('image/png')); } // 全部畫完 → 清掉續作進度
+  else { stageIdx++; renderStage(); saveProgress(); } }
+function showStageLoading(){ $('#teacher').style.display='flex'; $('#tState').className='tstate'; $('#tState').innerHTML='<div class="spin"></div>';
+  $('#tBody').innerHTML='<div class="tmsg">AI 老師正在看你這一步…</div>'; $('#tBtns').innerHTML=''; }
+function showStagePass(v){ const last=stageIdx>=STAGES.length-1; $('#teacher').style.display='flex';
+  $('#tState').className='tstate ok'; $('#tState').textContent=last?'全部完成！':'這步完成！';
+  $('#tBody').innerHTML='<div class="tmsg">'+esc(v.praise||'畫得很棒，繼續！')+'</div>';
+  $('#tBtns').innerHTML='<button class="btn" id="tNext">'+(last?'送去給 AI 算圖 →':'下一步 →')+'</button>';
+  $('#tNext').onclick=stageAdvance; }
+function showStageFail(v){ $('#teacher').style.display='flex';
+  $('#tState').className='tstate warn'; $('#tState').textContent='再加一點點！';
+  let html='<div class="tmsg">'+esc(v.praise||'快好了！')+'</div>';
+  if(v.suggestions&&v.suggestions.length) html+='<div class="tsug"><div class="tsugh">老師說</div><ul>'+v.suggestions.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul></div>';
+  $('#tBody').innerHTML=html;
+  $('#tBtns').innerHTML='<button class="btn" id="tRedraw">回去畫這步</button><button class="minorbtn" id="tSkip">這步先跳過</button>';
+  $('#tRedraw').onclick=()=>hideTeacher(); $('#tSkip').onclick=stageAdvance; }
+$('#stageCheck').onclick=async()=>{ const sketch=pad.toDataURL('image/png'); const st=STAGES[stageIdx]; showStageLoading();
+  let v; try{ v=await reviewDrawing(sketch,st.key); }catch(e){ v={pass:true,praise:'',suggestions:[]}; }
+  if(v.pass) showStagePass(v); else showStageFail(v); };
+
+// ── 高年級：自己打字的設計元素（物種/顏色/描述）AI 審核，擋亂寫 ──
+// 本地快檢：先擋最明顯的亂按（省一次 API，也給即時回饋）
+function localDesignGibberish(){
+  const why=s=>{ s=(s||'').trim();
+    if(!s) return '還沒寫';
+    if(/^(.)\1{3,}$/.test(s)) return '一直重複同一個字';                          // 啊啊啊啊、aaaa
+    if(/^[A-Za-z]{3,}$/.test(s)) return '請用中文打';                              // 純英文字母，幾乎都是亂按鍵盤（asdfgh、qweqwe）
+    if(/^[\x00-\x7F]+$/.test(s)&&!/[A-Za-z]{2,}/.test(s)) return '看不懂（純數字或符號）'; // 1234、。。。
+    return ''; };
+  const probs=[];
+  let w;
+  if(w=why(state.species)) probs.push({field:'物種',reason:w,fix:'打出一種生物，例如「小恐龍」「機器貓」「雲朵羊」'});
+  if(w=why(state.color))   probs.push({field:'顏色',reason:w,fix:'打出一個顏色，例如「藍色」「漸層粉紫」「銀河色」'});
+  const d=descText();
+  if(!d) probs.push({field:'描述',reason:'還沒寫',fix:'用一兩句話描述牠的樣子或個性'});
+  else if(w=why(d)) probs.push({field:'描述',reason:w,fix:'用一兩句話描述牠，例如「牠有大大的眼睛，很愛笑」'});
+  return probs;
+}
+async function reviewDesignText(){
+  const r=await fetch('/api/review-design',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({species:state.species,color:state.color,desc:descText()})});
+  if(!r.ok) throw new Error('review-design http '+r.status); return r.json();
+}
+function showDesignLoading(){ $('#teacher').style.display='flex'; $('#tState').className='tstate'; $('#tState').innerHTML='<div class="spin"></div>';
+  $('#tBody').innerHTML='<div class="tmsg">AI 老師正在看你寫的設計…</div>'; $('#tBtns').innerHTML=''; }
+function showDesignFail(v){ $('#teacher').style.display='flex'; $('#tState').className='tstate warn'; $('#tState').textContent='再修一下設計';
+  let html='<div class="tmsg">'+esc(v.praise||'先把設計寫清楚，AI 才畫得出來喔！')+'</div>';
+  const probs=v.problems||[];
+  if(probs.length) html+='<div class="tsug"><div class="tsugh">要修改的地方</div><ul>'
+    +probs.map(p=>'<li><b>'+esc(p.field)+'</b>：'+esc(p.fix||p.reason)+'</li>').join('')+'</ul></div>';
+  $('#tBody').innerHTML=html;
+  $('#tBtns').innerHTML='<button class="btn" id="tFixBack">回去改</button>';
+  $('#tFixBack').onclick=hideTeacher; }
+
+// ── 從靈感召喚門回來 → 還原剛做好的角色，直接接「幫牠取名」──
+(function resumeOnLoad(){
+  // 1) 從靈感召喚門回來（已畫完、已定裝）→ 直接接「幫牠取名」
+  let r; try{ r=JSON.parse(sessionStorage.getItem('l1:resume')||'null'); }catch(e){}
+  if(r){ sessionStorage.removeItem('l1:resume');
+    state.grade=r.grade; state.species=r.species; state.color=r.color; state.feature=r.feature; state.accessory=r.accessory;
+    chosen=r.chosen; const cu2=$('#custom'); if(r.grade==='high'&&cu2)cu2.value=r.desc||'';
+    applyGrade();
+    $('#pfImg').src=r.chosen; $('#myDraw').src=r.draw||r.chosen; buildNameSugg(); pfCheck();
+    go('pf'); return; }
+  // 2) 畫圖中途跳出／關掉 → 續作 p2（還原畫布、第幾關、已花時間）
+  let d; try{ d=JSON.parse(localStorage.getItem(PROG_KEY)||'null'); }catch(e){}
+  if(d&&d.grade&&d.uid===progUid()){
+    state.grade=d.grade; state.species=d.species; state.color=d.color; state.feature=d.feature; state.accessory=d.accessory;
+    const cu2=$('#custom'); if(d.grade==='high'&&cu2)cu2.value=d.desc||'';
+    if(d.grade==='high'){ const sc=$('#spCustom'); if(sc)sc.value=d.species||''; const cc=$('#colCustom'); if(cc)cc.value=d.color||''; }
+    applyGrade(); buildStages();
+    stageIdx=Math.min(Math.max(0,d.stageIdx||0), STAGES.length-1);
+    nextStageStartSec=Math.max(0,d.stageSec||0);
+    renderStage(); go('p2');
+    if(d.canvas){ const im=new Image(); im.onload=()=>{ try{ ctx.drawImage(im,0,0,pad.width,pad.height); }catch(e){} }; im.src=d.canvas; }
+    const rb=document.createElement('div'); rb.className='resumebar'; rb.textContent='歡迎回來！已經幫你接回剛剛畫到的地方，繼續畫吧～';
+    const p2=$('#p2'); p2.insertBefore(rb,p2.firstChild); setTimeout(()=>{ if(rb.parentNode)rb.remove(); },6000);
+    return; }
+})();
+</script>
+</body>
+</html>

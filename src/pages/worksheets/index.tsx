@@ -2,11 +2,10 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  getPublishedWorksheetsByClass,
+  getPublishedWorksheetsForClass,
   getAllProgressForStudent,
   getStudentClassId,
-  getClassrooms,
-  Classroom,
+  getGameProgress,
 } from "@/lib/firestore";
 import { Worksheet, StudentWorksheetProgress } from "@/types/Worksheet";
 
@@ -15,6 +14,7 @@ export default function WorksheetBrowsePage() {
   const router = useRouter();
   const [worksheets, setWorksheets] = useState<Worksheet[]>([]);
   const [progressMap, setProgressMap] = useState<Record<string, StudentWorksheetProgress>>({});
+  const [gameProgress, setGameProgress] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
   const [semesters, setSemesters] = useState<string[]>([]);
   const [activeSemester, setActiveSemester] = useState<string | null>(null);
@@ -32,14 +32,16 @@ export default function WorksheetBrowsePage() {
       return;
     }
 
-    const [ws, allProgress] = await Promise.all([
-      getPublishedWorksheetsByClass(cid),
+    const [ws, allProgress, gp] = await Promise.all([
+      getPublishedWorksheetsForClass(cid),
       getAllProgressForStudent(user.id),
+      getGameProgress(user.id),
     ]);
 
     const pMap: Record<string, StudentWorksheetProgress> = {};
     allProgress.forEach((p) => { pMap[p.worksheetId] = p; });
     setProgressMap(pMap);
+    setGameProgress(gp);
 
     const sorted = ws.sort((a, b) => {
       if (a.semester !== b.semester) return a.semester.localeCompare(b.semester);
@@ -61,7 +63,17 @@ export default function WorksheetBrowsePage() {
     if (user) loadData();
   }, [user, isLoading, router, loadData]);
 
+  // 遊戲型學習單的進度（讀 gameProgress[gameKey]）
+  const gameState = (ws: Worksheet) =>
+    ws.externalGameUrl && ws.gameKey && gameProgress ? gameProgress[ws.gameKey] : null;
+
   const getStatus = (ws: Worksheet) => {
+    if (ws.externalGameUrl) {
+      const g = gameState(ws);
+      if (g?.done) return "completed";
+      if (g && ((g.pct || 0) > 0 || (g.coins || 0) > 0)) return "in_progress";
+      return "not_started";
+    }
     const progress = progressMap[ws.id];
     if (!progress || progress.completedTaskCount === 0) return "not_started";
     if (progress.completedTaskCount >= ws.tasks.length) return "completed";
@@ -69,10 +81,29 @@ export default function WorksheetBrowsePage() {
   };
 
   const getCoinsInfo = (ws: Worksheet) => {
-    const progress = progressMap[ws.id];
     const totalPossible = ws.tasks.reduce((s, t) => s + t.coins, 0);
+    if (ws.externalGameUrl) {
+      const g = gameState(ws);
+      return { earned: g?.coins || 0, total: totalPossible };
+    }
+    const progress = progressMap[ws.id];
     const earned = progress?.totalCoinsAwarded || 0;
     return { earned, total: totalPossible };
+  };
+
+  // 卡片進度條比例（0~1）
+  const getRatio = (ws: Worksheet) => {
+    if (ws.externalGameUrl) {
+      const g = gameState(ws);
+      if (!g) return 0;
+      if (g.done) return 1;
+      if (typeof g.pct === "number") return Math.min(1, g.pct);
+      const total = ws.tasks.reduce((s, t) => s + t.coins, 0) || 1;
+      return Math.min(1, (g.coins || 0) / total);
+    }
+    if (ws.tasks.length === 0) return 0;
+    const progress = progressMap[ws.id];
+    return (progress?.completedTaskCount || 0) / ws.tasks.length;
   };
 
   const filtered = worksheets.filter(
@@ -155,31 +186,49 @@ export default function WorksheetBrowsePage() {
               const { earned, total } = getCoinsInfo(ws);
               const progress = progressMap[ws.id];
               const completedCount = progress?.completedTaskCount || 0;
+              const isGame = !!ws.externalGameUrl;
+              const ratio = getRatio(ws);
 
               return (
                 <button
                   key={ws.id}
-                  onClick={() => router.push(`/worksheets/${ws.id}`)}
+                  onClick={() =>
+                    isGame
+                      ? (window.location.href = ws.externalGameUrl as string)
+                      : router.push(`/worksheets/${ws.id}`)
+                  }
                   className="w-full text-left border border-[var(--terminal-primary-dim)] p-4 hover:border-[var(--terminal-primary)] transition-colors block"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-lg ${
-                          status === "completed" ? "" :
-                          status === "in_progress" ? "" : ""
-                        }`}>
+                        <span className="text-lg">
                           {status === "completed" ? "✅" :
                            status === "in_progress" ? "🟡" : "⬜"}
                         </span>
                         <span className="text-xs text-[var(--terminal-primary-dim)]">
                           W{String(ws.week).padStart(2, "0")}
                         </span>
+                        {isGame && (
+                          <span className="text-[10px] px-1.5 py-0.5 border border-[var(--terminal-primary)] text-[var(--terminal-primary)] rounded-sm">
+                            🎮 動作闖關
+                          </span>
+                        )}
                       </div>
                       <h2 className="font-bold truncate">{ws.title}</h2>
                       <div className="text-xs text-[var(--terminal-primary-dim)] mt-1">
-                        {ws.tasks.length} 個任務
-                        {status === "in_progress" && ` · ${completedCount}/${ws.tasks.length} 完成`}
+                        {isGame ? (
+                          status === "completed"
+                            ? "▶ 已完成 · 可再玩一次"
+                            : status === "in_progress"
+                            ? "▶ 繼續闖關（自動接續上次進度）"
+                            : "▶ 滑鼠大冒險 · 點我開始"
+                        ) : (
+                          <>
+                            {ws.tasks.length} 個任務
+                            {status === "in_progress" && ` · ${completedCount}/${ws.tasks.length} 完成`}
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
@@ -203,7 +252,7 @@ export default function WorksheetBrowsePage() {
                   </div>
 
                   {/* Progress bar */}
-                  {ws.tasks.length > 0 && (
+                  {(ws.tasks.length > 0 || isGame) && (
                     <div className="mt-3 h-1.5 bg-[var(--terminal-primary-dim)]/20 overflow-hidden">
                       <div
                         className={`h-full transition-all ${
@@ -213,9 +262,7 @@ export default function WorksheetBrowsePage() {
                             ? "bg-yellow-500"
                             : "bg-transparent"
                         }`}
-                        style={{
-                          width: `${(completedCount / ws.tasks.length) * 100}%`,
-                        }}
+                        style={{ width: `${ratio * 100}%` }}
                       />
                     </div>
                   )}

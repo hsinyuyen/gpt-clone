@@ -38,16 +38,8 @@ export default function Home() {
     }
   }, [user, isLoading, router]);
 
-  // Auto-start tutorial for new kidMode users who haven't completed avatar yet
-  useEffect(() => {
-    if (user && user.kidMode && !user.avatar) {
-      const tutorialKey = `tutorial_main_done_${user.id}`;
-      if (!localStorage.getItem(tutorialKey)) {
-        const timer = setTimeout(() => setShowTutorial(true), 800);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [user]);
+  // 已移除「新生一定要先做 AVATAR」的強制引導：不再自動跳教學把新生導去 create-avatar。
+  // create-avatar 仍在右側腳本庫可自由選用，只是不再強迫先做頭像才能用其他功能。
 
   const handleTutorialComplete = () => {
     setShowTutorial(false);

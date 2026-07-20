@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 繪本工作坊 · 選課</title>
+<style>
+  :root{
+    --paper:#fdf6ec; --ink:#3a2f27; --muted:#7a6a5c; --line:#e7d8c4;
+    --card:#fffaf2; --accent:#e8703a; --accent2:#f4a259; --good:#5faa63; --lock:#b8a892;
+    --shadow:0 8px 26px rgba(90,60,30,.13);
+    --l1:#ef8354; --l2:#6a8d73; --l3:#5b8fb9; --l4:#a06cd5;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;background:radial-gradient(120% 80% at 50% 0%,#fff8ee,var(--paper));color:var(--ink);
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.65;}
+  .wrap{max-width:860px;margin:0 auto;padding:0 18px 70px;}
+  .topbar{position:sticky;top:0;z-index:20;background:rgba(253,246,236,.92);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);padding:10px 18px;display:flex;align-items:center;gap:12px;}
+  .topbar .inner{max-width:860px;width:100%;margin:0 auto;display:flex;align-items:center;gap:12px;}
+  .back{text-decoration:none;color:var(--muted);font-weight:700;font-size:14px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--card);}
+  .back:active{transform:scale(.96);}
+  .topbar .t{font-weight:900;font-size:15px;}
+  /* hero / 今日前述 */
+  header.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:22px;align-items:center;padding:40px 0 10px;}
+  @media(max-width:640px){header.hero{grid-template-columns:1fr;text-align:center;}}
+  header.hero .kicker{color:var(--accent);font-weight:800;letter-spacing:.14em;font-size:13px;}
+  header.hero h1{font-family:"Noto Serif TC",serif;font-size:clamp(28px,6vw,42px);margin:.15em 0 .1em;font-weight:900;}
+  header.hero p{color:var(--muted);font-size:16px;margin:6px 0 0;}
+  header.hero .heropic{width:100%;aspect-ratio:16/11;border-radius:20px;background:#f0e3cf center/cover no-repeat;box-shadow:var(--shadow);border:1px solid var(--line);}
+  .todaybox{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 18px;box-shadow:var(--shadow);margin-top:22px;}
+  .todaybox b{color:var(--accent);}
+  /* section */
+  h2{font-family:"Noto Serif TC",serif;font-size:24px;font-weight:900;margin:40px 0 4px;}
+  .lead{color:var(--muted);margin:0 0 18px;}
+  /* lesson cards */
+  .lessons{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media(max-width:600px){.lessons{grid-template-columns:1fr;}}
+  .lesson{background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:var(--shadow);
+    display:flex;flex-direction:column;border-top:5px solid var(--c);}
+  .lesson .pic{width:100%;aspect-ratio:16/10;background:#f1e5d2 center/cover no-repeat;position:relative;}
+  .lesson .no{position:absolute;top:10px;left:10px;background:var(--c);color:#fff;font-weight:900;font-size:13px;padding:4px 12px;border-radius:999px;box-shadow:0 3px 8px rgba(0,0,0,.2);}
+  .lesson .lock{position:absolute;inset:0;background:rgba(60,45,32,.4);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:15px;}
+  .lesson .body{padding:16px 18px 18px;flex:1;display:flex;flex-direction:column;}
+  .lesson h3{font-size:20px;margin:0 0 6px;font-weight:900;}
+  .lesson .do{color:var(--muted);font-size:14.5px;margin:0 0 14px;flex:1;}
+  .lesson .go{display:block;text-align:center;text-decoration:none;border:0;border-radius:14px;padding:12px;font-size:16px;font-weight:900;color:#fff;cursor:pointer;
+    background:linear-gradient(180deg,var(--accent2),var(--accent));box-shadow:0 6px 16px rgba(232,112,58,.3);}
+  .lesson .go:active{transform:translateY(1px);}
+  .lesson .go.soon{background:none;color:var(--lock);border:2px solid var(--line);box-shadow:none;cursor:not-allowed;}
+  footer{margin-top:50px;padding-top:22px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;text-align:center;}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="inner">
+  <a class="back" href="/">← 返回</a>
+  <span class="t">AI 繪本工作坊</span>
+</div></div>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <div class="kicker">AI 繪本示範課 · 4 堂</div>
+      <h1>做一本自己的繪本</h1>
+      <p>用 AI 一步步做出一本專屬繪本（封面＋8–12 內頁），每個人都帶一本回家。你只要做兩件事：<strong>修故事</strong>、<strong>挑圖</strong>；讓角色和畫風不跑掉，全部交給系統。</p>
+    </div>
+    <div class="heropic" id="heropic"></div>
+  </header>
+
+  <div class="todaybox">
+    <b>今天要上什麼？</b>　選下面「第 1 堂 · 認識你的主角」開始——先做出這本書的主人翁：選元素 → 親手畫 → AI 算出主角 → 挑一張定裝。後面幾堂會陸續開放。
+  </div>
+
+  <h2>選一堂課開始</h2>
+  <p class="lead">照順序上：先有主角，才有故事、插圖，最後成書。</p>
+  <div class="lessons" id="lessons"></div>
+
+  <footer>AI 繪本示範課 · 4 堂　—　好玩優先，做完帶走一本自己的書。</footer>
+</div>
+
+<script>
+  const AST='/courses/assets/';
+  document.getElementById('heropic').style.backgroundImage="url('"+AST+"pb-intro.png')";
+  const LESSONS=[
+    {no:'第 1 堂', c:'var(--l1)', img:'pb-l1', title:'認識你的主角', doo:'選元素 → 親手畫主角 → AI 依「元素＋手繪」算出 → 挑一張定裝。', url:'/courses/l1-character.html', ready:true},
+    {no:'第 2 堂', c:'var(--l2)', img:'pb-l2', title:'你的故事', doo:'系統給故事草稿，你來改結局、加一段、換地點，變成你的故事。', ready:false},
+    {no:'第 3 堂', c:'var(--l3)', img:'pb-l3', title:'挑出最棒的畫面', doo:'每一頁 AI 都生好幾張，你像小導演挑一張最喜歡的。', ready:false},
+    {no:'第 4 堂', c:'var(--l4)', img:'pb-l4', title:'你的書＋發表', doo:'用音樂施魔法喚醒你的繪本——敲對節奏、撐住魔力，讓它現身、開一場小發表會！', url:'/games/inspiration-gate.html?back=/courses/ai-picturebook.html', ready:true},
+  ];
+  const wrap=document.getElementById('lessons');
+  LESSONS.forEach(L=>{
+    const el=document.createElement('div'); el.className='lesson'; el.style.setProperty('--c',L.c);
+    el.innerHTML=
+      '<div class="pic" style="background-image:url(\''+AST+L.img+'.png\')">'+
+        '<span class="no">'+L.no+'</span>'+
+        (L.ready?'':'<div class="lock">即將推出</div>')+
+      '</div>'+
+      '<div class="body"><h3>'+L.title+'</h3><p class="do">'+L.doo+'</p>'+
+        (L.ready
+          ? '<a class="go" href="'+L.url+'">開始上課</a>'
+          : '<button class="go soon" disabled>即將推出</button>')+
+      '</div>';
+    wrap.appendChild(el);
+  });
+</script>
+</body>
+</html>
