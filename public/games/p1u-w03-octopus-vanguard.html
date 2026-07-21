@@ -302,19 +302,19 @@ function loadLocal(){ try{ const r=localStorage.getItem('game:'+GAMEKEY); if(r){
 const COIN_WAVE=45, COIN_DONE=75;
 const PLAYER_HP=5;
 const WAVES=[
- { key:'w1', title:P('第一波·先鋒斥候','ㄉㄧˋ ㄧ ㄆㄛ ㄒㄧㄢ ㄈㄥ ㄔˋ ㄏㄡˋ'), sprite:'octoScout', tint:'#c77dd6', bossY:0.26, sizeK:1.25,
+ { key:'w1', title:P('第一波·先鋒斥候','ㄉㄧˋ ㄧ ㄆㄛ ㄒㄧㄢ ㄈㄥ ㄔˋ ㄏㄡˋ'), sprite:'octoScout', tint:'#c77dd6', bossY:0.28, sizeK:1.05,
    hp:28, php:5, playerR:0.026, speed:0.0050, bulletR:0.019, fireEvery:620, spotEvery:640, spotMax:4, spotLife:2600, patDur:4200,
    spotKinds:['click','click','click','right'], patterns:[ {t:'aim',n:3,spread:0.6}, {t:'spread',n:5,spread:1.4,every:900} ],
    specials:['sweepBig'], specialEvery:13000 },
- { key:'w2', title:P('第二波·噴墨章魚','ㄉㄧˋ ㄦˋ ㄆㄛ ㄆㄣ ㄇㄛˋ ㄓㄤ ㄩˊ'), sprite:'octoInker', tint:'#3a5a8c', bossY:0.26, sizeK:1.4,
+ { key:'w2', title:P('第二波·噴墨章魚','ㄉㄧˋ ㄦˋ ㄆㄛ ㄆㄣ ㄇㄛˋ ㄓㄤ ㄩˊ'), sprite:'octoInker', tint:'#3a5a8c', bossY:0.28, sizeK:1.15,
    hp:40, php:5, playerR:0.025, speed:0.0058, bulletR:0.019, fireEvery:520, spotEvery:600, spotMax:5, spotLife:2400, patDur:3800,
    spotKinds:['click','click','right','right','dbl'], patterns:[ {t:'aim',n:3,spread:0.7}, {t:'rain',n:3,every:520}, {t:'wall',gap:0.24,every:1400} ],
    specials:['sweepBig','zoom'], specialEvery:11000 },
- { key:'w3', title:P('第三波·漩渦章魚','ㄉㄧˋ ㄙㄢ ㄆㄛ ㄒㄩㄢˊ ㄨㄛ ㄓㄤ ㄩˊ'), sprite:'octoSwirl', tint:'#2fb6c0', bossY:0.25, sizeK:1.45,
+ { key:'w3', title:P('第三波·漩渦章魚','ㄉㄧˋ ㄙㄢ ㄆㄛ ㄒㄩㄢˊ ㄨㄛ ㄓㄤ ㄩˊ'), sprite:'octoSwirl', tint:'#2fb6c0', bossY:0.28, sizeK:1.2,
    hp:52, php:5, playerR:0.024, speed:0.0064, bulletR:0.018, fireEvery:170, spotEvery:560, spotMax:5, spotLife:2200, patDur:3600,
    spotKinds:['click','right','right','dbl','dbl'], patterns:[ {t:'spiral',step:0.42,n:1,every:150}, {t:'ring',n:14,gap:0.9,every:1000}, {t:'cross',n:4,every:700} ],
    specials:['zoom','sweepBig'], specialEvery:9500 },
- { key:'cap', title:P('前哨隊長','ㄑㄧㄢˊ ㄕㄠˋ ㄉㄨㄟˋ ㄓㄤˇ'), sprite:'captain', tint:'#e0623c', bossY:0.24, sizeK:1.7,
+ { key:'cap', title:P('前哨隊長','ㄑㄧㄢˊ ㄕㄠˋ ㄉㄨㄟˋ ㄓㄤˇ'), sprite:'captain', tint:'#e0623c', bossY:0.28, sizeK:1.35,
    hp:68, php:5, playerR:0.023, speed:0.0070, bulletR:0.018, fireEvery:180, spotEvery:520, spotMax:6, spotLife:2000, patDur:3200,
    spotKinds:['click','right','right','dbl','dbl','gold'], patterns:[ {t:'aim',n:4,spread:0.8,every:560}, {t:'spiral',step:0.5,n:2,every:150}, {t:'ring',n:16,gap:0.8,every:900}, {t:'cross',n:5,every:620} ],
    specials:['zoom','sweepBig','zoom'], specialEvery:8000, captain:true },
@@ -371,7 +371,7 @@ const TUT=[
 function mwh(){ return Math.min(W,H); }
 function initTut(){ const A=arena(); st.tut=true; st.ti=0; st.tdone=false; st.bullets=[]; st.spots=[]; st.php=PLAYER_HP; st.bomb=0; st.combo=0; st.spin=0; st.flash=null;
   st.diver={x:A.x+A.w*0.5, y:A.y+A.h*0.74, r:mwh()*0.028, inv:0};
-  st.boss={x:A.x+A.w*0.5, y:A.y+A.h*0.30, sz:Math.min(W*0.34,H*0.26), sprite:'octoScout', tint:'#c77dd6', hurtUntil:0, shake:null};
+  st.boss={x:A.x+A.w*0.5, y:A.y+A.h*0.32, sz:Math.min(W*0.62,H*0.54), sprite:'octoScout', tint:'#c77dd6', hurtUntil:0, shake:null};
   st.cfg={ speed:0.0036, bulletR:0.020, spotLife:3200, spotKinds:['click'] }; // 教學用溫和數值
   setTut(); }
 function setTut(){ const A=arena(), d=st.diver; const k=TUT[st.ti].key; st.stepDone=false; st.bullets=[]; st.spots=[]; st.lastFire=0;
@@ -416,7 +416,7 @@ function drawArenaFrame(A){ ctx.save(); ctx.strokeStyle='rgba(140,200,240,.25)';
 function initWave(n){ n=clamp(n,0,N_WAVE-1); S.wave=n; const cfg=WAVES[n]; const A=arena();
   st.tut=false; st.cfg=cfg; st.hp=cfg.hp; st.ghost=cfg.hp; st.php=cfg.php||PLAYER_HP; st.combo=0; st.retries=0; st.eased=false; st.busy=false; st.bomb=0; st.spin=0;
   st.diver={x:A.x+A.w*0.5, y:A.y+A.h*0.82, r:(cfg.playerR||0.026)*mwh(), inv:0};
-  st.boss={x:A.x+A.w*0.5, y:A.y+A.h*(cfg.bossY||0.26), sz:Math.min(W*0.40,H*0.30)*(cfg.sizeK||1), sprite:cfg.sprite, tint:cfg.tint, hurtUntil:0, shake:null};
+  st.boss={x:A.x+A.w*0.5, y:A.y+A.h*(cfg.bossY||0.28), sz:Math.min(W*0.72,H*0.62)*(cfg.sizeK||1), sprite:cfg.sprite, tint:cfg.tint, hurtUntil:0, shake:null};
   st.bullets=[]; st.spots=[]; st.sweep=null; st.special=null; st.nextSpecial=0; st.patIdx=0; st.patStart=0; st.lastFire=0; st.lastSpot=0; st.flash=null;
   st.mode='intro'; st.introT=now(); st.banner={txt:cfg.title,until:now()+1900}; st.cleared=null; Sfx.cue(); }
 function startFight(){ st.mode='fight'; st.patStart=now(); st.lastFire=now(); st.lastSpot=now()-300; st.nextSpecial=now()+(st.cfg.specialEvery||99999); popText(W/2,H*0.42,'開打！','#ffe27a',1.2); Sfx.cue(); }
