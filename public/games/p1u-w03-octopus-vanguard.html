@@ -58,6 +58,8 @@ loadSprite('octo','assets/w2-oct1.png'); loadSprite('octo2','assets/w2-oct2.png'
 // W03 每關不同章魚（斥候/噴墨/漩渦）＋彈幕素材（墨滴/能量球/觸手橫掃）
 loadSprite('octoScout','assets/w3-oct-scout.png'); loadSprite('octoInker','assets/w3-oct-inker.png'); loadSprite('octoSwirl','assets/w3-oct-swirl.png');
 loadSprite('bInk','assets/w3-b-ink.png'); loadSprite('bOrb','assets/w3-b-orb.png'); loadSprite('tentacle','assets/w3-tentacle.png');
+// W03 劇情圖：每一頁一張整幅場景圖（承 W02 結尾 → 本集復仇），做法同 W02 的 INTRO
+for(let i=1;i<=5;i++) loadSprite('st'+i,'assets/w3-st'+i+'.jpg');
 const mouseImg=new Image(); let mouseImgReady=false; ASSET_TOTAL++; mouseImg.onload=()=>{mouseImgReady=true; ASSET_DONE++;}; mouseImg.onerror=()=>{ASSET_DONE++;}; mouseImg.src='assets/mouse-big.png';
 function drawSprite(key,x,y,size,rot,alpha){ const s=SPRITES[key]; if(!s||!s.ready) return false; const ar=s.sw/s.sh; let w,h; if(ar>=1){ w=size; h=size/ar; } else { h=size; w=size*ar; }
   ctx.save(); if(alpha!==undefined) ctx.globalAlpha=alpha; ctx.translate(x,y); if(rot) ctx.rotate(rot); ctx.drawImage(s.im,s.sx,s.sy,s.sw,s.sh,-w/2,-h/2,w,h); ctx.restore(); return true; }
@@ -288,7 +290,7 @@ function drawDpad(){ if(!TOUCH) return; const g=dpadGeo(); ctx.save(); ctx.globa
 
 /* ---------- 狀態（存檔續玩） ---------- */
 const VERSION=1;
-function defaultState(){ return { v:VERSION, phase:'cover', wave:0, waveMax:0, coins:0, done:false, pct:0, diff:'normal' }; }
+function defaultState(){ return { v:VERSION, phase:'cover', wave:0, waveMax:0, coins:0, done:false, pct:0, diff:'normal', quizOK:false }; }
 // 難度：easy 把敵人攻擊壓力砍約一半（子彈慢、變少、大招少、命多、王血低）
 const DIFF={
   normal:{ label:P('普通','ㄆㄨˇ ㄊㄨㄥ'), speedK:1,   fireK:1,    specialK:1,   hpK:1,   phpAdd:0, easyKinds:false },
@@ -352,54 +354,61 @@ function drawCoverPanel(){ seaBg();
   // 開始按鈕
   const sb=startCoverBtn(); ctx.save(); const pl2=pulse(); ctx.shadowColor='#ffce47'; ctx.shadowBlur=14+pl2*12; rr(sb.x,sb.y,sb.w,sb.h,sb.h/2); ctx.fillStyle='#c8901a'; ctx.fill(); ctx.shadowBlur=0; ctx.strokeStyle='#ffe27a'; ctx.lineWidth=2.5; ctx.stroke(); ctx.restore();
   drawRuby(S.waveMax>0?P('繼續闖關','ㄐㄧˋ ㄒㄩˋ ㄔㄨㄤˇ ㄍㄨㄢ'):P('開始','ㄎㄞ ㄕˇ'), sb.x+sb.w/2, sb.y+sb.h/2, Math.min(26,W*0.05), '#fff');
-  // 看劇情（有進度的玩家也能重看故事＋小測驗，不會弄丟進度）
-  const stb=storyCoverBtn(); ctx.save(); rr(stb.x,stb.y,stb.w,stb.h,stb.h/2); ctx.fillStyle='rgba(4,22,40,.8)'; ctx.fill(); ctx.strokeStyle='#7cd0ff'; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
-  drawRuby(P('看劇情','ㄎㄢˋ ㄐㄩˋ ㄑㄧㄥˊ'), stb.x+stb.w/2, stb.y+stb.h/2, Math.min(19,W*0.036), '#bfe6ff');
-  if(S.waveMax>0){ drawRuby(P('（從第 '+Math.min(S.waveMax+1,N_WAVE)+' 關繼續）','ㄘㄨㄥˊ ㄉㄧˋ ㄍㄨㄢ ㄐㄧˋ ㄒㄩˋ'), cx, stb.y+stb.h+18, Math.min(13,W*0.028), '#8fb7d6'); } }
+  if(S.waveMax>0){ drawRuby(P('（從第 '+Math.min(S.waveMax+1,N_WAVE)+' 關繼續）','ㄘㄨㄥˊ ㄉㄧˋ ㄍㄨㄢ ㄐㄧˋ ㄒㄩˋ'), cx, sb.y+sb.h+18, Math.min(13,W*0.028), '#8fb7d6'); } }
 function coverBtns(){ const w=Math.min(206,W*0.30), h=Math.min(70,H*0.115), gap=Math.min(28,W*0.03), y=H*0.615; return { easy:{x:W/2-w-gap/2,y,w,h}, normal:{x:W/2+gap/2,y,w,h} }; }
-function startCoverBtn(){ const b=coverBtns().easy, w=Math.min(240,W*0.52), h=Math.min(56,H*0.086); return {x:W/2-w/2, y:b.y+b.h+13, w, h}; }
-function storyCoverBtn(){ const s=startCoverBtn(), w=Math.min(180,W*0.4), h=Math.min(42,H*0.065); return {x:W/2-w/2, y:s.y+s.h+10, w, h}; }
+function startCoverBtn(){ const b=coverBtns().easy, w=Math.min(240,W*0.52), h=Math.min(56,H*0.086); return {x:W/2-w/2, y:b.y+b.h+16, w, h}; }
+// 按開始一律先看劇情（不做「看劇情」按鈕讓學生自己選；劇情頁右上角有「跳過」）
 const ST_COVER={ update(evs){ for(const e of evs){ if(e.t==='down'){ const bs=coverBtns();
     if(inBtn(e,bs.easy)){ S.diff='easy'; Sfx.tick(); persist(); }
     else if(inBtn(e,bs.normal)){ S.diff='normal'; Sfx.tick(); persist(); }
-    else if(inBtn(e,storyCoverBtn())){ Sfx.tick(); goPhase('story'); }
-    else if(inBtn(e,startCoverBtn())){ Sfx.win(); goPhase(S.waveMax>0?'wave':'story', S.waveMax>0?Math.min(S.waveMax,N_WAVE-1):0); } } } }, draw(){ drawCoverPanel(); } };
+    else if(inBtn(e,startCoverBtn())){ Sfx.win(); goPhase('story'); } } } }, draw(){ drawCoverPanel(); } };
 
 /* ================= STORY（W02 結尾 → W03 復仇）＋ 小測驗（確認學生知道劇情） ================= */
+// 每一頁＝一張整幅劇情圖（art）＋標題（t）＋一句話（s）；做法同 W02 的 INTRO
 const STORY=[
- { t:P('上一次（W02），你從章魚手裡搶回了國王的 5 顆寶石！','ㄕㄤˋ ㄧ ㄘˋ ㄋㄧˇ ㄘㄨㄥˊ ㄓㄤ ㄩˊ ㄕㄡˇ ㄌㄧˇ ㄑㄧㄤˇ ㄏㄨㄟˊ ㄌㄜ˙ ㄍㄨㄛˊ ㄨㄤˊ ㄉㄜ˙ 5 ㄎㄜ ㄅㄠˇ ㄕˊ'), art:'gems' },
- { t:P('章魚大軍氣炸了，發誓一定要復仇！','ㄓㄤ ㄩˊ ㄉㄚˋ ㄐㄩㄣ ㄑㄧˋ ㄓㄚˋ ㄌㄜ˙ ㄈㄚ ㄕˋ ㄧˊ ㄉㄧㄥˋ ㄧㄠˋ ㄈㄨˋ ㄔㄡˊ'), art:'inker' },
- { t:P('牠們組成先鋒大軍，衝過來要奪回寶石！','ㄊㄚ ㄇㄣ˙ ㄗㄨˇ ㄔㄥˊ ㄒㄧㄢ ㄈㄥ ㄉㄚˋ ㄐㄩㄣ ㄔㄨㄥ ㄍㄨㄛˋ ㄌㄞˊ ㄧㄠˋ ㄉㄨㄛˊ ㄏㄨㄟˊ ㄅㄠˇ ㄕˊ'), art:'horde' },
- { t:P('這次一手走位、一手戰鬥——守住寶石！','ㄓㄜˋ ㄘˋ ㄧ ㄕㄡˇ ㄗㄡˇ ㄨㄟˋ ㄧ ㄕㄡˇ ㄓㄢˋ ㄉㄡˋ ㄕㄡˇ ㄓㄨˋ ㄅㄠˇ ㄕˊ'), art:'captain' },
+ { art:'st1', t:P('上一集','ㄕㄤˋ ㄧˋ ㄐㄧˊ'),
+   s:P('你打敗了章魚軍團，搶回國王的五顆寶石！','ㄋㄧˇ ㄉㄚˇ ㄅㄞˋ ㄌㄜ˙ ㄓㄤ ㄩˊ ㄐㄩㄣ ㄊㄨㄢˊ ㄑㄧㄤˇ ㄏㄨㄟˊ ㄍㄨㄛˊ ㄨㄤˊ ㄉㄜ˙ ㄨˇ ㄎㄜ ㄅㄠˇ ㄕˊ') },
+ { art:'st2', t:P('寶石回家了','ㄅㄠˇ ㄕˊ ㄏㄨㄟˊ ㄐㄧㄚ ㄌㄜ˙'),
+   s:P('五顆寶石放回王城，海底又亮起來了。','ㄨˇ ㄎㄜ ㄅㄠˇ ㄕˊ ㄈㄤˋ ㄏㄨㄟˊ ㄨㄤˊ ㄔㄥˊ ㄏㄞˇ ㄉㄧˇ ㄧㄡˋ ㄌㄧㄤˋ ㄑㄧˇ ㄌㄞˊ ㄌㄜ˙') },
+ { art:'st3', t:P('章魚氣炸了','ㄓㄤ ㄩˊ ㄑㄧˋ ㄓㄚˋ ㄌㄜ˙'),
+   s:P('深海裡，章魚大軍發誓一定要復仇！','ㄕㄣ ㄏㄞˇ ㄌㄧˇ ㄓㄤ ㄩˊ ㄉㄚˋ ㄐㄩㄣ ㄈㄚ ㄕˋ ㄧˊ ㄉㄧㄥˋ ㄧㄠˋ ㄈㄨˋ ㄔㄡˊ') },
+ { art:'st4', t:P('先鋒大軍來了','ㄒㄧㄢ ㄈㄥ ㄉㄚˋ ㄐㄩㄣ ㄌㄞˊ ㄌㄜ˙'),
+   s:P('前哨隊長帶頭，衝過來要奪回寶石！','ㄑㄧㄢˊ ㄕㄠˋ ㄉㄨㄟˋ ㄓㄤˇ ㄉㄞˋ ㄊㄡˊ ㄔㄨㄥ ㄍㄨㄛˋ ㄌㄞˊ ㄧㄠˋ ㄉㄨㄛˊ ㄏㄨㄟˊ ㄅㄠˇ ㄕˊ') },
+ { art:'st5', t:P('你的任務','ㄋㄧˇ ㄉㄜ˙ ㄖㄣˋ ㄨˋ'),
+   s:P('一手走位、一手戰鬥，守住五顆寶石！','ㄧˋ ㄕㄡˇ ㄗㄡˇ ㄨㄟˋ ㄧˋ ㄕㄡˇ ㄓㄢˋ ㄉㄡˋ ㄕㄡˇ ㄓㄨˋ ㄨˇ ㄎㄜ ㄅㄠˇ ㄕˊ') },
 ];
-function initStory(){ st.step=0; st.t0=now(); st.subs=[]; for(let i=0;i<7;i++) st.subs.push({x:W*(0.1+Math.random()*0.8), y:H*(0.16+Math.random()*0.3), s:30+Math.random()*22, ph:Math.random()*3}); }
-function storyBtn(){ const w=Math.min(280,W*0.62), h=Math.min(64,H*0.1); return {x:W/2-w/2, y:H*0.82, w, h}; }
+function initStory(){ st.step=0; st.t0=now(); }
+function storyBtn(){ const w=Math.min(280,W*0.62), h=Math.min(58,H*0.09); return {x:W/2-w/2, y:H*0.875-h/2, w, h}; }
 function storySkip(){ const w=Math.min(96,W*0.2), h=34; return {x:W-w-12, y:12, w, h}; }
-function drawStoryArt(art){ const cx=W/2, cy=H*0.33;
-  if(art==='gems'){ const gap=Math.min(70,W*0.12), gr=Math.min(30,W*0.05); for(let i=0;i<5;i++) gGemIcon(cx-2*gap+i*gap, cy, gr, true, i); }
-  else if(art==='inker'){ if(!drawSprite('octoInker',cx,cy,Math.min(W*0.30,H*0.36))) vOcto(cx,cy,80,'#3a5a8c'); }
-  else if(art==='horde'){ st.subs.forEach(o=>{ const k=['octoScout','octoInker','octoSwirl'][Math.floor(o.ph)%3]; const yy=o.y+Math.sin(now()/600+o.ph)*8; if(!drawSprite(k,o.x,yy,o.s*2)) vOcto(o.x,yy,o.s,'#a45bd6'); }); }
-  else if(art==='captain'){ if(!drawSprite('captain',cx,cy,Math.min(W*0.34,H*0.40))) vOcto(cx,cy,90,'#e0623c',0,true); } }
-const ST_STORY={ update(evs){ for(const e of evs){ if(e.t==='down'){ if(inBtn(e,storySkip())){ Sfx.tick(); goPhase('quiz'); return; } const b=storyBtn(); if(inBtn(e,b)){ if(st.step>=STORY.length-1){ Sfx.win(); goPhase('quiz'); } else { Sfx.tick(); st.step++; st.t0=now(); } } } } },
-  draw(){ seaBg(); drawCover('seabed',0.35); const s=STORY[st.step], cx=W/2; if(!s) return;
-    drawStoryArt(s.art);
-    ctx.save(); rr(cx-Math.min(W*0.46,470),H*0.52,Math.min(W*0.92,940),Math.min(H*0.17,135),18); ctx.fillStyle='rgba(3,14,26,.82)'; ctx.fill(); ctx.strokeStyle='rgba(124,208,255,.4)'; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
-    drawRuby(s.t, cx, H*0.60, Math.min(27,W*0.043), '#eaf4ff');
-    for(let i=0;i<STORY.length;i++){ ctx.fillStyle=i===st.step?'#ffce47':'#3a5872'; ctx.beginPath(); ctx.arc(cx-(STORY.length-1)*12+i*24, H*0.72, 6, 0,7); ctx.fill(); }
+function storyCard(){ const w=Math.min(W*0.9,900), h=Math.min(H*0.21,158); return {x:W/2-w/2, y:H*0.60, w, h}; }
+// 看完故事之後：第一次要先過小測驗；已經答對過就直接進關卡
+function afterStory(){ if(S.quizOK) goPhase(S.waveMax>0?'wave':'tut', S.waveMax>0?Math.min(S.waveMax,N_WAVE-1):0); else goPhase('quiz'); }
+const ST_STORY={ update(evs){ for(const e of evs){ if(e.t==='down'){ if(inBtn(e,storySkip())){ Sfx.tick(); afterStory(); return; } const b=storyBtn(); if(inBtn(e,b)){ if(st.step>=STORY.length-1){ Sfx.win(); afterStory(); } else { Sfx.tick(); st.step++; st.t0=now(); } } } } },
+  draw(){ const s=STORY[st.step], cx=W/2; if(!s) return;
+    // 整幅劇情圖鋪滿；沒載到才退回海底底圖
+    seaBg(); if(!drawCover(s.art,1)) drawCover('seabed',0.5);
+    ctx.save(); const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'rgba(3,14,26,.62)'); g.addColorStop(0.42,'rgba(3,14,26,.12)'); g.addColorStop(1,'rgba(3,14,26,.94)'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); ctx.restore();
+    drawRuby(P('章魚軍團前哨 · 第三章','ㄓㄤ ㄩˊ ㄐㄩㄣ ㄊㄨㄢˊ ㄑㄧㄢˊ ㄕㄠˋ ㄉㄧˋ ㄙㄢ ㄓㄤ'), cx, H*0.075, Math.min(20,W*0.04), '#ffe27a');
+    const c=storyCard(); ctx.save(); rr(c.x,c.y,c.w,c.h,18); ctx.fillStyle='rgba(3,14,26,.86)'; ctx.fill(); ctx.strokeStyle='rgba(124,208,255,.45)'; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
+    drawRuby(s.t, cx, c.y+c.h*0.30, Math.min(30,W*0.055), '#ffce47');
+    drawRuby(s.s, cx, c.y+c.h*0.72, Math.min(24,W*0.04), '#eaf4ff');
+    for(let i=0;i<STORY.length;i++){ ctx.fillStyle=i===st.step?'#ffce47':'rgba(255,255,255,.28)'; ctx.beginPath(); ctx.arc(cx-(STORY.length-1)*12+i*24, c.y+c.h+20, 6, 0,7); ctx.fill(); }
     const b=storyBtn(); ctx.save(); const pl=pulse(); ctx.shadowColor='#7cd0ff'; ctx.shadowBlur=12+pl*8; rr(b.x,b.y,b.w,b.h,b.h/2); ctx.fillStyle='#1f6f9f'; ctx.fill(); ctx.shadowBlur=0; ctx.strokeStyle='#7cd0ff'; ctx.lineWidth=2.5; ctx.stroke(); ctx.restore();
-    drawRuby(st.step>=STORY.length-1?P('我懂了，考考我！','ㄨㄛˇ ㄉㄨㄥˇ ㄌㄜ˙ ㄎㄠˇ ㄎㄠˇ ㄨㄛˇ'):P('下一頁','ㄒㄧㄚˋ ㄧ ㄧㄝˋ'), b.x+b.w/2, b.y+b.h/2, Math.min(22,W*0.045), '#eafaff');
+    drawRuby(st.step>=STORY.length-1?(S.quizOK?P('出發！','ㄔㄨ ㄈㄚ'):P('我懂了，考考我！','ㄨㄛˇ ㄉㄨㄥˇ ㄌㄜ˙ ㄎㄠˇ ㄎㄠˇ ㄨㄛˇ')):P('下一頁','ㄒㄧㄚˋ ㄧ ㄧㄝˋ'), b.x+b.w/2, b.y+b.h/2, Math.min(22,W*0.045), '#eafaff');
     const j=storySkip(); ctx.save(); rr(j.x,j.y,j.w,j.h,j.h/2); ctx.fillStyle='rgba(4,18,32,.7)'; ctx.fill(); ctx.strokeStyle='#5a7893'; ctx.lineWidth=1; ctx.stroke(); ctx.restore(); drawRuby(P('跳過','ㄊㄧㄠˋ ㄍㄨㄛˋ'), j.x+j.w/2, j.y+j.h/2, 12, '#9fc4e0'); } };
 /* 小測驗：確認學生知道劇情（本地批改；每題選項會洗牌） */
 const QUIZ=[
  { q:P('章魚大軍為什麼衝過來？','ㄓㄤ ㄩˊ ㄉㄚˋ ㄐㄩㄣ ㄨㄟˋ ㄕㄜˊ ㄇㄜ˙ ㄔㄨㄥ ㄍㄨㄛˋ ㄌㄞˊ'),
    opts:[ P('要奪回寶石、報仇','ㄧㄠˋ ㄉㄨㄛˊ ㄏㄨㄟˊ ㄅㄠˇ ㄕˊ ㄅㄠˋ ㄔㄡˊ'), P('想找你一起玩','ㄒㄧㄤˇ ㄓㄠˇ ㄋㄧˇ ㄧˋ ㄑㄧˇ ㄨㄢˊ'), P('肚子餓了','ㄉㄨˋ ㄗ˙ ㄜˋ ㄌㄜ˙') ], a:0 },
+ { q:P('帶頭衝過來的章魚是誰？','ㄉㄞˋ ㄊㄡˊ ㄔㄨㄥ ㄍㄨㄛˋ ㄌㄞˊ ㄉㄜ˙ ㄓㄤ ㄩˊ ㄕˋ ㄕㄟˊ'),
+   opts:[ P('前哨隊長','ㄑㄧㄢˊ ㄕㄠˋ ㄉㄨㄟˋ ㄓㄤˇ'), P('海底國王','ㄏㄞˇ ㄉㄧˇ ㄍㄨㄛˊ ㄨㄤˊ'), P('一隻小丑魚','ㄧˋ ㄓ ㄒㄧㄠˇ ㄔㄡˇ ㄩˊ') ], a:0 },
  { q:P('你的任務是什麼？','ㄋㄧˇ ㄉㄜ˙ ㄖㄣˋ ㄨˋ ㄕˋ ㄕㄜˊ ㄇㄜ˙'),
    opts:[ P('守住寶石、擊退章魚','ㄕㄡˇ ㄓㄨˋ ㄅㄠˇ ㄕˊ ㄐㄧˊ ㄊㄨㄟˋ ㄓㄤ ㄩˊ'), P('把寶石還給章魚','ㄅㄚˇ ㄅㄠˇ ㄕˊ ㄏㄨㄢˊ ㄍㄟˇ ㄓㄤ ㄩˊ'), P('趕快逃走','ㄍㄢˇ ㄎㄨㄞˋ ㄊㄠˊ ㄗㄡˇ') ], a:0 },
 ];
 function initQuiz(){ st.qi=0; st.wrong=0; st.done=0; st.qShuf=QUIZ.map(q=>{ const idx=q.opts.map((o,i)=>i); shuffle(idx); return {q:q.q, opts:idx.map(i=>q.opts[i]), a:idx.indexOf(q.a)}; }); }
 function optBtns(n){ const w=Math.min(W*0.72,600), h=Math.min(60,H*0.092), gap=Math.min(16,H*0.02), y0=H*0.42; const arr=[]; for(let i=0;i<n;i++) arr.push({x:W/2-w/2, y:y0+i*(h+gap), w, h}); return arr; }
 const ST_QUIZ={ update(evs){ if(st.done){ if(now()>=st.done) goPhase(S.waveMax>0?'wave':'tut', S.waveMax>0?Math.min(S.waveMax,N_WAVE-1):0); return; } const cur=st.qShuf[st.qi], bs=optBtns(cur.opts.length);
-    for(const e of evs){ if(e.t==='down'){ for(let i=0;i<bs.length;i++){ if(inBtn(e,bs[i])){ if(i===cur.a){ Sfx.win(); burst(W/2,H*0.3,'#7cffb0',18); if(st.qi>=st.qShuf.length-1){ st.done=now()+1100; } else { st.qi++; st.wrong=0; } } else { Sfx.bad(); shake(8,240); st.wrong=now()+1800; } return; } } } } },
+    for(const e of evs){ if(e.t==='down'){ for(let i=0;i<bs.length;i++){ if(inBtn(e,bs[i])){ if(i===cur.a){ Sfx.win(); burst(W/2,H*0.3,'#7cffb0',18); if(st.qi>=st.qShuf.length-1){ st.done=now()+1100; S.quizOK=true; persist(); } else { st.qi++; st.wrong=0; } } else { Sfx.bad(); shake(8,240); st.wrong=now()+1800; } return; } } } } },
   draw(){ seaBg(); drawCover('seabed',0.4); const cx=W/2; if(!st.qShuf){ return; } const cur=st.qShuf[st.qi];
     drawRuby(P('小測驗：你記得劇情嗎？','ㄒㄧㄠˇ ㄘㄜˋ ㄧㄢˋ ㄋㄧˇ ㄐㄧˋ ㄉㄜ˙ ㄌㄧˋ ㄑㄧㄥˊ ㄇㄚ˙'), cx, H*0.14, Math.min(24,W*0.044), '#ffce7a');
     drawRuby(cur.q, cx, H*0.30, Math.min(30,W*0.05), '#fff');
@@ -832,7 +841,7 @@ const ST_DELIVER={ update(evs){ st.cam=Math.min(1,st.cam+0.006); const T=dvT();
       ctx.save(); ctx.globalAlpha=k*0.6; ctx.fillStyle='#030c18'; ctx.fillRect(0,0,W,H); ctx.restore();
       gTrophy(cx, H*0.17, Math.min(W*0.085,H*0.115)*(0.6+0.4*Math.min(1,k*1.4)));
       drawRuby(P('全部通關！','ㄑㄩㄢˊ ㄅㄨˋ ㄊㄨㄥ ㄍㄨㄢ'), cx, H*0.31, Math.min(46,W*0.075)*(0.82+0.18*k), '#ffe27a');
-      drawRuby(P('你守住了國王的 5 顆寶石！','ㄋㄧˇ ㄕㄡˇ ㄓㄨˋ ㄌㄜ˙ ㄍㄨㄛˊ ㄨㄤˊ ㄉㄜ˙ 5 ㄎㄜ ㄅㄠˇ ㄕˊ'), cx, H*0.385, Math.min(23,W*0.039), '#cfe8ff');
+      drawRuby(P('你守住了國王的五顆寶石！','ㄋㄧˇ ㄕㄡˇ ㄓㄨˋ ㄌㄜ˙ ㄍㄨㄛˊ ㄨㄤˊ ㄉㄜ˙ ㄨˇ ㄎㄜ ㄅㄠˇ ㄕˊ'), cx, H*0.385, Math.min(23,W*0.039), '#cfe8ff');
       for(let i=0;i<5;i++){ const p=0.5+0.5*Math.sin(now()/300+i); ctx.save(); ctx.globalAlpha=0.18+p*0.2; ctx.fillStyle='#ffe27a'; ctx.beginPath(); ctx.arc(cx-2*gap+i*gap, H*0.47, gr*1.6,0,7); ctx.fill(); ctx.restore(); gGemIcon(cx-2*gap+i*gap, H*0.47, gr, true, i); }
       drawRuby(P('難度：'+(S.diff==='easy'?'簡單':'普通')+'　金幣 +'+(COIN_DONE+COIN_WAVE*N_WAVE),'ㄋㄢˊ ㄉㄨˋ ㄐㄧㄣ ㄅㄧˋ'), cx, H*0.545, Math.min(19,W*0.034), '#ffd89a');
       if(T>2.4){ const t=taBtn(); ctx.save(); rr(t.x,t.y,t.w,t.h,t.h/2); ctx.fillStyle=st.ta?'#2b6f4a':'#1f8f5a'; ctx.fill(); ctx.strokeStyle='#7cffb0'; ctx.lineWidth=2.5; ctx.stroke(); ctx.restore();
@@ -864,10 +873,10 @@ function frame(){ frame1(); requestAnimationFrame(frame); }
 function boot(){ bootT=now();
   const local=loadLocal(); if(local) S=local;
   renderAcct(); window.addEventListener('online',renderAcct); window.addEventListener('offline',renderAcct);
-  goPhase(S.phase&&DISPATCH[S.phase]?S.phase:'cover');
+  goPhase('cover'); // 一律從封面進（選難度 → 看劇情 → 關卡），不直接跳回存檔的相位，否則會略過劇情
   requestAnimationFrame(frame); // 立刻啟動主迴圈，不被雲端載入卡住
-  // 背景載入雲端進度：較遠者才覆蓋，且只在還沒開始玩時
-  (async()=>{ try{ const cloud=await Account.load(); if(cloud && (cloud.waveMax||0)>(S.waveMax||0)){ S=cloud; if(S.phase==='cover'||!DISPATCH[S.phase]) goPhase('cover'); } }catch(e){} })(); }
+  // 背景載入雲端進度：較遠者才覆蓋；只吃進度數字，不動玩家當下所在的相位
+  (async()=>{ try{ const cloud=await Account.load(); if(cloud && (cloud.waveMax||0)>(S.waveMax||0)){ const ph=S.phase; S=cloud; S.phase=DISPATCH[ph]?ph:'cover'; } }catch(e){} })(); }
 boot();
 
 /* ---------- 測試接口（免截圖驗證） ---------- */
