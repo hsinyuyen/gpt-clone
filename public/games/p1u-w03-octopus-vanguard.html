@@ -94,9 +94,10 @@ function renderAcct(){ const a=document.getElementById('acct'); const on=navigat
 
 /* ---------- 粒子 / 回饋 ---------- */
 let parts=[],ripples=[],pops=[],sh={mag:0,until:0};
-function burst(x,y,col,n){ for(let i=0;i<(n||16);i++){ const a=Math.random()*7,s=1.5+Math.random()*4; parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,col}); } }
-function confetti(){ for(let i=0;i<180;i++){ parts.push({x:Math.random()*W,y:-20-Math.random()*H*0.5,vx:(Math.random()-0.5)*2,vy:2+Math.random()*4,life:1.7,col:['#ff5d6c','#ffce47','#2bd17e','#5bc0ff','#ff7ab0'][i%5],fall:true}); } }
-function ripple(x,y,col){ ripples.push({x,y,r:6,col:col||'#8fd0ff',t:1}); }
+const MAX_PARTS=280, MAX_RIPPLES=44;
+function burst(x,y,col,n){ n=n||16; for(let i=0;i<n && parts.length<MAX_PARTS;i++){ const a=Math.random()*7,s=1.5+Math.random()*4; parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,col}); } }
+function confetti(){ for(let i=0;i<110 && parts.length<MAX_PARTS;i++){ parts.push({x:Math.random()*W,y:-20-Math.random()*H*0.5,vx:(Math.random()-0.5)*2,vy:2+Math.random()*4,life:1.7,col:['#ff5d6c','#ffce47','#2bd17e','#5bc0ff','#ff7ab0'][i%5],fall:true}); } }
+function ripple(x,y,col){ if(ripples.length>=MAX_RIPPLES) return; ripples.push({x,y,r:6,col:col||'#8fd0ff',t:1}); }
 function popText(x,y,txt,col,sc){ pops.push({x,y,txt,col:col||'#fff',t:0,vy:-0.85,sc:sc||1}); }
 function shake(m,ms){ sh.mag=m; sh.until=now()+ms; }
 function shakeOffset(){ if(now()>=sh.until) return [0,0]; const d=Math.min(1,(sh.until-now())/160); return [(Math.random()-0.5)*sh.mag*d,(Math.random()-0.5)*sh.mag*d]; }
@@ -188,14 +189,14 @@ function gMouse(x,y,s,hl){
   if(mouseImgReady){ drawMouseSprite(x,y,s);
     if(hl){ const b=mouseBtn(x,y,s,hl), col=MOUSE_HL_COL[hl]||'#3f8bff', p=pulse(), r0=(hl==='wheel'?s*0.17:s*0.3);
       ctx.save(); ctx.globalAlpha=0.25+p*0.2; ctx.fillStyle=col; ctx.beginPath(); ctx.arc(b.x,b.y,r0*0.7,0,7); ctx.fill();
-      ctx.globalAlpha=0.55+p*0.4; ctx.strokeStyle=col; ctx.lineWidth=Math.max(3,s*0.12); ctx.shadowColor=col; ctx.shadowBlur=14; ctx.beginPath(); ctx.arc(b.x,b.y,r0+p*4,0,7); ctx.stroke(); ctx.restore(); }
+      ctx.globalAlpha=0.6+p*0.4; ctx.strokeStyle=col; ctx.lineWidth=Math.max(3,s*0.12); ctx.beginPath(); ctx.arc(b.x,b.y,r0+p*4,0,7); ctx.stroke(); ctx.restore(); }
     return; }
   ctx.save(); ctx.translate(x,y); rr(-s*0.7,-s,s*1.4,s*2,s*0.7); ctx.fillStyle='#e8f2fb'; ctx.fill(); ctx.strokeStyle='#7a93a8'; ctx.lineWidth=2; ctx.stroke();
   ctx.save(); ctx.beginPath(); rr(-s*0.7,-s,s*0.68,s*0.9,s*0.6); ctx.clip(); ctx.fillStyle=hl==='left'?'#3f8bff':'#bcd7f2'; ctx.fillRect(-s*0.7,-s,s*0.7,s); ctx.restore();
   ctx.save(); ctx.beginPath(); rr(s*0.02,-s,s*0.68,s*0.9,s*0.6); ctx.clip(); ctx.fillStyle=hl==='right'?'#ff8a3c':'#f2ceb0'; ctx.fillRect(0,-s,s*0.7,s); ctx.restore();
   ctx.strokeStyle='#7a93a8'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,-s); ctx.lineTo(0,-s*0.1); ctx.stroke();
   ctx.fillStyle=hl==='wheel'?'#2bd17e':'#9fb6c8'; rr(-s*0.13,-s*0.82,s*0.26,s*0.5,s*0.13); ctx.fill();
-  if(hl){ const p=pulse(); ctx.globalAlpha=0.5+p*0.4; const col=hl==='left'?'#3f8bff':hl==='right'?'#ff8a3c':'#2bd17e'; ctx.shadowColor=col; ctx.shadowBlur=18; ctx.strokeStyle=col; ctx.lineWidth=3; rr(-s*0.72,-s*1.02,s*1.44,s*2.04,s*0.72); ctx.stroke(); }
+  if(hl){ const p=pulse(); ctx.globalAlpha=0.55+p*0.4; const col=hl==='left'?'#3f8bff':hl==='right'?'#ff8a3c':'#2bd17e'; ctx.strokeStyle=col; ctx.lineWidth=3.5; rr(-s*0.72,-s*1.02,s*1.44,s*2.04,s*0.72); ctx.stroke(); }
   ctx.restore(); }
 // WASD 四鍵圖示（highlight 可指定要亮哪個方向）
 function gWASD(x,y,s,hlDir){ const k=s*0.5, g=k*1.12; const pos={W:[0,-g*0.55],A:[-g,g*0.45],S:[0,g*0.45],D:[g,g*0.45]};
@@ -537,10 +538,11 @@ function popSpot(s){ const i=st.spots.indexOf(s); if(i>=0) st.spots.splice(i,1);
     if(st.hp<=0){ roundClear(); } }
   else { Sfx.hit(st.combo); popText(s.x,s.y-40,'命中！','#fff'); } }
 function drawSpots(){ for(const s of st.spots){ const age=(now()-s.born)/s.life, p=pulse(); const col=s.gold?'#ffe27a':(SPOT_COL[s.kind]||'#ff8a3c'); ctx.save();
-    ctx.globalAlpha=clamp(1-age*0.5,0.45,1);
-    ctx.strokeStyle=col; ctx.lineWidth=3; ctx.shadowColor=col; ctx.shadowBlur=12;
-    ctx.beginPath(); ctx.arc(s.x,s.y,s.r*(0.7+p*0.25),0,7); ctx.stroke();
-    ctx.beginPath(); ctx.arc(s.x,s.y,s.r*0.34,0,7); ctx.fillStyle=col; ctx.globalAlpha*=0.85; ctx.fill();
+    const av=clamp(1-age*0.5,0.45,1);
+    // 便宜的光暈：淡外圈（不用 shadowBlur）
+    ctx.globalAlpha=av*0.28; ctx.strokeStyle=col; ctx.lineWidth=7; ctx.beginPath(); ctx.arc(s.x,s.y,s.r*(0.7+p*0.25),0,7); ctx.stroke();
+    ctx.globalAlpha=av; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(s.x,s.y,s.r*(0.7+p*0.25),0,7); ctx.stroke();
+    ctx.beginPath(); ctx.arc(s.x,s.y,s.r*0.34,0,7); ctx.fillStyle=col; ctx.globalAlpha=av*0.85; ctx.fill();
     ctx.globalAlpha=clamp(1-age*0.5,0.45,1); ctx.beginPath(); ctx.moveTo(s.x-s.r,s.y); ctx.lineTo(s.x-s.r*0.5,s.y); ctx.moveTo(s.x+s.r*0.5,s.y); ctx.lineTo(s.x+s.r,s.y); ctx.moveTo(s.x,s.y-s.r); ctx.lineTo(s.x,s.y-s.r*0.5); ctx.moveTo(s.x,s.y+s.r*0.5); ctx.lineTo(s.x,s.y+s.r); ctx.lineWidth=2; ctx.stroke();
     ctx.restore();
     // 該用哪個滑鼠操作（放大＋文字標籤，清楚好辨識）
@@ -561,8 +563,9 @@ function fireBomb(){ if(st.bomb<100 && !st.tut) { popText(st.diver.x,st.diver.y-
   const d=st.diver; st.bomb=0; st.flash={col:'#dfffe9',until:now()+440}; shake(15,440); Sfx.win(); Sfx.tone(680,0.3,'sine',0.06); confetti();
   for(let k=0;k<4;k++) ripple(d.x,d.y, k%2?'#7cffb0':'#ffffff');
   st.magicFx={x:d.x,y:d.y,t0:now()};
-  for(const b of st.bullets){ burst(b.x,b.y,'#7cffb0',4); ripple(b.x,b.y,'#7cffb0'); } st.bullets=[];
-  if(st.sweep){ st.sweep=null; } burst(d.x,d.y,'#ffe27a',44); popText(W/2,H*0.38,'魔法清屏！','#7cffb0',1.4); }
+  // 只在少數子彈位置爆（避免子彈多時粒子爆量卡頓）；主特效交給擴散衝擊波
+  const step=Math.max(1,Math.ceil(st.bullets.length/12)); for(let i=0;i<st.bullets.length;i+=step){ const b=st.bullets[i]; burst(b.x,b.y,'#7cffb0',3); } st.bullets=[];
+  if(st.sweep){ st.sweep=null; } burst(d.x,d.y,'#ffe27a',34); popText(W/2,H*0.38,'魔法清屏！','#7cffb0',1.4); }
 
 /* ---------- Boss ---------- */
 function bossHurt(m){ st.boss.hurtUntil=now()+120; st.boss.shake={mag:5*(m||1),until:now()+220}; }
@@ -577,7 +580,7 @@ function drawBoss(){ const B=st.boss; let bx=B.x, by=B.y; if(B.shake&&now()<B.sh
 function updateDiver(){ const A=arena(), d=st.diver; let ax=(keys.right-keys.left), ay=(keys.down-keys.up); const m=Math.hypot(ax,ay);
   if(m>0){ const spd=mwh()*0.0135; d.x+=ax/m*spd; d.y+=ay/m*spd; } d.x=clamp(d.x,A.x+d.r,A.x+A.w-d.r); d.y=clamp(d.y,A.y+d.r,A.y+A.h-d.r); }
 function drawDiver(){ const d=st.diver; const blink=now()<d.inv && Math.floor(now()/70)%2; if(blink) return;
-  if(st.bomb>=100){ const p=pulse(); ctx.save(); ctx.globalAlpha=0.45+p*0.4; ctx.shadowColor='#ffe27a'; ctx.shadowBlur=28; ctx.fillStyle='rgba(255,226,122,.55)'; ctx.beginPath(); ctx.arc(d.x,d.y,d.r*1.9+p*7,0,7); ctx.fill(); ctx.restore(); }
+  if(st.bomb>=100){ const p=pulse(); ctx.save(); ctx.fillStyle='#ffe27a'; ctx.globalAlpha=0.22+p*0.14; ctx.beginPath(); ctx.arc(d.x,d.y,d.r*2.2+p*7,0,7); ctx.fill(); ctx.globalAlpha=0.4+p*0.2; ctx.beginPath(); ctx.arc(d.x,d.y,d.r*1.5,0,7); ctx.fill(); ctx.restore(); }
   const vis=d.r*1.7; if(!drawSprite('diver',d.x,d.y-vis*0.1,vis*2)) vDiver(d.x,d.y,d.r*1.4,false);
   // 真實命中框（小亮點）
   ctx.save(); ctx.fillStyle='#fff'; ctx.shadowColor='#7cf0ff'; ctx.shadowBlur=8; ctx.beginPath(); ctx.arc(d.x,d.y,Math.max(3,d.r*0.42),0,7); ctx.fill(); ctx.restore(); }
