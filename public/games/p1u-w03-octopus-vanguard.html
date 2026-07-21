@@ -351,13 +351,18 @@ function drawCoverPanel(){ seaBg();
     drawRuby(P(a[3],a[4]), b.x+b.w/2, b.y+b.h*0.72, Math.min(14,W*0.028), sel?'#eafff2':'#8fb7d6'); });
   // 開始按鈕
   const sb=startCoverBtn(); ctx.save(); const pl2=pulse(); ctx.shadowColor='#ffce47'; ctx.shadowBlur=14+pl2*12; rr(sb.x,sb.y,sb.w,sb.h,sb.h/2); ctx.fillStyle='#c8901a'; ctx.fill(); ctx.shadowBlur=0; ctx.strokeStyle='#ffe27a'; ctx.lineWidth=2.5; ctx.stroke(); ctx.restore();
-  drawRuby(S.waveMax>0?P('繼續闖關','ㄐㄧˋ ㄒㄩˋ ㄔㄨㄤˇ ㄍㄨㄢ'):P('開始','ㄎㄞ ㄕˇ'), sb.x+sb.w/2, sb.y+sb.h/2, Math.min(26,W*0.052), '#fff');
-  if(S.waveMax>0){ drawRuby(P('（從第 '+Math.min(S.waveMax+1,N_WAVE)+' 關繼續）','ㄘㄨㄥˊ ㄉㄧˋ ㄍㄨㄢ ㄐㄧˋ ㄒㄩˋ'), cx, sb.y+sb.h+22, Math.min(14,W*0.03), '#8fb7d6'); } }
-function coverBtns(){ const w=Math.min(210,W*0.30), h=Math.min(78,H*0.13), gap=Math.min(28,W*0.03), y=H*0.65; return { easy:{x:W/2-w-gap/2,y,w,h}, normal:{x:W/2+gap/2,y,w,h} }; }
-function startCoverBtn(){ const w=Math.min(240,W*0.52), h=Math.min(60,H*0.09), y=H*0.65+Math.min(78,H*0.13)+18; return {x:W/2-w/2, y, w, h}; }
+  drawRuby(S.waveMax>0?P('繼續闖關','ㄐㄧˋ ㄒㄩˋ ㄔㄨㄤˇ ㄍㄨㄢ'):P('開始','ㄎㄞ ㄕˇ'), sb.x+sb.w/2, sb.y+sb.h/2, Math.min(26,W*0.05), '#fff');
+  // 看劇情（有進度的玩家也能重看故事＋小測驗，不會弄丟進度）
+  const stb=storyCoverBtn(); ctx.save(); rr(stb.x,stb.y,stb.w,stb.h,stb.h/2); ctx.fillStyle='rgba(4,22,40,.8)'; ctx.fill(); ctx.strokeStyle='#7cd0ff'; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
+  drawRuby(P('看劇情','ㄎㄢˋ ㄐㄩˋ ㄑㄧㄥˊ'), stb.x+stb.w/2, stb.y+stb.h/2, Math.min(19,W*0.036), '#bfe6ff');
+  if(S.waveMax>0){ drawRuby(P('（從第 '+Math.min(S.waveMax+1,N_WAVE)+' 關繼續）','ㄘㄨㄥˊ ㄉㄧˋ ㄍㄨㄢ ㄐㄧˋ ㄒㄩˋ'), cx, stb.y+stb.h+18, Math.min(13,W*0.028), '#8fb7d6'); } }
+function coverBtns(){ const w=Math.min(206,W*0.30), h=Math.min(70,H*0.115), gap=Math.min(28,W*0.03), y=H*0.615; return { easy:{x:W/2-w-gap/2,y,w,h}, normal:{x:W/2+gap/2,y,w,h} }; }
+function startCoverBtn(){ const b=coverBtns().easy, w=Math.min(240,W*0.52), h=Math.min(56,H*0.086); return {x:W/2-w/2, y:b.y+b.h+13, w, h}; }
+function storyCoverBtn(){ const s=startCoverBtn(), w=Math.min(180,W*0.4), h=Math.min(42,H*0.065); return {x:W/2-w/2, y:s.y+s.h+10, w, h}; }
 const ST_COVER={ update(evs){ for(const e of evs){ if(e.t==='down'){ const bs=coverBtns();
     if(inBtn(e,bs.easy)){ S.diff='easy'; Sfx.tick(); persist(); }
     else if(inBtn(e,bs.normal)){ S.diff='normal'; Sfx.tick(); persist(); }
+    else if(inBtn(e,storyCoverBtn())){ Sfx.tick(); goPhase('story'); }
     else if(inBtn(e,startCoverBtn())){ Sfx.win(); goPhase(S.waveMax>0?'wave':'story', S.waveMax>0?Math.min(S.waveMax,N_WAVE-1):0); } } } }, draw(){ drawCoverPanel(); } };
 
 /* ================= STORY（W02 結尾 → W03 復仇）＋ 小測驗（確認學生知道劇情） ================= */
@@ -393,7 +398,7 @@ const QUIZ=[
 ];
 function initQuiz(){ st.qi=0; st.wrong=0; st.done=0; st.qShuf=QUIZ.map(q=>{ const idx=q.opts.map((o,i)=>i); shuffle(idx); return {q:q.q, opts:idx.map(i=>q.opts[i]), a:idx.indexOf(q.a)}; }); }
 function optBtns(n){ const w=Math.min(W*0.72,600), h=Math.min(60,H*0.092), gap=Math.min(16,H*0.02), y0=H*0.42; const arr=[]; for(let i=0;i<n;i++) arr.push({x:W/2-w/2, y:y0+i*(h+gap), w, h}); return arr; }
-const ST_QUIZ={ update(evs){ if(st.done){ if(now()>=st.done) goPhase('tut'); return; } const cur=st.qShuf[st.qi], bs=optBtns(cur.opts.length);
+const ST_QUIZ={ update(evs){ if(st.done){ if(now()>=st.done) goPhase(S.waveMax>0?'wave':'tut', S.waveMax>0?Math.min(S.waveMax,N_WAVE-1):0); return; } const cur=st.qShuf[st.qi], bs=optBtns(cur.opts.length);
     for(const e of evs){ if(e.t==='down'){ for(let i=0;i<bs.length;i++){ if(inBtn(e,bs[i])){ if(i===cur.a){ Sfx.win(); burst(W/2,H*0.3,'#7cffb0',18); if(st.qi>=st.qShuf.length-1){ st.done=now()+1100; } else { st.qi++; st.wrong=0; } } else { Sfx.bad(); shake(8,240); st.wrong=now()+1800; } return; } } } } },
   draw(){ seaBg(); drawCover('seabed',0.4); const cx=W/2; if(!st.qShuf){ return; } const cur=st.qShuf[st.qi];
     drawRuby(P('小測驗：你記得劇情嗎？','ㄒㄧㄠˇ ㄘㄜˋ ㄧㄢˋ ㄋㄧˇ ㄐㄧˋ ㄉㄜ˙ ㄌㄧˋ ㄑㄧㄥˊ ㄇㄚ˙'), cx, H*0.14, Math.min(24,W*0.044), '#ffce7a');
