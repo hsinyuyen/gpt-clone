@@ -133,8 +133,12 @@ function seaBg(){ const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#
 
 /* ---------- 注音渲染（台灣課本樣式：注音直排在漢字右側） ---------- */
 function isCJK(ch){ const c=ch.codePointAt(0); return c>=0x4E00 && c<=0x9FFF; }
+// 注意：只有漢字吃注音 token，英數/標點不吃。所以句中的 WASD、數字「5」不可以在注音字串裡放佔位符，
+// 否則那個 token 會被下一個漢字吃掉，整句後半的注音全部位移一格（下面的 warn 就是在擋這件事）。
 function P(han,zhu){ const toks=(zhu&&zhu.trim().length)?zhu.trim().split(/\s+/):[]; const out=[]; let zi=0;
-  for(const ch of han){ if(isCJK(ch)) out.push({c:ch,z:toks[zi++]||''}); else out.push({c:ch,z:null}); } return out; }
+  for(const ch of han){ if(isCJK(ch)) out.push({c:ch,z:toks[zi++]||''}); else out.push({c:ch,z:null}); }
+  if(toks.length!==zi) console.warn('[注音對位] 漢字 '+zi+' 個、注音 '+toks.length+' 個：'+han+' / '+zhu);
+  return out; }
 const TONES=new Set(['ˊ','ˇ','ˋ','˙','ˉ']);
 function splitZhu(z){ if(!z) return {syms:[],tone:''}; const a=[...z]; let tone=''; if(a.length&&TONES.has(a[a.length-1])) tone=a.pop(); return {syms:a,tone}; }
 function rubyMetrics(fs){ const zf=Math.max(8,Math.round(fs*0.46)); return { zf, zcol:zf, toneW:Math.round(zf*0.72), gap:Math.round(fs*0.10), cellGap:Math.round(fs*0.10), stepY:Math.round(zf*0.84) }; }
@@ -343,11 +347,13 @@ function drawCoverPanel(){ seaBg();
   const cx=W/2;
   bigText('先鋒章魚衝過來了！', cx, H*0.30, Math.min(34,W*0.075), '#ffd0d5');
   drawRuby(P('用兩手守住國王的寶石','ㄩㄥˋ ㄌㄧㄤˇ ㄕㄡˇ ㄕㄡˇ ㄓㄨˋ ㄍㄨㄛˊ ㄨㄤˊ ㄉㄜ˙ ㄅㄠˇ ㄕˊ'), cx, H*0.42, Math.min(22,W*0.05), '#cfe8ff');
-  // 寶石列
-  const gy=H*0.55, gap=Math.min(60,W*0.11), gr=Math.min(20,W*0.04); for(let i=0;i<5;i++) gGemIcon(cx-2*gap+i*gap, gy, gr, true, i);
-  // 難度選擇（易／普通）
-  drawRuby(P('先選難度','ㄒㄧㄢ ㄒㄩㄢˇ ㄋㄢˊ ㄉㄨˋ'), cx, H*0.615, Math.min(18,W*0.04), '#cfe8ff');
+  // 以難度鈕為錨往上排：寶石列 → 「先選難度」 → 難度鈕，避免文字被按鈕壓到
   const bs=coverBtns();
+  const lbY=bs.easy.y-Math.min(26,H*0.035);
+  const gr=Math.min(20,W*0.04,H*0.028), gy=lbY-gr-Math.min(26,H*0.035), gap=Math.min(60,W*0.11);
+  for(let i=0;i<5;i++) gGemIcon(cx-2*gap+i*gap, gy, gr, true, i);
+  // 難度選擇（易／普通）
+  drawRuby(P('先選難度','ㄒㄧㄢ ㄒㄩㄢˇ ㄋㄢˊ ㄉㄨˋ'), cx, lbY, Math.min(18,W*0.04), '#cfe8ff');
   [['easy','#2f78c0','#7cc6ff','攻擊慢一半','ㄍㄨㄥ ㄐㄧ ㄇㄢˋ ㄧˊ ㄅㄢˋ'],['normal','#1f8f5a','#7cffb0','原本難度','ㄩㄢˊ ㄅㄣˇ ㄋㄢˊ ㄉㄨˋ']].forEach(a=>{ const key=a[0], b=bs[key], sel=S.diff===key; ctx.save(); const pl=pulse(); if(sel){ ctx.shadowColor=a[2]; ctx.shadowBlur=14+pl*12; } rr(b.x,b.y,b.w,b.h,16); ctx.fillStyle=sel?a[1]:'rgba(4,18,32,.6)'; ctx.fill(); ctx.shadowBlur=0; ctx.strokeStyle=a[2]; ctx.lineWidth=sel?3.5:1.5; ctx.stroke(); ctx.restore();
     drawRuby(DIFF[key].label, b.x+b.w/2, b.y+b.h*0.37, Math.min(26,W*0.05), sel?'#fff':'#cfe0ee');
     drawRuby(P(a[3],a[4]), b.x+b.w/2, b.y+b.h*0.72, Math.min(14,W*0.028), sel?'#eafff2':'#8fb7d6'); });
@@ -394,7 +400,7 @@ const ST_STORY={ update(evs){ for(const e of evs){ if(e.t==='down'){ if(inBtn(e,
     drawRuby(s.s, cx, c.y+c.h*0.72, Math.min(24,W*0.04), '#eaf4ff');
     for(let i=0;i<STORY.length;i++){ ctx.fillStyle=i===st.step?'#ffce47':'rgba(255,255,255,.28)'; ctx.beginPath(); ctx.arc(cx-(STORY.length-1)*12+i*24, c.y+c.h+20, 6, 0,7); ctx.fill(); }
     const b=storyBtn(); ctx.save(); const pl=pulse(); ctx.shadowColor='#7cd0ff'; ctx.shadowBlur=12+pl*8; rr(b.x,b.y,b.w,b.h,b.h/2); ctx.fillStyle='#1f6f9f'; ctx.fill(); ctx.shadowBlur=0; ctx.strokeStyle='#7cd0ff'; ctx.lineWidth=2.5; ctx.stroke(); ctx.restore();
-    drawRuby(st.step>=STORY.length-1?(S.quizOK?P('出發！','ㄔㄨ ㄈㄚ'):P('我懂了，考考我！','ㄨㄛˇ ㄉㄨㄥˇ ㄌㄜ˙ ㄎㄠˇ ㄎㄠˇ ㄨㄛˇ')):P('下一頁','ㄒㄧㄚˋ ㄧ ㄧㄝˋ'), b.x+b.w/2, b.y+b.h/2, Math.min(22,W*0.045), '#eafaff');
+    drawRuby(st.step>=STORY.length-1?(S.quizOK?P('出發！','ㄔㄨ ㄈㄚ'):P('我懂了，考考我！','ㄨㄛˇ ㄉㄨㄥˇ ㄌㄜ˙ ㄎㄠˇ ㄎㄠˇ ㄨㄛˇ')):P('下一頁','ㄒㄧㄚˋ ㄧˊ ㄧㄝˋ'), b.x+b.w/2, b.y+b.h/2, Math.min(22,W*0.045), '#eafaff');
     const j=storySkip(); ctx.save(); rr(j.x,j.y,j.w,j.h,j.h/2); ctx.fillStyle='rgba(4,18,32,.7)'; ctx.fill(); ctx.strokeStyle='#5a7893'; ctx.lineWidth=1; ctx.stroke(); ctx.restore(); drawRuby(P('跳過','ㄊㄧㄠˋ ㄍㄨㄛˋ'), j.x+j.w/2, j.y+j.h/2, 12, '#9fc4e0'); } };
 /* 小測驗：確認學生知道劇情（本地批改；每題選項會洗牌） */
 const QUIZ=[
@@ -421,12 +427,12 @@ const ST_QUIZ={ update(evs){ if(st.done){ if(now()>=st.done) goPhase(S.waveMax>0
 /* ================= 教學關（教兩手齊發：左手 WASD 躲彈幕／右手滑鼠點弱點） ================= */
 // 0 WASD走位 → 1 躲子彈 → 2 滑鼠點弱點攻擊 → 3 滾輪放魔法清屏
 const TUT=[
- { key:'move',  title:P('第一步：用 WASD 走路','ㄉㄧˋ ㄧ ㄅㄨˋ ㄩㄥˋ WASD ㄗㄡˇ ㄌㄨˋ'),
+ { key:'move',  title:P('第一步：用 WASD 走路','ㄉㄧˋ ㄧ ㄅㄨˋ ㄩㄥˋ ㄗㄡˇ ㄌㄨˋ'),
    why:P('為什麼：站著不動會被打到，要一直走','ㄨㄟˋ ㄕㄜˊ ㄇㄜ˙ ㄓㄢˋ ㄓㄜ˙ ㄅㄨˊ ㄉㄨㄥˋ ㄏㄨㄟˋ ㄅㄟˋ ㄉㄚˇ ㄉㄠˋ ㄧㄠˋ ㄧˋ ㄓˊ ㄗㄡˇ'),
    goal:P('走到會發亮的點','ㄗㄡˇ ㄉㄠˋ ㄏㄨㄟˋ ㄈㄚ ㄌㄧㄤˋ ㄉㄜ˙ ㄉㄧㄢˇ') },
  { key:'dodge', title:P('第二步：閃開子彈','ㄉㄧˋ ㄦˋ ㄅㄨˋ ㄕㄢˇ ㄎㄞ ㄗˇ ㄉㄢˋ'),
    why:P('為什麼：章魚會射子彈，被打到會扣血','ㄨㄟˋ ㄕㄜˊ ㄇㄜ˙ ㄓㄤ ㄩˊ ㄏㄨㄟˋ ㄕㄜˋ ㄗˇ ㄉㄢˋ ㄅㄟˋ ㄉㄚˇ ㄉㄠˋ ㄏㄨㄟˋ ㄎㄡˋ ㄒㄩㄝˋ'),
-   goal:P('用 WASD 走開，別讓子彈碰到你','ㄩㄥˋ WASD ㄗㄡˇ ㄎㄞ ㄅㄧㄝˊ ㄖㄤˋ ㄗˇ ㄉㄢˋ ㄆㄥˋ ㄉㄠˋ ㄋㄧˇ') },
+   goal:P('用 WASD 走開，別讓子彈碰到你','ㄩㄥˋ ㄗㄡˇ ㄎㄞ ㄅㄧㄝˊ ㄖㄤˋ ㄗˇ ㄉㄢˋ ㄆㄥˋ ㄉㄠˋ ㄋㄧˇ') },
  { key:'atk',   title:P('第三步：攻擊章魚','ㄉㄧˋ ㄙㄢ ㄅㄨˋ ㄍㄨㄥ ㄐㄧ ㄓㄤ ㄩˊ'),
    why:P('為什麼：點掉亮圈，章魚才會減血','ㄨㄟˋ ㄕㄜˊ ㄇㄜ˙ ㄉㄧㄢˇ ㄉㄧㄠˋ ㄌㄧㄤˋ ㄑㄩㄢ ㄓㄤ ㄩˊ ㄘㄞˊ ㄏㄨㄟˋ ㄐㄧㄢˇ ㄒㄩㄝˋ'),
    goal:P('照圖示按：左鍵／右鍵／連點兩下','ㄓㄠˋ ㄊㄨˊ ㄕˋ ㄢˋ ㄗㄨㄛˇ ㄐㄧㄢˋ ㄧㄡˋ ㄐㄧㄢˋ ㄌㄧㄢˊ ㄉㄧㄢˇ ㄌㄧㄤˇ ㄒㄧㄚˋ') },
@@ -726,7 +732,7 @@ const ST_WAVE={ update(evs){ const cfg=st.cfg, B=st.boss;
     drawWaveHUD(); if(TOUCH){ drawDpad(); drawBombBtn(); }
     const j=skipBtn(); ctx.save(); rr(j.x,j.y,j.w,j.h,j.h/2); ctx.fillStyle='rgba(4,18,32,.7)'; ctx.fill(); ctx.strokeStyle='#5a7893'; ctx.lineWidth=1; ctx.stroke(); ctx.restore(); drawRuby(P('跳過','ㄊㄧㄠˋ ㄍㄨㄛˋ'), j.x+j.w/2, j.y+j.h/2, 12, '#9fc4e0');
     if(st.banner&&now()<st.banner.until){ ctx.save(); ctx.globalAlpha=clamp((st.banner.until-now())/500,0,1); drawRuby(st.banner.txt, W/2, H*0.10, Math.min(24,W*0.052), '#ffe27a'); ctx.restore(); }
-    if(st.cleared){ ctx.save(); ctx.fillStyle='rgba(3,17,31,.5)'; ctx.fillRect(0,0,W,H); ctx.restore(); drawRuby(P('這一波守住了！','ㄓㄜˋ ㄧ ㄆㄛ ㄕㄡˇ ㄓㄨˋ ㄌㄜ˙'), W/2, H*0.42, Math.min(30,W*0.07), '#7cffb0'); }
+    if(st.cleared){ ctx.save(); ctx.fillStyle='rgba(3,17,31,.5)'; ctx.fillRect(0,0,W,H); ctx.restore(); drawRuby(P('這一波守住了！','ㄓㄜˋ ㄧˋ ㄆㄛ ㄕㄡˇ ㄓㄨˋ ㄌㄜ˙'), W/2, H*0.42, Math.min(30,W*0.07), '#7cffb0'); }
     if(st.dead) drawGameOver(); } };
 
 /* ---------- 死亡 → GAME OVER 畫面（可再試／改簡單／回封面） ---------- */
@@ -758,10 +764,10 @@ function drawWaveIntro(cfg){ seaBg(); drawCover('seabed',0.6); drawBoss();
   ctx.save(); ctx.fillStyle='rgba(3,14,26,.6)'; ctx.fillRect(0,H*0.58,W,H*0.42); ctx.restore();
   drawRuby(cfg.title, W/2, H*0.66, Math.min(30,W*0.062), '#fff');
   drawRuby(P('第 '+(S.wave+1)+' / '+N_WAVE+' 關','ㄉㄧˋ ㄍㄨㄢ'), W/2, H*0.72, Math.min(18,W*0.036), '#ffce7a');
-  drawRuby(P('左手 WASD 躲攻擊，右手滑鼠點亮圈！','ㄗㄨㄛˇ ㄕㄡˇ WASD ㄉㄨㄛˇ ㄍㄨㄥ ㄐㄧ ㄧㄡˋ ㄕㄡˇ ㄏㄨㄚˊ ㄕㄨˇ ㄉㄧㄢˇ ㄌㄧㄤˋ ㄑㄩㄢ'), W/2, H*0.775, Math.min(16,W*0.034), '#cfe8ff');
+  drawRuby(P('左手 WASD 躲攻擊，右手滑鼠點亮圈！','ㄗㄨㄛˇ ㄕㄡˇ ㄉㄨㄛˇ ㄍㄨㄥ ㄐㄧ ㄧㄡˋ ㄕㄡˇ ㄏㄨㄚˊ ㄕㄨˇ ㄉㄧㄢˇ ㄌㄧㄤˋ ㄑㄩㄢ'), W/2, H*0.775, Math.min(16,W*0.034), '#cfe8ff');
   // 開始按鈕（必須按下才開打）
   const b=startWaveBtn(); ctx.save(); const pl=pulse(); ctx.shadowColor='#2bd17e'; ctx.shadowBlur=16+pl*12; rr(b.x,b.y,b.w,b.h,b.h/2); ctx.fillStyle='#1f8f5a'; ctx.fill(); ctx.shadowBlur=0; ctx.strokeStyle='#7cffb0'; ctx.lineWidth=3; ctx.stroke(); ctx.restore();
-  drawRuby(P('開始這一關','ㄎㄞ ㄕˇ ㄓㄜˋ ㄧ ㄍㄨㄢ'), b.x+b.w/2, b.y+b.h/2, Math.min(24,W*0.05), '#eafff2'); }
+  drawRuby(P('開始這一關','ㄎㄞ ㄕˇ ㄓㄜˋ ㄧˋ ㄍㄨㄢ'), b.x+b.w/2, b.y+b.h/2, Math.min(24,W*0.05), '#eafff2'); }
 function skipBtn(){ const w=Math.min(96,W*0.2), h=34; return {x:W-w-12, y:12, w, h}; }
 function bombBtn(){ const s=Math.min(W,H)*0.12; return {x:W-s-16, y:H-s-Math.min(96,H*0.18), w:s, h:s}; }
 function drawBombBtn(){ const b=bombBtn(), f=clamp(st.bomb/100,0,1), ready=st.bomb>=100||st.tut; ctx.save(); ctx.globalAlpha=0.9;
