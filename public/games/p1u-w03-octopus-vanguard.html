@@ -291,7 +291,7 @@ function defaultState(){ return { v:VERSION, phase:'cover', wave:0, waveMax:0, c
 // 難度：easy 把敵人攻擊壓力砍約一半（子彈慢、變少、大招少、命多、王血低）
 const DIFF={
   normal:{ label:P('普通','ㄆㄨˇ ㄊㄨㄥ'), speedK:1,   fireK:1,    specialK:1,   hpK:1,   phpAdd:0, easyKinds:false },
-  easy:  { label:P('簡單','ㄐㄧㄢˇ ㄉㄢ'), speedK:0.6, fireK:1.75, specialK:1.6, hpK:0.8, phpAdd:2, easyKinds:true  },
+  easy:  { label:P('簡單','ㄐㄧㄢˇ ㄉㄢ'), speedK:0.6, fireK:1.75, specialK:1.6, hpK:0.8, phpSet:30, easyKinds:true  },
 };
 function diffCfg(){ return DIFF[S.diff]||DIFF.normal; }
 let S=defaultState();
@@ -450,7 +450,7 @@ function drawArenaFrame(A){ ctx.save(); ctx.strokeStyle='rgba(140,200,240,.25)';
 function initWave(n){ n=clamp(n,0,N_WAVE-1); S.wave=n; const cfg=WAVES[n], D=diffCfg(); const A=arena();
   // 套用難度：easy 讓敵人攻擊壓力砍約一半
   const ecfg={ ...cfg, speed:cfg.speed*D.speedK, fireEvery:cfg.fireEvery*D.fireK, specialEvery:(cfg.specialEvery||99999)*D.specialK,
-    php:(cfg.php||PLAYER_HP)+D.phpAdd, hp:Math.round(cfg.hp*D.hpK),
+    php: D.phpSet!=null ? D.phpSet : (cfg.php||PLAYER_HP)+(D.phpAdd||0), hp:Math.round(cfg.hp*D.hpK),
     spotKinds: D.easyKinds?['click','click','click','right']:cfg.spotKinds,
     patterns: cfg.patterns.map(p=>({...p, every:p.every?Math.round(p.every*D.fireK):undefined})) };
   st.tut=false; st.cfg=ecfg; st.dead=false; st.hp=ecfg.hp; st.ghost=st.hp; st.php=ecfg.php; st.combo=0; st.retries=0; st.eased=false; st.busy=false; st.bomb=0; st.spin=0;
@@ -490,9 +490,8 @@ function updateBullets(hurtOn){ const A=arena(), d=st.diver, m=A.x-40, M=A.x+A.w
   if(st.sweep) updateSweep(hurtOn); }
 function tutHit(){ const d=st.diver; d.inv=now()+750; st.flash={col:'#ff5d6c',until:now()+340}; shake(16,340); Sfx.bad(); burst(d.x,d.y,'#ff5d6c',18); ripple(d.x,d.y,'#ff5d6c'); popText(d.x,d.y-48,'哎呀！被打到了','#ff9b6b',1.2); }
 function drawBullets(){ for(const b of st.bullets){ const key=b.kind==='orb'?'bOrb':'bInk';
-    ctx.save(); ctx.shadowColor=b.kind==='orb'?'#7ff0ff':'#c98bff'; ctx.shadowBlur=10;
-    if(!drawSprite(key,b.x,b.y,b.r*2.7)){ ctx.fillStyle=b.kind==='orb'?'#7ff0ff':'#39204f'; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7); ctx.fill(); }
-    ctx.restore(); } }
+    // 不用 shadowBlur（超慢）；bOrb/bInk 素材本身自帶光暈，向量退回時用雙層圓模擬
+    if(!drawSprite(key,b.x,b.y,b.r*2.9)){ ctx.save(); ctx.globalAlpha=0.4; ctx.fillStyle=b.kind==='orb'?'#7ff0ff':'#8a5bd6'; ctx.beginPath(); ctx.arc(b.x,b.y,b.r*1.5,0,7); ctx.fill(); ctx.globalAlpha=1; ctx.fillStyle=b.kind==='orb'?'#dffcff':'#39204f'; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7); ctx.fill(); ctx.restore(); } } }
 function hurtPlayer(){ const d=st.diver; st.php-=1; d.inv=now()+1000; st.combo=0; st.flash={col:'#ff5d6c',until:now()+360}; shake(20,420); Sfx.bad(); burst(d.x,d.y,'#ff5d6c',20); ripple(d.x,d.y,'#ff5d6c'); popText(d.x,d.y-44,'被打到！','#ff9b6b',1.15);
   if(st.php<=0){ battleLost(); } }
 
