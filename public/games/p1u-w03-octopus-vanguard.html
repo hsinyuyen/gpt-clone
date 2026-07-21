@@ -363,10 +363,18 @@ const ST_STORY={ update(evs){ for(const e of evs){ if(e.t==='down'){ const b=sto
 /* ================= 教學關（教兩手齊發：左手 WASD 躲彈幕／右手滑鼠點弱點） ================= */
 // 0 WASD走位 → 1 躲子彈 → 2 滑鼠點弱點攻擊 → 3 滾輪放魔法清屏
 const TUT=[
- { key:'move',  title:P('用 WASD 走一走','ㄩㄥˋ WASD ㄗㄡˇ ㄧ ㄗㄡˇ'), sub:P('走到亮亮的點','ㄗㄡˇ ㄉㄠˋ ㄌㄧㄤˋ ㄌㄧㄤˋ ㄉㄜ˙ ㄉㄧㄢˇ') },
- { key:'dodge', title:P('躲子彈：WASD 閃開','ㄉㄨㄛˇ ㄗˇ ㄉㄢˋ WASD ㄕㄢˇ ㄎㄞ'), sub:P('別讓墨彈碰到你','ㄅㄧㄝˊ ㄖㄤˋ ㄇㄛˋ ㄉㄢˋ ㄆㄥˋ ㄉㄠˋ ㄋㄧˇ') },
- { key:'atk',   title:P('攻擊：照圖示按滑鼠','ㄍㄨㄥ ㄐㄧ ㄓㄠˋ ㄊㄨˊ ㄕˋ ㄢˋ ㄏㄨㄚˊ ㄕㄨˇ'), sub:P('左鍵／右鍵／連點兩下','ㄗㄨㄛˇ ㄐㄧㄢˋ ㄧㄡˋ ㄐㄧㄢˋ ㄌㄧㄢˊ ㄉㄧㄢˇ ㄌㄧㄤˇ ㄒㄧㄚˋ') },
- { key:'bomb',  title:P('放魔法：滾輪清屏','ㄈㄤˋ ㄇㄛˊ ㄈㄚˇ ㄍㄨㄣˇ ㄌㄨㄣˊ ㄑㄧㄥ ㄆㄧㄥˊ'), sub:P('滾輪往前，清掉子彈','ㄍㄨㄣˇ ㄌㄨㄣˊ ㄨㄤˇ ㄑㄧㄢˊ ㄑㄧㄥ ㄉㄧㄠˋ ㄗˇ ㄉㄢˋ') },
+ { key:'move',  title:P('第一步：用 WASD 走路','ㄉㄧˋ ㄧ ㄅㄨˋ ㄩㄥˋ WASD ㄗㄡˇ ㄌㄨˋ'),
+   why:P('為什麼：站著不動會被打到，要一直走','ㄨㄟˋ ㄕㄜˊ ㄇㄜ˙ ㄓㄢˋ ㄓㄜ˙ ㄅㄨˊ ㄉㄨㄥˋ ㄏㄨㄟˋ ㄅㄟˋ ㄉㄚˇ ㄉㄠˋ ㄧㄠˋ ㄧˋ ㄓˊ ㄗㄡˇ'),
+   goal:P('走到會發亮的點','ㄗㄡˇ ㄉㄠˋ ㄏㄨㄟˋ ㄈㄚ ㄌㄧㄤˋ ㄉㄜ˙ ㄉㄧㄢˇ') },
+ { key:'dodge', title:P('第二步：閃開子彈','ㄉㄧˋ ㄦˋ ㄅㄨˋ ㄕㄢˇ ㄎㄞ ㄗˇ ㄉㄢˋ'),
+   why:P('為什麼：章魚會射子彈，被打到會扣血','ㄨㄟˋ ㄕㄜˊ ㄇㄜ˙ ㄓㄤ ㄩˊ ㄏㄨㄟˋ ㄕㄜˋ ㄗˇ ㄉㄢˋ ㄅㄟˋ ㄉㄚˇ ㄉㄠˋ ㄏㄨㄟˋ ㄎㄡˋ ㄒㄩㄝˋ'),
+   goal:P('用 WASD 走開，別讓子彈碰到你','ㄩㄥˋ WASD ㄗㄡˇ ㄎㄞ ㄅㄧㄝˊ ㄖㄤˋ ㄗˇ ㄉㄢˋ ㄆㄥˋ ㄉㄠˋ ㄋㄧˇ') },
+ { key:'atk',   title:P('第三步：攻擊章魚','ㄉㄧˋ ㄙㄢ ㄅㄨˋ ㄍㄨㄥ ㄐㄧ ㄓㄤ ㄩˊ'),
+   why:P('為什麼：點掉亮圈，章魚才會減血','ㄨㄟˋ ㄕㄜˊ ㄇㄜ˙ ㄉㄧㄢˇ ㄉㄧㄠˋ ㄌㄧㄤˋ ㄑㄩㄢ ㄓㄤ ㄩˊ ㄘㄞˊ ㄏㄨㄟˋ ㄐㄧㄢˇ ㄒㄩㄝˋ'),
+   goal:P('照圖示按：左鍵／右鍵／連點兩下','ㄓㄠˋ ㄊㄨˊ ㄕˋ ㄢˋ ㄗㄨㄛˇ ㄐㄧㄢˋ ㄧㄡˋ ㄐㄧㄢˋ ㄌㄧㄢˊ ㄉㄧㄢˇ ㄌㄧㄤˇ ㄒㄧㄚˋ') },
+ { key:'bomb',  title:P('第四步：放魔法','ㄉㄧˋ ㄙˋ ㄅㄨˋ ㄈㄤˋ ㄇㄛˊ ㄈㄚˇ'),
+   why:P('為什麼：子彈太多躲不掉時，一次清光','ㄨㄟˋ ㄕㄜˊ ㄇㄜ˙ ㄗˇ ㄉㄢˋ ㄊㄞˋ ㄉㄨㄛ ㄉㄨㄛˇ ㄅㄨˊ ㄉㄧㄠˋ ㄕˊ ㄧˊ ㄘˋ ㄑㄧㄥ ㄍㄨㄤ'),
+   goal:P('滾輪往前滾，清掉全部子彈','ㄍㄨㄣˇ ㄌㄨㄣˊ ㄨㄤˇ ㄑㄧㄢˊ ㄍㄨㄣˇ ㄑㄧㄥ ㄉㄧㄠˋ ㄑㄩㄢˊ ㄅㄨˋ ㄗˇ ㄉㄢˋ') },
 ];
 function mwh(){ return Math.min(W,H); }
 function initTut(){ const A=arena(); st.tut=true; st.ti=0; st.tdone=false; st.bullets=[]; st.spots=[]; st.php=PLAYER_HP; st.bomb=0; st.combo=0; st.spin=0; st.flash=null;
@@ -376,7 +384,7 @@ function initTut(){ const A=arena(); st.tut=true; st.ti=0; st.tdone=false; st.bu
   setTut(); }
 function setTut(){ const A=arena(), d=st.diver; const k=TUT[st.ti].key; st.stepDone=false; st.bullets=[]; st.spots=[]; st.lastFire=0;
   if(k==='move'){ st.target={x:A.x+A.w*(0.2+Math.random()*0.6), y:A.y+A.h*(0.45+Math.random()*0.25), r:d.r*1.4}; }
-  else if(k==='dodge'){ st.dodgeEnd=now()+4600; }
+  else if(k==='dodge'){ st.dodgeEnd=now()+7000; st.nextShot=now()+900; st.tutWarn=false; }
   else if(k==='atk'){ st.atkNeed=3; st.atkHit=0; const B=st.boss; st.spots=[]; ['click','right','dbl'].forEach((kk,i)=>{ const ang=-Math.PI/2+(i-1)*0.72; st.spots.push({x:B.x+Math.cos(ang)*B.sz*0.32, y:B.y+Math.sin(ang)*B.sz*0.32+B.sz*0.14, r:26, kind:kk, gold:false, born:now(), life:9e9}); }); }
   else if(k==='bomb'){ for(let i=0;i<14;i++){ const a=Math.random()*7, s=mwh()*0.003; spawnBullet(st.boss.x+(Math.random()*2-1)*120, st.boss.y+40, Math.cos(a)*s, Math.abs(Math.sin(a))*s+0.6, i%2?'orb':'ink'); } }
   Sfx.cue(); }
@@ -389,22 +397,31 @@ const ST_TUT={ update(evs){ if(st.tdone){ if(now()>=st.tdone) goPhase('wave',0);
   updateDiver(); updateBullets(false); updateSpots();
   const k=TUT[st.ti].key, d=st.diver, B=st.boss;
   if(k==='move'){ if(st.target && dist(d.x,d.y,st.target.x,st.target.y)<=st.target.r+d.r) tutPass(); }
-  else if(k==='dodge'){ if(now()>=st.lastFire+620){ st.lastFire=now(); fireAimed(B.x,B.y+B.sz*0.28,1,0,0.0034); } if(now()>=st.dodgeEnd){ st.bullets=[]; tutPass(); } }
+  else if(k==='dodge'){ st.tutWarn=(st.nextShot-now())<420 && (st.nextShot-now())>0; // 攻擊前預告
+    if(now()>=st.nextShot){ st.nextShot=now()+950; fireAimed(B.x,B.y+B.sz*0.28,1,0,0.0034); bossHurt(0.8); shake(4,120); Sfx.tone(250,0.12,'sawtooth',0.05); }
+    if(now()>=st.dodgeEnd){ st.bullets=[]; st.nextShot=0; st.tutWarn=false; tutPass(); } }
   else if(k==='atk'){ for(const e of evs){ if(e.t==='down'||e.t==='menu'||e.t==='dbl') tryHitSpot(e); } st.atkHit=st.atkNeed-st.spots.length; if(st.spots.length===0) tutPass(); }
   else if(k==='bomb'){ for(const e of evs){ if(e.t==='wheel'&&e.dy<0){ fireBomb(); tutPass(); return; } } if(TOUCH){ for(const e of evs){ if(e.t==='down'){ const b=bombBtn(); if(e.x>=b.x&&e.x<=b.x+b.w&&e.y>=b.y&&e.y<=b.y+b.h){ fireBomb(); tutPass(); return; } } } } } },
-  draw(){ seaBg(); drawCover('seabed',0.45); const A=arena(), k=TUT[st.ti].key, T=TUT[st.ti];
+  draw(){ seaBg(); drawCover('seabed',0.45); const A=arena(), k=TUT[st.ti].key, T=TUT[st.ti], B=st.boss;
     drawArenaFrame(A);
     if(k!=='move') drawBoss();
     if(k==='move'&&st.target){ const p=pulse(); ctx.save(); ctx.globalAlpha=0.5+p*0.4; ctx.fillStyle='#ffe27a'; ctx.beginPath(); ctx.arc(st.target.x,st.target.y,st.target.r+p*6,0,7); ctx.fill(); ctx.restore(); }
+    // 敵人攻擊預告（章魚要射子彈了！）
+    if(k==='dodge'&&st.tutWarn){ const p=pulse(); ctx.save(); ctx.globalAlpha=0.55+p*0.45; drawRuby(P('！章魚要射子彈了！','ㄓㄤ ㄩˊ ㄧㄠˋ ㄕㄜˋ ㄗˇ ㄉㄢˋ ㄌㄜ˙'), B.x, B.y+B.sz*0.40, Math.min(28,W*0.036), '#ff6b6b'); ctx.restore(); }
     drawSpots(); drawBullets(); drawDiver(); drawPov(); drawFx();
-    // 教學橫幅
-    ctx.save(); ctx.fillStyle='rgba(3,14,26,.72)'; rr(W/2-Math.min(300,W*0.46),H*0.02,Math.min(600,W*0.92),Math.min(92,H*0.17),16); ctx.fill(); ctx.restore();
-    drawRuby(T.title, W/2, H*0.05, Math.min(23,W*0.05), '#fff');
-    drawRuby(T.sub, W/2, H*0.093, Math.min(14,W*0.032), '#cfe8ff');
-    if(k==='move'||k==='dodge') gWASD(W/2, H*0.13, 24, 'all'); else if(k==='atk') gMouse(W/2, H*0.145, 16, 'left'); else gCmd('scroll', W/2, H*0.135, 18);
+    // ===== 教學大橫幅：現在做什麼（大字）＋為什麼（黃）＋怎麼按（藍）＋大操作圖示 =====
+    const bw=Math.min(W*0.94,900), bx=W/2-bw/2, bh=Math.min(H*0.30,225), byy=H*0.015;
+    ctx.save(); rr(bx,byy,bw,bh,18); ctx.fillStyle='rgba(3,14,26,.86)'; ctx.fill(); ctx.strokeStyle='rgba(124,208,255,.5)'; ctx.lineWidth=2.5; ctx.stroke(); ctx.restore();
+    drawRuby(T.title, W/2, byy+bh*0.18, Math.min(38,W*0.05), '#fff');
+    drawRuby(T.why,   W/2, byy+bh*0.44, Math.min(24,W*0.031), '#ffd75e');
+    drawRuby(T.goal,  W/2, byy+bh*0.62, Math.min(22,W*0.028), '#bfe6ff');
+    const iy=byy+bh*0.85;
+    if(k==='move'||k==='dodge'){ gWASD(W/2, iy, Math.min(50,W*0.055), 'all'); }
+    else if(k==='atk'){ const g=Math.min(30,W*0.033), sp=g*2.6; gMouse(W/2-sp, iy-4, g*0.78, 'left'); drawRuby(P('左鍵','ㄗㄨㄛˇ ㄐㄧㄢˋ'),W/2-sp,iy+g*1.2,13,'#5bc0ff'); gMouse(W/2, iy-4, g*0.78, 'right'); drawRuby(P('右鍵','ㄧㄡˋ ㄐㄧㄢˋ'),W/2,iy+g*1.2,13,'#ff8a3c'); gCmd('dbl', W/2+sp, iy-4, g*0.78); drawRuby(P('連兩下','ㄌㄧㄢˊ ㄌㄧㄤˇ ㄒㄧㄚˋ'),W/2+sp,iy+g*1.2,12,'#3f8bff'); }
+    else { gCmd('scroll', W/2, iy, Math.min(38,W*0.042)); }
     // 步驟點
-    for(let i=0;i<TUT.length;i++){ ctx.fillStyle=i<st.ti?'#7cffb0':i===st.ti?'#ffce47':'#3a5872'; ctx.beginPath(); ctx.arc(W/2-(TUT.length-1)*11+i*22, H*0.175, 5,0,7); ctx.fill(); }
-    if(k==='atk'){ drawRuby(P('點掉 '+st.atkHit+'/'+st.atkNeed,'ㄉㄧㄢˇ ㄉㄧㄠˋ'), W/2, H*0.21, 15, '#ffd89a'); }
+    for(let i=0;i<TUT.length;i++){ ctx.fillStyle=i<st.ti?'#7cffb0':i===st.ti?'#ffce47':'#3a5872'; ctx.beginPath(); ctx.arc(W/2-(TUT.length-1)*14+i*28, byy+bh+18, 6,0,7); ctx.fill(); }
+    if(k==='atk'){ drawRuby(P('點掉 '+st.atkHit+' / '+st.atkNeed,'ㄉㄧㄢˇ ㄉㄧㄠˋ'), W/2, byy+bh+46, Math.min(20,W*0.026), '#ffd89a'); }
     const j=skipBtn(); ctx.save(); rr(j.x,j.y,j.w,j.h,j.h/2); ctx.fillStyle='rgba(4,18,32,.7)'; ctx.fill(); ctx.strokeStyle='#5a7893'; ctx.lineWidth=1; ctx.stroke(); ctx.restore(); drawRuby(P('跳過','ㄊㄧㄠˋ ㄍㄨㄛˋ'), j.x+j.w/2, j.y+j.h/2, 12, '#9fc4e0');
     if(TOUCH&&k==='bomb') drawBombBtn();
     if(TOUCH) drawDpad();
@@ -445,15 +462,16 @@ function updateBullets(hurtOn){ const A=arena(), d=st.diver, m=A.x-40, M=A.x+A.w
     if(b.x<m||b.x>M||b.y<ty||b.y>by){ st.bullets.splice(i,1); continue; }
     if(dist(b.x,b.y,d.x,d.y) < b.r*0.7 + d.r){ // 命中框寬鬆（子彈判定縮 0.7）
       st.bullets.splice(i,1);
-      if(hurtOn && now()>=d.inv){ hurtPlayer(); }
+      if(now()>=d.inv){ if(hurtOn) hurtPlayer(); else if(st.tut) tutHit(); }
     } }
   // 觸手橫掃
   if(st.sweep) updateSweep(hurtOn); }
+function tutHit(){ const d=st.diver; d.inv=now()+750; st.flash={col:'#ff5d6c',until:now()+340}; shake(16,340); Sfx.bad(); burst(d.x,d.y,'#ff5d6c',18); ripple(d.x,d.y,'#ff5d6c'); popText(d.x,d.y-48,'哎呀！被打到了','#ff9b6b',1.2); }
 function drawBullets(){ for(const b of st.bullets){ const key=b.kind==='orb'?'bOrb':'bInk';
     ctx.save(); ctx.shadowColor=b.kind==='orb'?'#7ff0ff':'#c98bff'; ctx.shadowBlur=10;
     if(!drawSprite(key,b.x,b.y,b.r*2.7)){ ctx.fillStyle=b.kind==='orb'?'#7ff0ff':'#39204f'; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7); ctx.fill(); }
     ctx.restore(); } }
-function hurtPlayer(){ const d=st.diver; st.php-=1; d.inv=now()+950; st.combo=0; st.flash={col:'#ff5d6c',until:now()+260}; shake(9,220); Sfx.bad(); burst(d.x,d.y,'#ff5d6c',12); popText(d.x,d.y-40,'被打到！','#ff9b6b');
+function hurtPlayer(){ const d=st.diver; st.php-=1; d.inv=now()+1000; st.combo=0; st.flash={col:'#ff5d6c',until:now()+360}; shake(20,420); Sfx.bad(); burst(d.x,d.y,'#ff5d6c',20); ripple(d.x,d.y,'#ff5d6c'); popText(d.x,d.y-44,'被打到！','#ff9b6b',1.15);
   if(st.php<=0){ battleLost(); } }
 
 /* ---------- 觸手橫掃（預告→移動的牆＋缺口） ---------- */
@@ -504,9 +522,9 @@ function drawSpots(){ for(const s of st.spots){ const age=(now()-s.born)/s.life,
     ctx.beginPath(); ctx.arc(s.x,s.y,s.r*0.34,0,7); ctx.fillStyle=col; ctx.globalAlpha*=0.85; ctx.fill();
     ctx.globalAlpha=clamp(1-age*0.5,0.45,1); ctx.beginPath(); ctx.moveTo(s.x-s.r,s.y); ctx.lineTo(s.x-s.r*0.5,s.y); ctx.moveTo(s.x+s.r*0.5,s.y); ctx.lineTo(s.x+s.r,s.y); ctx.moveTo(s.x,s.y-s.r); ctx.lineTo(s.x,s.y-s.r*0.5); ctx.moveTo(s.x,s.y+s.r*0.5); ctx.lineTo(s.x,s.y+s.r); ctx.lineWidth=2; ctx.stroke();
     ctx.restore();
-    // 該用哪個滑鼠操作（小圖）
-    if(!TOUCH) gCmd(s.kind==='dbl'?'dbl':s.kind==='right'?'right':'click', s.x, s.y-s.r-13, 12);
-    if(s.gold) drawRuby(P('金','ㄐㄧㄣ'), s.x, s.y+s.r+11, 11, '#ffe27a');
+    // 該用哪個滑鼠操作（放大好辨識）
+    if(!TOUCH) gCmd(s.kind==='dbl'?'dbl':s.kind==='right'?'right':'click', s.x, s.y-s.r-Math.min(22,mwh()*0.024), Math.min(18,mwh()*0.02));
+    if(s.gold) drawRuby(P('金','ㄐㄧㄣ'), s.x, s.y+s.r+13, 13, '#ffe27a');
   } }
 
 /* ---------- 魔法清屏炸彈（滾輪／觸控鈕） ---------- */
