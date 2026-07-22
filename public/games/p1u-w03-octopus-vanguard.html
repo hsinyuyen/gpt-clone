@@ -877,13 +877,16 @@ function ultTokenOf(e){
   if(e.t==='down'&&e.btn===0) return 'click';
   if(e.t==='wheel'&&e.dy<0) return 'scroll';
   return null; }
+// 一個一個「按下去」就好，不用按著；按錯就整串從頭來（重新給滿一格時間，不扣血）
 function ultAdvance(tok){ const u=st.ult; if(!u||u.done) return;
   const want=u.seq[u.idx];
   if(tok===want){ u.idx++; u.t0=now(); Sfx.hit(u.idx);
     burst(W/2,H*0.62,'#7cffb0',12);
     if(u.idx>=u.seq.length){ ultWin(); } }
   else if(want==='dbl'&&tok==='click'){ /* 連點兩下的第一下，不算錯 */ }
-  else { u.bad++; shake(5,140); Sfx.tick(); popText(W/2,H*0.70,'按錯了，看順序！','#ff9b6b',1.05); } }
+  else { u.bad++; shake(7,180); Sfx.bad();
+    if(u.idx>0){ u.idx=0; u.t0=now(); popText(W/2,H*0.70,'按錯了，從頭再來！','#ff9b6b',1.2); }
+    else { u.t0=now(); popText(W/2,H*0.70,'按錯了，看順序！','#ff9b6b',1.05); } } }
 function ultWin(){ const u=st.ult; u.done=now()+900;
   Sfx.win(); confetti(); shake(8,300); popText(W/2,H*0.34,'完美閃避！','#7cffb0',1.6);
   st.hp=Math.max(0,st.hp-1); bossHurt(1.4); }        // 躲掉還回敬一下
@@ -914,15 +917,19 @@ function drawUlt(){ const u=st.ult; if(!u) return;
       W/2, H*0.12, Math.min(34,W*0.045,H*0.045), '#ff6b6b');
     drawRuby(P('請照順序按下面這些閃躲','ㄑㄧㄥˇ ㄓㄠˋ ㄕㄨㄣˋ ㄒㄩˋ ㄢˋ ㄒㄧㄚˋ ㄇㄧㄢˋ ㄓㄜˋ ㄒㄧㄝ ㄕㄢˇ ㄉㄨㄛˇ'),
       W/2, H*0.20, Math.min(24,W*0.034,H*0.034), '#ffe27a');
+    drawRuby(P('一個一個按，不用按著','ㄧˊ ㄍㄜˋ ㄧˊ ㄍㄜˋ ㄢˋ ㄅㄨˊ ㄩㄥˋ ㄢˋ ㄓㄜ˙'),
+      W/2, H*0.245, Math.min(19,W*0.028,H*0.027), '#cfe8ff');
     // 預告倒數
     const wf=clamp((u.warnUntil-now())/ULT_WARN_MS,0,1);
-    const ww=Math.min(W*0.5,420), wx=W/2-ww/2, wy=H*0.255, wh=Math.min(10,H*0.014);
+    const ww=Math.min(W*0.5,420), wx=W/2-ww/2, wy=H*0.285, wh=Math.min(10,H*0.014);
     ctx.save(); rr(wx,wy,ww,wh,wh/2); ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fill();
     rr(wx,wy,Math.max(wh,ww*wf),wh,wh/2); ctx.fillStyle='#ff6b6b'; ctx.fill(); ctx.restore();
     drawRuby(P('準備…','ㄓㄨㄣˇ ㄅㄟˋ'), W/2, wy+wh+Math.min(20,H*0.028), Math.min(18,W*0.028), '#cfe8ff');
   } else {
-    drawRuby(P('照順序按完就躲得掉！','ㄓㄠˋ ㄕㄨㄣˋ ㄒㄩˋ ㄢˋ ㄨㄢˊ ㄐㄧㄡˋ ㄉㄨㄛˇ ㄉㄜ˙ ㄉㄧㄠˋ'),
-      W/2, H*0.13, Math.min(26,W*0.036,H*0.036), '#ff9b6b');
+    drawRuby(P('一個一個按完就躲得掉！','ㄧˊ ㄍㄜˋ ㄧˊ ㄍㄜˋ ㄢˋ ㄨㄢˊ ㄐㄧㄡˋ ㄉㄨㄛˇ ㄉㄜ˙ ㄉㄧㄠˋ'),
+      W/2, H*0.12, Math.min(26,W*0.036,H*0.036), '#ff9b6b');
+    drawRuby(P('按錯就從頭來','ㄢˋ ㄘㄨㄛˋ ㄐㄧㄡˋ ㄘㄨㄥˊ ㄊㄡˊ ㄌㄞˊ'),
+      W/2, H*0.175, Math.min(18,W*0.026,H*0.025), '#9fc4e0');
   }
   // 指令列
   const isz=ultIconSize(), gap=Math.min(16,W*0.014), n=u.seq.length;
