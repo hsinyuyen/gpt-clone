@@ -388,7 +388,7 @@ function drawCoverPanel(){ seaBg();
   btnLabel(S.waveMax>0?P('繼續闖關','ㄐㄧˋ ㄒㄩˋ ㄔㄨㄤˇ ㄍㄨㄢ'):P('開始','ㄎㄞ ㄕˇ'), sb, Math.min(26,W*0.05), '#fff');
   if(S.waveMax>0){ drawRuby(P('（從第 '+Math.min(S.waveMax+1,N_WAVE)+' 關繼續）','ㄘㄨㄥˊ ㄉㄧˋ ㄍㄨㄢ ㄐㄧˋ ㄒㄩˋ'), cx, sb.y+sb.h+18, Math.min(13,W*0.028), '#8fb7d6'); } }
 function startCoverBtn(){ const w=Math.min(260,W*0.55), h=Math.min(64,H*0.095); return {x:W/2-w/2, y:H*0.70, w, h}; }
-// 按開始一律先看劇情（不做「看劇情」按鈕讓學生自己選；劇情頁右上角有「跳過」）
+// 按開始一律先看劇情（不做「看劇情」按鈕讓學生自己選；劇情與教學都不能跳過）
 const ST_COVER={ update(evs){ for(const e of evs){ if(e.t==='down'&&inBtn(e,startCoverBtn())){ Sfx.win(); goPhase('story'); return; } } }, draw(){ drawCoverPanel(); } };
 
 /* ================= STORY（W02 結尾 → W03 復仇）：每講完一段就立刻考那一段 ================= */
@@ -438,7 +438,6 @@ function initStory(a){ const o=pageArg(a); st.set=o.set||'main'; st.pages=pageSe
   st.step=clamp(o.i||0,0,st.pages.length-1); st.t0=now(); }
 // 放寬到 360：「我看完了，考我！」加注音本來就長，寧可按鈕大一點也不要把字縮小
 function storyBtn(){ const w=Math.min(360,W*0.78), h=Math.min(58,H*0.09); return {x:W/2-w/2, y:H*0.875-h/2, w, h}; }
-function storySkip(){ const w=Math.min(96,W*0.2), h=34; return {x:W-w-12, y:12, w, h}; }
 function storyCard(){ const w=Math.min(W*0.9,900), h=Math.min(H*0.21,158); return {x:W/2-w/2, y:H*0.60, w, h}; }
 // 開場劇情全部看完（並考完）之後 → 教學／關卡
 function afterStory(){ goPhase(S.waveMax>0?'swim':'tut', S.waveMax>0?Math.min(S.waveMax,N_WAVE-1):0); }
@@ -449,7 +448,8 @@ function storyNext(){
   if(st.set==='inter'){ Sfx.tick(); goPhase('quiz',{set:'inter',i:st.step}); return; }
   if(S.quizOK){ if(st.step>=st.pages.length-1){ Sfx.win(); afterStory(); } else { Sfx.tick(); st.step++; st.t0=now(); } }
   else { Sfx.tick(); goPhase('quiz', st.step); } }
-const ST_STORY={ update(evs){ for(const e of evs){ if(e.t==='down'){ if(st.set!=='inter'&&S.quizOK&&inBtn(e,storySkip())){ Sfx.tick(); afterStory(); return; } if(inBtn(e,storyBtn())) storyNext(); } } },
+// 沒有跳過：劇情與檢核一定要一段一段看完、答對
+const ST_STORY={ update(evs){ for(const e of evs){ if(e.t==='down'&&inBtn(e,storyBtn())) storyNext(); } },
   draw(){ const s=st.pages[st.step], cx=W/2; if(!s) return;
     // 整幅劇情圖鋪滿；沒載到才退回海底底圖
     seaBg(); if(!drawCover(s.art,1)) drawCover('seabed',0.5);
@@ -465,8 +465,7 @@ const ST_STORY={ update(evs){ for(const e of evs){ if(e.t==='down'){ if(st.set!=
     btnLabel(inter?P('我看完了，考我！','ㄨㄛˇ ㄎㄢˋ ㄨㄢˊ ㄌㄜ˙ ㄎㄠˇ ㄨㄛˇ')
       :(S.quizOK?(st.step>=n-1?P('出發！','ㄔㄨ ㄈㄚ'):P('下一頁','ㄒㄧㄚˋ ㄧˊ ㄧㄝˋ')):P('我看完了，考我！','ㄨㄛˇ ㄎㄢˋ ㄨㄢˊ ㄌㄜ˙ ㄎㄠˇ ㄨㄛˇ')),
       b, Math.min(22,W*0.045), '#eafaff');
-    // 「跳過」只給已經全部答對過的玩家；第一次玩一定要一段一段看＋答對；幕間一律要看
-    if(!inter&&S.quizOK){ const j=storySkip(); ctx.save(); rr(j.x,j.y,j.w,j.h,j.h/2); ctx.fillStyle='rgba(4,18,32,.7)'; ctx.fill(); ctx.strokeStyle='#5a7893'; ctx.lineWidth=1; ctx.stroke(); ctx.restore(); btnLabel(P('跳過','ㄊㄧㄠˋ ㄍㄨㄛˋ'), j, 12, '#9fc4e0'); } } };
+  } };
 /* 每段劇情後的檢核：泡泡理解題（同 W02）——三顆漂浮泡泡，點錯 → 鎖 2+N 秒、重新洗牌換位置 */
 function initQuiz(a){ const o=pageArg(a); st.set=o.set||'main'; st.pages=pageSet(st.set);
   st.si=clamp(o.i||0,0,st.pages.length-1); st.done=0; makeQBubbles(); }
@@ -536,7 +535,6 @@ const ST_QUIZ={ update(evs){
 /* ================= 兩手齊發 QTE 引擎（節奏拍以 W02 的打法為基礎） ================= */
 function mwh(){ return Math.min(W,H); }
 function inBtn(e,r){ return e.x>=r.x&&e.x<=r.x+r.w&&e.y>=r.y&&e.y<=r.y+r.h; }
-function skipBtn(){ const w=Math.min(96,W*0.2), h=34; return {x:W-w-12, y:12, w, h}; }
 function startWaveBtn(){ const w=Math.min(280,W*0.55), h=Math.min(66,H*0.1); return {x:W/2-w/2, y:H*0.83, w, h}; }
 
 /* ---------- 章魚 ---------- */
@@ -655,7 +653,6 @@ function tutPass(){ Sfx.win(); st.flash={col:'#ffe27a',until:now()+340};
 function tutBanner(){ const w=Math.min(W*0.94,980), h=Math.min(H*0.235,190), y=H*0.015; return {x:W/2-w/2, y, w, h}; }
 const ST_TUT={ update(evs){
     if(st.tdone){ if(now()>=st.tdone) goPhase('wave',0); return; }
-    for(const e of evs){ if(e.t==='down'&&inBtn(e,skipBtn())){ Sfx.tick(); goPhase('wave',0); return; } }
     if(!st.beat){ if(now()>=st.nextAt) spawnBeat(); return; }
     if(beatP()>1+LATE){ beatMiss(); return; }
     for(const e of evs){ const a=mouseActOf(e); if(a) judgeBeat(a); if(!st.beat) return; } },
@@ -668,8 +665,6 @@ const ST_TUT={ update(evs){
     drawMoveCard(T.mv, bn.y+bn.h+Math.min(16,H*0.022));
     const dotY=bn.y+bn.h+Math.min(16,H*0.022)+moveCardH()+Math.min(20,H*0.026);
     for(let i=0;i<TUT.length;i++){ ctx.fillStyle=i<st.ti?'#7cffb0':i===st.ti?'#ffce47':'#3a5872'; ctx.beginPath(); ctx.arc(W/2-(TUT.length-1)*14+i*28, dotY, 6,0,7); ctx.fill(); }
-    const j=skipBtn(); ctx.save(); rr(j.x,j.y,j.w,j.h,j.h/2); ctx.fillStyle='rgba(4,18,32,.7)'; ctx.fill(); ctx.strokeStyle='#5a7893'; ctx.lineWidth=1; ctx.stroke(); ctx.restore();
-    btnLabel(P('跳過','ㄊㄧㄠˋ ㄍㄨㄛˋ'), j, 12, '#9fc4e0');
     if(TOUCH) drawKeypad();
     if(st.tdone){ ctx.save(); ctx.fillStyle='rgba(3,17,31,.45)'; ctx.fillRect(0,0,W,H); ctx.restore();
       drawRuby(P('學會了！先鋒來了！','ㄒㄩㄝˊ ㄏㄨㄟˋ ㄌㄜ˙ ㄒㄧㄢ ㄈㄥ ㄌㄞˊ ㄌㄜ˙'), W/2, H*0.44, Math.min(34,W*0.07), '#7cffb0'); } } };
