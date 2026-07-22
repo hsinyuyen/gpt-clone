@@ -8,7 +8,7 @@
   S3-W01 工具地圖探索｜Lab Terminal 互動課程
   Spec: C:\Users\COSH\Desktop\CodingClass\ai-coding-curriculum\wiki\labterminal-specs\S3\S3-W01-課程規格-G1-G2.md
   Binding: public/games/s3-w01-tool-map.html
-  Last aligned: 2026-07-20
+  Last aligned: 2026-07-21
 -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -45,20 +45,20 @@
   button{touch-action:manipulation}
   #app{position:fixed;inset:0;display:flex;flex-direction:column}
   #hud{
-    min-height:70px;
+    min-height:62px;
     display:flex;
     align-items:center;
     gap:12px;
-    padding:10px 16px;
+    padding:8px 14px;
     background:rgba(255,255,255,.86);
     border-bottom:1px solid var(--line);
     backdrop-filter:blur(14px);
     z-index:20;
   }
-  .brand{display:flex;align-items:center;gap:10px;min-width:220px}
+  .brand{display:flex;align-items:center;gap:10px;min-width:210px}
   .brand h1{margin:0;font-size:18px;line-height:1.12;font-weight:950;letter-spacing:0}
   .brand small{display:block;margin-top:2px;color:var(--muted);font-size:12px;font-weight:850}
-  .labo-mini{width:46px;height:46px;position:relative;flex:0 0 auto}
+  .labo-mini{width:46px;height:46px;position:relative;flex:0 0 auto;background:url("assets/s3-w01/agong.png") center/cover no-repeat;border:2px solid #101828;border-radius:12px;box-shadow:0 4px 0 rgba(16,24,40,.12)}
   .labo-mini:before{
     content:"";position:absolute;left:6px;right:6px;top:10px;bottom:4px;border:3px solid #101828;border-radius:13px;
     background:linear-gradient(180deg,#fff,#d7e6ff);box-shadow:0 6px 0 rgba(16,24,40,.12);
@@ -67,6 +67,7 @@
   .face{position:absolute;left:13px;right:13px;top:19px;height:13px;border:2px solid #101828;border-radius:8px;background:#7c3aed}
   .face i{position:absolute;top:3px;width:4px;height:4px;border-radius:50%;background:#fff}
   .face i:first-child{left:4px}.face i:last-child{right:4px}
+  .labo-mini:before,.labo-mini:after,.labo-mini .face{display:none}
   .progress{flex:1;min-width:160px}
   .progress-top{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px;color:var(--muted);font-size:12px;font-weight:950}
   .bar{height:12px;border:1px solid var(--line);border-radius:999px;background:#e5ebf5;overflow:hidden}
@@ -77,18 +78,30 @@
   .hud-btn{height:42px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);font-weight:950;cursor:pointer;box-shadow:0 3px 0 rgba(16,24,40,.07)}
   .hud-btn.square{width:42px;padding:0}
   #stage{position:relative;flex:1;overflow:auto}
-  .screen{min-height:100%;max-width:1180px;margin:0 auto;padding:24px 18px 46px;display:flex;flex-direction:column;gap:16px}
-  .screen-head{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:end}
+  .screen{min-height:100%;max-width:1320px;margin:0 auto;padding:10px 14px 14px;display:flex;flex-direction:column;gap:8px;animation:screenIn .28s ease both}
+  .screen.no-enter{animation:none}
+  @keyframes screenIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  .screen-head{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:end}
   .eyebrow{margin:0 0 5px;color:var(--muted);font-size:13px;font-weight:950}
-  h2{margin:0;color:#101828;font-size:clamp(26px,4.5vw,43px);line-height:1.1;font-weight:950;letter-spacing:0}
-  h3{margin:0;color:#101828;font-size:21px;line-height:1.2;font-weight:950}
-  .lead{max-width:680px;margin:8px 0 0;color:#344054;font-size:clamp(16px,2.2vw,19px);font-weight:850;line-height:1.55}
+  h2{margin:0;color:#101828;font-size:clamp(24px,3vw,32px);line-height:1.05;font-weight:950;letter-spacing:0}
+  h3{margin:0;color:#101828;font-size:19px;line-height:1.16;font-weight:950}
+  .lead{max-width:620px;margin:5px 0 0;color:#344054;font-size:clamp(15px,1.8vw,17px);font-weight:850;line-height:1.35}
+  .guide-card{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center;min-width:250px;border:2px solid #101828;border-radius:8px;background:#fff;padding:6px 8px;box-shadow:0 4px 0 rgba(16,24,40,.12)}
+  .guide-avatar{width:42px;height:42px;position:relative;border:3px solid #101828;border-radius:13px;background:#fff url("assets/s3-w01/agong.png") center/cover no-repeat}
+  .guide-avatar:before{content:"";position:absolute;left:13px;right:13px;top:-11px;height:13px;border:3px solid #101828;border-radius:10px;background:#14b8a6}
+  .guide-avatar:after{content:"";position:absolute;left:10px;right:10px;top:16px;height:12px;border:2px solid #101828;border-radius:8px;background:#7c3aed;box-shadow:6px 4px 0 -4px #fff,-6px 4px 0 -4px #fff}
+  .guide-avatar:before,.guide-avatar:after{display:none}
+  .guide-card b{display:block;font-size:14px}.guide-steps{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
+  .guide-step{display:inline-grid;place-items:center;min-width:42px;height:24px;border:1px solid var(--line);border-radius:999px;background:#f8fafc;color:#344054;font-size:12px;font-weight:950}
+  .mission-banner{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;border:3px solid #101828;border-radius:14px;background:#fff4cc;color:#3b2900;padding:12px 16px;font-size:clamp(20px,2.4vw,30px);font-weight:950;box-shadow:0 10px 0 rgba(16,24,40,.14);animation:missionPulse 1.6s ease-in-out infinite}
+  .mission-banner i{width:46px;height:46px;border:3px solid #101828;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#f7c948);display:grid;place-items:center;font-style:normal}
+  @keyframes missionPulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px);box-shadow:0 14px 0 rgba(16,24,40,.12)}}
   .keyline{display:inline-flex;align-items:center;padding:8px 12px;border:1px solid #c7d7fe;border-radius:12px;background:#eef4ff;color:#1d3b8f;font-weight:950}
   .panel{background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
-  .pad{padding:16px}
-  .grid{display:grid;gap:14px}.cols-2{grid-template-columns:1.02fr .98fr}.cols-3{grid-template-columns:repeat(3,1fr)}.cols-4{grid-template-columns:repeat(4,1fr)}
+  .pad{padding:12px}
+  .grid{display:grid;gap:10px}.cols-2{grid-template-columns:1.02fr .98fr}.cols-3{grid-template-columns:repeat(3,1fr)}.cols-4{grid-template-columns:repeat(4,1fr)}
   .btn{
-    border:0;border-radius:12px;padding:13px 18px;min-height:50px;background:#101828;color:#fff;font-weight:950;cursor:pointer;
+    border:0;border-radius:12px;padding:10px 15px;min-height:44px;background:#101828;color:#fff;font-weight:950;cursor:pointer;
     box-shadow:0 6px 0 rgba(16,24,40,.35);position:relative;overflow:hidden;
   }
   .btn.primary{background:linear-gradient(180deg,#7c3aed,#5b21b6)}
@@ -107,11 +120,11 @@
   .tool-ico.image:before{left:9px;right:9px;bottom:9px;height:20px;clip-path:polygon(0 100%,36% 34%,58% 72%,74% 47%,100% 100%);border:0}.tool-ico.image:after{right:9px;top:8px;width:11px;height:11px;border-radius:50%;border:0}
   .tool-ico.video:before{left:10px;top:14px;width:23px;height:21px;border-radius:5px}.tool-ico.video:after{right:8px;top:18px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-left:15px solid #101828;background:transparent}
   .tool-ico.music:before{left:16px;top:8px;width:8px;height:30px;border-radius:6px}.tool-ico.music:after{left:8px;bottom:8px;width:19px;height:19px;border-radius:50%}
-  .tool-card{display:flex;align-items:center;gap:12px;padding:13px;border:2px solid var(--c);border-radius:8px;background:#fff}
-  .tool-card b{display:block;font-size:18px}.tool-card small{display:block;color:var(--muted);font-weight:900;line-height:1.35}
+  .tool-card{display:flex;align-items:center;gap:10px;padding:10px;border:2px solid var(--c);border-radius:8px;background:#fff}
+  .tool-card b{display:block;font-size:17px}.tool-card small{display:block;color:var(--muted);font-weight:900;line-height:1.25}
   .map{
-    min-height:420px;border-radius:8px;overflow:hidden;border:1px solid var(--line);
-    background:linear-gradient(180deg,#fff,#f4f7fc);padding:14px;display:grid;grid-template-rows:auto 1fr;gap:14px;
+    min-height:300px;border-radius:8px;overflow:hidden;border:1px solid var(--line);
+    background:linear-gradient(180deg,#fff,#f4f7fc);padding:10px;display:grid;grid-template-rows:auto 1fr;gap:10px;
   }
   .map .center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:172px;height:118px;border:2px dashed #98a2b3;border-radius:8px;background:#fff;display:grid;place-items:center;text-align:center;z-index:2;font-weight:950}
   .map-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;position:relative;z-index:5}
@@ -120,7 +133,7 @@
   .map-tool-chip.current{background:color-mix(in srgb,var(--c) 10%,#fff);box-shadow:0 0 0 5px color-mix(in srgb,var(--c) 16%,transparent),0 7px 0 rgba(16,24,40,.12)}
   .map-tool-chip .tool-ico{width:42px;height:42px;border-radius:12px}
   .map-tool-chip b{display:block;color:#101828;font-size:16px}.map-tool-chip small{display:block;color:#475467;font-weight:950;line-height:1.3}
-  .task-pile-stage{position:relative;min-height:282px;border:2px dashed #98a2b3;border-radius:8px;background:linear-gradient(135deg,#f8fafc,#fff);overflow:hidden}
+  .task-pile-stage{position:relative;min-height:158px;border:2px dashed #98a2b3;border-radius:8px;background:linear-gradient(135deg,#f8fafc,#fff);overflow:hidden}
   .task-pile-title{position:absolute;left:18px;top:16px;z-index:4;border:3px solid #101828;border-radius:8px;background:#fff;padding:10px 13px;box-shadow:0 6px 0 rgba(16,24,40,.14);font-weight:950}
   .task-pile-title b{display:block;font-size:18px}.task-pile-title small{display:block;color:#475467;margin-top:2px}
   .station{position:absolute;width:185px;min-height:116px;border:3px solid var(--c);border-radius:8px;background:#fff;display:flex;align-items:center;gap:10px;padding:12px;z-index:3;transition:.25s ease;box-shadow:0 12px 24px rgba(16,24,40,.12)}
@@ -132,25 +145,130 @@
   .task-card-float:after{content:"";position:absolute;left:12px;right:18px;bottom:12px;height:9px;border-top:2px solid #c7d0dd;border-bottom:2px solid #c7d0dd}
   .task-card-float b,.task-card-float small{position:relative;z-index:1}.task-card-float b{margin-top:12px;font-size:16px}.task-card-float small{color:#475467}
   @keyframes float{0%,100%{margin-top:0}50%{margin-top:-9px}}
-  .intro-layout{display:grid;grid-template-columns:.92fr 1.08fr;gap:16px;align-items:start}
-  .labo-panel{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:center}
-  .labo-big{width:146px;height:146px;position:relative;margin:auto;filter:drop-shadow(0 20px 20px rgba(16,24,40,.18))}
-  .labo-big:before{content:"";position:absolute;left:13px;right:13px;top:30px;bottom:10px;border:5px solid #101828;border-radius:30px;background:linear-gradient(180deg,#fff,#dce8ff)}
-  .labo-big:after{content:"";position:absolute;left:58px;right:58px;top:5px;height:30px;border:5px solid #101828;border-radius:20px;background:#14b8a6}
-  .labo-eye{position:absolute;left:42px;right:42px;top:64px;height:38px;border:4px solid #101828;border-radius:18px;background:#7c3aed}
-  .labo-eye:before,.labo-eye:after{content:"";position:absolute;top:12px;width:10px;height:10px;border-radius:50%;background:#fff}.labo-eye:before{left:15px}.labo-eye:after{right:15px}
-  .speech{padding:14px;border-radius:8px;border:1px solid var(--line);background:#fff;font-weight:900;color:#344054;line-height:1.55}
+  .map-cinematic{min-height:calc(100vh - 94px);display:grid;place-items:center;position:relative;overflow:hidden}
+  .story-screen,.tool-mission-screen{height:calc(100vh - 94px);min-height:0;overflow:hidden}
+  .story-comic{height:100%;display:grid;grid-template-rows:minmax(0,1fr) auto;gap:10px}
+  .story-frame{position:relative;min-height:0;border:6px solid #101828;border-radius:18px;background:#101828;overflow:hidden;box-shadow:0 22px 48px rgba(16,24,40,.2)}
+  .story-frame img{width:100%;height:100%;object-fit:cover;display:block;animation:comicDrift 7s ease-in-out infinite alternate}
+  .story-frame:after{content:"";position:absolute;inset:0;border:8px solid rgba(255,255,255,.72);clip-path:polygon(0 0,13% 0,8% 6%,100% 6%,100% 100%,88% 100%,92% 94%,0 94%);pointer-events:none}
+  .story-caption{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"speaker count action" "text text text";gap:8px 12px;align-items:center;border:4px solid #101828;border-radius:16px;background:#fff;padding:12px 14px;box-shadow:0 8px 0 rgba(16,24,40,.14)}
+  .story-speaker{display:inline-flex;align-items:center;justify-content:center;min-width:118px;border:3px solid #101828;border-radius:999px;background:#fff4cc;color:#3b2900;padding:8px 12px;font-weight:950}
+  .story-speaker{grid-area:speaker}.story-text{grid-area:text}.story-count{grid-area:count}.story-caption .btn{grid-area:action}
+  .story-text{min-height:62px;display:flex;align-items:center;font-size:clamp(18px,2.15vw,26px);line-height:1.35;font-weight:950;color:#101828}
+  .story-count{color:#475467;font-size:13px;font-weight:950;text-align:center}
+  @keyframes comicDrift{from{transform:scale(1.015) translateY(0)}to{transform:scale(1.06) translateY(-10px)}}
+  .map-open-card{width:min(780px,88vw);display:grid;grid-template-columns:.85fr 1fr;gap:18px;align-items:center}
+  .map-fold{height:min(360px,55vh);border:6px solid #101828;border-radius:14px;background:#fff8dd;position:relative;overflow:hidden;box-shadow:0 22px 50px rgba(16,24,40,.18);perspective:900px}
+  .map-fold img{width:100%;height:100%;object-fit:contain;display:block;padding:18px;box-sizing:border-box;animation:mapReveal 1.25s cubic-bezier(.22,.8,.26,1) both}
+  .map-fold:before,.map-fold:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#f7df9a,#fff7cf 48%,#e5c46f);z-index:2;transform-origin:left center;animation:mapCover 1.25s cubic-bezier(.22,.8,.26,1) both}
+  .map-fold:after{transform-origin:right center}
+  @keyframes mapCover{0%{transform:scaleX(.5);opacity:1}70%{opacity:1}100%{transform:scaleX(0);opacity:0}}
+  @keyframes mapReveal{0%{transform:scale(.94);filter:saturate(.7)}100%{transform:scale(1);filter:saturate(1.05)}}
+  .agong-card{display:grid;justify-items:center;gap:12px;text-align:center}
+  .agong-card img{width:min(260px,62vw);border:5px solid #101828;border-radius:18px;background:#fff;box-shadow:0 12px 0 rgba(16,24,40,.12)}
+  .agong-line{min-height:70px;display:grid;place-items:center;border:3px solid #101828;border-radius:14px;background:#fff;padding:14px 18px;font-size:clamp(22px,3vw,34px);font-weight:950;box-shadow:0 8px 0 rgba(16,24,40,.12)}
+  .map-explorer{height:min(570px,calc(100vh - 300px));min-height:500px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr);gap:14px;align-items:stretch}
+  .screen-map-only{max-width:1040px;justify-content:center}
+  .map-only{width:min(960px,100%);height:min(560px,calc(100vh - 170px));min-height:440px;display:grid;grid-template-columns:1fr;gap:0;align-items:stretch;margin:0 auto}
+  .adventure-map{position:relative;border:6px solid #101828;border-radius:16px;overflow:hidden;background:linear-gradient(135deg,#fff7d6,#e8f7ff);box-shadow:0 18px 40px rgba(16,24,40,.16)}
+  .adventure-map>img{width:100%;height:100%;object-fit:contain;display:block;padding:26px;box-sizing:border-box}
+  .tool-pin{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);width:92px;height:92px;border:4px solid #101828;border-radius:22px;background:#fff;display:grid;place-items:center;box-shadow:0 10px 0 rgba(16,24,40,.18);cursor:pointer;animation:pinPop .42s ease both;transition:transform .18s ease,box-shadow .18s ease,filter .18s ease}
+  .tool-pin img{width:78px;height:78px;object-fit:cover;border-radius:16px}
+  .tool-pin.done{border-color:var(--good);background:#ecfdf3}
+  .tool-pin.dim{border-color:#98a2b3;background:#f2f4f7}
+  .tool-pin.locked{pointer-events:none}
+  .tool-pin.dim img{filter:grayscale(1) saturate(.15);opacity:.55}
+  .tool-pin.active{box-shadow:0 0 0 8px color-mix(in srgb,var(--c) 20%,transparent),0 12px 0 rgba(16,24,40,.2);transform:translate(-50%,-54%)}
+  .tool-pin.active:hover{box-shadow:0 0 0 14px color-mix(in srgb,var(--c) 30%,transparent),0 0 46px color-mix(in srgb,var(--c) 56%,transparent),0 16px 0 rgba(16,24,40,.22);transform:translate(-50%,-58%) scale(1.08);filter:saturate(1.18)}
+  .map-start{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:8;min-width:220px}
+  @keyframes pinPop{from{opacity:0;transform:translate(-50%,-40%) scale(.72)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+  .map-side{display:grid;grid-template-rows:auto 1fr auto;gap:10px}
+  .tool-count{display:flex;gap:8px;flex-wrap:wrap}
+  .tool-dot{width:42px;height:42px;border:3px solid var(--c);border-radius:12px;background:#fff;display:grid;place-items:center;font-weight:950;color:var(--c)}
+  .tool-dot.done{background:var(--c);color:#fff}
+  .missing-tools{display:grid;gap:8px;border:2px dashed #98a2b3;border-radius:12px;background:#f8fafc;padding:12px}
+  .missing-tools b{font-size:18px;color:#101828}
+  .missing-list{display:flex;gap:8px;flex-wrap:wrap}
+  .missing-chip{border:2px solid var(--c);border-radius:999px;background:#fff;color:color-mix(in srgb,var(--c) 72%,#101828);padding:7px 10px;font-weight:950}
+  .intro-focus{display:grid;grid-template-rows:auto 1fr auto;gap:12px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:14px;box-shadow:var(--shadow)}
+  .tool-lesson{max-width:900px;width:100%;margin:0 auto;display:grid;gap:12px}
+  .tool-mission{height:100%;min-height:0;display:grid;grid-template-columns:minmax(260px,.86fr) minmax(430px,1.14fr);gap:12px;align-items:stretch}
+  .tool-story-card,.tool-work-card{min-height:0;border:3px solid #101828;border-radius:16px;background:#fff;box-shadow:0 10px 0 rgba(16,24,40,.12);overflow:hidden}
+  .tool-story-card{display:grid;grid-template-rows:minmax(0,1fr) auto}
+  .tool-story-card img{width:100%;height:100%;min-height:0;object-fit:cover;display:block}
+  .tool-story-copy{display:grid;gap:8px;padding:12px;border-top:3px solid #101828;background:color-mix(in srgb,var(--c) 9%,#fff)}
+  .tool-story-copy h3{font-size:clamp(22px,2.6vw,34px)}
+  .tool-story-copy p{margin:0;color:#344054;font-size:clamp(16px,1.7vw,20px);font-weight:900;line-height:1.3}
+  .tool-work-card{display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:10px;padding:14px;overflow:auto}
+  .tool-work-title{display:flex;align-items:center;gap:10px}
+  .tool-work-title img{width:62px;height:62px;border:3px solid #101828;border-radius:14px;object-fit:cover;background:#fff}
+  .tool-work-title .lead{max-width:none;font-size:15px;line-height:1.3;margin:2px 0 0}
+  .intro-page-card{align-content:center;justify-items:center;overflow:hidden}
+  .intro-page-card .intro-sentence,.intro-page-card .intro-actions{width:min(100%,760px)}
+  .intro-page-card .tool-card{width:100%;max-width:460px}
+  .tool-work-card .mini-try,.tool-work-card .trial-box,.tool-work-card .grid{gap:8px}
+  .tool-work-card .generated-preview{min-height:150px}
+  .tool-work-card .task-source-card{padding:10px}
+  .tool-work-card .sentence-board{gap:6px}
+  .tool-work-card .sentence-slots{gap:6px}
+  .tool-work-card .sentence-slot{min-height:54px}
+  .tool-work-card .prompt-preview{min-height:36px;padding:6px 8px}
+  .tool-work-card .preview{min-height:92px;padding:8px}
+  .agong-lesson{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:center}
+  .agong-lesson img{width:120px;height:120px;border:4px solid #101828;border-radius:18px;object-fit:cover;background:#fff;box-shadow:0 8px 0 rgba(16,24,40,.12)}
+  .intro-focus-media{display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:center}
+  .intro-focus-media img{width:100%;aspect-ratio:1;border:4px solid #101828;border-radius:18px;object-fit:cover;background:#fff;box-shadow:0 8px 0 rgba(16,24,40,.1)}
+  .intro-sentence{min-height:130px;display:flex;align-items:center;justify-content:center;align-content:center;flex-wrap:wrap;gap:8px 10px;text-align:center;border:3px solid var(--c);border-radius:14px;background:color-mix(in srgb,var(--c) 9%,#fff);padding:18px;font-size:clamp(24px,3vw,38px);font-weight:950;line-height:1.18;color:#101828}
+  .complete-scene{position:relative;min-height:390px;border-radius:16px;overflow:hidden;background:#101828;box-shadow:0 12px 0 rgba(16,24,40,.14)}
+  .complete-scene img{width:100%;height:100%;min-height:390px;object-fit:cover;display:block}
+  .complete-scene:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(16,24,40,0) 42%,rgba(16,24,40,.58) 100%);pointer-events:none}
+  .complete-speech{position:absolute;left:28px;right:28px;bottom:24px;z-index:2;min-height:0;border:0;background:transparent;box-shadow:none;padding:0;text-align:left;display:block;color:#fff;font-size:clamp(25px,3vw,42px);line-height:1.28;font-weight:950;text-shadow:0 0 10px color-mix(in srgb,var(--c) 70%,#fff),0 0 24px color-mix(in srgb,var(--c) 78%,transparent),0 4px 12px rgba(0,0,0,.72);animation:glowFloat 2.5s ease-in-out infinite}
+  @keyframes glowFloat{0%,100%{transform:translateY(0);filter:drop-shadow(0 0 6px color-mix(in srgb,var(--c) 50%,transparent))}50%{transform:translateY(-5px);filter:drop-shadow(0 0 15px color-mix(in srgb,var(--c) 72%,transparent))}}
+  .demo-board{display:grid;gap:12px;align-content:start}
+  .demo-board .intro-sentence{min-height:104px;font-size:clamp(20px,2.35vw,30px)}
+  .prompt-card,.generated-card,.output-card{border:3px solid var(--c);border-radius:14px;background:color-mix(in srgb,var(--c) 8%,#fff);padding:14px;box-shadow:0 8px 0 rgba(16,24,40,.1)}
+  .demo-board .prompt-card,.demo-board .generated-card,.demo-board .output-card{padding:10px}
+  .prompt-card h3,.generated-card h3,.output-card h3{margin-bottom:8px}
+  .prompt-line{font-size:clamp(22px,2.6vw,34px);line-height:1.3;font-weight:950;color:#101828}
+  .kw{display:inline-block;margin:0 3px;padding:0;border:0;border-radius:0;background:transparent;font-weight:1000;line-height:1.12;text-shadow:0 0 8px color-mix(in srgb,currentColor 52%,transparent),0 2px 8px rgba(16,24,40,.24)}
+  .kw-goal{color:#7c3aed}.kw-use{color:#14b8a6}.kw-detail{color:#2563eb}.kw-output{color:#f59e0b}
+  .kw-text{color:var(--text)}.kw-image{color:var(--image)}.kw-video{color:var(--video)}.kw-music{color:var(--music)}
+  .generated-preview{min-height:250px;border:3px solid #101828;border-radius:12px;background:#fff;display:grid;place-items:center;gap:10px;padding:14px;text-align:center;font-weight:950;overflow:hidden}
+  .demo-board .generated-preview{min-height:190px;padding:10px}
+  .generated-preview img{max-width:210px;width:55%;border:4px solid #101828;border-radius:18px;box-shadow:0 8px 0 rgba(16,24,40,.12)}
+  .demo-board .generated-preview img{max-width:160px}
+  .generated-preview .text-result{max-width:520px}
+  .video-demo{width:min(440px,100%);height:180px;border:4px solid #101828;border-radius:14px;background:linear-gradient(135deg,#dbeafe,#eef2ff);position:relative;overflow:hidden}
+  .video-demo:before{content:"";position:absolute;left:50%;bottom:34px;width:118px;height:72px;transform:translateX(-50%);border:4px solid #101828;border-radius:36px 36px 10px 10px;background:#2563eb;box-shadow:0 0 0 0 #f7c948;animation:videoGlow 1.1s ease-in-out infinite}
+  .video-demo:after{content:"";position:absolute;left:50%;top:28px;width:54px;height:54px;transform:translateX(-50%) rotate(45deg);border:3px solid #101828;background:#f7c948;animation:videoSpark 1.1s ease-in-out infinite}
+  @keyframes videoGlow{50%{box-shadow:0 0 42px 18px #f7c948}}
+  @keyframes videoSpark{50%{transform:translateX(-50%) rotate(45deg) scale(1.18)}}
+  .music-demo{width:min(480px,100%);height:150px;border:4px solid #101828;border-radius:14px;background:#fff7d6;display:flex;gap:9px;align-items:center;justify-content:center;padding:18px}
+  .music-demo i{width:12px;height:44px;border-radius:999px;background:#f59e0b;animation:wave 1s ease-in-out infinite}.music-demo i:nth-child(2n){animation-delay:.15s}.music-demo i:nth-child(3n){animation-delay:.3s}
+  @keyframes wave{50%{height:104px;background:#14b8a6}}
+  .output-badge{min-height:210px;display:grid;place-items:center;text-align:center;border:4px solid #101828;border-radius:18px;background:#fff;font-size:clamp(30px,5vw,58px);font-weight:950;box-shadow:0 12px 0 rgba(16,24,40,.12)}
+  .intro-actions{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+  .intro-actions small{font-size:14px;color:var(--muted);font-weight:950}
+  .intro-layout{display:grid;grid-template-columns:.82fr 1.18fr;gap:12px;align-items:start}
+  .labo-panel{display:grid;grid-template-columns:76px 1fr;gap:10px;align-items:center}
+  .labo-big{width:74px;height:74px;position:relative;margin:auto;filter:drop-shadow(0 10px 10px rgba(16,24,40,.15));background:url("assets/s3-w01/agong.png") center/cover no-repeat;border-radius:18px}
+  .labo-big:before{content:"";position:absolute;left:8px;right:8px;top:20px;bottom:5px;border:4px solid #101828;border-radius:18px;background:linear-gradient(180deg,#fff,#dce8ff)}
+  .labo-big:after{content:"";position:absolute;left:29px;right:29px;top:2px;height:18px;border:4px solid #101828;border-radius:16px;background:#14b8a6}
+  .labo-eye{position:absolute;left:18px;right:18px;top:35px;height:16px;border:3px solid #101828;border-radius:12px;background:#7c3aed}
+  .labo-eye:before,.labo-eye:after{content:"";position:absolute;top:4px;width:5px;height:5px;border-radius:50%;background:#fff}.labo-eye:before{left:10px}.labo-eye:after{right:10px}
+  .labo-big:before,.labo-big:after,.labo-big .labo-eye{display:none}
+  .speech{padding:10px;border-radius:8px;border:1px solid var(--line);background:#fff;font-weight:900;color:#344054;line-height:1.35}
   .intro-steps{display:flex;gap:8px;flex-wrap:wrap}
   .step-pill{padding:7px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--muted);font-size:12px;font-weight:950}
   .step-pill.done{border-color:var(--good);background:#ecfdf3;color:#075e2b}.step-pill.active{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,#fff);color:color-mix(in srgb,var(--c) 76%,#101828)}
-  .mini-try{display:grid;gap:12px}
+  .mini-try{display:grid;gap:8px}
   .slot-row{display:grid;grid-template-columns:150px 1fr;gap:10px;align-items:start}
   .slot-label{font-weight:950;color:#344054;padding-top:9px}
   .chip-row{display:flex;gap:8px;flex-wrap:wrap}
   .chip{border:2px solid var(--line);border-radius:999px;background:#fff;padding:8px 11px;font-weight:950;cursor:pointer;color:#344054}
   .chip.active{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,#fff);color:color-mix(in srgb,var(--c) 78%,#101828)}
   .chip.wrong{border-color:#fda29b;background:#fff1f0;color:#7a271a;text-decoration:line-through}
-  .sentence-board{display:grid;gap:12px}
+  .sentence-board{display:grid;gap:8px}
   .phrase-bank{display:flex;gap:8px;flex-wrap:wrap;padding:12px;border:1px solid var(--line);border-radius:8px;background:#f8fafc}
   .phrase-bank.inside-task{border:0;background:transparent;padding:0;margin-top:10px}
   .phrase-card{border:2px solid var(--line);border-radius:999px;background:#fff;color:#344054;padding:9px 12px;font-weight:950;cursor:grab;box-shadow:0 3px 0 rgba(16,24,40,.08)}
@@ -158,9 +276,11 @@
   .phrase-card.selected{outline:4px solid var(--gold)}
   .phrase-card.used{opacity:.42;cursor:not-allowed}
   .phrase-card.wrong{border-color:#fda29b;background:#fff1f0;color:#7a271a;text-decoration:line-through;cursor:not-allowed}
-  .phrase-card.inline-token{display:inline-flex;margin:0 4px 4px;padding:5px 8px;vertical-align:baseline;line-height:1.2;border-color:var(--c);background:color-mix(in srgb,var(--c) 10%,#fff)}
-  .sentence-slots{display:grid;gap:10px}
-  .sentence-slot{min-height:76px;border:2px dashed var(--c);border-radius:8px;background:color-mix(in srgb,var(--c) 8%,#fff);padding:10px 12px;display:grid;gap:7px;align-content:center}
+  .phrase-card.inline-token{display:inline-flex;margin:0 4px 4px;padding:5px 8px;vertical-align:baseline;line-height:1.2;border-color:var(--c);background:color-mix(in srgb,var(--c) 10%,#fff);animation:tokenGlow 1.8s ease-in-out infinite}
+  .inline-token-preview{display:inline-flex;margin:0 4px 4px;padding:5px 8px;border:2px solid #98a2b3;border-radius:999px;background:#fff;color:#344054;line-height:1.2}
+  @keyframes tokenGlow{0%,100%{box-shadow:0 3px 0 rgba(16,24,40,.08)}50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--c) 16%,transparent),0 4px 0 rgba(16,24,40,.12)}}
+  .sentence-slots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .sentence-slot{min-height:60px;border:2px dashed var(--c);border-radius:8px;background:color-mix(in srgb,var(--c) 8%,#fff);padding:8px 10px;display:grid;gap:4px;align-content:center}
   .sentence-slot.over{box-shadow:0 0 0 5px color-mix(in srgb,var(--c) 18%,transparent)}
   .sentence-slot.filled{border-style:solid;background:#fff}
   .sentence-slot b{font-size:13px;color:color-mix(in srgb,var(--c) 78%,#101828)}
@@ -168,51 +288,61 @@
   .lock-note{font-size:12px;font-weight:950;color:#7a271a}
   .penalty-bar{min-height:42px;border:2px solid #fda29b;border-radius:8px;background:#fff1f0;color:#7a271a;padding:9px 12px;font-weight:950;display:flex;align-items:center;justify-content:space-between;gap:10px}
   .penalty-bar b{font-size:18px}
-  .trial-box{display:grid;gap:10px;border:1px solid var(--line);border-radius:8px;background:#f8fafc;padding:12px}
-  .tool-focus{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;border:2px solid var(--c);border-radius:8px;background:color-mix(in srgb,var(--c) 8%,#fff);padding:12px}
-  .tool-focus b{display:block;font-size:18px;color:color-mix(in srgb,var(--c) 78%,#101828)}
-  .tool-focus small{display:block;margin-top:3px;color:#344054;font-weight:950;line-height:1.35}
+  .trial-box{display:grid;gap:8px;border:1px solid var(--line);border-radius:8px;background:#f8fafc;padding:10px}
+  .trial-box>.grid{grid-template-columns:minmax(0,1.2fr) minmax(230px,.8fr);align-items:start}
+  .trial-box>.grid>.sentence-board{grid-row:1 / span 4}
+  .trial-box>.grid>.review,.trial-box>.grid>.chip-row,.trial-box>.grid>.preview{grid-column:2}
+  .trial-box .preview{min-height:96px}
+  .tool-focus{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center;border:2px solid var(--c);border-radius:8px;background:color-mix(in srgb,var(--c) 8%,#fff);padding:7px}
+  .tool-focus .tool-ico{width:42px;height:42px;border-radius:12px}
+  .tool-focus b{display:block;font-size:17px;color:color-mix(in srgb,var(--c) 78%,#101828)}
+  .tool-focus small{display:block;margin-top:2px;color:#344054;font-weight:950;line-height:1.25}
   .trial-result{min-height:88px;border:2px solid var(--c);border-radius:8px;background:#fff;padding:12px;font-weight:950;display:grid;gap:8px;align-content:center}
   .trial-result .wave{height:44px;border-radius:8px;background:repeating-linear-gradient(90deg,color-mix(in srgb,var(--c) 70%,#fff) 0 8px,transparent 8px 18px);opacity:.82}
   .trial-result .poster{height:118px;border-radius:8px;background:linear-gradient(135deg,color-mix(in srgb,var(--c) 25%,#fff),#fff);border:2px solid #101828;position:relative;overflow:hidden}
   .trial-result .poster:before{content:"";position:absolute;left:18%;right:18%;bottom:18px;height:48px;border-radius:24px 24px 10px 10px;background:var(--c);border:3px solid #101828}
   .trial-result .timeline{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}.trial-result .timeline i{height:44px;border-radius:7px;background:color-mix(in srgb,var(--c) 20%,#fff);border:2px solid var(--c)}
   .sort-table{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .sort-zone{min-height:170px;border:2px dashed var(--c);border-radius:8px;background:color-mix(in srgb,var(--c) 8%,#fff);padding:10px;display:grid;gap:8px;align-content:start}
+  .sort-zone{min-height:132px;border:2px dashed var(--c);border-radius:8px;background:color-mix(in srgb,var(--c) 8%,#fff);padding:8px;display:grid;gap:6px;align-content:start}
   .sort-zone.over{box-shadow:0 0 0 5px color-mix(in srgb,var(--c) 18%,transparent)}
   .sort-zone h4{margin:0;font-size:16px;font-weight:950;color:color-mix(in srgb,var(--c) 78%,#101828);display:flex;align-items:center;gap:8px}
   .zone-icon{width:30px;height:30px;border:3px solid currentColor;border-radius:50%;display:inline-grid;place-items:center;font-size:18px;line-height:1;background:#fff}
   .zone-icon.bad{border-radius:8px;color:var(--bad)}
   .zone-icon.good{color:var(--good)}
-  .sort-card{border:2px solid var(--line);border-radius:8px;background:#fff;padding:10px 12px;font-weight:950;cursor:grab;box-shadow:0 3px 0 rgba(16,24,40,.08)}
+  .sort-card{border:2px solid var(--line);border-radius:8px;background:#fff;padding:8px 10px;font-weight:950;cursor:grab;box-shadow:0 3px 0 rgba(16,24,40,.08)}
   .sort-card.selected{outline:4px solid var(--gold)}
   .sort-card.done{border-color:var(--good);background:#ecfdf3;color:#075e2b;cursor:default;pointer-events:none}
   .sort-card.wrong{border-color:#fda29b;background:#fff1f0;color:#7a271a;text-decoration:line-through;cursor:not-allowed}
-  .prompt-preview{min-height:56px;border:2px dashed #98a2b3;border-radius:8px;background:#f8fafc;padding:11px 12px;color:#344054;font-weight:950;user-select:none}
+  .prompt-preview{min-height:44px;border:2px dashed #98a2b3;border-radius:8px;background:#f8fafc;padding:8px 10px;color:#344054;font-weight:950;user-select:none}
   .choice-grid{display:grid;gap:10px}
-  .choice{min-height:54px;text-align:left;border:2px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);padding:12px 14px;font-weight:950;cursor:pointer}
+  .choice{min-height:46px;text-align:left;border:2px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);padding:9px 11px;font-weight:950;cursor:pointer}
   .choice.right{border-color:var(--good);background:#ecfdf3;color:#075e2b}.choice.wrong{border-color:#fda29b;background:#fff1f0;color:#7a271a;text-decoration:line-through;opacity:.8}
   .choice:disabled{cursor:not-allowed}
-  .drop-wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .task-pool,.drop-zones{display:grid;gap:10px;align-content:start}
-  .drag-card{min-height:58px;border:2px solid var(--line);border-radius:8px;background:#fff;padding:12px 14px;font-weight:950;cursor:grab;box-shadow:0 5px 0 rgba(16,24,40,.08)}
+  .drop-wrap{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .task-pool,.drop-zones{display:grid;gap:8px;align-content:start}
+  .drag-card{min-height:40px;border:2px solid var(--line);border-radius:8px;background:#fff;padding:7px 10px;font-weight:950;cursor:grab;box-shadow:0 4px 0 rgba(16,24,40,.08)}
   .drag-card.selected{outline:4px solid var(--gold)}.drag-card.done{opacity:.45;cursor:default}
-  .drop-zone{min-height:66px;border:2px dashed var(--c);border-radius:8px;background:color-mix(in srgb,var(--c) 9%,#fff);display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;font-weight:950}
+  .drop-zone{min-height:54px;border:2px dashed var(--c);border-radius:8px;background:color-mix(in srgb,var(--c) 9%,#fff);display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;font-weight:950}
   .drop-zone.multi{display:grid;align-items:start;justify-content:stretch}
   .drop-zone-head{display:flex;align-items:start;justify-content:space-between;gap:10px}
   .drop-zone-head small{display:block;color:var(--muted);font-size:12px;font-weight:900}
   .drop-chip-list{display:grid;gap:7px}
   .drop-chip{border:2px solid var(--c);border-radius:8px;background:#fff;padding:8px 10px;color:#1d2939}
   .drop-zone.filled{border-style:solid;background:#fff}.drop-zone.over{box-shadow:0 0 0 5px color-mix(in srgb,var(--c) 18%,transparent)}.drop-zone.locked{opacity:.5;text-decoration:line-through}
-  .factory{display:grid;grid-template-columns:360px 1fr;gap:16px;align-items:start}
+  .factory{display:grid;grid-template-columns:320px 1fr;gap:12px;align-items:start}
   .anatomy{display:grid;gap:12px}
   .anatomy-card{padding:13px;border:1px solid var(--line);border-left:8px solid var(--c);border-radius:8px;background:#fff;font-weight:900}
   .task-source-card{border:2px solid #101828;border-radius:8px;background:#fff;padding:13px;box-shadow:0 7px 0 rgba(16,24,40,.14)}
-  .task-source-card.floating{position:fixed;left:18px;bottom:18px;width:min(380px,calc(100vw - 36px));z-index:45;box-shadow:0 18px 44px rgba(16,24,40,.26)}
+  .task-source-card.floating{position:relative;width:min(480px,100%);margin:0 auto;z-index:4;box-shadow:0 18px 44px rgba(16,24,40,.22);animation:taskDealCenter .45s cubic-bezier(.2,.8,.2,1),taskFloatCenter 3.2s ease-in-out .45s infinite}
+  .screen.no-enter .task-source-card.floating{animation:taskFloatCenter 3.2s ease-in-out infinite}
   .task-source-card h3{display:flex;align-items:center;gap:8px}
-  .task-source-text{padding:12px;border:1px dashed #98a2b3;border-radius:8px;background:#f8fafc;color:#1d2939;font-size:18px;font-weight:950;line-height:1.45}
-  .task-source-card.floating .task-source-text{line-height:1.65}
-  .task-illustration{height:112px;border:2px solid #101828;border-radius:8px;margin:10px 0;background:#eef4ff;position:relative;overflow:hidden}
+  .task-source-text{padding:9px;border:1px dashed #98a2b3;border-radius:8px;background:#f8fafc;color:#1d2939;font-size:16px;font-weight:950;line-height:1.35}
+  .task-source-card.floating .task-source-text{line-height:1.45}
+  @keyframes taskDeal{from{opacity:0;transform:translate(-28px,28px) rotate(-5deg) scale(.92)}to{opacity:1;transform:translate(0,0) rotate(0) scale(1)}}
+  @keyframes taskDealCenter{from{opacity:0;transform:translateY(24px) rotate(-3deg) scale(.94)}to{opacity:1;transform:translateY(0) rotate(0) scale(1)}}
+  @keyframes taskFloat{0%,100%{margin-bottom:0}50%{margin-bottom:8px}}
+  @keyframes taskFloatCenter{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-8px) rotate(.7deg)}}
+  .task-illustration{height:92px;border:2px solid #101828;border-radius:8px;margin:8px 0;background:#eef4ff;position:relative;overflow:hidden}
   .task-illustration:before,.task-illustration:after{content:"";position:absolute}
   .task-illustration.forest{background:linear-gradient(#dff7ef,#b7ead8)}
   .task-illustration.forest:before{left:24px;bottom:0;width:58px;height:88px;background:#16a34a;clip-path:polygon(50% 0,100% 70%,74% 70%,100% 100%,0 100%,26% 70%,0 70%)}
@@ -226,13 +356,17 @@
   .task-illustration.music{background:linear-gradient(135deg,#fff7d6,#ffedd5)}
   .task-illustration.music:before{left:72px;top:22px;width:18px;height:62px;border-radius:10px;background:#f59e0b;border:4px solid #101828;box-shadow:50px 18px 0 -2px #f59e0b,50px 18px 0 2px #101828}
   .task-illustration.music:after{left:44px;bottom:17px;width:42px;height:42px;border-radius:50%;background:#fff;border:4px solid #101828;box-shadow:92px -3px 0 -3px #fff,92px -3px 0 1px #101828}
-  .task-layout{display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start}
+  .task-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start;max-width:1020px;margin:0 auto}
   .pile{display:grid;gap:9px}
   .mini-card{border:1px solid var(--line);border-left:8px solid var(--c);border-radius:8px;background:#fff;padding:10px 12px;font-weight:950}
   .mini-card.done{background:#f8fafc;opacity:.72}
-  .work-card{display:grid;gap:12px;padding:16px;border:2px solid var(--c);border-radius:8px;background:#fff;box-shadow:var(--shadow)}
-  .task-title{display:flex;align-items:center;gap:12px}
-  .task-text{padding:13px 14px;border:1px solid #e4e9f2;border-radius:8px;background:#f8fafc;color:#1d2939;font-size:18px;font-weight:950}
+  .work-card{display:grid;gap:10px;padding:12px;border:2px solid var(--c);border-radius:8px;background:#fff;box-shadow:var(--shadow)}
+  .stage-hint{min-height:88px;display:grid;place-items:center;text-align:center;border:2px dashed #98a2b3;border-radius:8px;background:#f8fafc;color:#344054;font-size:24px;font-weight:950}
+  .selected-tool-strip{display:flex;align-items:center;gap:10px;border:2px solid var(--c);border-radius:8px;background:color-mix(in srgb,var(--c) 9%,#fff);padding:8px 10px;font-weight:950}
+  .selected-tool-strip img{width:54px;height:54px;object-fit:cover;border:3px solid #101828;border-radius:12px;background:#fff}
+  .task-title{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .task-meta-pill{display:inline-flex;align-items:center;justify-content:center;min-width:88px;border:2px solid #101828;border-radius:999px;background:#fff4cc;color:#3b2900;padding:6px 12px;font-weight:950;box-shadow:0 4px 0 rgba(16,24,40,.12)}
+  .task-text{padding:9px 11px;border:1px solid #e4e9f2;border-radius:8px;background:#f8fafc;color:#1d2939;font-size:16px;font-weight:950}
   .stepper{display:flex;gap:6px;flex-wrap:wrap}
   .mini-step{padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--muted);font-size:12px;font-weight:950}
   .mini-step.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 12%,#fff);color:color-mix(in srgb,var(--c) 76%,#101828)}
@@ -244,6 +378,27 @@
   .flow-step-card{min-height:124px;border:2px solid #101828;border-left:8px solid var(--c,#7c3aed);border-radius:8px;background:linear-gradient(180deg,#fff,#f8fafc);padding:12px;display:grid;gap:8px;align-content:start;box-shadow:0 9px 0 rgba(16,24,40,.1)}
   .flow-step-card i{width:38px;height:38px;border:3px solid #101828;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--c,#7c3aed) 18%,#fff);color:color-mix(in srgb,var(--c,#7c3aed) 76%,#101828);font-style:normal;font-weight:950}
   .flow-step-card b{font-size:17px}.flow-step-card small{color:#475467;font-weight:900;line-height:1.35}
+  .flow-sort-board{display:grid;grid-template-columns:.92fr 1.08fr;gap:12px;margin:12px 0}
+  .flow-sort-panel{border:2px solid var(--line);border-radius:12px;background:#f8fafc;padding:12px;display:grid;gap:10px;align-content:start}
+  .flow-sort-panel h4{margin:0;color:#101828;font-size:16px;font-weight:950}
+  .flow-card-list{display:grid;gap:8px}
+  .flow-sort-card{width:100%;text-align:left;cursor:grab}
+  .flow-sort-card:active{cursor:grabbing}
+  .flow-sort-card.selected{outline:4px solid var(--gold)}
+  .flow-sort-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .flow-slot{min-height:156px;border:2px dashed #98a2b3;border-radius:10px;background:#fff;padding:8px;display:grid;grid-template-rows:auto 1fr;gap:6px;align-items:stretch}
+  .flow-slot.over{box-shadow:0 0 0 5px color-mix(in srgb,var(--c,#7c3aed) 18%,transparent)}
+  .flow-slot-label{font-size:13px;color:#475467;font-weight:950}
+  .flow-slot-empty{display:grid;place-items:center;text-align:center;color:#667085;font-weight:950}
+  .flow-modal{display:grid;gap:10px}
+  .flow-modal .lead,.flow-modal .review{margin:0}
+  .flow-modal .flow-sort-board{margin:4px 0;min-height:0}
+  .flow-modal .flow-card-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .flow-modal .flow-step-card{min-height:96px;padding:9px;gap:5px}
+  .flow-modal .flow-step-card i{width:32px;height:32px;font-size:15px}
+  .flow-modal .flow-step-card b{font-size:15px}
+  .flow-modal .flow-step-card small{font-size:12px;line-height:1.25}
+  .flow-modal .flow-slot{min-height:134px}
   .tool-brief{display:grid;grid-template-columns:96px 1fr;gap:16px;align-items:center}
   .tool-brief .tool-ico{width:88px;height:88px;border-radius:24px}
   .tool-brief-list{display:grid;gap:8px;margin-top:12px}
@@ -252,7 +407,7 @@
   textarea:focus{outline:3px solid color-mix(in srgb,var(--c) 20%,transparent);border-color:var(--c)}
   .review{min-height:44px;border:1px solid var(--line);border-radius:8px;background:#f8fafc;color:#475467;padding:10px 12px;font-weight:950}
   .review.good{border-color:#86efac;background:#ecfdf3;color:#075e2b}.review.bad{border-color:#fda29b;background:#fff1f0;color:#7a271a}
-  .preview{min-height:180px;display:grid;place-items:center;gap:10px;border:2px solid #e4e9f2;border-radius:8px;background:#f8fafc;padding:14px;text-align:center;font-weight:950;color:#667085;overflow:hidden}
+  .preview{min-height:132px;display:grid;place-items:center;gap:8px;border:2px solid #e4e9f2;border-radius:8px;background:#f8fafc;padding:10px;text-align:center;font-weight:950;color:#667085;overflow:hidden}
   .preview.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 8%,#fff);color:#1d2939;animation:resultPop .24s ease}
   @keyframes resultPop{0%{transform:scale(.98);opacity:.2}100%{transform:scale(1);opacity:1}}
   .preview img,.preview video{max-width:100%;max-height:360px;border-radius:8px;box-shadow:0 8px 24px rgba(16,24,40,.18)}
@@ -260,9 +415,42 @@
   .text-result{width:100%;display:grid;gap:8px;text-align:left}.text-result div{padding:11px 12px;border-left:6px solid var(--c);border-radius:8px;background:#fff;box-shadow:0 3px 12px rgba(16,24,40,.08)}
   .spinner{width:44px;height:44px;border:5px solid #e4e9f2;border-top-color:var(--c);border-radius:50%;animation:spin .85s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
-  .summary-list{display:grid;gap:10px}.summary-item{border:1px solid var(--line);border-radius:8px;background:#fff;padding:12px}.summary-item .q{font-weight:950;margin-bottom:8px}
+  .recall-single{max-width:980px;width:100%;margin:0 auto;display:grid;gap:12px;align-content:start}
+  .recall-task-card{border:3px solid #101828;border-radius:14px;background:#fff;padding:14px;box-shadow:0 12px 0 rgba(16,24,40,.12);display:grid;gap:10px}
+  .recall-task-card h3{font-size:24px}
+  .recall-token-row{display:flex;gap:8px;flex-wrap:wrap}
+  .recall-token{border:2px solid currentColor;border-radius:999px;background:#fff;padding:9px 12px;font-weight:950;cursor:grab;box-shadow:0 4px 0 rgba(16,24,40,.08)}
+  .recall-token:disabled{opacity:.4;cursor:not-allowed;filter:grayscale(.4)}
+  .recall-token.selected{outline:4px solid var(--gold)}
+  .recall-task-text{font-size:clamp(20px,2.4vw,30px);line-height:1.35;font-weight:950;color:#101828}
+  .recall-tool-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .recall-tool-btn{min-height:96px;border:3px solid var(--c);border-radius:12px;background:#fff;color:color-mix(in srgb,var(--c) 78%,#101828);padding:10px;display:grid;grid-template-columns:58px 1fr;gap:10px;align-items:center;text-align:left;font-weight:950;cursor:pointer;box-shadow:0 6px 0 rgba(16,24,40,.12)}
+  .recall-tool-btn img{width:58px;height:58px;border:3px solid #101828;border-radius:14px;object-fit:cover;background:#fff}
+  .recall-tool-btn b{display:block;font-size:18px}.recall-tool-btn small{display:block;margin-top:3px;color:#475467;line-height:1.25}
+  .recall-tool-btn.wrong{opacity:.45;filter:grayscale(.55);text-decoration:line-through}
+  .recall-drop-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .recall-drop-slot{min-height:88px;border:3px dashed #98a2b3;border-radius:12px;background:#f8fafc;padding:10px;display:grid;place-items:center;text-align:center;font-weight:950;color:#475467}
+  .recall-drop-slot.filled{border-style:solid;border-color:currentColor;background:#fff;color:#101828}
+  .recall-drop-slot.over{box-shadow:0 0 0 6px rgba(20,184,166,.16)}
+  .sample-output{border:3px solid var(--c);border-radius:14px;background:color-mix(in srgb,var(--c) 9%,#fff);padding:16px;display:grid;gap:12px;box-shadow:0 8px 0 rgba(16,24,40,.1)}
+  .sample-output .generated-preview{min-height:210px}
+  .recall-quiz{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.recall-quiz h3,.recall-quiz>.btn{grid-column:1/-1}.recall-quiz .choice-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.recall-quiz .choice{min-height:38px;padding:7px 9px}
+  .exam-shell{max-width:860px;width:100%;margin:0 auto;display:grid;gap:12px}
+  .exam-progress{display:flex;justify-content:space-between;align-items:center;gap:12px;font-weight:950;color:#475467}
+  .exam-card{border:3px solid #101828;border-radius:14px;background:#fff;padding:14px;box-shadow:0 14px 0 rgba(16,24,40,.12);display:grid;gap:10px;animation:taskFloatCenter 3.2s ease-in-out infinite}
+  .exam-card.correct{animation:examCorrectPop 1s ease both}
+  .exam-card h3{font-size:24px}
+  .exam-task{font-size:clamp(20px,2.4vw,30px);line-height:1.35;font-weight:950;color:#101828}
+  .exam-question{border:3px dashed #98a2b3;border-radius:12px;background:#f8fafc;padding:14px;font-size:clamp(20px,2.2vw,28px);font-weight:950;color:#101828}
+  .exam-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .exam-options .choice{min-height:58px;text-align:center}
+  .exam-options .choice.right{animation:answerPop 1s ease both}
+  .exam-nav{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+  @keyframes examCorrectPop{0%{transform:translateY(0) scale(1);box-shadow:0 14px 0 rgba(16,24,40,.12)}35%{transform:translateY(-10px) scale(1.03);box-shadow:0 20px 0 rgba(21,128,61,.22)}70%{transform:translateY(0) scale(1.01);box-shadow:0 14px 0 rgba(21,128,61,.18)}100%{transform:translateY(0) scale(1);box-shadow:0 14px 0 rgba(16,24,40,.12)}}
+  @keyframes answerPop{0%{transform:scale(1)}35%{transform:scale(1.06)}100%{transform:scale(1)}}
+  .summary-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.summary-item{border:1px solid var(--line);border-radius:8px;background:#fff;padding:8px}.summary-item .q{font-weight:950;margin-bottom:6px}.summary-item .choice-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.summary-item .choice{min-height:38px;padding:7px 9px}
   .score{padding:16px;border:1px solid var(--line);border-radius:8px;background:#f8fafc;text-align:center;font-weight:950}.score b{font-size:40px;color:var(--text)}
-  .skill-wall{display:grid;grid-template-columns:1fr 1.25fr;gap:16px;min-height:420px}.skill-pool,.skill-map{position:relative;min-height:360px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:14px;overflow:hidden}
+  .skill-wall{display:grid;grid-template-columns:1fr 1.25fr;gap:12px;min-height:360px}.skill-pool,.skill-map{position:relative;min-height:320px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:12px;overflow:hidden}
   .skill-tile{display:inline-flex;align-items:center;justify-content:center;min-width:160px;min-height:54px;margin:8px;border:2px solid #101828;border-radius:8px;background:#fff4cc;color:#3b2900;font-weight:950;cursor:pointer;box-shadow:0 5px 0 #c89105}
   .skill-tile.selected{outline:4px solid var(--gold)}
   .skill-tile.done{border-color:var(--good);background:#ecfdf3;color:#075e2b;box-shadow:0 5px 0 #15803d;animation:tileFly .25s ease}
@@ -273,10 +461,16 @@
   .wall-zone small{color:var(--muted);font-weight:900}
   .wall-chip{border:2px solid #101828;border-radius:8px;background:#fff4cc;color:#3b2900;padding:9px 10px;font-weight:950}
   @keyframes tileFly{0%{transform:translateY(-8px) scale(.96)}100%{transform:translateY(0) scale(1)}}
-  .done-grid{display:grid;grid-template-columns:.85fr 1.15fr;gap:16px}.badge{min-height:340px;display:grid;place-items:center;text-align:center;border:2px solid #e6aa05;border-radius:8px;background:linear-gradient(160deg,#fff7d1,#fef3c7)}
+  .done-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(220px,.48fr);gap:12px;align-items:start}.badge{min-height:340px;display:grid;place-items:center;text-align:center;border:2px solid #e6aa05;border-radius:8px;background:linear-gradient(160deg,#fff7d1,#fef3c7)}
+  .done-grid .result-collage{min-height:min(540px,calc(100vh - 250px))}
+  .done-badge-panel{align-self:start;padding:12px;gap:8px}
+  .done-badge-panel h3{font-size:18px}
+  .done-badge-panel ul{gap:6px}
+  .done-badge-panel .review{padding:8px 10px;font-size:14px;line-height:1.35}
   .badge-mark{width:168px;height:168px;border:6px solid #101828;border-radius:34px;background:linear-gradient(160deg,#f7c948,#f59e0b);display:grid;place-items:center;color:#3b2900;font-size:24px;font-weight:950;box-shadow:0 16px 30px rgba(180,83,9,.24)}
-  .result-collage{min-height:520px;border:6px solid #101828;border-radius:8px;background:linear-gradient(135deg,#fef3c7,#dff7ef 52%,#e7edff);padding:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;box-shadow:0 18px 44px rgba(16,24,40,.18)}
+  .result-collage{min-height:420px;border:6px solid #101828;border-radius:8px;background:linear-gradient(135deg,#fef3c7,#dff7ef 52%,#e7edff);padding:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;box-shadow:0 18px 44px rgba(16,24,40,.18)}
   .collage-item{min-height:190px;border:3px solid var(--c);border-radius:8px;background:#fff;display:grid;grid-template-rows:auto 1fr;gap:8px;padding:10px;overflow:hidden}
+  .result-collage>.collage-item:only-child{grid-column:1/-1;place-items:center;text-align:center}
   .collage-item b{color:color-mix(in srgb,var(--c) 76%,#101828)}
   .collage-media{display:grid;place-items:center;min-height:130px;border-radius:8px;background:color-mix(in srgb,var(--c) 10%,#fff);font-weight:950;text-align:center;overflow:hidden}
   .collage-media img,.collage-media video{max-width:100%;max-height:170px;border-radius:8px}
@@ -284,20 +478,237 @@
   .collage-poster{width:100%;height:130px;border-radius:8px;border:2px solid #101828;background:linear-gradient(135deg,color-mix(in srgb,var(--c) 24%,#fff),#fff);position:relative}
   .collage-poster:after{content:"";position:absolute;left:24%;right:24%;bottom:20px;height:54px;border:3px solid #101828;border-radius:28px 28px 9px 9px;background:var(--c)}
   .teacher-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.metric{padding:12px;border:1px solid #e4e9f2;border-radius:8px;background:#f8fafc}.metric span{display:block;color:var(--muted);font-size:12px;font-weight:950}.metric b{font-size:22px}
-  .modal{position:fixed;inset:0;z-index:60;background:rgba(15,23,42,.58);display:none;align-items:center;justify-content:center;padding:18px}.modal.on{display:flex}.modal-card{width:min(720px,100%);max-height:90vh;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 24px 80px rgba(16,24,40,.34);padding:18px}
+  .modal{position:fixed;inset:0;z-index:60;background:rgba(15,23,42,.58);display:none;align-items:center;justify-content:center;padding:18px}.modal.on{display:flex}.modal-card{width:min(720px,100%);max-height:90vh;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 24px 80px rgba(16,24,40,.34);padding:18px}.modal-card.flow-modal{width:min(980px,100%)}
+  .screen-transition{position:fixed;inset:0;z-index:120;background:radial-gradient(circle at 50% 40%,#fff,#dff7ef 50%,#dbeafe);display:grid;place-items:center;text-align:center;padding:24px;animation:transitionIn .28s ease both}
+  .screen-transition.leave{animation:transitionOut .32s ease both}
+  .transition-card{width:min(760px,94vw);border:5px solid #101828;border-radius:18px;background:#fff;padding:24px;box-shadow:0 18px 0 rgba(16,24,40,.14);display:grid;gap:14px}
+  .transition-card img{width:112px;height:112px;object-fit:cover;border:4px solid #101828;border-radius:18px;margin:0 auto}
+  .transition-card b{font-size:clamp(28px,4vw,48px);color:#101828}
+  .transition-card p{margin:0;font-size:clamp(20px,2.4vw,30px);font-weight:950;color:#344054}
+  @keyframes transitionIn{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:scale(1)}}
+  @keyframes transitionOut{to{opacity:0;transform:scale(1.02)}}
   .sentence{padding:14px;border:2px dashed #98a2b3;border-radius:8px;background:#f8fafc;text-align:center;font-size:20px;font-weight:950}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(14px);max-width:min(700px,calc(100% - 32px));padding:12px 16px;border-radius:12px;background:#101828;color:#fff;font-weight:950;box-shadow:0 18px 44px rgba(16,24,40,.25);opacity:0;pointer-events:none;z-index:80;transition:.18s ease}.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
   .account{position:fixed;left:10px;bottom:8px;color:#667085;font-size:11px;font-weight:800;z-index:10}.account i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;background:#f59e0b}.account.ready i{background:#16a34a}
   .confetti{position:fixed;width:9px;height:14px;top:-20px;z-index:90;border-radius:2px;pointer-events:none}
   .shake{animation:shake .28s ease}@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+  /* Octopus Kingdom inspired dark-neon theme */
+  :root{
+    --bg:#031221;
+    --ink:#ecfbff;
+    --muted:#9cc8da;
+    --line:rgba(137,225,255,.34);
+    --panel:rgba(7,24,44,.92);
+    --panel2:rgba(9,36,64,.86);
+    --text:#a78bfa;
+    --image:#2dd4bf;
+    --video:#38bdf8;
+    --music:#facc15;
+    --good:#7cff9e;
+    --bad:#ff5d6c;
+    --gold:#ffce47;
+    --shadow:0 18px 48px rgba(0,0,0,.42);
+  }
+  body{
+    color:var(--ink);
+    background:
+      radial-gradient(740px 360px at 15% 8%, rgba(124,58,237,.36), transparent 62%),
+      radial-gradient(620px 360px at 82% 12%, rgba(45,212,191,.28), transparent 60%),
+      radial-gradient(520px 300px at 46% 96%, rgba(250,204,21,.16), transparent 60%),
+      linear-gradient(180deg,#020712 0%,#06182b 48%,#020914 100%);
+  }
+  body:before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
+    background:
+      radial-gradient(circle at 12% 78%, rgba(91,192,255,.13) 0 4px, transparent 5px),
+      radial-gradient(circle at 76% 70%, rgba(255,206,71,.12) 0 5px, transparent 6px),
+      radial-gradient(circle at 48% 30%, rgba(124,255,158,.10) 0 3px, transparent 4px);
+    background-size:170px 150px,220px 180px,140px 130px;
+    opacity:.78;
+  }
+  #hud{
+    background:linear-gradient(180deg,rgba(3,10,22,.92),rgba(5,20,38,.86));
+    border-bottom:1px solid rgba(137,225,255,.38);
+    box-shadow:0 8px 28px rgba(0,0,0,.35),0 0 28px rgba(56,189,248,.16);
+  }
+  .brand h1,.progress-top,h2,h3,.guide-card b,.tool-card b,.map-tool-chip b,.missing-tools b,.task-title,.wall-zone h4{color:#f4fdff}
+  .brand small,.lead,.eyebrow,.progress-top,.tool-card small,.map-tool-chip small,.tool-story-copy p,.tool-work-title .lead,.guide-step,.exam-progress,.story-count,.account{color:var(--muted)}
+  .labo-mini,.guide-avatar,.coin,.hud-btn,.softbtn,.panel,.guide-card,.tool-card,.map-tool-chip,.intro-focus,.tool-story-card,.tool-work-card,.task-source-card,.work-card,.exam-card,.recall-task-card,.sample-output,.modal-card,.transition-card,.score,.collage-item,.wall-zone,.skill-pool,.skill-map,.missing-tools{
+    background:linear-gradient(180deg,rgba(9,32,57,.96),rgba(4,16,31,.96));
+    color:var(--ink);
+    border-color:rgba(137,225,255,.56);
+    box-shadow:0 12px 0 rgba(0,0,0,.36),0 0 26px rgba(56,189,248,.13);
+  }
+  .labo-mini,.guide-avatar{
+    background:#fff url("assets/s3-w01/agong.png") center/cover no-repeat;
+  }
+  .mission-banner{
+    border-color:#5bc0ff;
+    background:linear-gradient(90deg,rgba(5,18,34,.96),rgba(11,47,76,.94),rgba(31,20,72,.92));
+    color:#eafaff;
+    box-shadow:0 10px 0 rgba(0,0,0,.38),0 0 24px rgba(91,192,255,.34),inset 0 0 24px rgba(124,58,237,.15);
+  }
+  .mission-banner i,.coin i{
+    border-color:#ffe27a;
+    background:radial-gradient(circle at 35% 30%,#fff7b8,#ffce47 48%,#c8912a);
+    color:#07111f;
+    box-shadow:0 0 16px rgba(255,206,71,.42);
+  }
+  .bar{border-color:rgba(137,225,255,.45);background:rgba(2,8,20,.78)}
+  .btn,.hud-btn,.softbtn,.choice,.tool-choice,.recall-tool-btn,.phrase-card,.sentence-slot,.prompt-preview,.review,.preview,.stage-hint,.task-text,.exam-question,.summary-item,.text-result div,.selected-tool-strip{
+    border-color:rgba(137,225,255,.42);
+  }
+  .btn{box-shadow:0 6px 0 rgba(0,0,0,.5),0 0 20px rgba(91,192,255,.22)}
+  .btn.primary{background:linear-gradient(180deg,#8b5cf6,#5b21b6)}
+  .btn.good{background:linear-gradient(180deg,#2bd17e,#0f8a55)}
+  .btn.warn{background:linear-gradient(180deg,#ffce47,#f97316);color:#211100}
+  .softbtn,.hud-btn,.choice,.tool-choice,.phrase-card{
+    background:rgba(7,24,44,.94);
+    color:#eafaff;
+    box-shadow:0 4px 0 rgba(0,0,0,.38),0 0 16px rgba(91,192,255,.10);
+  }
+  .softbtn:disabled,.btn:disabled{opacity:.48;filter:saturate(.6) grayscale(.18)}
+  .story-frame,.map-fold,.adventure-map,.complete-scene,.task-illustration,.result-collage,.badge{
+    border-color:rgba(137,225,255,.70);
+    background:#051426;
+    box-shadow:0 20px 52px rgba(0,0,0,.48),0 0 30px rgba(91,192,255,.18);
+  }
+  .story-caption,.story-speaker,.agong-line{
+    border-color:#5bc0ff;
+    background:rgba(4,18,34,.94);
+    color:#eafaff;
+    box-shadow:0 8px 0 rgba(0,0,0,.40),0 0 22px rgba(91,192,255,.22);
+  }
+  .story-text{color:#f4fdff}
+  .story-speaker{background:linear-gradient(180deg,rgba(255,206,71,.22),rgba(91,192,255,.16));color:#ffe27a}
+  .map-fold:before,.map-fold:after{background:linear-gradient(90deg,#1c0f3d,#0b3a5e 48%,#2a165b)}
+  .adventure-map>img,.map-fold img,.tool-story-card img,.complete-scene img{filter:saturate(1.16) contrast(1.05)}
+  .adventure-map{
+    background:
+      radial-gradient(circle at 20% 20%,rgba(124,58,237,.22),transparent 34%),
+      radial-gradient(circle at 78% 80%,rgba(45,212,191,.20),transparent 34%),
+      #061326;
+  }
+  .tool-pin{
+    border-color:#8fd0ff;
+    background:rgba(5,18,34,.92);
+    box-shadow:0 9px 0 rgba(0,0,0,.42);
+  }
+  .tool-pin.active{box-shadow:0 0 0 8px color-mix(in srgb,var(--c) 28%,transparent),0 12px 0 rgba(0,0,0,.45),0 0 34px color-mix(in srgb,var(--c) 42%,transparent)}
+  .tool-pin.active:hover{box-shadow:0 0 0 15px color-mix(in srgb,var(--c) 34%,transparent),0 0 58px color-mix(in srgb,var(--c) 66%,transparent),0 0 96px color-mix(in srgb,var(--c) 30%,transparent),0 16px 0 rgba(0,0,0,.48);transform:translate(-50%,-60%) scale(1.1);filter:saturate(1.22) brightness(1.08)}
+  .tool-pin.done{background:rgba(15,138,85,.34);border-color:#7cff9e}
+  .tool-pin.dim{background:rgba(93,109,126,.28);border-color:rgba(156,200,218,.55)}
+  .tool-story-copy,.selected-tool-strip,.preview.on,.tool-choice.selected,.recall-drop-slot.filled,.sentence-slot.filled{
+    background:color-mix(in srgb,var(--c) 18%,rgba(7,24,44,.96));
+    color:#f4fdff;
+  }
+  .task-source-text,.recall-task-text,.exam-task,.exam-question,.prompt-preview,.review,.preview,.task-text,.sentence,.stage-hint{
+    color:#eefbff;
+    background:rgba(2,9,20,.64);
+  }
+  .intro-sentence{background:rgba(2,9,20,.66);color:#f4fdff;text-shadow:0 2px 10px rgba(0,0,0,.72)}
+  .intro-sentence .kw{margin:0;padding:0;border:0}
+  .kw{
+    background:transparent;
+    border:0;
+    border-radius:0;
+    font-weight:1000;
+    box-shadow:none;
+    text-shadow:0 0 8px currentColor,0 0 18px color-mix(in srgb,currentColor 58%,transparent),0 2px 8px rgba(0,0,0,.78);
+  }
+  .kw-goal{color:#c4b5fd}.kw-use{color:#5eead4}.kw-detail{color:#93c5fd}.kw-output{color:#fde68a}
+  .kw-text{color:#c4b5fd}.kw-image{color:#5eead4}.kw-video{color:#7dd3fc}.kw-music{color:#fde047}
+  .prompt-card,.generated-card,.output-card,.generated-preview,.output-badge,.speech,.chip,.drag-card,.drop-chip,.mini-card,.mini-step,.flow-step-card,.tool-brief-list div,.recall-token,.recall-tool-btn,.recall-drop-slot,.skill-tile,.wall-chip,.collage-item{
+    color:#f4fdff;
+  }
+  .tool-story-copy p,.tool-card small,.prompt-card p,.generated-card p,.output-card p,.flow-step-card small,.mini-step small{
+    color:#ccecff;
+  }
+  .tool-card b,.prompt-card h3,.generated-card h3,.output-card h3,.tool-story-copy h3{
+    color:#f4fdff;
+  }
+  .story-text,.agong-line,.tool-story-copy p,.intro-actions small{
+    font-weight:1000;
+    text-shadow:0 0 10px rgba(91,192,255,.30),0 2px 8px rgba(0,0,0,.72);
+  }
+  .choice.right{border-color:#7cff9e;background:rgba(21,128,61,.32);color:#d6ffe2}
+  .choice.wrong{border-color:#ff8a8a;background:rgba(180,35,24,.28);color:#ffd0d5}
+  .transition-card b{color:#f4fdff;text-shadow:0 0 18px rgba(91,192,255,.28)}
+  .transition-card p{color:#ccecff}
+  .screen-transition{background:radial-gradient(circle at 50% 38%,rgba(91,192,255,.20),transparent 38%),linear-gradient(180deg,#020712,#06182b 54%,#020914)}
+  .anatomy-card{
+    background:linear-gradient(180deg,rgba(7,24,44,.96),rgba(2,9,20,.92));
+    border-color:rgba(137,225,255,.44);
+    color:#f4fdff;
+    box-shadow:0 8px 0 rgba(0,0,0,.32),0 0 18px color-mix(in srgb,var(--c) 22%,transparent);
+  }
+  .anatomy-card b{color:#f4fdff}
+  .anatomy-card span,.slot-label{color:#ccecff}
+  .flow-sort-panel{
+    background:rgba(2,9,20,.58);
+    border-color:rgba(137,225,255,.34);
+  }
+  .flow-sort-panel h4,.flow-step-card b{color:#f4fdff}
+  .flow-step-card{
+    background:linear-gradient(180deg,rgba(9,32,57,.96),rgba(3,13,27,.96));
+    border-color:rgba(137,225,255,.44);
+    border-left-color:var(--c,#7c3aed);
+    color:#f4fdff;
+    box-shadow:0 8px 0 rgba(0,0,0,.34),0 0 18px color-mix(in srgb,var(--c,#5bc0ff) 24%,transparent);
+  }
+  .flow-step-card i{
+    border-color:#dff7ff;
+    background:color-mix(in srgb,var(--c,#7c3aed) 28%,rgba(2,9,20,.9));
+    color:#f4fdff;
+    text-shadow:0 0 10px color-mix(in srgb,var(--c,#7c3aed) 68%,transparent);
+  }
+  .flow-step-card small,.flow-slot-label,.flow-slot-empty{color:#ccecff}
+  .flow-slot{
+    background:rgba(2,9,20,.48);
+    border-color:rgba(137,225,255,.44);
+  }
+  .phrase-bank{background:rgba(2,9,20,.48);border-color:rgba(137,225,255,.32)}
+  .phrase-card,.phrase-card.inline-token,.inline-token-preview{
+    background:linear-gradient(180deg,rgba(9,32,57,.96),rgba(4,16,31,.96));
+    color:#f4fdff;
+    border-color:color-mix(in srgb,var(--c,#5bc0ff) 62%,#8fd0ff);
+    text-shadow:0 0 10px color-mix(in srgb,var(--c,#5bc0ff) 36%,transparent);
+    user-select:none;
+  }
+  .phrase-card.used{opacity:.34}
+  .task-source-card h3,.task-source-text{color:#f4fdff}
+  .sentence-slot,.sentence-slot.filled{
+    background:linear-gradient(180deg,rgba(4,18,34,.92),rgba(2,9,20,.86));
+    color:#eefbff;
+  }
+  .sentence-slot b{color:#c7a8ff}
+  .sentence-slot:nth-child(2) b{color:#79f2e5}
+  .sentence-slot:nth-child(3) b{color:#ffd66b}
+  .sentence-slot span{color:#f4fdff}
+  .sentence-board,.task-source-card,.anatomy-card,.phrase-card,.sentence-slot,.prompt-preview,.review,.preview,.btn,.softbtn,.choice{user-select:none}
+  .review.good{border-color:#7cff9e;background:rgba(21,128,61,.23);color:#d6ffe2}
+  .review.bad{border-color:#ff8a8a;background:rgba(180,35,24,.24);color:#ffd0d5}
+  .sentence-slot{background:rgba(2,9,20,.58);color:#eefbff}
+  .sentence-slot b{color:color-mix(in srgb,var(--c) 62%,#eafaff)}
+  .sentence-slot span,.tool-choice small,.recall-tool-btn small{color:#ccecff}
+  .text-result div{background:rgba(4,18,34,.86);box-shadow:0 0 18px rgba(91,192,255,.13)}
+  .exam-card.correct{box-shadow:0 14px 0 rgba(0,0,0,.42),0 0 34px rgba(124,255,158,.38)}
+  .toast{background:#020914;color:#eafaff;border:1px solid rgba(137,225,255,.42);box-shadow:0 18px 44px rgba(0,0,0,.45),0 0 24px rgba(91,192,255,.26)}
   @media (max-width:920px){
     #hud{align-items:stretch;flex-wrap:wrap}.brand{min-width:0;flex:1}.progress{order:3;flex-basis:100%}
-    .screen-head,.cols-2,.cols-3,.cols-4,.intro-layout,.drop-wrap,.factory,.task-layout,.skill-wall,.done-grid,.result-collage,.flow-steps{grid-template-columns:1fr}
-    .map{min-height:520px;display:grid;grid-template-rows:auto 1fr;padding:12px}.task-pile-stage{min-height:340px}.map-tool-chip{min-width:0}.station{position:relative!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;transform:none!important;width:auto;margin:10px}
-    .tool-choices{grid-template-columns:1fr 1fr}
+    .screen-head,.cols-2,.cols-3,.cols-4,.intro-layout,.map-open-card,.map-explorer,.intro-focus-media,.drop-wrap,.factory,.task-layout,.skill-wall,.done-grid,.result-collage,.flow-steps,.sentence-slots,.summary-list,.recall-quiz,.recall-tool-grid,.recall-drop-list,.exam-options,.trial-box>.grid{grid-template-columns:1fr}
+    .trial-box>.grid>.sentence-board,.trial-box>.grid>.review,.trial-box>.grid>.chip-row,.trial-box>.grid>.preview{grid-column:auto;grid-row:auto}
+    .screen-head{align-items:start}.guide-card{min-width:0}.map-cinematic,.map-explorer{height:auto;min-height:auto}.map-fold{height:min(380px,70vw)}.adventure-map{min-height:360px}.tool-pin{width:72px;height:72px;border-radius:18px}.tool-pin img{width:58px;height:58px}.map{min-height:420px;display:grid;grid-template-rows:auto 1fr;padding:12px}.task-pile-stage{min-height:260px}.map-tool-chip{min-width:0}.station{position:relative!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;transform:none!important;width:auto;margin:10px}.tool-mission{grid-template-columns:1fr}.story-screen,.tool-mission-screen{height:auto;overflow:auto}.story-comic,.tool-mission{height:auto}
+    .tool-mission{gap:10px}
+    .tool-story-card{grid-template-columns:minmax(148px,28vw) 1fr;grid-template-rows:1fr;min-height:160px;max-height:190px}
+    .tool-story-card img{height:100%;max-height:190px}
+    .tool-story-copy{border-top:0;border-left:3px solid #101828;align-content:center}
+    .tool-story-copy h3{font-size:clamp(20px,3.2vw,28px)}
+    .tool-story-copy p{font-size:clamp(15px,2.1vw,18px);line-height:1.25}
+    .tool-choices{grid-template-columns:1fr 1fr}.recall-tool-grid{grid-template-columns:1fr 1fr}.recall-drop-list{grid-template-columns:1fr}
   }
   @media (max-width:560px){
-    .screen{padding:18px 12px 36px}.hud-actions{width:100%;display:grid;grid-template-columns:1fr 42px 42px}.coin{min-width:0}.labo-panel,.tool-brief{grid-template-columns:1fr}.slot-row{grid-template-columns:1fr}.tool-choices,.teacher-grid,.wall-zones{grid-template-columns:1fr}
+    .screen{padding:18px 12px 36px}.hud-actions{width:100%;display:grid;grid-template-columns:1fr 42px 42px}.coin{min-width:0}.labo-panel,.tool-brief,.agong-lesson,.flow-sort-board{grid-template-columns:1fr}.agong-lesson{justify-items:center}.slot-row{grid-template-columns:1fr}.tool-choices,.recall-tool-grid,.teacher-grid,.wall-zones,.flow-sort-slots,.flow-modal .flow-card-list{grid-template-columns:1fr}.mission-banner{font-size:20px}.recall-task-text{font-size:20px}.generated-preview{min-height:180px}.story-caption{grid-template-columns:1fr auto;grid-template-areas:"speaker action" "text text" "count count"}.story-speaker,.story-text{grid-column:1/-1}.tool-story-card{grid-template-columns:1fr;grid-template-rows:auto auto;max-height:none}.tool-story-card img{height:auto;max-height:180px}.tool-story-copy{border-left:0;border-top:3px solid #101828}.tool-work-card{overflow:visible}
   }
 </style>
 </head>
@@ -306,7 +717,7 @@
   <header id="hud">
     <div class="brand">
       <div class="labo-mini"><div class="face"><i></i><i></i></div></div>
-      <div><h1>工具地圖探索</h1><small>S3-W01｜Lab Terminal</small></div>
+      <div><h1>工具地圖探索</h1><small>工具人阿工帶路</small></div>
     </div>
     <div class="progress">
       <div class="progress-top"><span id="screenName">工具介紹</span><span id="progressText">0%</span></div>
@@ -314,7 +725,7 @@
     </div>
     <div class="hud-actions">
       <div class="coin"><i></i><span id="coinN">0</span></div>
-      <button class="hud-btn" id="helpBtn">我卡住了</button>
+      <button class="hud-btn" id="helpBtn">提示</button>
       <button class="hud-btn square" id="teacherBtn" aria-label="老師面板">T</button>
       <button class="hud-btn square" id="resetBtn" aria-label="重新開始">R</button>
     </div>
@@ -329,11 +740,12 @@
 'use strict';
 
 const GAMEKEY='s3w01';
-const STORE='s3-w01-tool-interface-progress-v8';
-const MAIN_COIN_TX='s3-w01-main-250';
-const VERSION=8;
+const STORE='s3-w01-tool-interface-progress-v16';
+const MAIN_COIN_AMOUNT=250;
+const MAIN_COIN_TX='s3-w01-main-'+MAIN_COIN_AMOUNT;
+const VERSION=16;
 const SCREENS=['start','recall','taskA','taskB','summary','wall','done'];
-const SCREEN_LABELS={start:'工具介紹',recall:'快速回顧',taskA:'提示詞句工坊',taskB:'任務分發',summary:'總複習',wall:'工具快問快答',done:'完成'};
+const SCREEN_LABELS={start:'工具站',recall:'回顧',taskA:'造句',taskB:'任務',summary:'抽考',wall:'複考',done:'完成'};
 const FB={apiKey:"AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78",authDomain:"gpt-clone-68b9f.firebaseapp.com",projectId:"gpt-clone-68b9f",storageBucket:"gpt-clone-68b9f.firebasestorage.app",messagingSenderId:"436942056069",appId:"1:436942056069:web:8762675dfff7b7e92017ec"};
 const $=(s,r=document)=>r.querySelector(s);
 const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
@@ -341,257 +753,412 @@ function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className
 function clamp(n,a,b){return Math.max(a,Math.min(b,n));}
 function normalize(t){return String(t||'').replace(/\s+/g,'').trim();}
 
+const ASSET_BASE='assets/s3-w01/';
+const ASSETS={
+  agong:ASSET_BASE+'agong.png',
+  map:ASSET_BASE+'tool-map.png',
+  text:ASSET_BASE+'tool-text.png',
+  image:ASSET_BASE+'tool-image.png',
+  video:ASSET_BASE+'tool-video.png',
+  music:ASSET_BASE+'tool-music.png',
+  comicWorld:ASSET_BASE+'comic-world-crisis.png',
+  comicForest:ASSET_BASE+'comic-forest-rules.png',
+  comicHeroMusic:ASSET_BASE+'comic-hero-music.png',
+  comicToolMap:ASSET_BASE+'comic-tool-map.png',
+  heroUnderstandsRules:ASSET_BASE+'hero-understands-rules.png'
+};
 const TOOLS=[
-  {type:'text',label:'文字類',toolName:'Lab Terminal',color:'#7C3AED',endpoint:'/api/lab-tools/text',use:'整理、改寫、做提示',slots:['要整理什麼','輸出長相','給誰看']},
-  {type:'image',label:'圖片類',toolName:'Lab Image',color:'#14B8A6',endpoint:'/api/lab-tools/image',use:'產生圖片或貼紙',slots:['主體','用途','風格']},
-  {type:'video',label:'影片類',toolName:'Lab Video',color:'#2563EB',endpoint:'/api/lab-tools/video',use:'產生短影片',slots:['素材','動作','秒數與用途']},
-  {type:'music',label:'音樂類',toolName:'Lab Music',color:'#F59E0B',endpoint:'/api/lab-tools/music',use:'產生音樂或音效',slots:['長度','使用情境','感覺']}
+  {type:'text',label:'文字類',toolName:'Lab Terminal',color:'#7C3AED',endpoint:'/api/lab-tools/text',use:'整理文字',slots:['內容','樣子','給誰'],art:ASSETS.text,pos:[28,24],intro:['文字工具會把想法整理清楚。','適合規則、提醒、故事開頭。']},
+  {type:'image',label:'圖片類',toolName:'Lab Image',color:'#14B8A6',endpoint:'/api/lab-tools/image',use:'產生圖片',slots:['主體','用途','風格'],art:ASSETS.image,pos:[70,24],intro:['圖片工具會做出看得見的圖。','適合角色、寶箱、貼紙。']},
+  {type:'video',label:'影片類',toolName:'Lab Video',color:'#2563EB',endpoint:'/api/lab-tools/video',use:'短影片',slots:['素材','動作','秒數'],art:ASSETS.video,pos:[30,70],intro:['影片工具會讓畫面動起來。','適合開門、冒光、角色動作。']},
+  {type:'music',label:'音樂類',toolName:'Lab Music',color:'#F59E0B',endpoint:'/api/lab-tools/music',use:'音樂音效',slots:['長度','場景','感覺'],art:ASSETS.music,pos:[72,70],intro:['音樂工具會做出聲音。','適合背景音樂和答對音效。']}
 ];
+const INTRO_FLOW=['text','music','image','video'];
+const STORY_PANELS=[
+  {img:ASSETS.comicWorld,speaker:'工具人阿工',line:'工具王國同時冒出好多問題，阿工需要你一起用工具地圖修好這個世界。'},
+  {img:ASSETS.comicForest,speaker:'森林國王',line:'森林規則太長，小勇者看不懂；等等你會用文字工具把規則變短。'},
+  {img:ASSETS.comicHeroMusic,speaker:'召喚祭壇',line:'勇者抽卡沒有聲音，看起來不夠厲害；等等你會用音樂工具做出登場氣氛。'},
+  {img:ASSETS.comicToolMap,speaker:'工具地圖',line:'寶箱需要圖片，傳送門需要動畫；先認識四種工具，再去處理真正的任務卡。'}
+];
+const TOOL_STORY={
+  text:{title:'森林規則太長了',line:'先把森林國王的長規則整理成小勇者看得懂的三條提醒。'},
+  music:{title:'勇者登場太安靜',line:'再幫抽卡祭壇做一段有氣勢的音樂，讓勇者出場更厲害。'},
+  image:{title:'寶箱缺少樣子',line:'接著替寶箱做出清楚圖片，讓玩家一眼知道獎勵長什麼樣。'},
+  video:{title:'傳送門不會動',line:'最後讓傳送門動起來，玩家才知道下一個入口已經開啟。'}
+};
+const TOOL_SCENES={text:ASSETS.comicForest,music:ASSETS.comicHeroMusic,image:ASSETS.comicToolMap,video:ASSETS.comicToolMap};
+const TOOL_LABELS={text:'文字工具',image:'圖片工具',video:'影片工具',music:'音樂工具'};
+const TOOL_OUTPUTS={text:'整理後的文字',image:'生成圖片',video:'生成影片',music:'生成音樂'};
+const TOOL_DEMOS={
+  text:{
+    output:'文字',
+    prompt:'請把森林規則整理成 3 點提醒，給小勇者看。',
+    keywords:[{text:'森林規則',tone:'goal'},{text:'3 點提醒',tone:'use'},{text:'小勇者',tone:'detail'}],
+    result:['1. 先找到森林入口。','2. 收集三個任務徽章。','3. 完成後回到任務畫面。'],
+    resultLine:'阿工按下生成後，Lab Terminal 產生一段可以閱讀的文字。',
+    outputLine:'這個工具的產出內容為文字。'
+  },
+  image:{
+    output:'圖片',
+    prompt:'請做一張冰雪寶箱圖片，放在抽卡按鈕旁，風格要藍白亮晶晶。',
+    keywords:[{text:'冰雪寶箱圖片',tone:'goal'},{text:'抽卡按鈕旁',tone:'use'},{text:'藍白亮晶晶',tone:'detail'}],
+    result:'一張藍白色寶箱貼紙出現在畫面上。',
+    resultLine:'阿工按下生成後，Lab Image 產生一張可以放進作品的圖片。',
+    outputLine:'這個工具的產出內容為圖片。'
+  },
+  video:{
+    output:'影片',
+    prompt:'請做 5 秒寶箱冒光影片，用在抽卡動畫裡。',
+    keywords:[{text:'5 秒',tone:'goal'},{text:'寶箱冒光',tone:'use'},{text:'抽卡動畫',tone:'detail'}],
+    result:'寶箱先亮起來，接著閃出抽卡光芒。',
+    resultLine:'阿工按下生成後，Lab Video 產生一段會動的短影片。',
+    outputLine:'這個工具的產出內容為影片。'
+  },
+  music:{
+    output:'音樂',
+    prompt:'請做 30 秒明亮有節奏的音樂，用在抽卡配音。',
+    keywords:[{text:'30 秒',tone:'goal'},{text:'明亮有節奏',tone:'detail'},{text:'抽卡配音',tone:'use'}],
+    result:'畫面出現一段可以播放的音樂波形。',
+    resultLine:'阿工按下生成後，Lab Music 產生一段可以播放的音樂。',
+    outputLine:'這個工具的產出內容為音樂。'
+  }
+};
 
 const INTRO_STEPS=[
   {
-    id:'text',type:'text',title:'文字類｜Lab Terminal',lead:'整理、改寫、做提示',
-    speech:'先從任務卡抓出重要詞，做成提示詞句，生成文字結果，再把工作卡拖進分類表。',
-    tryTitle:'先造提示詞句並生成，再分類哪些工作適合它',
-    trialTask:'收到任務了！把「森林冒險任務」整理成 3 點提醒，給新同學看。',
+    id:'text',type:'text',title:'文字工具',lead:'整理文字',
+    speech:'阿工說：抓詞，生成，分類。',
+    tryTitle:'試用，再分類',
+    trialTask:'森林規則 → 3 點 → 小勇者',
     promptTemplate:'請把 {goal}，{use}，{detail}。',
-    phrases:['森林冒險任務','整理成 3 點提醒','給新同學看'],
+    phrases:['森林規則','整理 3 點','給小勇者'],
     slots:[
-      {key:'goal',name:'第一段：這次要處理什麼',answer:'森林冒險任務'},
-      {key:'use',name:'第二段：要變成什麼結果',answer:'整理成 3 點提醒'},
-      {key:'detail',name:'第三段：誰要使用',answer:'給新同學看'}
+      {key:'goal',name:'1 做什麼',answer:'森林規則'},
+      {key:'use',name:'2 長什麼樣',answer:'整理 3 點'},
+      {key:'detail',name:'3 給誰',answer:'給小勇者'}
     ],
-    checkWords:['森林冒險任務','3 點提醒','新同學'],
+    checkWords:['森林規則','3 點','小勇者'],
     sortCards:[
-      {id:'text-fit-1',text:'整理三點提醒',fit:true},
-      {id:'text-miss-1',text:'做背景音樂',fit:false},
-      {id:'text-fit-2',text:'改寫一句提醒',fit:true},
-      {id:'text-miss-2',text:'讓寶箱打開冒光',fit:false},
+      {id:'text-fit-1',text:'三點提醒',fit:true},
+      {id:'text-miss-1',text:'背景音樂',fit:false},
+      {id:'text-fit-2',text:'改寫提醒',fit:true},
+      {id:'text-miss-2',text:'寶箱冒光',fit:false},
       {id:'text-fit-3',text:'寫故事開場',fit:true},
       {id:'text-miss-3',text:'畫冰雪寶箱',fit:false}
     ]
   },
   {
-    id:'image',type:'image',title:'圖片類｜Lab Image',lead:'產生圖片或貼紙',
-    speech:'先從任務卡抓出主體、用途、風格，做成提示詞句，生成圖片結果，再分類。',
-    tryTitle:'先造提示詞句並生成，再分類哪些工作適合它',
-    trialTask:'收到任務了！製作一張「冰雪寶箱」圖片，用在抽卡按鈕旁邊。補充：藍白色、亮晶晶、貼紙風。',
-    promptTemplate:'請製作 {goal}，用在 {use}，風格是 {detail}。',
-    phrases:['一張冰雪寶箱圖片','抽卡按鈕旁邊','藍白色、亮晶晶、貼紙風'],
+    id:'image',type:'image',title:'圖片工具',lead:'產生圖片',
+    speech:'阿工說：主體，用途，風格。',
+    tryTitle:'試用，再分類',
+    trialTask:'冰雪寶箱圖 → 抽卡按鈕',
+    promptTemplate:'請做 {goal}，放在 {use}，風格 {detail}。',
+    phrases:['冰雪寶箱圖','抽卡按鈕旁','藍白亮晶晶'],
     slots:[
-      {key:'goal',name:'第一段：這次要產生什麼',answer:'一張冰雪寶箱圖片'},
-      {key:'use',name:'第二段：圖片放在哪裡',answer:'抽卡按鈕旁邊'},
-      {key:'detail',name:'第三段：畫面細節',answer:'藍白色、亮晶晶、貼紙風'}
+      {key:'goal',name:'1 做什麼',answer:'冰雪寶箱圖'},
+      {key:'use',name:'2 用在哪',answer:'抽卡按鈕旁'},
+      {key:'detail',name:'3 細節',answer:'藍白亮晶晶'}
     ],
-    checkWords:['冰雪寶箱','圖片','抽卡按鈕'],
+    checkWords:['冰雪寶箱','圖','抽卡按鈕'],
     sortCards:[
-      {id:'image-fit-1',text:'做角色圖片',fit:true},
-      {id:'image-miss-1',text:'整理活動規則',fit:false},
-      {id:'image-fit-2',text:'畫冰雪寶箱',fit:true},
-      {id:'image-miss-2',text:'做 30 秒音樂',fit:false},
-      {id:'image-fit-3',text:'做按鈕貼紙',fit:true},
-      {id:'image-miss-3',text:'讓寶箱動起來',fit:false}
+      {id:'image-fit-1',text:'角色圖片',fit:true},
+      {id:'image-miss-1',text:'活動規則',fit:false},
+      {id:'image-fit-2',text:'冰雪寶箱',fit:true},
+      {id:'image-miss-2',text:'30 秒音樂',fit:false},
+      {id:'image-fit-3',text:'按鈕貼紙',fit:true},
+      {id:'image-miss-3',text:'寶箱動畫',fit:false}
     ]
   },
   {
-    id:'video',type:'video',title:'影片類｜Lab Video',lead:'產生短影片',
-    speech:'先抓出影片長度、畫面動作和用途，做成提示詞句，生成影片結果，再分類。',
-    tryTitle:'先造提示詞句並生成，再分類哪些工作適合它',
-    trialTask:'收到任務了！製作 5 秒影片，讓寶箱打開冒光，用在抽卡動畫。',
-    promptTemplate:'請製作 {goal}，動作是 {use}，用在 {detail}。',
-    phrases:['一段 5 秒影片','寶箱打開冒光','抽卡動畫'],
+    id:'video',type:'video',title:'影片工具',lead:'產生短片',
+    speech:'阿工說：秒數，動作，用途。',
+    tryTitle:'試用，再分類',
+    trialTask:'5 秒影片 → 寶箱冒光',
+    promptTemplate:'請做 {goal}，動作 {use}，用在 {detail}。',
+    phrases:['5 秒影片','寶箱冒光','抽卡動畫'],
     slots:[
-      {key:'goal',name:'第一段：這次要產生什麼',answer:'一段 5 秒影片'},
-      {key:'use',name:'第二段：畫面要做什麼動作',answer:'寶箱打開冒光'},
-      {key:'detail',name:'第三段：影片用在哪裡',answer:'抽卡動畫'}
+      {key:'goal',name:'1 做什麼',answer:'5 秒影片'},
+      {key:'use',name:'2 動作',answer:'寶箱冒光'},
+      {key:'detail',name:'3 用在哪',answer:'抽卡動畫'}
     ],
-    checkWords:['5 秒','寶箱打開冒光','抽卡動畫'],
+    checkWords:['5 秒','寶箱冒光','抽卡動畫'],
     duration:5,
     sortCards:[
-      {id:'video-fit-1',text:'讓寶箱打開冒光',fit:true},
-      {id:'video-miss-1',text:'做角色圖片',fit:false},
-      {id:'video-fit-2',text:'角色走進森林',fit:true},
-      {id:'video-miss-2',text:'整理三點提醒',fit:false},
-      {id:'video-fit-3',text:'做抽卡動畫',fit:true},
-      {id:'video-miss-3',text:'做背景音樂',fit:false}
+      {id:'video-fit-1',text:'寶箱冒光',fit:true},
+      {id:'video-miss-1',text:'角色圖片',fit:false},
+      {id:'video-fit-2',text:'角色進森林',fit:true},
+      {id:'video-miss-2',text:'三點提醒',fit:false},
+      {id:'video-fit-3',text:'抽卡動畫',fit:true},
+      {id:'video-miss-3',text:'背景音樂',fit:false}
     ]
   },
   {
-    id:'music',type:'music',title:'音樂類｜Lab Music',lead:'產生音樂或音效',
-    speech:'先抓出音樂長度、使用情境和感覺，做成提示詞句，生成音樂結果，再分類。',
-    tryTitle:'先造提示詞句並生成，再分類哪些工作適合它',
-    trialTask:'收到任務了！製作 30 秒音樂，用在抽卡動畫配音，感覺要有期待感、明亮、有節奏。',
-    promptTemplate:'請製作 {goal}，用在 {use}，感覺是 {detail}。',
-    phrases:['一段 30 秒音樂','抽卡動畫配音','期待感、明亮、有節奏'],
+    id:'music',type:'music',title:'音樂工具',lead:'產生音效',
+    speech:'阿工說：長度，場景，感覺。',
+    tryTitle:'試用，再分類',
+    trialTask:'30 秒音樂 → 抽卡配音',
+    promptTemplate:'請做 {goal}，用在 {use}，感覺 {detail}。',
+    phrases:['30 秒音樂','抽卡配音','明亮有節奏'],
     slots:[
-      {key:'goal',name:'第一段：這次要產生什麼',answer:'一段 30 秒音樂'},
-      {key:'use',name:'第二段：音樂用在哪裡',answer:'抽卡動畫配音'},
-      {key:'detail',name:'第三段：聽起來的感覺',answer:'期待感、明亮、有節奏'}
+      {key:'goal',name:'1 做什麼',answer:'30 秒音樂'},
+      {key:'use',name:'2 用在哪',answer:'抽卡配音'},
+      {key:'detail',name:'3 感覺',answer:'明亮有節奏'}
     ],
-    checkWords:['30 秒','音樂','抽卡動畫配音'],
+    checkWords:['30 秒','音樂','抽卡配音'],
     durationMs:30000,
     sortCards:[
-      {id:'music-fit-1',text:'做背景音樂',fit:true},
+      {id:'music-fit-1',text:'背景音樂',fit:true},
       {id:'music-miss-1',text:'畫冰雪寶箱',fit:false},
-      {id:'music-fit-2',text:'做抽卡配音',fit:true},
-      {id:'music-miss-2',text:'讓寶箱打開冒光',fit:false},
-      {id:'music-fit-3',text:'做勝利音效',fit:true},
-      {id:'music-miss-3',text:'整理活動規則',fit:false}
+      {id:'music-fit-2',text:'抽卡配音',fit:true},
+      {id:'music-miss-2',text:'寶箱冒光',fit:false},
+      {id:'music-fit-3',text:'勝利音效',fit:true},
+      {id:'music-miss-3',text:'活動規則',fit:false}
     ]
   }
 ];
 
+const INTRO_STEP_OVERRIDES=[
+  {
+    id:'text',
+    title:'文字工具',
+    tryTitle:'森林規則整理',
+    trialTask:'森林規則太長，請整理 3 點，給小勇者看。',
+    promptTemplate:'請把 {goal} {use}，寫給 {detail}。',
+    phrases:['森林規則','整理 3 點','小勇者'],
+    slots:[
+      {key:'goal',name:'1 任務內容',answer:'森林規則'},
+      {key:'use',name:'2 要怎麼做',answer:'整理 3 點'},
+      {key:'detail',name:'3 給誰看',answer:'小勇者'}
+    ],
+    checkWords:['森林規則','3 點','小勇者']
+  },
+  {
+    id:'music',
+    title:'音樂工具',
+    tryTitle:'勇者抽卡音樂',
+    trialTask:'勇者抽卡登場太安靜，請做 30 秒熱血音樂。',
+    promptTemplate:'請為 {goal} 做 {use} 的 {detail}。',
+    phrases:['勇者抽卡登場','30 秒','熱血音樂'],
+    slots:[
+      {key:'goal',name:'1 場景',answer:'勇者抽卡登場'},
+      {key:'use',name:'2 長度',answer:'30 秒'},
+      {key:'detail',name:'3 感覺',answer:'熱血音樂'}
+    ],
+    checkWords:['勇者','30 秒','熱血']
+  },
+  {
+    id:'image',
+    title:'圖片工具',
+    tryTitle:'寶箱獎勵圖片',
+    trialTask:'寶箱獎勵還沒有樣子，請生成發光金色寶箱圖片。',
+    promptTemplate:'請生成 {goal}，用途是 {use}，風格是 {detail}。',
+    phrases:['寶箱獎勵','圖片','發光金色'],
+    slots:[
+      {key:'goal',name:'1 主角',answer:'寶箱獎勵'},
+      {key:'use',name:'2 產出',answer:'圖片'},
+      {key:'detail',name:'3 風格',answer:'發光金色'}
+    ],
+    checkWords:['寶箱','圖片','發光']
+  },
+  {
+    id:'video',
+    title:'影片工具',
+    tryTitle:'傳送門動畫',
+    trialTask:'傳送門看起來不會動，請生成 5 秒冒光旋轉動畫。',
+    promptTemplate:'請生成 {goal}，做出 {use}，時間是 {detail}。',
+    phrases:['傳送門','冒光旋轉','5 秒動畫'],
+    slots:[
+      {key:'goal',name:'1 主角',answer:'傳送門'},
+      {key:'use',name:'2 動作',answer:'冒光旋轉'},
+      {key:'detail',name:'3 時間',answer:'5 秒動畫'}
+    ],
+    checkWords:['傳送門','冒光','5 秒']
+  }
+];
+INTRO_STEP_OVERRIDES.forEach(data=>{
+  const step=INTRO_STEPS.find(item=>item.id===data.id);
+  if(step)Object.assign(step,data);
+});
 const RECALL_MATCHES=[
-  {id:'r-text-rule',task:'把活動規則整理成 3 點提醒',type:'text'},
-  {id:'r-text-dialog',task:'改寫 NPC 歡迎詞，讓小一更看得懂',type:'text'},
-  {id:'r-image-map',task:'畫一張魔法森林入口地圖',type:'image'},
-  {id:'r-image-badge',task:'做一枚任務完成徽章貼紙',type:'image'},
-  {id:'r-video-chest',task:'讓寶箱打開並冒光 5 秒',type:'video'},
-  {id:'r-video-character',task:'讓角色跳起來轉一圈',type:'video'},
-  {id:'r-music-bg',task:'做探索森林的背景音樂',type:'music'},
-  {id:'r-music-sfx',task:'做任務完成的短音效',type:'music'}
+  {
+    id:'r-text-rule',type:'text',scene:'forest',
+    title:'勇者森林規則',
+    task:'森林國王想把森林規則整理成三點提醒，給小勇者看。',
+    tokens:[{text:'森林規則',tone:'goal'},{text:'三點提醒',tone:'use'},{text:'小勇者',tone:'detail'}],
+    sample:'森林規則提醒：看地圖、走安全路線、遇到路牌先停下來。'
+  },
+  {
+    id:'r-image-chest',type:'image',scene:'chest',
+    title:'抽卡按鈕圖片',
+    task:'抽卡按鈕旁需要一張冰雪寶箱圖片，風格要藍白亮晶晶。',
+    tokens:[{text:'冰雪寶箱圖片',tone:'goal'},{text:'抽卡按鈕旁',tone:'use'},{text:'藍白亮晶晶',tone:'detail'}],
+    sample:'生成一張藍白色、亮晶晶的冰雪寶箱圖片。'
+  },
+  {
+    id:'r-video-glow',type:'video',scene:'video',
+    title:'抽卡開箱動畫',
+    task:'抽卡時要播放 5 秒寶箱冒光動畫，讓同學知道抽卡開始了。',
+    tokens:[{text:'5 秒',tone:'goal'},{text:'寶箱冒光動畫',tone:'use'},{text:'抽卡開始',tone:'detail'}],
+    sample:'生成一段寶箱亮起並冒出光芒的短影片。'
+  },
+  {
+    id:'r-music-win',type:'music',scene:'music',
+    title:'完成任務音效',
+    task:'完成任務時要播放明亮有節奏的短音效，提醒大家已經成功。',
+    tokens:[{text:'完成任務',tone:'goal'},{text:'明亮有節奏',tone:'detail'},{text:'短音效',tone:'use'}],
+    sample:'生成一段明亮、有節奏、適合成功時播放的音樂。'
+  }
 ];
 const RECALL_QUESTIONS=[
-  {id:'rq1',q:'看到任務卡第一步做什麼？',answer:'先看任務是什麼',options:['先看任務是什麼','先看成品顏色','先看卡片編號']},
-  {id:'rq2',q:'造提示詞句前要先想清楚什麼？',answer:'任務要做出的結果',options:['任務要做出的結果','要使用哪個顏色','卡片放在哪一排']}
+  {id:'rq1',q:'第一步？',answer:'看任務',options:['看任務','看顏色','看編號']},
+  {id:'rq2',q:'造句前想？',answer:'要產出什麼',options:['要產出什麼','要哪個顏色','放哪一排']}
 ];
 
 const PROMPT_FACTORY=[
-  {key:'goal',name:'第一段：要做什麼',role:'從任務卡抓成品',answer:'製作一張冰雪寶箱圖片'},
-  {key:'use',name:'第二段：用在哪裡',role:'從任務卡抓用途',answer:'用在抽卡按鈕旁邊'},
-  {key:'detail',name:'第三段：重要細節',role:'從任務卡抓補充條件',answer:'藍白色、亮晶晶、貼紙風'}
+  {key:'goal',name:'1 做什麼',role:'抓成品',answer:'製作冰雪寶箱圖'},
+  {key:'use',name:'2 用在哪',role:'抓用途',answer:'放抽卡按鈕旁'},
+  {key:'detail',name:'3 細節',role:'抓補充',answer:'藍白亮晶晶'}
 ];
 const FACTORY_TASK={
   title:'任務卡 A',
-  text:'收到任務了！製作一張「冰雪寶箱」圖片，用在抽卡按鈕旁邊。補充：藍白色、亮晶晶、貼紙風。',
-  hint:'從任務敘述裡把亮起來的詞拿下來，拖到提示詞區塊。',
+  text:'冰雪寶箱圖 → 抽卡按鈕 → 亮晶晶',
+  hint:'把亮詞拖下來。',
   inlineTokens:true,
   floating:true,
   parts:[
-    '收到任務了！',
-    {phrase:'製作一張冰雪寶箱圖片',label:'製作一張「冰雪寶箱」圖片'},
+    '',
+    {phrase:'製作冰雪寶箱圖',label:'冰雪寶箱圖'},
     '，',
-    {phrase:'用在抽卡按鈕旁邊',label:'用在抽卡按鈕旁邊'},
+    {phrase:'放抽卡按鈕旁',label:'抽卡按鈕旁'},
     '。補充：',
-    {phrase:'藍白色、亮晶晶、貼紙風',label:'藍白色、亮晶晶、貼紙風'},
+    {phrase:'藍白亮晶晶',label:'藍白亮晶晶'},
     '。'
   ]
 };
-const FACTORY_PHRASES=['製作一張冰雪寶箱圖片','用在抽卡按鈕旁邊','藍白色、亮晶晶、貼紙風'];
+const FACTORY_PHRASES=['製作冰雪寶箱圖','放抽卡按鈕旁','藍白亮晶晶'];
 
 const PRACTICE_CARDS=[
   {
-    id:'T01',type:'text',task:'收到任務了！把「森林冒險任務」整理成 3 點提示，給新同學看。',
+    id:'T01',type:'text',task:'森林規則 → 3 點 → 小勇者',
     imageScene:'forest',
     messyParts:[
-      {phrase:'給新同學看'},
-      ' 的版本不要太長，旁邊還夾著一張森林貼紙。老師剛剛說這張卡字很多，主角是 ',
-      {phrase:'森林冒險任務'},
-      '，請你把它 ',
-      {phrase:'整理成 3 點提示'},
+      '森林國王說：請給小勇者看，不要太長；把 ',
+      {phrase:'森林規則'},
+      ' ',
+      {phrase:'整理 3 點'},
+      '，',
+      {phrase:'給小勇者'},
       '。'
     ],
     promptTemplate:'請把 {goal}，{use}，{detail}。',
-    phrases:['森林冒險任務','整理成 3 點提示','給新同學看'],
+    phrases:['森林規則','整理 3 點','給小勇者'],
     slots:[
-      {key:'goal',name:'第一段：這次要處理什麼',answer:'森林冒險任務'},
-      {key:'use',name:'第二段：要變成什麼結果',answer:'整理成 3 點提示'},
-      {key:'detail',name:'第三段：誰要使用',answer:'給新同學看'}
+      {key:'goal',name:'1 做什麼',answer:'森林規則'},
+      {key:'use',name:'2 長什麼樣',answer:'整理 3 點'},
+      {key:'detail',name:'3 給誰',answer:'給小勇者'}
     ],
-    checkWords:['森林冒險任務','3 點提示','新同學']
+    checkWords:['森林規則','3 點','小勇者']
   },
   {
-    id:'I01',type:'image',task:'收到任務了！製作一張「冰雪寶箱」圖片，用在抽卡按鈕旁邊。',
+    id:'I01',type:'image',task:'冰雪寶箱圖 → 抽卡按鈕',
     imageScene:'chest',
     messyParts:[
-      {phrase:'抽卡按鈕旁邊'},
-      ' 現在有點空，老師希望補一張圖，而且看起來要 ',
-      {phrase:'藍白色、亮晶晶、貼紙風'},
-      '。請你準備 ',
-      {phrase:'一張冰雪寶箱圖片'},
+      '抽卡按鈕旁想放一張圖；畫面要 ',
+      {phrase:'藍白亮晶晶'},
+      '，主角是 ',
+      {phrase:'冰雪寶箱圖'},
+      '，放在 ',
+      {phrase:'抽卡按鈕旁'},
       '。'
     ],
-    promptTemplate:'請製作 {goal}，用在 {use}，風格是 {detail}。',
-    phrases:['一張冰雪寶箱圖片','抽卡按鈕旁邊','藍白色、亮晶晶、貼紙風'],
+    promptTemplate:'請做 {goal}，放在 {use}，風格 {detail}。',
+    phrases:['冰雪寶箱圖','抽卡按鈕旁','藍白亮晶晶'],
     slots:[
-      {key:'goal',name:'第一段：這次要產生什麼',answer:'一張冰雪寶箱圖片'},
-      {key:'use',name:'第二段：圖片放在哪裡',answer:'抽卡按鈕旁邊'},
-      {key:'detail',name:'第三段：畫面細節',answer:'藍白色、亮晶晶、貼紙風'}
+      {key:'goal',name:'1 做什麼',answer:'冰雪寶箱圖'},
+      {key:'use',name:'2 用在哪',answer:'抽卡按鈕旁'},
+      {key:'detail',name:'3 細節',answer:'藍白亮晶晶'}
     ],
-    checkWords:['冰雪寶箱','圖片','抽卡按鈕']
+    checkWords:['冰雪寶箱','圖','抽卡按鈕']
   },
   {
-    id:'V01',type:'video',task:'收到任務了！製作 5 秒影片，讓寶箱打開冒光，用在抽卡動畫。',
+    id:'V01',type:'video',task:'5 秒影片 → 寶箱冒光',
     imageScene:'chest',
     messyParts:[
       '這段要放進 ',
       {phrase:'抽卡動畫'},
-      '，因為抽卡畫面如果只是靜止圖片，大家看一下就滑走了。請做 ',
-      {phrase:'一段 5 秒影片'},
-      '，畫面動作是 ',
-      {phrase:'寶箱打開冒光'},
+      '；請做 ',
+      {phrase:'5 秒影片'},
+      '，讓 ',
+      {phrase:'寶箱冒光'},
       '。'
     ],
-    promptTemplate:'請製作 {goal}，動作是 {use}，用在 {detail}。',
-    phrases:['一段 5 秒影片','寶箱打開冒光','抽卡動畫'],
+    promptTemplate:'請做 {goal}，動作 {use}，用在 {detail}。',
+    phrases:['5 秒影片','寶箱冒光','抽卡動畫'],
     slots:[
-      {key:'goal',name:'第一段：這次要產生什麼',answer:'一段 5 秒影片'},
-      {key:'use',name:'第二段：畫面要做什麼動作',answer:'寶箱打開冒光'},
-      {key:'detail',name:'第三段：影片用在哪裡',answer:'抽卡動畫'}
+      {key:'goal',name:'1 做什麼',answer:'5 秒影片'},
+      {key:'use',name:'2 動作',answer:'寶箱冒光'},
+      {key:'detail',name:'3 用在哪',answer:'抽卡動畫'}
     ],
-    checkWords:['5 秒','寶箱打開冒光','抽卡動畫'],
+    checkWords:['5 秒','寶箱冒光','抽卡動畫'],
     duration:5
   },
   {
-    id:'M01',type:'music',task:'收到任務了！製作 30 秒音樂，用在抽卡動畫配音。',
+    id:'M01',type:'music',task:'30 秒音樂 → 抽卡配音',
     imageScene:'chest',
     messyParts:[
-      {phrase:'期待感、明亮、有節奏'},
-      ' 這幾個感覺要留住。抽卡畫面差一點聲音，這段要 ',
-      {phrase:'用在抽卡動畫配音'},
-      '，請做 ',
-      {phrase:'一段 30 秒音樂'},
+      '抽卡時需要聲音；用在 ',
+      {phrase:'抽卡配音'},
+      '，感覺要 ',
+      {phrase:'明亮有節奏'},
+      '，長度是 ',
+      {phrase:'30 秒音樂'},
       '。'
     ],
-    promptTemplate:'請製作 {goal}，{use}，感覺是 {detail}。',
-    phrases:['一段 30 秒音樂','用在抽卡動畫配音','期待感、明亮、有節奏'],
+    promptTemplate:'請做 {goal}，用在 {use}，感覺 {detail}。',
+    phrases:['30 秒音樂','抽卡配音','明亮有節奏'],
     slots:[
-      {key:'goal',name:'第一段：這次要產生什麼',answer:'一段 30 秒音樂'},
-      {key:'use',name:'第二段：音樂用在哪裡',answer:'用在抽卡動畫配音'},
-      {key:'detail',name:'第三段：聽起來的感覺',answer:'期待感、明亮、有節奏'}
+      {key:'goal',name:'1 做什麼',answer:'30 秒音樂'},
+      {key:'use',name:'2 用在哪',answer:'抽卡配音'},
+      {key:'detail',name:'3 感覺',answer:'明亮有節奏'}
     ],
-    checkWords:['30 秒','音樂','抽卡動畫配音'],
+    checkWords:['30 秒','音樂','抽卡配音'],
     durationMs:30000
   }
 ];
 
 const SUMMARY_QUESTIONS=[
-  {id:'s1',q:'想整理故事想法，進哪一類？',answer:'文字類',options:['圖片類','文字類','影片類','音樂類']},
-  {id:'s2',q:'想做角色圖，進哪一類？',answer:'圖片類',options:['文字類','影片類','圖片類','音樂類']},
-  {id:'s3',q:'想讓寶箱打開冒光，進哪一類？',answer:'影片類',options:['音樂類','圖片類','影片類','文字類']},
-  {id:'s4',q:'想做抽卡配音，進哪一類？',answer:'音樂類',options:['影片類','文字類','圖片類','音樂類']},
-  {id:'s5',q:'提示詞句要先說什麼？',answer:'要做什麼',options:['要做什麼','放在哪個角落','選哪一種顏色']},
-  {id:'s8',q:'這堂課的口訣是什麼？',answer:'先看任務是什麼，再用對的工具',options:['先看任務是什麼，再用對的工具','先選最熟的工具，再補句子','先看成品漂不漂亮，再選工具']}
+  {id:'s1',part:4,type:'text',scene:'forest',title:'勇者森林規則',task:'森林國王想把森林規則整理成三點提醒，讓小勇者快速看懂。',q:'這張任務卡最適合使用哪一種工具？',answer:'文字類',options:['圖片類','文字類','影片類','音樂類']},
+  {id:'s2',part:4,type:'image',scene:'chest',title:'抽卡寶箱貼紙',task:'抽卡按鈕旁需要一張藍白亮晶晶的冰雪寶箱圖片。',q:'這張任務卡最適合使用哪一種工具？',answer:'圖片類',options:['文字類','影片類','圖片類','音樂類']},
+  {id:'s3',part:4,type:'video',scene:'video',title:'開箱冒光動畫',task:'抽卡開始時需要一段 5 秒寶箱冒光的短動畫。',q:'這張任務卡最適合使用哪一種工具？',answer:'影片類',options:['音樂類','圖片類','影片類','文字類']},
+  {id:'s4',part:4,type:'music',scene:'music',title:'成功短音效',task:'任務完成時需要一段明亮有節奏的短音效。',q:'這張任務卡最適合使用哪一種工具？',answer:'音樂類',options:['影片類','文字類','圖片類','音樂類']},
+  {id:'s5',part:4,type:'image',scene:'forest',title:'森林入口插圖',task:'地圖第一站需要一張可以看見森林入口和小路的插圖。',q:'這張任務卡最適合使用哪一種工具？',answer:'圖片類',options:['影片類','圖片類','音樂類','文字類']},
+  {id:'s6',part:4,type:'text',scene:'forest',title:'森林告示改口語',task:'森林入口的告示太長，需要改成小勇者容易懂的口語說明。',q:'這張任務卡最適合使用哪一種工具？',answer:'文字類',options:['文字類','圖片類','音樂類','影片類']},
+  {id:'s7',part:5,type:'prompt',scene:'chest',title:'提示詞第一格',task:'任務卡寫著：請做一張冰雪寶箱圖片，放在抽卡按鈕旁，風格要藍白亮晶晶。',q:'造提示詞時，第一步應該先找什麼？',answer:'要做什麼',options:['要做什麼','先選顏色','先看按鈕大小']},
+  {id:'s8',part:5,type:'prompt',scene:'video',title:'提示詞重要細節',task:'任務卡寫著：抽卡時播放 5 秒寶箱冒光動畫，讓同學知道抽卡開始。',q:'「5 秒」和「寶箱冒光」在提示詞裡屬於什麼？',answer:'任務重點',options:['任務重點','裝飾文字','不用放進提示詞']},
+  {id:'s9',part:5,type:'prompt',scene:'music',title:'流程口訣',task:'阿工提醒：處理任務卡時，不要只看工具名稱，要先看任務需要產生什麼。',q:'正確流程是哪一個？',answer:'讀任務卡 → 選工具 → 抓重點 → 生成內容',options:['讀任務卡 → 選工具 → 抓重點 → 生成內容','先生成內容 → 再讀任務卡','先選喜歡的工具 → 再想任務']},
+  {id:'s10',part:5,type:'prompt',scene:'forest',title:'拖出任務重點',task:'任務卡寫著：請把森林規則整理成三點提醒，給小勇者看。',q:'哪些內容應該拖到提示詞句裡？',answer:'森林規則、三點提醒、小勇者',options:['森林規則、三點提醒、小勇者','國王、小朋友、按鈕','地圖、顏色、金幣']},
+  {id:'s11',part:5,type:'prompt',scene:'chest',title:'生成前檢查',task:'學生已經選好圖片工具，也把冰雪寶箱圖片、抽卡按鈕旁、藍白亮晶晶放進提示詞。',q:'下一步應該做什麼？',answer:'審查提示詞句後生成內容',options:['審查提示詞句後生成內容','重新選工具','直接跳到完成頁']},
+  {id:'s12',part:5,type:'prompt',scene:'video',title:'工具產出內容',task:'Lab Video 的任務卡要求寶箱冒光 5 秒，學生已經生成完成。',q:'這個工具的產出內容是什麼？',answer:'影片',options:['影片','文字','音樂']}
 ];
 
 const WALL_TASKS=[
-  {label:'把隊伍規則整理成短提醒',type:'text'},
-  {label:'改寫任務說明，讓新同學看懂',type:'text'},
-  {label:'製作寶石獎章貼紙',type:'image'},
-  {label:'畫一張天空城入口圖',type:'image'},
-  {label:'做寶箱打開冒光動畫',type:'video'},
-  {label:'做角色揮手走進教室的短影片',type:'video'},
-  {label:'製作抽卡背景音樂',type:'music'},
-  {label:'做答對時的短音效',type:'music'}
+  {label:'規則短提醒',type:'text'},
+  {label:'任務說明改寫',type:'text'},
+  {label:'寶石獎章貼紙',type:'image'},
+  {label:'天空城入口圖',type:'image'},
+  {label:'寶箱冒光動畫',type:'video'},
+  {label:'角色揮手短片',type:'video'},
+  {label:'抽卡背景音樂',type:'music'},
+  {label:'答對短音效',type:'music'}
 ];
 const SKILLS=WALL_TASKS.map(x=>x.label);
 
 function defaultProgress(){
   return {
-    v:VERSION,screenIndex:0,introStep:0,introAnswers:{},introDone:[],introBriefSeen:{},
-    recallMatches:{},recallAnswers:{},factoryAnswers:{},factoryDone:false,
-    practiceOrder:stableShuffle('practice-order-v8',PRACTICE_CARDS,c=>c.id).map(c=>c.id),completedPracticeCards:[],practiceState:{},
-    promptReviewPasses:0,summaryAnswers:{},summaryScore:null,wallSkills:[],
+    v:VERSION,screenIndex:0,introStep:0,mapOpened:false,storyIndex:0,storySeen:false,activeIntroTool:null,introLineIndex:0,introAnswers:{},introDone:[],introBriefSeen:{},
+    recallMatches:{},recallAnswers:{},recallExtracts:{},recallGenerated:{},recallFinished:{},factoryAnswers:{},factoryDone:false,
+    practiceOrder:stableShuffle('practice-order-v11',PRACTICE_CARDS,c=>c.id).map(c=>c.id),completedPracticeCards:[],practiceState:{},
+    promptReviewPasses:0,summaryAnswers:{},summaryPage4:0,summaryPage5:0,summaryScore:null,wallSkills:[],
     coins:0,coinEvents:{},coinsAwarded:{},wrongAttempts:{},lockedWrongOptions:{},penalties:{},
     teacher:{handRaised:false,peerTutor:false,verified:false,assignedTutor:false,lastAssist:null},
     syncPending:false,doneAt:null
@@ -599,9 +1166,12 @@ function defaultProgress(){
 }
 let P=loadLocal();
 let selectedRecall=null;
+let pickedRecallToken=null;
 let pickedPhrase=null;
 let pickedSortCard=null;
 let pickedWallSkill=null;
+let screenTransitioning=false;
+let lastRenderedScreen=null;
 const stage=$('#stage');
 const modal=$('#modal');
 
@@ -617,12 +1187,12 @@ const Account=(()=>{
 
 function loadLocal(){try{const s=JSON.parse(localStorage.getItem(STORE));if(s&&s.v===VERSION&&Number.isInteger(s.screenIndex))return Object.assign(defaultProgress(),s);}catch(e){}return defaultProgress();}
 function save(){try{localStorage.setItem(STORE,JSON.stringify(P));}catch(e){}renderHud();if(Account.ready){clearTimeout(save._t);save._t=setTimeout(()=>Account.save(P),650);}}
-function progressScore(s){if(!s||s.v!==VERSION)return -1;return (s.screenIndex||0)*1000+(s.introDone||[]).length*80+Object.keys(s.recallMatches||{}).length*20+(s.factoryDone?120:0)+(s.completedPracticeCards||[]).length*120+Object.keys(s.summaryAnswers||{}).length*20+(s.wallSkills||[]).length*10+(s.doneAt?500:0);}
+function progressScore(s){if(!s||s.v!==VERSION)return -1;return (s.screenIndex||0)*1000+(s.introDone||[]).length*80+Object.keys(s.recallMatches||{}).length*20+Object.keys(s.recallGenerated||{}).length*40+Object.keys(s.recallFinished||{}).length*80+(s.factoryDone?120:0)+(s.completedPracticeCards||[]).length*120+Object.keys(s.summaryAnswers||{}).length*20+(s.wallSkills||[]).length*10+(s.doneAt?500:0);}
 function tool(type){return TOOLS.find(t=>t.type===type);}
 function setToolVar(n,type){n.style.setProperty('--c',tool(type).color);}
 function typeLabel(type){return tool(type).label;}
 function addCoins(id,amount){if(P.coinEvents[id])return;P.coinEvents[id]=amount;P.coins+=amount;save();burst();}
-async function awardMainCoinsOnce(){if(P.coinsAwarded[MAIN_COIN_TX])return 'already';try{await Account.creditCoins(MAIN_COIN_TX,250,'S3-W01 工具地圖探索主線完成');P.coinsAwarded[MAIN_COIN_TX]=true;P.syncPending=false;save();return 'synced';}catch(e){P.syncPending=true;save();return 'pending';}}
+async function awardMainCoinsOnce(){if(P.coinsAwarded[MAIN_COIN_TX])return 'already';try{await Account.creditCoins(MAIN_COIN_TX,MAIN_COIN_AMOUNT,'S3-W01 工具地圖探索主線完成');P.coinsAwarded[MAIN_COIN_TX]=true;P.syncPending=false;save();return 'synced';}catch(e){P.syncPending=true;save();return 'pending';}}
 function updateWrong(key,type){P.wrongAttempts[key]=(P.wrongAttempts[key]||0)+1;if(type)P.wrongAttempts['type:'+type]=(P.wrongAttempts['type:'+type]||0)+1;save();return P.wrongAttempts[key];}
 function lockWrong(key,opt){P.lockedWrongOptions[key]=P.lockedWrongOptions[key]||[];if(!P.lockedWrongOptions[key].includes(opt))P.lockedWrongOptions[key].push(opt);save();}
 function isLocked(key,opt){return (P.lockedWrongOptions[key]||[]).includes(opt);}
@@ -642,6 +1212,7 @@ function penaltyNotice(key){
   const left=penaltyLeft(key);
   if(!left)return null;
   const n=el('div','penalty-bar');
+  n.dataset.penaltyKey=key;
   n.append(el('span',null,'剛剛答錯，先停一下再試。'),el('b',null,left+' 秒'));
   return n;
 }
@@ -653,7 +1224,7 @@ function validatePrompt(card,st){
   const vague=/^(幫我做|做一個|好看一點|隨便|aaaa|1234)+$/i.test(prompt);
   return {pass:missingSlots.length===0&&missingWords.length===0&&!vague,missingSlots,missingWords,vague};
 }
-function blockPasteAndDrop(input){['paste','drop'].forEach(evt=>input.addEventListener(evt,e=>{e.preventDefault();toast('請用語句卡自己造句。');}));}
+function blockPasteAndDrop(input){['paste','drop'].forEach(evt=>input.addEventListener(evt,e=>{e.preventDefault();toast('用卡造句。');}));}
 function unique(list){return Array.from(new Set(list));}
 function stableHash(text){
   let h=2166136261;
@@ -744,13 +1315,46 @@ function renderPhraseButton(phrase,label,cfg,state,paused,extraClass=''){
   const used=Object.values(state).includes(phrase);
   const card=el('button','phrase-card'+(extraClass?' '+extraClass:'')+(pickedPhrase===phrase?' selected':'')+(used?' used':''),label||phrase);
   card.type='button';
+  card.dataset.phrase=phrase;
+  card.dataset.sentenceId=cfg.idPrefix||'';
   card.disabled=cfg.disabled||paused||used;
   card.draggable=!card.disabled;
   if(cfg.type)setToolVar(card,cfg.type);else card.style.setProperty('--c',cfg.color||'#7C3AED');
-  card.addEventListener('dragstart',e=>{if(card.disabled)return;e.dataTransfer.setData('text/plain',phrase);pickedPhrase=phrase;});
-  card.addEventListener('dragend',()=>{pickedPhrase=null;});
-  card.addEventListener('click',()=>{if(card.disabled)return;pickedPhrase=pickedPhrase===phrase?null:phrase;render();});
+  card.addEventListener('dragstart',e=>{if(card.disabled)return;e.dataTransfer.setData('text/plain',phrase);pickedPhrase=phrase;refreshPhraseSelection();});
+  card.addEventListener('dragend',()=>{pickedPhrase=null;refreshPhraseSelection();});
+  card.addEventListener('click',()=>{if(card.disabled)return;pickedPhrase=pickedPhrase===phrase?null:phrase;refreshPhraseSelection();});
   return card;
+}
+function refreshPhraseSelection(){
+  $$('.phrase-card').forEach(card=>{
+    const selected=!!pickedPhrase&&card.dataset.phrase===pickedPhrase&&!card.disabled&&!card.classList.contains('used');
+    card.classList.toggle('selected',selected);
+  });
+}
+function refreshSentenceBuilderDom(cfg){
+  const id=String(cfg.idPrefix||'');
+  const state=cfg.state||{};
+  const paused=isPenaltyActive(cfg.penaltyKey||cfg.idPrefix+':sentence');
+  $$('.sentence-board').filter(board=>board.dataset.sentenceId===id).forEach(board=>{
+    $$('.sentence-slot',board).forEach(box=>{
+      const slot=cfg.slots.find(item=>item.key===box.dataset.slotKey);
+      if(!slot)return;
+      const filled=!!state[slot.key];
+      box.classList.toggle('filled',filled);
+      const value=$('span',box);
+      if(value)value.textContent=filled?state[slot.key]:(box.dataset.emptyLabel||'____');
+    });
+    $$('.phrase-card',board).forEach(card=>{
+      const used=Object.values(state).includes(card.dataset.phrase);
+      card.classList.toggle('used',used);
+      card.classList.toggle('selected',!!pickedPhrase&&card.dataset.phrase===pickedPhrase&&!used&&!card.disabled);
+      card.disabled=!!cfg.disabled||paused||used;
+      card.draggable=!card.disabled;
+    });
+    const preview=$('[data-prompt-preview]',board);
+    if(preview)preview.textContent=(cfg.previewLabel||'提示詞：')+makeSentenceFromSlots(cfg.slots,state);
+  });
+  if(cfg.onLiveUpdate)cfg.onLiveUpdate();
 }
 function appendTaskTextWithTokens(container,cfg,phrases,state,paused){
   const parts=cfg.taskCard.parts||[cfg.taskCard.text||''];
@@ -759,11 +1363,24 @@ function appendTaskTextWithTokens(container,cfg,phrases,state,paused){
     else if(part&&part.phrase)container.append(renderPhraseButton(part.phrase,part.label||part.phrase,cfg,state,paused,'inline-token'));
   });
 }
+function renderTaskSourcePreview(card){
+  const taskCard=el('div','task-source-card floating');
+  taskCard.append(el('h3',null,'任務卡'));
+  const art=renderTaskIllustration(card.imageScene);if(art)taskCard.append(art);
+  const text=el('div','task-source-text');
+  (card.messyParts||[card.task]).forEach(part=>{
+    if(typeof part==='string')text.append(document.createTextNode(part));
+    else if(part&&part.phrase)text.append(el('span','inline-token-preview',part.label||part.phrase));
+  });
+  taskCard.append(text,el('div','review','請先讀完整任務卡，再選出最合適的工具。'));
+  return taskCard;
+}
 function renderSentenceBuilder(cfg){
   const state=cfg.state||{};
   const penaltyKey=cfg.penaltyKey||cfg.idPrefix+':sentence';
   const paused=isPenaltyActive(penaltyKey);
   const board=el('div','sentence-board');
+  board.dataset.sentenceId=cfg.idPrefix||'';
   const notice=penaltyNotice(penaltyKey);if(notice)board.append(notice);
   const bank=el('div','phrase-bank');
   const phrases=stableShuffle(cfg.idPrefix+':phrases',unique(cfg.phrases||cfg.slots.flatMap(slot=>slot.options||[slot.answer])));
@@ -777,16 +1394,18 @@ function renderSentenceBuilder(cfg){
     if(cfg.taskCard.inlineTokens)appendTaskTextWithTokens(taskTextBox,cfg,phrases,state,paused);
     else taskTextBox.textContent=cfg.taskCard.text||'';
     taskCard.append(taskTextBox);
-    taskCard.append(el('div','review',cfg.taskCard.hint||'從任務卡抓出重要詞，拖到下面句子槽。'));
+    taskCard.append(el('div','review',cfg.taskCard.hint||'請從任務敘述中拖出亮起來的重點詞。'));
     if(!cfg.taskCard.inlineTokens)taskCard.append(bank);
     board.append(taskCard);
   }else{
-    board.append(el('div','review',cfg.instruction||'把語句卡拖到下面句子槽；點一下語句卡也可以選取，再點槽位放入。'),bank);
+    board.append(el('div','review',cfg.instruction||'拖詞到三格。'),bank);
   }
   const slots=el('div','sentence-slots');
   cfg.slots.forEach(slot=>{
-    const value=state[slot.key]||'拖到這裡';
+    const value=state[slot.key]||'放這裡';
     const box=el('div','sentence-slot'+(state[slot.key]?' filled':''));if(cfg.type)setToolVar(box,cfg.type);else box.style.setProperty('--c',cfg.color||'#7C3AED');
+    box.dataset.slotKey=slot.key;
+    box.dataset.emptyLabel=value;
     box.append(el('b',null,slot.name),el('span',null,value));
     const locked=P.lockedWrongOptions[cfg.idPrefix+':'+slot.key]||[];
     if(locked.length)box.append(el('div','lock-note','已鎖定：'+locked.join('、')));
@@ -798,7 +1417,7 @@ function renderSentenceBuilder(cfg){
     slots.append(box);
   });
   board.append(slots);
-  const line=el('div','prompt-preview',(cfg.previewLabel||'句子：')+makeSentenceFromSlots(cfg.slots,state));board.append(line);
+  const line=el('div','prompt-preview',(cfg.previewLabel||'句子：')+makeSentenceFromSlots(cfg.slots,state));line.dataset.promptPreview='true';board.append(line);
   return board;
 }
 function dropPhraseToSlot(cfg,slot,phrase){
@@ -806,21 +1425,28 @@ function dropPhraseToSlot(cfg,slot,phrase){
   const penaltyKey=cfg.penaltyKey||cfg.idPrefix+':sentence';
   if(isPenaltyActive(penaltyKey))return;
   const key=cfg.idPrefix+':'+slot.key;
-  if(isLocked(key,phrase)){toast('這張語句卡在此位置已鎖定。');return;}
+  if(isLocked(key,phrase)){toast('已鎖定。');return;}
+  let quietUpdate=false;
   if(phrase===slot.answer){
     cfg.state[slot.key]=phrase;
     pickedPhrase=null;
     if(cfg.onChange)cfg.onChange();
-    toast('放對位置。');
+    quietUpdate=!!cfg.liveUpdate;
+    toast('對。');
   }else{
     lockWrong(key,phrase);
     const p=applyPenalty(penaltyKey,cfg.type);
     pickedPhrase=null;
     if(cfg.onWrong)cfg.onWrong(slot,phrase);
-    toast('放錯位置，已鎖定。冷卻 '+p.seconds+' 秒。');
+    toast('錯，鎖 '+p.seconds+' 秒。');
   }
   save();
-  render();
+  if(quietUpdate){
+    refreshSentenceBuilderDom(cfg);
+    schedulePenaltyRender();
+  }else{
+    render();
+  }
 }
 function introSortDone(step,state){
   return resultReady(step,state)&&step.sortCards.every(card=>state.sort?.[card.id]===(card.fit?'fit':'miss'));
@@ -831,14 +1457,15 @@ function renderToolTrial(step,state){
   const box=el('div','mini-try');
   box.append(el('h3',null,step.tryTitle));
   const trial=el('div','trial-box');setToolVar(trial,step.type);
-  trial.append(el('div','review','先從任務卡抓詞，做成提示詞句，再按「生成'+resultNoun(step.type)+'」。'));
+  trial.append(el('div','review','抓詞 → 審查 → 生成'));
   trial.append(renderIntroGeneration(step,state));
   box.append(trial);
   if(resultReady(step,state))box.append(renderToolSortTable(step,state));
-  else box.append(el('div','review','生成完成或使用本機跳過後，分類表才會開啟。'));
+  else box.append(el('div','review','生成後再分類。'));
   return box;
 }
 function renderIntroGeneration(step,state){
+  state.slots=state.slots||{};
   const box=el('div','grid');
   box.append(renderSentenceBuilder({
     idPrefix:'intro:'+step.id,
@@ -848,34 +1475,35 @@ function renderIntroGeneration(step,state){
     type:step.type,
     disabled:resultReady(step,state)||state.loading,
     previewLabel:'提示詞句：',
-    taskCard:{title:'試用任務卡',text:step.trialTask,hint:'把任務卡上的詞拖進句子槽，完成後先審查再生成。'},
+    taskCard:{title:'試用卡',text:step.trialTask,hint:'拖詞，生成。'},
     onChange:()=>{state.prompt=composePrompt(step,state);state.reviewed=false;state.error=null;state.reviewText=null;}
   }));
   state.prompt=composePrompt(step,state);
-  const review=el('div','review',state.error||state.reviewText||'提示詞句要包含任務、用途或細節，通過審查才能生成。');
+  const slotsDone=step.slots.every(slot=>state.slots?.[slot.key]===slot.answer);
+  const review=el('div','review',state.error||state.reviewText||'三格都要填。');
   if(state.reviewed)review.classList.add('good');
   if(state.error)review.classList.add('bad');
   box.append(review);
   const row=el('div','chip-row');
   const pKey='intro:'+step.id+':review';
-  const check=el('button','btn warn','審查提示詞句');
+  const check=el('button','btn warn','審查');
   check.disabled=state.reviewed||resultReady(step,state)||state.loading||isPenaltyActive(pKey);
   check.addEventListener('click',()=>{
     const r=validatePrompt(step,state);
     if(r.pass){
       state.reviewed=true;
       state.error=null;
-      state.reviewText='審查通過，可以用 '+tool(step.type).toolName+' 生成。';
-      toast('提示詞句審查通過。');
+      state.reviewText='可生成。';
+      toast('審查通過。');
     }else{
       state.reviewed=false;
       const parts=[];
-      if(r.missingSlots.length)parts.push('三段還缺：'+r.missingSlots.join('、'));
-      if(r.missingWords.length)parts.push('句子還沒提到：'+r.missingWords.join('、'));
-      if(r.vague)parts.push('這句太空泛');
+      if(r.missingSlots.length)parts.push('缺：'+r.missingSlots.join('、'));
+      if(r.missingWords.length)parts.push('漏：'+r.missingWords.join('、'));
+      if(r.vague)parts.push('太空');
       state.error=parts.join('。');
       const p=applyPenalty(pKey,step.type);
-      toast('審查未通過，冷卻 '+p.seconds+' 秒。');
+      toast('未通過，鎖 '+p.seconds+' 秒。');
     }
     save();render();
   });
@@ -883,9 +1511,24 @@ function renderIntroGeneration(step,state){
   const gen=el('button','btn good','生成'+resultNoun(step.type));
   gen.disabled=!state.reviewed||resultReady(step,state)||state.loading;
   gen.addEventListener('click',()=>generateResult(step,state));
-  const skip=el('button','softbtn','本機測試：跳過生成');
-  skip.disabled=!state.reviewed||resultReady(step,state)||state.loading;
-  skip.addEventListener('click',()=>skipGeneration(step,state));
+  const skip=el('button','softbtn','跳過生成');
+  skip.textContent='跳過生成';
+  skip.disabled=(!state.reviewed&&!slotsDone)||resultReady(step,state)||state.loading;
+  skip.addEventListener('click',()=>{
+    if(!state.reviewed){
+      const r=validatePrompt(step,state);
+      if(!r.pass){
+        state.reviewed=false;
+        state.error='請先把任務卡的三個重點放到句子裡。';
+        save();render();
+        return;
+      }
+      state.reviewed=true;
+      state.error=null;
+      state.reviewText='可生成。';
+    }
+    skipGeneration(step,state);
+  });
   row.append(check,gen,skip);
   box.append(row,renderPreview(step,state));
   return box;
@@ -913,13 +1556,13 @@ function renderToolSortTable(step,state){
   const notice=penaltyNotice(penaltyKey);if(notice)wrap.append(notice);
   const bank=el('div','phrase-bank');
   bank.append(el('div','review','工作卡'));
-  stableShuffle('intro-sort-bank:'+step.id,step.sortCards,c=>c.id).filter(card=>!state.sort[card.id]).forEach(card=>bank.append(renderSortCard(step,state,card,paused)));
+  stableShuffle('intro-sort-bank-v9:'+step.id,step.sortCards,c=>c.id).filter(card=>!state.sort[card.id]).forEach(card=>bank.append(renderSortCard(step,state,card,paused)));
   wrap.append(bank);
   const table=el('div','sort-table');
   [['fit','O','適合這個工具'],['miss','X','不適合這個工具']].forEach(([zone,icon,label])=>{
     const z=el('div','sort-zone');setToolVar(z,step.type);
     const h=el('h4');h.append(el('span','zone-icon '+(zone==='fit'?'good':'bad'),icon),document.createTextNode(label));z.append(h);
-    stableShuffle('intro-sort-zone:'+step.id+':'+zone,step.sortCards,c=>c.id).filter(card=>state.sort[card.id]===zone).forEach(card=>z.append(renderSortCard(step,state,card,true)));
+    stableShuffle('intro-sort-zone-v9:'+step.id+':'+zone,step.sortCards,c=>c.id).filter(card=>state.sort[card.id]===zone).forEach(card=>z.append(renderSortCard(step,state,card,true)));
     z.addEventListener('dragover',e=>{if(paused)return;e.preventDefault();z.classList.add('over');});
     z.addEventListener('dragleave',()=>z.classList.remove('over'));
     z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('over');handleIntroSortDrop(step,state,e.dataTransfer.getData('text/plain')||pickedSortCard,zone);});
@@ -956,23 +1599,80 @@ function handleIntroSortDrop(step,state,cardId,zone){
     lockWrong(lockKey,zone);
     const p=applyPenalty(penaltyKey,step.type);
     pickedSortCard=null;
-    toast('分類錯誤，這個欄位已鎖定。冷卻 '+p.seconds+' 秒。');
+    toast('放錯，鎖 '+p.seconds+' 秒。');
   }
   save();
   render();
 }
-function renderHud(){const idx=clamp(P.screenIndex,0,SCREENS.length-1);const pct=Math.round((idx/(SCREENS.length-1))*100);$('#screenName').textContent=SCREEN_LABELS[SCREENS[idx]];$('#progressText').textContent=pct+'%';$('#progressBar').style.width=pct+'%';$('#coinN').textContent=P.coins;}
+function renderHud(){const idx=clamp(P.screenIndex,0,SCREENS.length-1);const screen=SCREENS[idx];const pct=Math.round((idx/(SCREENS.length-1))*100);$('#screenName').textContent=SCREEN_LABELS[screen];$('#progressText').textContent=pct+'%';$('#progressBar').style.width=pct+'%';$('#coinN').textContent=screen==='done'?MAIN_COIN_AMOUNT:P.coins;}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('on'),1800);}
-function screenShell(eyebrow,title,lead){const s=el('section','screen');const head=el('div','screen-head');const text=el('div');text.append(el('p','eyebrow',eyebrow),el('h2',null,title));if(lead)text.append(el('p','lead',lead));head.append(text,el('div','keyline','先看任務是什麼，再用對的工具。'));s.append(head);return s;}
+function guideFor(eyebrow){
+  if(eyebrow.includes('Screen 0'))return ['阿工帶你認識工具',['看提示詞','看結果','點亮工具']];
+  if(eyebrow.includes('Screen 1'))return ['幫阿工整理任務',['讀任務卡','選合適工具','拖出重點']];
+  if(eyebrow.includes('Screen 2'))return ['拿任務詞造句',['找出重點','放進句子','完成提示詞']];
+  if(eyebrow.includes('Screen 3'))return ['處理正式任務',['讀任務卡','選工具','生成結果']];
+  if(eyebrow.includes('Screen 4'))return ['阿工小考',['看清楚任務','選出工具','檢查答案']];
+  if(eyebrow.includes('Screen 5'))return ['提示詞抽考',['讀任務卡','判斷流程','前往完成']];
+  return ['成果交給老師',['看成果','告訴老師','幫助同學']];
+}
+function guideCard(eyebrow){
+  const [line,steps]=guideFor(eyebrow);
+  const card=el('div','guide-card');
+  card.append(el('div','guide-avatar'));
+  const body=el('div');body.append(el('b',null,line));
+  const row=el('div','guide-steps');
+  steps.forEach(x=>row.append(el('span','guide-step',x)));
+  body.append(row);card.append(body);
+  return card;
+}
+function screenShell(eyebrow,title,lead){const s=el('section','screen');const head=el('div','screen-head');const text=el('div');text.append(el('p','eyebrow',eyebrow),el('h2',null,title));if(lead)text.append(el('p','lead',lead));head.append(text,guideCard(eyebrow));s.append(head);return s;}
 function toolIcon(type){const i=el('div','tool-ico '+type);setToolVar(i,type);return i;}
 function toolCard(t){const c=el('div','tool-card');setToolVar(c,t.type);c.append(toolIcon(t.type));const tx=el('div');tx.innerHTML='<b>'+t.label+'｜'+t.toolName+'</b><small>'+t.use+'</small>';c.append(tx);return c;}
-function toolFocus(type){const t=tool(type);const c=el('div','tool-focus');setToolVar(c,type);c.append(toolIcon(type));const tx=el('div');tx.innerHTML='<b>目前工具：'+t.label+'｜'+t.toolName+'</b><small>特色：'+t.use+'。分類時只把「適合用這個工具完成」的工作放到 O。</small>';c.append(tx);return c;}
+function toolFocus(type){const t=tool(type);const c=el('div','tool-focus');setToolVar(c,type);c.append(toolIcon(type));const tx=el('div');tx.innerHTML='<b>'+t.label+'｜'+t.toolName+'</b><small>O 能做｜X 不適合</small>';c.append(tx);return c;}
+function toolUseSentence(type){return ({text:'可以整理文字',image:'可以產生圖片',video:'可以產生短影片',music:'可以產生音樂或音效'}[type]||'可以生成內容');}
+function missionBanner(text){
+  const n=el('div','mission-banner');
+  n.append(el('i',null,'!'),el('span',null,text));
+  return n;
+}
+function keywordClass(tone){return 'kw kw-'+(tone||'goal');}
+function appendKeywordText(container,text,keywords=[]){
+  const sorted=[...keywords].sort((a,b)=>text.indexOf(a.text)-text.indexOf(b.text));
+  let pos=0;
+  sorted.forEach(k=>{
+    const i=text.indexOf(k.text,pos);
+    if(i<0)return;
+    if(i>pos)container.append(document.createTextNode(text.slice(pos,i)));
+    container.append(el('span',keywordClass(k.tone),k.text));
+    pos=i+k.text.length;
+  });
+  if(pos<text.length)container.append(document.createTextNode(text.slice(pos)));
+}
+function renderGeneratedPreview(type,content){
+  const box=el('div','generated-preview');
+  setToolVar(box,type);
+  if(type==='text'){
+    const r=el('div','text-result');
+    (Array.isArray(content)?content:[String(content||'生成文字結果')]).forEach(line=>r.append(el('div',null,line)));
+    box.append(r);
+  }else if(type==='image'){
+    const img=el('img');img.src=ASSETS.image;img.alt='生成圖片示範';
+    box.append(img,el('div',null,content||'生成圖片結果'));
+  }else if(type==='video'){
+    box.append(el('div','video-demo'),el('div',null,content||'生成影片結果'));
+  }else if(type==='music'){
+    const wave=el('div','music-demo');
+    for(let i=0;i<16;i++)wave.append(el('i'));
+    box.append(wave,el('div',null,content||'生成音樂結果'));
+  }
+  return box;
+}
 function station(t,lit){const s=el('div','station'+(lit?' lit':''));s.dataset.type=t.type;setToolVar(s,t.type);s.append(toolIcon(t.type));const tx=el('div');tx.innerHTML='<b>'+t.toolName+'</b><small>'+t.label+'｜'+t.use+'</small>';s.append(tx);return s;}
 function renderMap(lit=[],currentType){
   const m=el('div','map');
   const visible=TOOLS.filter(t=>lit.includes(t.type)||t.type===currentType);
   const tools=el('div','map-tools');
-  tools.append(el('h3',null,'已認識的工具'));
+  tools.append(el('h3',null,'工具站'));
   visible.forEach(t=>{
     const chip=el('div','map-tool-chip'+(t.type===currentType?' current':''));
     setToolVar(chip,t.type);
@@ -985,7 +1685,7 @@ function renderMap(lit=[],currentType){
   m.append(tools);
   const pile=el('div','task-pile-stage');
   const title=el('div','task-pile-title');
-  title.innerHTML='<b>任務卡堆</b><small>先讀任務，再選工具</small>';
+  title.innerHTML='<b>任務卡堆</b><small>讀卡選工具</small>';
   pile.append(title);
   [[49,17,-6],[58,24,5],[42,33,-8],[63,42,7],[37,55,4],[53,60,-7],[68,58,6],[45,72,-4]].forEach((p,i)=>{
     const c=el('div','task-card-float');
@@ -998,40 +1698,438 @@ function renderMap(lit=[],currentType){
 }
 function schedulePenaltyRender(){
   clearTimeout(schedulePenaltyRender._t);
-  const hasActive=Object.keys(P.penalties||{}).some(k=>isPenaltyActive(k));
-  if(hasActive)schedulePenaltyRender._t=setTimeout(render,1000);
+  const active=Object.keys(P.penalties||{}).filter(k=>isPenaltyActive(k));
+  if(!active.length)return;
+  $$('.penalty-bar').forEach(bar=>{
+    const key=bar.dataset.penaltyKey;
+    const b=bar.querySelector('b');
+    const left=penaltyLeft(key);
+    if(b)b.textContent=left+' 秒';
+  });
+  const soonest=Math.min(...active.map(k=>P.penalties[k]));
+  schedulePenaltyRender._t=setTimeout(()=>{
+    if(Date.now()>=soonest)render();
+    else schedulePenaltyRender();
+  },250);
 }
-function render(){renderHud();stage.innerHTML='';({start:renderStart,recall:renderRecall,taskA:renderTaskA,taskB:renderTaskB,summary:renderSummary,wall:renderWall,done:renderDone}[SCREENS[P.screenIndex]||'start'])();schedulePenaltyRender();}
-function gotoScreen(i){P.screenIndex=clamp(i,0,SCREENS.length-1);save();render();}
+function render(){
+  const screenKey=SCREENS[P.screenIndex]||'start';
+  const sameScreen=lastRenderedScreen===screenKey;
+  renderHud();
+  stage.innerHTML='';
+  ({start:renderStart,recall:renderRecall,taskA:renderTaskA,taskB:renderTaskB,summary:renderSummary,wall:renderWall,done:renderDone}[screenKey])();
+  if(sameScreen){
+    const current=stage.querySelector('.screen');
+    if(current)current.classList.add('no-enter');
+  }
+  lastRenderedScreen=screenKey;
+  schedulePenaltyRender();
+}
+function showScreenTransition(nextIndex){
+  const overlay=el('div','screen-transition');
+  const card=el('div','transition-card');
+  const img=el('img');img.src=ASSETS.agong;img.alt='工具人阿工';
+  card.append(img,el('b',null,'阿工口訣'),el('p',null,'讀任務卡 → 選合適工具 → 抓出重點 → 生成內容'));
+  const next=el('button','btn good','我記住了，前往下一頁');
+  next.addEventListener('click',()=>{
+    P.screenIndex=nextIndex;
+    save();
+    render();
+    overlay.classList.add('leave');
+    clearTimeout(showScreenTransition._b);
+    showScreenTransition._b=setTimeout(()=>{overlay.remove();screenTransitioning=false;},340);
+  });
+  card.append(next);
+  overlay.append(card);
+  document.body.append(overlay);
+  clearTimeout(showScreenTransition._a);
+  clearTimeout(showScreenTransition._b);
+}
+function gotoScreen(i){
+  const next=clamp(i,0,SCREENS.length-1);
+  if(next===P.screenIndex){render();return;}
+  if(screenTransitioning)return;
+  screenTransitioning=true;
+  showScreenTransition(next);
+}
 
+function nextIntroType(){
+  const done=new Set(P.introDone||[]);
+  return INTRO_FLOW.find(type=>!done.has(type));
+}
+function typeStoryText(target,text,button){
+  clearInterval(typeStoryText._t);
+  target.textContent='';
+  button.dataset.finalLabel=button.textContent;
+  button.dataset.ready='0';
+  button.textContent='不能跳過';
+  button.disabled=true;
+  let i=0;
+  typeStoryText._t=setInterval(()=>{
+    target.textContent=text.slice(0,i+1);
+    i+=1;
+    if(i>=text.length){
+      finishStoryText(target,text,button);
+    }
+  },128);
+}
+function finishStoryText(target,text,button){
+  clearInterval(typeStoryText._t);
+  target.textContent=text;
+  if(button){
+    button.dataset.ready='1';
+    button.textContent=button.dataset.finalLabel||button.textContent;
+    button.disabled=false;
+  }
+}
+function renderStoryIntro(){
+  const idx=clamp(P.storyIndex||0,0,STORY_PANELS.length-1);
+  const panel=STORY_PANELS[idx];
+  const s=el('section','screen story-screen');
+  const wrap=el('div','story-comic');
+  const frame=el('div','story-frame');
+  const img=el('img');img.src=panel.img;img.alt=panel.speaker+'故事圖';
+  frame.append(img);
+  const caption=el('div','story-caption');
+  const speaker=el('div','story-speaker',panel.speaker);
+  const text=el('div','story-text');
+  const next=el('button','btn primary',idx<STORY_PANELS.length-1?'下一格':'打開工具地圖');
+  next.addEventListener('click',()=>{
+    if(next.dataset.ready!=='1'){
+      return;
+    }
+    if(idx<STORY_PANELS.length-1)P.storyIndex=idx+1;
+    else{P.storySeen=true;P.mapOpened=false;}
+    save();render();
+  });
+  caption.append(speaker,text,el('div','story-count',(idx+1)+' / '+STORY_PANELS.length),next);
+  wrap.append(frame,caption);s.append(wrap);stage.append(s);
+  typeStoryText(text,panel.line,next);
+}
 function renderStart(){
-  const step=INTRO_STEPS[P.introStep]||INTRO_STEPS[0];
-  const s=screenShell('Screen 0｜認識工具與試用工具','先認識工具，再親手試用','工具小幫手每次只介紹一種工具；試用生成後，再判斷哪些工作適合它。');
-  const layout=el('div','intro-layout');
-  const left=el('div','grid');
-  const lit=INTRO_STEPS.filter(x=>x.type&&P.introDone.includes(x.id)).map(x=>x.type);
-  left.append(renderMap(lit,step.type));
-  const pills=el('div','intro-steps');
-  INTRO_STEPS.filter((x,i)=>i<=P.introStep||P.introDone.includes(x.id)).forEach((x,i)=>{const p=el('span','step-pill'+(P.introDone.includes(x.id)?' done':'')+(x.id===step.id?' active':''),tool(x.type).label);setToolVar(p,x.type);pills.append(p);});
-  left.append(pills);
-  const right=el('div','panel pad grid');
-  const labo=el('div','labo-panel');
-  const big=el('div','labo-big');big.append(el('div','labo-eye'));labo.append(big);
-  const speech=el('div','speech');speech.innerHTML='<h3>'+step.title+'</h3><p class="lead">'+step.lead+'</p><p>'+step.speech+'</p>';labo.append(speech);
-  right.append(labo);
-  if(step.type)right.append(toolCard(tool(step.type)));
-  right.append(renderIntroTry(step));
-  layout.append(left,right);
-  s.append(layout);
-  stage.append(s);
-  if(!P.introBriefSeen?.[step.id])setTimeout(()=>showToolBriefing(step),30);
+  if(!P.storySeen){
+    renderStoryIntro();
+    return;
+  }
+  if(!P.mapOpened){
+    renderMapOpening();
+    return;
+  }
+  if(P.activeIntroTool){
+    renderToolIntroV2();
+    return;
+  }
+  renderToolMapExplore();
+}
+function renderMapOpening(){
+  const s=el('section','screen');
+  const wrap=el('div','map-cinematic');
+  const card=el('div','map-open-card');
+  const guide=el('div','agong-card');
+  const img=el('img');img.src=ASSETS.agong;img.alt='工具人阿工';
+  guide.append(img,el('div','agong-line','阿工打開工具地圖。'));
+  const map=el('div','map-fold');
+  const mapImg=el('img');mapImg.src=ASSETS.map;mapImg.alt='工具地圖';
+  map.append(mapImg);
+  card.append(guide,map);
+  wrap.append(card);s.append(wrap);stage.append(s);
+  clearTimeout(renderMapOpening._t);
+  renderMapOpening._t=setTimeout(()=>{if(SCREENS[P.screenIndex]==='start'&&!P.mapOpened){P.mapOpened=true;save();render();}},1500);
+}
+function renderToolMapExplore(){
+  const done=new Set(P.introDone||[]);
+  const s=el('section','screen screen-map-only');
+  const currentType=nextIntroType();
+  const allDone=!currentType;
+  const story=TOOL_STORY[currentType]||{};
+  const targetText=allDone
+    ?'目前目標：四種工具都點亮了，按地圖上的「開始任務」。'
+    :'目前目標：'+(story.title||'點亮工具')+'，點擊發光的 '+(TOOL_LABELS[currentType]||'工具')+'。';
+  s.append(missionBanner(targetText));
+  const layout=el('div','map-explorer map-only');
+  const map=el('div','adventure-map');
+  const img=el('img');img.src=ASSETS.map;img.alt='工具地圖';map.append(img);
+  TOOLS.forEach((t,i)=>{
+    const isDone=done.has(t.type);
+    const isCurrent=t.type===currentType;
+    const pin=el('button','tool-pin'+(isDone?' done':(isCurrent?' active':' dim locked')));
+    pin.setAttribute('aria-label','認識'+t.label);
+    pin.type='button';pin.style.setProperty('--x',t.pos[0]+'%');pin.style.setProperty('--y',t.pos[1]+'%');pin.style.setProperty('--c',t.color);pin.style.animationDelay=(i*.08)+'s';
+    const art=el('img');art.src=t.art;art.alt=t.label;pin.append(art);
+    pin.disabled=!isCurrent;
+    pin.addEventListener('click',()=>{if(!isCurrent)return;P.activeIntroTool=t.type;P.introLineIndex=0;save();render();});
+    map.append(pin);
+  });
+  if(allDone){
+    const next=el('button','btn good map-start','開始任務');
+    next.addEventListener('click',()=>{addCoins('intro-30',30);gotoScreen(2);});
+    map.append(next);
+  }
+  layout.append(map);s.append(layout);stage.append(s);
+}
+function introSlotsDone(step,state){return step.slots.every(slot=>state.slots?.[slot.key]===slot.answer);}
+function buildIntroStoryCard(t,story){
+  const storyCard=el('article','tool-story-card');setToolVar(storyCard,t.type);
+  const scene=el('img');scene.src=TOOL_SCENES[t.type]||ASSETS.comicToolMap;scene.alt=story.title;
+  const copy=el('div','tool-story-copy');
+  copy.append(el('h3',null,story.title),el('p',null,story.line));
+  const toolCard=el('div','tool-card');setToolVar(toolCard,t.type);
+  const ico=el('span','tool-ico '+t.type);toolCard.append(ico,el('div',null));
+  toolCard.lastChild.append(el('b',null,(TOOL_LABELS[t.type]||t.label)+'｜'+t.toolName),el('small',null,'產出：'+(TOOL_OUTPUTS[t.type]||resultNoun(t.type))));
+  copy.append(toolCard);storyCard.append(scene,copy);
+  return storyCard;
+}
+function introWorkTitle(t,title,lead){
+  const row=el('div','tool-work-title');
+  const toolImg=el('img');toolImg.src=t.art;toolImg.alt=t.label;
+  const text=el('div');
+  text.append(el('h3',null,title),el('p','lead',lead));
+  row.append(toolImg,text);
+  return row;
+}
+function introReviewButton(step,state,reviewNode,nextButton){
+  const pKey='intro:'+step.id+':review';
+  const check=el('button','btn warn','審查關鍵字');
+  check.disabled=state.reviewed||state.loading||isPenaltyActive(pKey);
+  check.addEventListener('click',()=>{
+    state.prompt=composePrompt(step,state);
+    const r=validatePrompt(step,state);
+    if(r.pass){
+      state.reviewed=true;
+      state.error=null;
+      state.reviewText='關鍵字放對了，可以前往生成頁。';
+      toast('審查通過。');
+    }else{
+      state.reviewed=false;
+      const parts=[];
+      if(r.missingSlots.length)parts.push('缺：'+r.missingSlots.join('、'));
+      if(r.missingWords.length)parts.push('漏：'+r.missingWords.join('、'));
+      if(r.vague)parts.push('太空');
+      state.error=parts.join('。')||'請把任務卡重點放到正確位置。';
+      const p=applyPenalty(pKey,step.type);
+      toast('未通過，鎖 '+p.seconds+' 秒。');
+    }
+    if(reviewNode){
+      reviewNode.classList.toggle('good',!!state.reviewed);
+      reviewNode.classList.toggle('bad',!!state.error);
+      reviewNode.textContent=state.error||state.reviewText||'把三個重點放進正確格子。';
+    }
+    if(nextButton)nextButton.disabled=!state.reviewed;
+    save();render();
+  });
+  return check;
+}
+function renderIntroBriefPage(t,story){
+  const intro=el('article','tool-work-card intro-page-card');setToolVar(intro,t.type);
+  intro.append(introWorkTitle(t,'先看這個問題',story.line));
+  const focus=el('div','intro-sentence');
+  focus.style.setProperty('--c',t.color);
+  const toolLabel=TOOL_LABELS[t.type]||t.label;
+  const outputLabel=TOOL_OUTPUTS[t.type]||resultNoun(t.type);
+  appendKeywordText(focus,'這一關要使用 '+toolLabel+'，產出 '+outputLabel+'。',[
+    {text:toolLabel,tone:t.type},
+    {text:outputLabel,tone:'output'}
+  ]);
+  const actions=el('div','intro-actions');
+  const next=el('button','btn tool','開始整理關鍵字');setToolVar(next,t.type);
+  next.addEventListener('click',()=>{P.introLineIndex=1;save();render();});
+  actions.append(el('small',null,'下一頁只做關鍵字分類。'),next);
+  intro.append(focus,actions);
+  return intro;
+}
+function renderIntroKeywordPage(t,step,state){
+  state.slots=state.slots||{};
+  state.prompt=composePrompt(step,state);
+  const work=el('article','tool-work-card');setToolVar(work,t.type);
+  work.append(introWorkTitle(t,'任務卡關鍵字歸類','把任務卡裡的三個重點拖到正確格子，先不要生成。'));
+  work.append(renderSentenceBuilder({
+    idPrefix:'intro:'+step.id,
+    slots:step.slots,
+    phrases:step.phrases,
+    state:state.slots,
+    type:step.type,
+    disabled:resultReady(step,state)||state.loading,
+    previewLabel:'提示詞句：',
+    taskCard:{title:'任務卡',text:step.trialTask,hint:'先找：任務內容、做法、給誰或細節。'},
+    onChange:()=>{state.prompt=composePrompt(step,state);state.reviewed=false;state.error=null;state.reviewText=null;state.result=null;}
+  }));
+  const review=el('div','review',state.error||state.reviewText||(introSlotsDone(step,state)?'三格都填好了，按審查關鍵字。':'把三個重點放進正確格子。'));
+  if(state.reviewed)review.classList.add('good');
+  if(state.error)review.classList.add('bad');
+  work.append(review);
+  const penalty=penaltyNotice('intro:'+step.id+':review');if(penalty)work.append(penalty);
+  const actions=el('div','intro-actions');
+  const row=el('div','chip-row');
+  const next=el('button','btn tool','前往生成頁');setToolVar(next,t.type);
+  next.disabled=!state.reviewed;
+  next.addEventListener('click',()=>{P.introLineIndex=2;save();render();});
+  row.append(introReviewButton(step,state,review,next),next);
+  actions.append(el('small',null,'審查通過後才會看到生成按鈕。'),row);
+  work.append(actions);
+  return work;
+}
+function renderIntroGeneratePage(t,step,state){
+  state.slots=state.slots||{};
+  state.prompt=composePrompt(step,state);
+  const work=el('article','tool-work-card');setToolVar(work,t.type);
+  work.append(introWorkTitle(t,'生成頁面','按生成取得結果；如果本機不能連 API，就按跳過生成。'));
+  const prompt=el('div','prompt-preview','提示詞句：'+state.prompt);
+  work.append(prompt);
+  if(state.error){
+    const review=el('div','review bad',state.error);
+    work.append(review);
+  }else{
+    work.append(el('div','review good','關鍵字已審查通過，現在可以生成內容。'));
+  }
+  const row=el('div','chip-row');
+  const gen=el('button','btn good','生成'+resultNoun(step.type));
+  gen.disabled=!state.reviewed||resultReady(step,state)||state.loading;
+  gen.addEventListener('click',()=>generateResult(step,state));
+  const skip=el('button','softbtn','跳過生成');
+  skip.disabled=resultReady(step,state)||state.loading;
+  skip.addEventListener('click',()=>{
+    if(!state.reviewed){
+      const r=validatePrompt(step,state);
+      if(!r.pass){
+        state.error='請先完成關鍵字審查。';
+        P.introLineIndex=1;
+        save();render();
+        return;
+      }
+      state.reviewed=true;
+    }
+    skipGeneration(step,state);
+  });
+  row.append(gen,skip);
+  work.append(row,renderPreview(step,state));
+  const actions=el('div','intro-actions');
+  const next=el('button','btn tool','查看任務完成');setToolVar(next,t.type);
+  next.disabled=!resultReady(step,state);
+  next.addEventListener('click',()=>{P.introLineIndex=3;save();render();});
+  actions.append(el('small',null,resultReady(step,state)?'結果已出現，下一頁看故事回應。':'生成或跳過後才能前往完成頁。'),next);
+  work.append(actions);
+  return work;
+}
+function introCompleteText(type){
+  return ({
+    text:'小勇者對小朋友說：這樣我就看得懂了！文字工具可以把很長的規則整理成清楚提醒。',
+    music:'勇者對小朋友說：登場有聲音就更有氣勢！音樂工具可以做背景音樂和音效。',
+    image:'阿工對小朋友說：寶箱有圖片就一眼看懂！圖片工具可以把想法變成看得見的圖。',
+    video:'阿工對小朋友說：傳送門動起來了！影片工具可以把畫面做成會動的短片。'
+  })[type]||'阿工說：任務完成！這個工具可以把你的提示詞變成需要的內容。';
+}
+function completeIntroTool(t){
+  P.introDone=P.introDone||[];
+  if(!P.introDone.includes(t.type))P.introDone.push(t.type);
+  P.activeIntroTool=null;
+  P.introLineIndex=0;
+  save();burst();render();
+}
+function introCompleteImage(type){
+  if(type==='text')return ASSETS.heroUnderstandsRules;
+  return TOOL_SCENES[type]||ASSETS.comicToolMap;
+}
+function renderIntroCompletePage(t,step,state){
+  const work=el('article','tool-work-card');setToolVar(work,t.type);
+  work.append(introWorkTitle(t,'任務完成','看角色回應，確認這個工具幫上什麼忙。'));
+  const result=el('div','complete-scene');
+  const image=el('img');image.src=introCompleteImage(t.type);image.alt=(TOOL_LABELS[t.type]||t.label)+'任務完成';
+  result.append(image);
+  const speech=el('div','intro-sentence complete-speech');
+  speech.style.setProperty('--c',t.color);
+  result.append(speech);
+  work.append(result);
+  const actions=el('div','intro-actions');
+  const done=el('button','btn tool','點亮 '+(TOOL_LABELS[t.type]||t.label));setToolVar(done,t.type);
+  done.addEventListener('click',()=>{
+    if(done.dataset.ready!=='1'){
+      return;
+    }
+    completeIntroTool(t);
+  });
+  actions.append(el('small',null,'文字跑完後，再點一次點亮工具。'),done);
+  work.append(actions);
+  typeStoryText(speech,introCompleteText(t.type),done);
+  return work;
+}
+function renderToolIntroV2(){
+  const t=tool(P.activeIntroTool)||tool(nextIntroType())||TOOLS[0];
+  const step=INTRO_STEPS.find(x=>x.id===t.type)||INTRO_STEPS[0];
+  const state=P.introAnswers[step.id]=P.introAnswers[step.id]||{};
+  const story=TOOL_STORY[t.type]||{title:'解決工具任務',line:'跟著阿工完成這個工具的試用生成。'};
+  if((P.introLineIndex||0)>=2&&!state.reviewed)P.introLineIndex=1;
+  if((P.introLineIndex||0)>=3&&!resultReady(step,state))P.introLineIndex=2;
+  const phase=clamp(P.introLineIndex||0,0,3);
+  const s=el('section','screen tool-mission-screen');
+  const layout=el('div','tool-mission');
+  let work;
+  if(phase===0)work=renderIntroBriefPage(t,story);
+  else if(phase===1)work=renderIntroKeywordPage(t,step,state);
+  else if(phase===2)work=renderIntroGeneratePage(t,step,state);
+  else work=renderIntroCompletePage(t,step,state);
+  layout.append(buildIntroStoryCard(t,story),work);
+  s.append(layout);stage.append(s);
+}
+function renderToolIntro(){
+  const t=tool(P.activeIntroTool)||TOOLS[0];
+  const demo=TOOL_DEMOS[t.type];
+  const idx=clamp(P.introLineIndex||0,0,2);
+  const s=screenShell('Screen 0｜阿工介紹','認識 '+t.label+' 工具','阿工會示範提示詞、生成結果和產出內容。');
+  s.append(missionBanner('目前目標：聽阿工介紹 '+t.toolName+' 怎麼使用提示詞生成'+demo.output+'。'));
+  const layout=el('div','tool-lesson');
+  const card=el('div','intro-focus demo-board');
+  setToolVar(card,t.type);
+  const media=el('div','agong-lesson');
+  const ag=el('img');ag.src=ASSETS.agong;ag.alt='工具人阿工';
+  const sentence=el('div','intro-sentence');
+  sentence.style.setProperty('--c',t.color);
+  media.append(ag,sentence);card.append(media);
+  if(idx===0){
+    sentence.textContent='提示詞就是你交給 AI 工具的任務指令。';
+    const prompt=el('div','prompt-card');
+    prompt.style.setProperty('--c',t.color);
+    prompt.append(el('h3',null,'阿工示範的提示詞'));
+    const line=el('div','prompt-line');
+    appendKeywordText(line,demo.prompt,demo.keywords);
+    prompt.append(line);
+    card.append(prompt);
+  }else if(idx===1){
+    sentence.textContent=demo.resultLine;
+    const result=el('div','generated-card');
+    result.style.setProperty('--c',t.color);
+    result.append(el('h3',null,'生成出來的東西'));
+    result.append(renderGeneratedPreview(t.type,demo.result));
+    card.append(result);
+  }else{
+    appendKeywordText(sentence,demo.outputLine,[{text:demo.output,tone:'output'}]);
+    const output=el('div','output-card');
+    output.style.setProperty('--c',t.color);
+    output.append(el('h3',null,'產出內容'));
+    const badge=el('div','output-badge');
+    badge.append(el('span','kw kw-output',demo.output));
+    output.append(badge);
+    card.append(output);
+  }
+  const actions=el('div','intro-actions');
+  actions.append(el('small',null,(idx+1)+' / 3'));
+  const btn=el('button','btn tool',idx===0?'生成看看':(idx===1?'看產出內容':'點亮 '+t.label+' 工具'));
+  setToolVar(btn,t.type);
+  btn.addEventListener('click',()=>{
+    if(P.introLineIndex<2){P.introLineIndex+=1;}
+    else{if(!P.introDone.includes(t.type))P.introDone.push(t.type);P.activeIntroTool=null;P.introLineIndex=0;}
+    save();render();
+  });
+  const back=el('button','softbtn','回地圖');
+  back.addEventListener('click',()=>{P.activeIntroTool=null;P.introLineIndex=0;save();render();});
+  actions.append(back,btn);card.append(actions);
+  layout.append(card);s.append(layout);stage.append(s);
 }
 function renderIntroTry(step){
   const state=P.introAnswers[step.id]=P.introAnswers[step.id]||{};
   const box=renderToolTrial(step,state);
-  const next=el('button','btn primary',P.introStep>=INTRO_STEPS.length-1?'完成介紹，開始回顧':'完成小試用，下一站');
+  const next=el('button','btn primary',P.introStep>=INTRO_STEPS.length-1?'去回顧':'下一站');
   next.disabled=!introSortDone(step,state);
-  next.addEventListener('click',()=>{if(!P.introDone.includes(step.id))P.introDone.push(step.id);if(P.introStep<INTRO_STEPS.length-1){P.introStep+=1;save();render();}else{addCoins('intro-30',30);gotoScreen(1);}});
+  next.addEventListener('click',()=>{if(!P.introDone.includes(step.id))P.introDone.push(step.id);if(P.introStep<INTRO_STEPS.length-1){P.introStep+=1;save();render();}else{addCoins('intro-30',30);gotoScreen(2);}});
   box.append(next);
   return box;
 }
@@ -1039,7 +2137,7 @@ function showToolBriefing(step){
   P.introBriefSeen=P.introBriefSeen||{};
   if(P.introBriefSeen[step.id]||SCREENS[P.screenIndex]!=='start')return;
   const t=tool(step.type);
-  const node=modalBase('新工具登場');
+  const node=modalBase('阿工拿工具');
   setToolVar(node,step.type);
   const top=el('div','tool-brief');
   top.append(toolIcon(step.type));
@@ -1048,36 +2146,179 @@ function showToolBriefing(step){
   top.append(tx);
   node.append(top);
   const list=el('div','tool-brief-list');
-  t.slots.forEach(x=>list.append(el('div',null,'要看清楚：'+x)));
-  list.append(el('div',null,'下一步會先試用，再判斷哪些工作適合這個工具。'));
+  t.slots.forEach(x=>list.append(el('div',null,'看：'+x)));
+  list.append(el('div',null,'先試用，再分 O / X。'));
   node.append(list);
-  const btn=el('button','btn tool','下一步，開始試用');setToolVar(btn,step.type);
+  const btn=el('button','btn tool','開始試用');setToolVar(btn,step.type);
   btn.addEventListener('click',()=>{P.introBriefSeen[step.id]=true;save();closeModal();render();});
   node.append(btn);
   openModal(node,true);
 }
 
-function renderRecall(){
-  const s=screenShell('Screen 1｜四類任務快速回顧','先判斷任務要產出什麼','把不同需求的任務卡拖到正確類型，再回答兩題。');
-  const wrap=el('div','panel pad drop-wrap');
-  const pool=el('div','task-pool');pool.append(el('h3',null,'任務卡'));
-  stableShuffle('recall-pool-v8',RECALL_MATCHES,card=>card.id).forEach(card=>{const paused=isPenaltyActive('recall-drop:'+card.id);const d=el('div','drag-card'+(selectedRecall===card.id?' selected':'')+(P.recallMatches[card.id]?' done':''),card.task);d.draggable=!P.recallMatches[card.id]&&!paused;d.addEventListener('dragstart',e=>{if(P.recallMatches[card.id]||paused)return;e.dataTransfer.setData('text/plain',card.id);selectedRecall=card.id;});d.addEventListener('dragend',()=>{});d.addEventListener('click',()=>{if(P.recallMatches[card.id]||paused)return;selectedRecall=selectedRecall===card.id?null:card.id;render();});pool.append(d);const note=penaltyNotice('recall-drop:'+card.id);if(note)pool.append(note);});
-  const zones=el('div','drop-zones');zones.append(el('h3',null,'任務類型'));
-  stableShuffle('recall-zones-v8',TOOLS,t=>t.type).forEach(t=>{const matched=stableShuffle('recall-zone-filled:'+t.type,RECALL_MATCHES,c=>c.id).filter(c=>P.recallMatches[c.id]===t.type);const paused=selectedRecall&&isPenaltyActive('recall-drop:'+selectedRecall);const locked=selectedRecall&&isLocked('recall-drop:'+selectedRecall,t.type);const z=el('div','drop-zone multi'+(matched.length?' filled':'')+(locked?' locked':''));setToolVar(z,t.type);const head=el('div','drop-zone-head');const left=el('div');left.innerHTML='<b>'+t.label+'</b><small>'+t.toolName+'</small>';head.append(left,el('span',null,locked?'已鎖定':'拖到這裡'));z.append(head);const list=el('div','drop-chip-list');matched.forEach(card=>list.append(el('div','drop-chip',card.task)));z.append(list);z.addEventListener('dragover',e=>{if(paused)return;e.preventDefault();z.classList.add('over');});z.addEventListener('dragleave',()=>z.classList.remove('over'));z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('over');selectedRecall=e.dataTransfer.getData('text/plain')||selectedRecall;handleRecallDrop(t.type,z);});z.addEventListener('click',()=>handleRecallDrop(t.type,z));zones.append(z);});
-  wrap.append(pool,zones);s.append(wrap);
-  const qPanel=el('div','panel pad grid');qPanel.append(el('h3',null,'理解題'));
-  RECALL_QUESTIONS.forEach(q=>{const item=el('div');const pKey='recall:'+q.id;item.append(el('div','task-text',q.q));const pNote=penaltyNotice(pKey);if(pNote)item.append(pNote);const cg=el('div','choice-grid');stableShuffle('recall-question:'+q.id,q.options,opt=>opt).forEach(opt=>{const b=el('button','choice',opt);const locked=isLocked(pKey,opt);if(P.recallAnswers[q.id]===opt)b.classList.add('right');if(locked)b.classList.add('wrong');b.disabled=!!P.recallAnswers[q.id]||locked||isPenaltyActive(pKey);b.addEventListener('click',()=>{if(opt===q.answer){P.recallAnswers[q.id]=opt;toast('答對了。');}else{lockWrong(pKey,opt);const p=applyPenalty(pKey);toast('答錯已鎖定，冷卻 '+p.seconds+' 秒。');}save();render();});cg.append(b);});item.append(cg);qPanel.append(item);});
-  const next=el('button','btn good','進入提示詞句工坊');next.disabled=!recallDone();next.addEventListener('click',()=>{addCoins('recall-20',20);gotoScreen(2);});qPanel.append(next);s.append(qPanel);stage.append(s);
+function recallOrder(){return stableShuffle('recall-flow-v11',RECALL_MATCHES,c=>c.id);}
+function currentRecallCard(){return recallOrder().find(card=>!P.recallFinished?.[card.id]);}
+function recallCollected(card){
+  P.recallExtracts=P.recallExtracts||{};
+  P.recallExtracts[card.id]=Array.isArray(P.recallExtracts[card.id])?P.recallExtracts[card.id]:[];
+  return P.recallExtracts[card.id];
 }
-function handleRecallDrop(type,target){if(!selectedRecall)return;const card=RECALL_MATCHES.find(c=>c.id===selectedRecall);if(!card||P.recallMatches[card.id])return;const key='recall-drop:'+card.id;if(isPenaltyActive(key))return;if(isLocked(key,type)){toast('這個錯誤配對已鎖定。');return;}if(card.type===type){P.recallMatches[card.id]=type;selectedRecall=null;toast('配對成功。');save();render();}else{lockWrong(key,type);target.classList.add('shake');setTimeout(()=>target.classList.remove('shake'),300);const p=applyPenalty(key,type);toast('放錯類型，已鎖定。冷卻 '+p.seconds+' 秒。');render();}}
-function recallDone(){return Object.keys(P.recallMatches).length===RECALL_MATCHES.length&&RECALL_QUESTIONS.every(q=>P.recallAnswers[q.id]===q.answer);}
+function renderRecallTaskCard(card,showTokens=false){
+  const task=el('article','recall-task-card');
+  task.style.setProperty('--c','#98a2b3');
+  task.append(el('h3',null,card.title));
+  const art=renderTaskIllustration(card.scene);
+  if(art)task.append(art);
+  if(showTokens){
+    const collected=recallCollected(card);
+    const row=el('div','recall-token-row');
+    card.tokens.forEach(token=>{
+      const used=collected.includes(token.text);
+      const b=el('button','recall-token kw-'+token.tone+(pickedRecallToken===token.text?' selected':''),token.text);
+      b.type='button';
+      b.disabled=used;
+      b.draggable=!used;
+      b.addEventListener('dragstart',e=>{if(used)return;e.dataTransfer.setData('text/plain',token.text);pickedRecallToken=token.text;});
+      b.addEventListener('dragend',()=>{pickedRecallToken=null;});
+      b.addEventListener('click',()=>{if(used)return;pickedRecallToken=pickedRecallToken===token.text?null:token.text;render();});
+      row.append(b);
+    });
+    task.append(row);
+  }
+  const line=el('div','recall-task-text');
+  appendKeywordText(line,card.task,showTokens?card.tokens:[]);
+  task.append(line);
+  return task;
+}
+function handleRecallToolChoice(card,type,target){
+  const key='recall-tool:'+card.id;
+  if(isPenaltyActive(key)||isLocked(key,type))return;
+  if(card.type===type){
+    P.recallMatches[card.id]=type;
+    toast('工具選對了，下一步整理任務重點。');
+    save();
+    render();
+  }else{
+    lockWrong(key,type);
+    if(target){target.classList.add('shake');setTimeout(()=>target.classList.remove('shake'),300);}
+    const p=applyPenalty(key,type);
+    toast('這個工具不適合，請先停 '+p.seconds+' 秒再試。');
+    render();
+  }
+}
+function handleRecallTokenDrop(card,token,slot){
+  if(!token||!card.tokens.some(t=>t.text===token))return;
+  const collected=recallCollected(card);
+  if(collected.includes(token))return;
+  if(Number.isInteger(slot)&&slot>=0&&slot<card.tokens.length&&!collected[slot])collected[slot]=token;
+  else{
+    const empty=Array.from({length:card.tokens.length}).findIndex((_,i)=>!collected[i]);
+    if(empty>=0)collected[empty]=token;
+  }
+  pickedRecallToken=null;
+  save();
+  render();
+}
+function renderRecallChooseTool(card){
+  const s=screenShell('Screen 1｜任務卡判斷','先讀任務卡，再選合適工具','請只看中央這一張任務卡，判斷它需要產生哪一種內容。');
+  s.append(missionBanner('目前目標：為這張任務卡選出最合適的工具。'));
+  const box=el('div','recall-single');
+  box.append(renderRecallTaskCard(card,false));
+  const key='recall-tool:'+card.id;
+  const note=penaltyNotice(key);
+  if(note)box.append(note);
+  const tools=el('div','recall-tool-grid');
+  stableShuffle('recall-tool-options:'+card.id,TOOLS,t=>t.type).forEach(t=>{
+    const b=el('button','recall-tool-btn');
+    b.type='button';
+    b.style.setProperty('--c',t.color);
+    const img=el('img');img.src=t.art;img.alt=t.label;
+    const tx=el('div');tx.innerHTML='<b>'+t.label+'</b><small>'+t.toolName+' '+toolUseSentence(t.type)+'</small>';
+    b.append(img,tx);
+    const locked=isLocked(key,t.type);
+    if(locked)b.classList.add('wrong');
+    b.disabled=locked||isPenaltyActive(key);
+    b.addEventListener('click',()=>handleRecallToolChoice(card,t.type,b));
+    tools.append(b);
+  });
+  box.append(tools);
+  s.append(box);stage.append(s);
+}
+function renderRecallExtract(card){
+  const t=tool(card.type);
+  const s=screenShell('Screen 1｜整理任務重點','拖出任務卡重點','請把任務卡上方的彩色資訊拖到下方清單，三格都有內容後再生成。');
+  s.append(missionBanner('目前目標：把彩色重點拖到任務重點清單。'));
+  const box=el('div','recall-single');
+  const selected=el('div','selected-tool-strip');
+  selected.style.setProperty('--c',t.color);
+  const img=el('img');img.src=t.art;img.alt=t.label;
+  selected.append(img,el('div',null,'已選工具：'+t.label+'｜'+t.toolName));
+  box.append(selected,renderRecallTaskCard(card,true));
+  const list=el('div','recall-drop-list');
+  const collected=recallCollected(card);
+  card.tokens.forEach((token,i)=>{
+    const filled=collected[i];
+    const slot=el('div','recall-drop-slot'+(filled?' filled':''),filled||'把一個彩色重點拖到這裡');
+    slot.style.color=filled?(card.tokens.find(t=>t.text===filled)?.tone==='goal'?'#7c3aed':card.tokens.find(t=>t.text===filled)?.tone==='use'?'#14b8a6':card.tokens.find(t=>t.text===filled)?.tone==='detail'?'#2563eb':'#101828'):'#475467';
+    slot.addEventListener('dragover',e=>{e.preventDefault();slot.classList.add('over');});
+    slot.addEventListener('dragleave',()=>slot.classList.remove('over'));
+    slot.addEventListener('drop',e=>{e.preventDefault();slot.classList.remove('over');handleRecallTokenDrop(card,e.dataTransfer.getData('text/plain')||pickedRecallToken,i);});
+    slot.addEventListener('click',()=>handleRecallTokenDrop(card,pickedRecallToken,i));
+    list.append(slot);
+  });
+  box.append(list);
+  const generate=el('button','btn good','生成內容');
+  generate.disabled=collected.filter(Boolean).length<card.tokens.length;
+  generate.addEventListener('click',()=>{P.recallGenerated[card.id]=true;toast('已依照重點生成內容。');save();render();});
+  box.append(generate);
+  s.append(box);stage.append(s);
+}
+function renderRecallResult(card){
+  const t=tool(card.type);
+  const demo=TOOL_DEMOS[card.type];
+  const s=screenShell('Screen 1｜查看生成結果','確認工具產出內容','請看這張任務卡使用工具後生成了什麼內容。');
+  s.append(missionBanner('目前目標：確認 '+t.toolName+' 的產出內容是'+demo.output+'。'));
+  const box=el('div','recall-single');
+  const output=el('div','sample-output');
+  output.style.setProperty('--c',t.color);
+  const line=el('div','prompt-line');
+  appendKeywordText(line,'這張任務卡生成的產出內容是'+demo.output+'。',[{text:demo.output,tone:'output'}]);
+  output.append(line,renderGeneratedPreview(card.type,card.sample));
+  const next=el('button','btn tool',recallOrder().filter(c=>!P.recallFinished?.[c.id]).length>1?'前往下一張任務卡':'完成 Screen 1');
+  next.style.setProperty('--c',t.color);
+  next.addEventListener('click',()=>{P.recallFinished[card.id]=true;pickedRecallToken=null;save();render();});
+  box.append(output,next);
+  s.append(box);stage.append(s);
+}
+function renderRecallComplete(){
+  const s=screenShell('Screen 1｜任務回顧完成','四張任務卡都完成','你已經練習過讀任務卡、選合適工具、拖出重點和生成內容。');
+  s.append(missionBanner('目前目標：前往下一關，把重點組成完整提示詞。'));
+  const box=el('div','recall-single');
+  box.append(el('div','review good','阿工確認：四張任務卡都已經生成內容。'));
+  const next=el('button','btn good','前往提示詞造句練習');
+  next.addEventListener('click',()=>{addCoins('recall-20',20);gotoScreen(2);});
+  box.append(next);
+  s.append(box);stage.append(s);
+}
+function renderRecall(){
+  P.screenIndex=2;
+  save();
+  render();
+  return;
+  const card=currentRecallCard();
+  if(!card)return renderRecallComplete();
+  if(!P.recallMatches?.[card.id])return renderRecallChooseTool(card);
+  if(!P.recallGenerated?.[card.id])return renderRecallExtract(card);
+  renderRecallResult(card);
+}
+function handleRecallDrop(type,target){if(!selectedRecall)return;const card=RECALL_MATCHES.find(c=>c.id===selectedRecall);if(!card||P.recallMatches[card.id])return;const key='recall-drop:'+card.id;if(isPenaltyActive(key))return;if(isLocked(key,type)){toast('已鎖定。');return;}if(card.type===type){P.recallMatches[card.id]=type;selectedRecall=null;toast('配對成功。');save();render();}else{lockWrong(key,type);target.classList.add('shake');setTimeout(()=>target.classList.remove('shake'),300);const p=applyPenalty(key,type);toast('放錯，鎖 '+p.seconds+' 秒。');render();}}
+function recallDone(){return RECALL_MATCHES.every(card=>P.recallFinished?.[card.id]);}
 
 function renderTaskA(){
-  const s=screenShell('Screen 2｜提示詞句工坊','從任務卡抓詞造句','任務卡上的詞，就是提示詞句的材料。');
+  const s=screenShell('Screen 2｜阿工造句','把任務重點放進完整句子','請從任務卡找出重要資訊，再拖到三個句子位置。');
   const layout=el('div','factory');
-  const left=el('div','panel pad anatomy');left.append(el('h3',null,'三段造句邏輯'));
+  const left=el('div','panel pad anatomy');left.append(el('h3',null,'提示詞句需要三個重點'));
   PROMPT_FACTORY.forEach((x,i)=>{const c=el('div','anatomy-card');c.style.setProperty('--c',['#7C3AED','#14B8A6','#F59E0B'][i]);c.innerHTML='<b>'+x.name+'</b><br><span>'+x.role+'</span>';left.append(c);});
-  const right=el('div','panel pad grid');right.append(el('h3',null,'把任務卡變成提示詞句'));
+  const right=el('div','panel pad grid');right.append(el('h3',null,'從任務卡拖出亮起來的詞'));
   right.append(renderSentenceBuilder({
     idPrefix:'factory',
     slots:PROMPT_FACTORY,
@@ -1085,21 +2326,21 @@ function renderTaskA(){
     state:P.factoryAnswers,
     disabled:P.factoryDone,
     previewLabel:'提示詞句：',
-    taskCard:FACTORY_TASK
+    taskCard:FACTORY_TASK,
+    liveUpdate:true,
+    onLiveUpdate:()=>{const btn=$('.factory .btn.good');if(btn)btn.disabled=!PROMPT_FACTORY.every(x=>P.factoryAnswers[x.key]===x.answer);}
   }));
-  const done=el('button','btn good','完成提示詞句工坊');done.disabled=!PROMPT_FACTORY.every(x=>P.factoryAnswers[x.key]===x.answer);done.addEventListener('click',()=>{P.factoryDone=true;addCoins('factory-40',40);showRehearsalA();});right.append(done);
+  const done=el('button','btn good','完成造句');done.disabled=!PROMPT_FACTORY.every(x=>P.factoryAnswers[x.key]===x.answer);done.addEventListener('click',()=>{P.factoryDone=true;addCoins('factory-40',40);showRehearsalA();});right.append(done);
   layout.append(left,right);s.append(layout);stage.append(s);
 }
-function showRehearsalA(){const node=modalBase('句子接龍 A');node.append(el('p','sentence','提示詞句要先說清楚 ____，再說用途與細節。'));const cg=el('div','choice-grid');['工具顏色','要做什麼','金幣數字'].forEach(opt=>{const b=el('button','choice',opt);b.addEventListener('click',()=>{if(opt==='要做什麼'){P.rehearsalA=true;closeModal();gotoScreen(3);}else{b.classList.add('wrong');b.disabled=true;toast('先說清楚要做什麼。');}});cg.append(b);});node.append(cg);openModal(node);}
+function showRehearsalA(){const node=modalBase('阿工問');node.append(el('p','sentence','先說 ____。'));const cg=el('div','choice-grid');['顏色','要做什麼','金幣'].forEach(opt=>{const b=el('button','choice',opt);b.addEventListener('click',()=>{if(opt==='要做什麼'){P.rehearsalA=true;closeModal();gotoScreen(3);}else{b.classList.add('wrong');b.disabled=true;toast('先說要做什麼。');}});cg.append(b);});node.append(cg);openModal(node);}
 
 function renderTaskB(){
-  const s=screenShell('Screen 3｜4 張分發任務','每類工具一張任務卡','固定流程：拿任務、選工具、造提示詞句、生成結果、下一張。');
+  const s=screenShell('Screen 3｜阿工發任務','處理 4 張正式任務卡','請先讀任務卡，再選出最合適的工具。');
   const current=nextPracticeCard();
   if(!current){showRehearsalB();stage.append(s);return;}
   const layout=el('div','task-layout');
-  const pile=el('div','panel pad pile');pile.append(el('h3',null,'任務清單'));
-  P.practiceOrder.map(id=>PRACTICE_CARDS.find(c=>c.id===id)).forEach(c=>{const r=el('div','mini-card'+(P.completedPracticeCards.includes(c.id)?' done':''),c.id+'｜任務卡');r.style.setProperty('--c','#98a2b3');pile.append(r);});
-  layout.append(pile,renderPracticeCard(current));s.append(layout);stage.append(s);
+  layout.append(renderPracticeCard(current));s.append(layout);stage.append(s);
 }
 function nextPracticeCard(){const id=P.practiceOrder.find(cid=>!P.completedPracticeCards.includes(cid));return PRACTICE_CARDS.find(c=>c.id===id);}
 function practiceState(id){P.practiceState[id]=P.practiceState[id]||{selectedTool:null,slots:{},prompt:'',reviewed:false,result:null,loading:false,error:null};return P.practiceState[id];}
@@ -1109,18 +2350,36 @@ function hasGeneratedResult(card,st){
 function renderPracticeCard(card){
   const st=practiceState(card.id);
   const work=el('article','work-card');if(st.selectedTool)setToolVar(work,st.selectedTool);else work.style.setProperty('--c','#98a2b3');
-  const title=el('div','task-title');const tx=el('div');tx.innerHTML='<h3>任務處理台</h3><div class="lead">先讀左下任務卡，再選工具。</div>';title.append(tx);work.append(title,el('div','task-text','任務卡固定在左下角。請從卡片內容判斷：這次要產出文字、圖片、影片，還是音樂？'));
+  const order=P.practiceOrder||[];
+  const idx=Math.max(1,order.indexOf(card.id)+1);
+  const title=el('div','task-title');const tx=el('div');tx.innerHTML='<h3>任務處理台</h3><div class="lead">一次做一步。</div>';title.append(tx,el('span','task-meta-pill','任務 '+idx+' / '+(order.length||PRACTICE_CARDS.length)));work.append(title);
   const steps=el('div','stepper');['讀任務卡','選工具','提示詞句','生成結果'].forEach((x,i)=>{const stp=el('span','mini-step'+(i<=practiceStepIndex(card,st)?' on':''),x);if(st.selectedTool)setToolVar(stp,st.selectedTool);else stp.style.setProperty('--c','#98a2b3');steps.append(stp);});work.append(steps);
   const toolPenalty='practice:'+card.id+':tool';
   const toolNotice=penaltyNotice(toolPenalty);if(toolNotice)work.append(toolNotice);
-  const tools=el('div','tool-choices');stableShuffle('practice-tools:'+card.id,TOOLS,t=>t.type).forEach(t=>{const b=el('button','tool-choice');b.innerHTML='<b>'+t.label+'</b><small>'+t.toolName+'</small>';setToolVar(b,t.type);const locked=isLocked(toolPenalty,t.type);if(st.selectedTool===t.type)b.classList.add('selected');if(locked)b.classList.add('wrong');b.disabled=!!st.selectedTool||locked||!!st.result||st.loading||isPenaltyActive(toolPenalty);b.addEventListener('click',()=>{if(validateTool(card,t.type)){st.selectedTool=t.type;toast('工具選對了。');}else{lockWrong(toolPenalty,t.type);const p=applyPenalty(toolPenalty,t.type);toast(p.n>=2?'先看任務要產出什麼。冷卻 '+p.seconds+' 秒。':'這張任務不適合用這個工具。冷卻 '+p.seconds+' 秒。');if(p.n>=3)startAutoDemo(card.type);}save();render();});tools.append(b);});work.append(tools);
-  work.append(renderPromptBuilder(card,st));
-  const next=el('button','btn tool','完成，下一張任務');if(st.selectedTool)setToolVar(next,st.selectedTool);else next.style.setProperty('--c','#98a2b3');next.disabled=!hasGeneratedResult(card,st)||st.loading;next.addEventListener('click',()=>{if(!P.completedPracticeCards.includes(card.id)){P.completedPracticeCards.push(card.id);addCoins('practice-'+card.id,25);if(P.completedPracticeCards.length===PRACTICE_CARDS.length)addCoins('practice-bonus-10',10);save();}render();});work.append(next);
+  if(!st.selectedTool){
+    work.append(renderTaskSourcePreview(card));
+    work.append(el('div','stage-hint','請先選出這張任務卡最適合使用的工具。'));
+    const tools=el('div','tool-choices');stableShuffle('practice-tools:'+card.id,TOOLS,t=>t.type).forEach(t=>{const b=el('button','tool-choice');b.innerHTML='<b>'+t.label+'</b><small>'+t.toolName+'</small>';setToolVar(b,t.type);const locked=isLocked(toolPenalty,t.type);if(locked)b.classList.add('wrong');b.disabled=locked||st.loading||isPenaltyActive(toolPenalty);b.addEventListener('click',()=>{if(validateTool(card,t.type)){st.selectedTool=t.type;toast('工具選對了，下一步整理提示詞句。');}else{lockWrong(toolPenalty,t.type);const p=applyPenalty(toolPenalty,t.type);toast(p.n>=2?'請先想這張任務卡要產生哪一種內容，鎖 '+p.seconds+' 秒。':'這個工具不適合這張任務卡，鎖 '+p.seconds+' 秒。');if(p.n>=3)startAutoDemo(card.type);}save();render();});tools.append(b);});work.append(tools);
+    return work;
+  }
+  const chosen=tool(st.selectedTool);
+  const selected=el('div','selected-tool-strip');setToolVar(selected,st.selectedTool);
+  const img=el('img');img.src=chosen.art;img.alt=chosen.label;
+  selected.append(img,el('div',null,'已選：'+chosen.label+'｜'+chosen.toolName));
+  work.append(selected,renderPromptBuilder(card,st));
+  if(hasGeneratedResult(card,st)){
+    const next=el('button','btn tool','下一張');setToolVar(next,st.selectedTool);next.addEventListener('click',()=>{if(!P.completedPracticeCards.includes(card.id)){P.completedPracticeCards.push(card.id);addCoins('practice-'+card.id,25);if(P.completedPracticeCards.length===PRACTICE_CARDS.length)addCoins('practice-bonus-10',10);save();}render();});work.append(next);
+  }
   return work;
 }
 function practiceStepIndex(card,st){if(hasGeneratedResult(card,st))return 3;if(st.reviewed||st.prompt)return 2;if(st.selectedTool)return 1;return 0;}
 function renderPromptBuilder(card,st){
   const box=el('div','grid');
+  if(hasGeneratedResult(card,st)){
+    box.append(el('div','stage-hint','結果完成'));
+    box.append(renderPreview(card,st));
+    return box;
+  }
   box.append(renderSentenceBuilder({
     idPrefix:'practice:'+card.id,
     slots:card.slots,
@@ -1130,18 +2389,29 @@ function renderPromptBuilder(card,st){
     color:'#98a2b3',
     disabled:!st.selectedTool||hasGeneratedResult(card,st)||st.loading,
     previewLabel:'提示詞句：',
-    taskCard:{title:'任務卡',text:card.task,parts:card.messyParts,hint:'從任務敘述裡把亮起來的詞拿下來，拖到提示詞區塊。',inlineTokens:true,floating:true,imageScene:card.imageScene},
+    taskCard:{title:'任務卡',text:card.task,parts:card.messyParts,hint:'請從任務卡拖出亮起來的重點詞。',inlineTokens:true,floating:true,imageScene:card.imageScene},
+    liveUpdate:true,
+    onLiveUpdate:()=>refreshPromptReview(card,st),
     onChange:()=>{st.prompt=composePrompt(card,st);st.reviewed=false;st.error=null;st.reviewText=null;}
   }));
   st.prompt=composePrompt(card,st);
-  const review=el('div','review',st.error||st.reviewText||'先把語句卡放進三段句子，再審查提示詞句。');if(st.reviewed)review.classList.add('good');if(st.error)review.classList.add('bad');box.append(review);
+  const review=el('div','review',st.error||st.reviewText||'請把三個句子位置都填入任務卡的重點詞。');if(st.reviewed)review.classList.add('good');if(st.error)review.classList.add('bad');review.dataset.reviewCard=card.id;review.dataset.emptyText=review.textContent;box.append(review);
   const row=el('div','chip-row');
-  const check=el('button','btn warn','審查提示詞句');check.disabled=!st.selectedTool||st.reviewed||!!st.result||st.loading||isPenaltyActive('practice:'+card.id+':review');check.addEventListener('click',()=>{const r=validatePrompt(card,st);if(r.pass){st.reviewed=true;st.error=null;st.reviewText='審查通過，可以用 '+tool(card.type).toolName+' 生成。';P.promptReviewPasses+=1;toast('提示詞句審查通過。');}else{st.reviewed=false;const parts=[];if(r.missingSlots.length)parts.push('三段還缺：'+r.missingSlots.join('、'));if(r.missingWords.length)parts.push('句子還沒提到：'+r.missingWords.join('、'));if(r.vague)parts.push('這句太空泛');st.error=parts.join('。');const p=applyPenalty('practice:'+card.id+':review',card.type);if(p.n>=3)startAutoDemo(card.type);toast('審查未通過，冷卻 '+p.seconds+' 秒。');}save();render();});
+  const check=el('button','btn warn','審查提示詞句');check.disabled=!st.selectedTool||st.reviewed||!!st.result||st.loading||isPenaltyActive('practice:'+card.id+':review');check.addEventListener('click',()=>{const r=validatePrompt(card,st);if(r.pass){st.reviewed=true;st.error=null;st.reviewText='提示詞句已經包含任務重點，可以生成內容。';P.promptReviewPasses+=1;toast('提示詞句審查通過。');}else{st.reviewed=false;const parts=[];if(r.missingSlots.length)parts.push('缺少位置：'+r.missingSlots.join('、'));if(r.missingWords.length)parts.push('句子漏掉：'+r.missingWords.join('、'));if(r.vague)parts.push('這句太空泛');st.error=parts.join('。');const p=applyPenalty('practice:'+card.id+':review',card.type);if(p.n>=3)startAutoDemo(card.type);toast('提示詞句還不完整，鎖 '+p.seconds+' 秒。');}save();render();});
   const reviewPenalty=penaltyNotice('practice:'+card.id+':review');if(reviewPenalty)box.append(reviewPenalty);
   const gen=el('button','btn good','生成'+resultNoun(card.type));gen.disabled=!st.reviewed||hasGeneratedResult(card,st)||st.loading;gen.addEventListener('click',()=>generateResult(card,st));
-  const skip=el('button','softbtn','本機測試：跳過生成');skip.disabled=!st.reviewed||hasGeneratedResult(card,st)||st.loading;skip.addEventListener('click',()=>skipGeneration(card,st));
-  row.append(check,gen,skip);box.append(row);box.append(renderPreview(card,st));
+  const skip=el('button','softbtn','跳過生成');skip.disabled=!st.reviewed||hasGeneratedResult(card,st)||st.loading;skip.addEventListener('click',()=>skipGeneration(card,st));
+  if(st.reviewed)row.append(gen,skip);else row.append(check);
+  box.append(row);
+  if(st.reviewed)box.append(renderPreview(card,st));
   return box;
+}
+function refreshPromptReview(card,st){
+  const review=$$('[data-review-card]').find(node=>node.dataset.reviewCard===card.id);
+  if(!review)return;
+  review.classList.toggle('good',!!st.reviewed);
+  review.classList.toggle('bad',!!st.error);
+  review.textContent=st.error||st.reviewText||review.dataset.emptyText||'';
 }
 function composePrompt(card,st){return card.promptTemplate.replace(/\{(\w+)\}/g,(m,k)=>st.slots?.[k]||'____');}
 async function generateResult(card,st){
@@ -1149,88 +2419,261 @@ async function generateResult(card,st){
   try{
     const result=await callGenerationApi(card,st);
     st.result=result;st.loading=false;st.error=null;save();burst();render();
-  }catch(e){st.loading=false;const localHint=location.protocol==='file:'?'目前是直接開 HTML，生成服務需要網站伺服器；可先用跳過生成。':'';st.error=((e&&e.message)||'生成失敗')+(localHint?' '+localHint:'');save();render();toast(st.error);}
+  }catch(e){st.loading=false;const localHint=location.protocol==='file:'?'需上線，可跳過。':'';st.error=((e&&e.message)||'生成失敗')+(localHint?' '+localHint:'');save();render();toast(st.error);}
+}
+function skippedTextResult(card,st){
+  const task=taskText(card)+' '+promptText(card,st);
+  if(task.includes('森林規則')){
+    return '森林規則提醒：\n1. 先看地圖，再走進森林。\n2. 看到路牌要停下來讀一讀。\n3. 不確定方向時，回到入口重新確認。';
+  }
+  return '整理後的提醒：\n1. 先看清楚任務。\n2. 找出最重要的三個重點。\n3. 把結果交給需要的人。';
+}
+function skippedResult(card,st){
+  const result={success:true,kind:card.type,skipped:true,message:'已跳過生成，使用本機示範結果。'};
+  if(card.type==='text')result.text=skippedTextResult(card,st);
+  return result;
 }
 function skipGeneration(card,st){
   st.loading=false;
   st.error=null;
-  st.result={success:true,kind:card.type,skipped:true,message:'本機測試已跳過生成。上線或用網站伺服器開啟後，可改按「生成'+resultNoun(card.type)+'」。'};
+  st.result=skippedResult(card,st);
   save();burst();render();
 }
 function renderPreview(card,st){
   const p=el('div','preview'+(st.result?' on':''));setToolVar(p,card.type);
-  if(st.loading){p.append(el('div','spinner'),el('div',null,'正在生成'+resultNoun(card.type)+'，請稍候。'));return p;}
-  if(!st.result){p.textContent=st.error?'尚未成功生成，修正後可以再試。':'結果會在生成成功後出現。';return p;}
-  if(st.result.skipped){p.append(el('div','review good',st.result.message||'本機測試已跳過生成。'));p.append(el('div','lead','這是測試通關，不是正式生成結果。'));return p;}
+  if(st.loading){p.append(el('div','spinner'),el('div',null,'正在生成內容，請稍候。'));return p;}
+  if(!st.result){p.textContent=st.error?'生成失敗後可以修正提示詞句再試一次。':'生成結果會出現在這裡。';return p;}
+  if(st.result.skipped){
+    p.append(el('div','review good',st.result.message||'已跳過生成。'));
+    if(card.type==='text'&&st.result.text){
+      const r=el('div','text-result');
+      String(st.result.text).split('\n').filter(Boolean).forEach(line=>r.append(el('div',null,line)));
+      p.append(r);
+    }else{
+      p.append(el('div','lead','本機示範：已建立 '+resultNoun(card.type)+' 成果。'));
+    }
+    return p;
+  }
   if(card.type==='text'){const r=el('div','text-result');String(st.result.text||'已生成文字').split('\n').filter(Boolean).forEach(line=>r.append(el('div',null,line)));p.append(r);}
   else if(card.type==='image'&&st.result.imageUrl){const img=el('img');img.src=st.result.imageUrl;img.alt='Lab Image 生成圖片';p.append(img);}
   else if(card.type==='video'&&st.result.videoUrl){const v=el('video');v.src=st.result.videoUrl;v.controls=true;v.playsInline=true;p.append(v);}
   else if(card.type==='music'&&st.result.audioUrl){const a=el('audio');a.src=st.result.audioUrl;a.controls=true;p.append(a);}
   else{p.append(el('div',null,st.result.message||'已送出生成，結果仍在處理中。'));}
-  p.append(el('div','lead',tool(card.type).toolName+' 已回傳結果。'));
+  p.append(el('div','lead','內容生成完成。'));
   return p;
 }
 
 function showRehearsalB(){
   if(P.rehearsalB)return gotoScreen(4);
   const node=modalBase('句子接龍 B');
-  node.append(el('p','lead','正式任務只跑四步。每一步都先看任務卡，不要靠猜。'));
-  const flow=el('div','flow-steps');
-  [
-    ['1','讀任務卡','看清楚目標、用途和限制。','#7C3AED'],
-    ['2','選工具','判斷要產出文字、圖片、影片或音樂。','#14B8A6'],
-    ['3','造提示詞句','從任務卡抓出重要詞，放進三段句子。','#2563EB'],
-    ['4','生成結果','確認作品出現，再交給老師看。','#F59E0B']
-  ].forEach(step=>{const c=el('div','flow-step-card');c.style.setProperty('--c',step[3]);c.append(el('i',null,step[0]),el('b',null,step[1]),el('small',null,step[2]));flow.append(c);});
-  const b=el('button','btn good','我會照四步做');
-  b.addEventListener('click',()=>{P.rehearsalB=true;addCoins('rehearsal-b-20',20);closeModal();gotoScreen(4);});
-  node.append(flow,b);openModal(node);
+  node.classList.add('flow-modal');
+  node.append(el('p','lead','把阿工四步拖到正確順序，再按確認。'));
+  const steps=[
+    {id:'read',mark:'讀',title:'讀任務卡',desc:'先看任務想要什麼成果。',color:'#7C3AED'},
+    {id:'tool',mark:'選',title:'選合適工具',desc:'依照要產生的內容選工具。',color:'#14B8A6'},
+    {id:'prompt',mark:'抓',title:'抓重點造句',desc:'把任務卡裡的重要詞放進提示詞句。',color:'#2563EB'},
+    {id:'make',mark:'生',title:'生成內容',desc:'確認結果出現後再前往下一步。',color:'#F59E0B'}
+  ];
+  const answer=steps.map(s=>s.id).join('|');
+  let bankOrder=stableShuffle('rehearsal-b-sort-v1',steps,s=>s.id).map(s=>s.id);
+  if(bankOrder.join('|')===answer){const first=bankOrder[0];bankOrder[0]=bankOrder[1];bankOrder[1]=first;}
+  const placed=[null,null,null,null];
+  let picked=null;
+  const feedback=el('div','review','請把四張步驟卡拖到右邊四個位置。');
+  const board=el('div','flow-sort-board');
+  const bank=el('div','flow-sort-panel');
+  const slotsPanel=el('div','flow-sort-panel');
+  function stepById(id){return steps.find(s=>s.id===id);}
+  function clearDragMarks(){$$('.flow-slot',board).forEach(slot=>slot.classList.remove('over'));}
+  function sourceIndex(id){return placed.findIndex(x=>x===id);}
+  function moveToSlot(id,slotIndex){
+    if(!id||!stepById(id))return;
+    const from=sourceIndex(id);
+    const target=placed[slotIndex];
+    if(from>=0)placed[from]=target||null;
+    else if(target)placed[slotIndex]=null;
+    placed[slotIndex]=id;
+    picked=null;
+    feedback.className='review';
+    feedback.textContent='排好後按確認。';
+    renderSort();
+  }
+  function makeStepCard(step){
+    const c=el('button','flow-step-card flow-sort-card'+(picked===step.id?' selected':''));c.type='button';c.draggable=true;c.style.setProperty('--c',step.color);
+    c.dataset.step=step.id;
+    c.append(el('i',null,step.mark),el('b',null,step.title),el('small',null,step.desc));
+    c.addEventListener('dragstart',e=>{picked=step.id;e.dataTransfer.setData('text/plain',step.id);e.dataTransfer.effectAllowed='move';});
+    c.addEventListener('dragend',clearDragMarks);
+    c.addEventListener('click',()=>{picked=picked===step.id?null:step.id;renderSort();});
+    return c;
+  }
+  function renderSort(){
+    board.innerHTML='';
+    bank.innerHTML='';
+    slotsPanel.innerHTML='';
+    bank.append(el('h4',null,'待排序步驟'));
+    const list=el('div','flow-card-list');
+    bankOrder.filter(id=>!placed.includes(id)).forEach(id=>list.append(makeStepCard(stepById(id))));
+    if(!list.children.length)list.append(el('div','flow-slot-empty','四張卡都放到右邊了。'));
+    bank.append(list);
+    slotsPanel.append(el('h4',null,'排序區'));
+    const slots=el('div','flow-sort-slots');
+    placed.forEach((id,idx)=>{
+      const slot=el('div','flow-slot');slot.dataset.slot=String(idx);
+      slot.append(el('div','flow-slot-label','第 '+(idx+1)+' 步'));
+      const content=el('div');
+      if(id)content.append(makeStepCard(stepById(id)));
+      else content.append(el('div','flow-slot-empty',picked?'放到這裡':'拖曳到這裡'));
+      slot.append(content);
+      slot.addEventListener('dragover',e=>{e.preventDefault();slot.classList.add('over');});
+      slot.addEventListener('dragleave',()=>slot.classList.remove('over'));
+      slot.addEventListener('drop',e=>{e.preventDefault();clearDragMarks();moveToSlot(e.dataTransfer.getData('text/plain')||picked,idx);});
+      slot.addEventListener('click',()=>{if(picked)moveToSlot(picked,idx);});
+      slots.append(slot);
+    });
+    slotsPanel.append(slots);
+    board.append(bank,slotsPanel);
+  }
+  renderSort();
+  const b=el('button','btn good','確認排序，前往下一步');
+  b.addEventListener('click',()=>{
+    if(placed.join('|')!==answer){
+      placed.fill(null);
+      picked=null;
+      feedback.className='review bad';
+      feedback.textContent='回答錯誤！再來一次。';
+      renderSort();
+      return;
+    }
+    P.rehearsalB=true;addCoins('rehearsal-b-20',20);closeModal();gotoScreen(4);
+  });
+  node.append(feedback,board,b);openModal(node,true);
 }
 
-function renderSummary(){
-  const s=screenShell('Screen 4｜總複習考試','確認不是背工具名稱','答完 '+SUMMARY_QUESTIONS.length+' 題即可前進，錯題會顯示正解。');
-  const panel=el('div','panel pad summary-list');
-  SUMMARY_QUESTIONS.forEach(q=>{const item=el('div','summary-item');item.append(el('div','q',q.q));const cg=el('div','choice-grid');stableShuffle('summary-options:'+q.id,q.options,opt=>opt).forEach(opt=>{const b=el('button','choice',opt);const answered=P.summaryAnswers[q.id];if(answered){if(opt===q.answer)b.classList.add('right');else if(answered===opt)b.classList.add('wrong');}b.disabled=!!answered;b.addEventListener('click',()=>{P.summaryAnswers[q.id]=opt;if(opt!==q.answer)updateWrong('summary:'+q.id);save();render();});cg.append(b);});item.append(cg);if(P.summaryAnswers[q.id]&&P.summaryAnswers[q.id]!==q.answer)item.append(el('div','review bad','正解：'+q.answer));panel.append(item);});
-  if(summaryComplete()){const score=SUMMARY_QUESTIONS.filter(q=>P.summaryAnswers[q.id]===q.answer).length;P.summaryScore=score;const sc=el('div','score');sc.innerHTML='<b>'+score+'/'+SUMMARY_QUESTIONS.length+'</b><div>'+(score<4?'再看一次四類工具也可以。':'你能看任務選工具了。')+'</div>';panel.append(sc);const next=el('button','btn good','前往工具快問快答');next.addEventListener('click',()=>{addCoins('summary-30',30);gotoScreen(5);});panel.append(next);}
-  s.append(panel);stage.append(s);
+function examQuestions(part){return SUMMARY_QUESTIONS.filter(q=>q.part===part);}
+function examPageKey(part){return part===4?'summaryPage4':'summaryPage5';}
+function scheduleExamAdvance(part,pageKey,idx){
+  clearTimeout(scheduleExamAdvance._t);
+  const screenName=part===4?'summary':'wall';
+  scheduleExamAdvance._t=setTimeout(()=>{
+    if(SCREENS[P.screenIndex]!==screenName)return;
+    if((P[pageKey]||0)!==idx)return;
+    P[pageKey]=idx+1;
+    save();
+    render();
+  },1000);
 }
-function summaryComplete(){return SUMMARY_QUESTIONS.every(q=>P.summaryAnswers[q.id]);}
+function renderExamTaskCard(q){
+  const card=el('article','exam-card');
+  const color=q.type&&tool(q.type)?.color?tool(q.type).color:'#7C3AED';
+  card.style.setProperty('--c',color);
+  card.append(el('h3',null,q.title));
+  const art=renderTaskIllustration(q.scene);
+  if(art)card.append(art);
+  card.append(el('div','exam-task',q.task),el('div','exam-question',q.q));
+  return card;
+}
+function renderExam(part){
+  const list=examQuestions(part);
+  const pageKey=examPageKey(part);
+  P[pageKey]=clamp(P[pageKey]||0,0,list.length);
+  const idx=P[pageKey];
+  const isPart4=part===4;
+  const s=screenShell(isPart4?'Screen 4｜工具抽考':'Screen 5｜提示詞抽考',isPart4?'看任務卡選工具':'看任務卡判斷提示詞流程',isPart4?'一頁只有一張任務卡，請判斷要用哪一種工具。':'一頁只有一張任務卡，請判斷提示詞或流程是否正確。');
+  const shell=el('div','exam-shell');
+  if(idx>=list.length){
+    const score=list.filter(q=>P.summaryAnswers[q.id]===q.answer).length;
+    if(!isPart4){
+      P.summaryScore=SUMMARY_QUESTIONS.filter(q=>P.summaryAnswers[q.id]===q.answer).length;
+      save();
+    }
+    const done=el('div','score');
+    done.innerHTML='<b>'+score+'/'+list.length+'</b><div>'+(isPart4?'工具判斷抽考完成。':'提示詞抽考完成。')+'</div>';
+    const next=el('button','btn good',isPart4?'前往提示詞抽考':'完成抽考');
+    next.addEventListener('click',()=>{if(isPart4){addCoins('summary-30',30);gotoScreen(5);}else{addCoins('wall-30',30);gotoScreen(6);}});
+    shell.append(done,next);
+    s.append(shell);stage.append(s);return;
+  }
+  const q=list[idx];
+  const lockKey='summary:'+q.id;
+  const legacyAnswer=P.summaryAnswers[q.id];
+  if(isPart4&&legacyAnswer&&legacyAnswer!==q.answer){
+    P.lockedWrongOptions[lockKey]=P.lockedWrongOptions[lockKey]||[];
+    if(!P.lockedWrongOptions[lockKey].includes(legacyAnswer))P.lockedWrongOptions[lockKey].push(legacyAnswer);
+    delete P.summaryAnswers[q.id];
+    save();
+  }
+  const answered=P.summaryAnswers[q.id];
+  const lockedOptions=P.lockedWrongOptions[lockKey]||[];
+  const paused=isPart4&&isPenaltyActive(lockKey);
+  const progress=el('div','exam-progress');
+  progress.append(el('span',null,'題目 '+(idx+1)+' / '+list.length),el('span',null,answered?'已作答':'請先作答'));
+  const progressStatus=progress.lastElementChild;
+  const examCard=renderExamTaskCard(q);
+  shell.append(progress,examCard);
+  const notice=isPart4?penaltyNotice(lockKey):null;
+  if(notice)shell.append(notice);
+  const options=el('div','exam-options');
+  stableShuffle('summary-options-v12:'+q.id,q.options,opt=>opt).forEach(opt=>{
+    const b=el('button','choice',opt);
+    const locked=lockedOptions.includes(opt);
+    if(answered&&opt===q.answer)b.classList.add('right');
+    else if(locked||(answered&&answered!==q.answer&&opt===answered))b.classList.add('wrong');
+    b.disabled=isPart4?(!!answered||locked||paused):!!answered;
+    b.addEventListener('click',()=>{
+      if(isPart4){
+        if(isPenaltyActive(lockKey))return;
+        if(P.summaryAnswers[q.id])return;
+        if(opt===q.answer){
+          P.summaryAnswers[q.id]=opt;
+          save();
+          b.classList.add('right');
+          examCard.classList.add('correct');
+          if(progressStatus)progressStatus.textContent=idx<list.length-1?'答對，準備下一題':'答對，準備完成';
+          $$('.choice',options).forEach(btn=>btn.disabled=true);
+          burst();
+          scheduleExamAdvance(part,pageKey,idx);
+        }else{
+          lockWrong(lockKey,opt);
+          const p=applyPenalty(lockKey,q.type);
+          b.classList.add('wrong','shake');
+          $$('.choice',options).forEach(btn=>btn.disabled=true);
+          if(progressStatus)progressStatus.textContent='這個選項已鎖定，請再試一次';
+          setTimeout(()=>b.classList.remove('shake'),300);
+          render();
+          toast('答錯，這個選項鎖定，請再試一次。');
+        }
+        return;
+      }
+      P.summaryAnswers[q.id]=opt;
+      if(opt!==q.answer)updateWrong(lockKey,q.type);
+      else burst();
+      save();
+      render();
+    });
+    options.append(b);
+  });
+  shell.append(options);
+  if(answered){
+    if(answered===q.answer){
+      examCard.classList.add('correct');
+      shell.append(el('div','review good','答對，1 秒後進入下一題。'));
+      scheduleExamAdvance(part,pageKey,idx);
+    }else{
+    shell.append(el('div','review '+(answered===q.answer?'good':'bad'),answered===q.answer?'答對，這張任務卡判斷正確。':'正解：'+q.answer));
+    const nav=el('div','exam-nav');
+    nav.append(el('span','lead',idx<list.length-1?'按下一題繼續抽考。':'這是本段最後一題。'));
+    const next=el('button','btn good',idx<list.length-1?'下一題':'看成績');
+    next.addEventListener('click',()=>{P[pageKey]=idx+1;save();render();});
+    nav.append(next);shell.append(nav);
+    }
+  }
+  s.append(shell);stage.append(s);
+}
+function renderSummary(){renderExam(4);}
+function summaryComplete(){return examQuestions(4).every(q=>P.summaryAnswers[q.id]);}
 
-function renderWall(){
-  const s=screenShell('Screen 5｜工具快問快答','這個目標適合哪個工具？','把目標卡拖到正確工具：文字類、圖片類、影片類、音樂類。');
-  const wall=el('div','skill-wall');const pool=el('div','skill-pool');pool.append(el('h3',null,'目標卡'));
-  stableShuffle('wall-target-cards-v8',WALL_TASKS,task=>task.label).filter(task=>!P.wallSkills.includes(task.label)).forEach(task=>{
-    const pKey='wall:'+task.label;
-    const paused=isPenaltyActive(pKey);
-    const tile=el('button','skill-tile'+(pickedWallSkill===task.label?' selected':''),task.label);
-    tile.type='button';
-    tile.disabled=paused;
-    tile.draggable=!paused;
-    tile.addEventListener('dragstart',e=>{if(paused)return;e.dataTransfer.setData('text/plain',task.label);pickedWallSkill=task.label;});
-    tile.addEventListener('dragend',()=>{pickedWallSkill=null;});
-    tile.addEventListener('click',()=>{if(paused)return;pickedWallSkill=pickedWallSkill===task.label?null:task.label;render();});
-    pool.append(tile);
-    const note=penaltyNotice(pKey);if(note)pool.append(note);
-  });
-  if(P.wallSkills.length===SKILLS.length)pool.append(el('div','review good','目標卡都配對好了。'));
-  const map=el('div','skill-map');map.append(el('h3',null,'工具選擇區'));
-  const zones=el('div','wall-zones');
-  stableShuffle('wall-tool-zones-v8',TOOLS,t=>t.type).forEach(t=>{
-    const z=el('div','wall-zone');setToolVar(z,t.type);
-    z.append(el('h4',null,t.label),el('small',null,t.toolName+'｜'+t.use));
-    stableShuffle('wall-zone:'+t.type,WALL_TASKS,task=>task.label).filter(task=>P.wallSkills.includes(task.label)&&task.type===t.type).forEach(task=>z.append(el('div','wall-chip',task.label)));
-    z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('over');});
-    z.addEventListener('dragleave',()=>z.classList.remove('over'));
-    z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('over');handleWallDrop(e.dataTransfer.getData('text/plain')||pickedWallSkill,t.type,z);});
-    z.addEventListener('click',()=>handleWallDrop(pickedWallSkill,t.type,z));
-    zones.append(z);
-  });
-  map.append(zones);
-  const status=el('div','review'+(P.wallSkills.length===SKILLS.length?' good':''),P.wallSkills.length+' / '+SKILLS.length+' 張目標卡已配對正確工具');
-  map.append(status);
-  if(P.wallSkills.length===SKILLS.length){const done=el('button','btn good','完成工具快問快答');done.addEventListener('click',()=>gotoScreen(6));map.append(done);}
-  wall.append(pool,map);s.append(wall);stage.append(s);
-}
+function renderWall(){renderExam(5);}
 function handleWallDrop(taskLabel,type,target){
   if(!taskLabel)return;
   const task=WALL_TASKS.find(x=>x.label===taskLabel);
@@ -1247,7 +2690,7 @@ function handleWallDrop(taskLabel,type,target){
     const p=applyPenalty(pKey,type);
     pickedWallSkill=null;
     if(target){target.classList.add('shake');setTimeout(()=>target.classList.remove('shake'),300);}
-    toast('工具不適合，已鎖定。冷卻 '+p.seconds+' 秒。');
+    toast('不適合，鎖 '+p.seconds+' 秒。');
   }
   save();render();
 }
@@ -1292,26 +2735,27 @@ function renderCollageItem(item){
   return tile;
 }
 function renderDone(){
-  const s=screenShell('Screen 6｜Done','你完成工具地圖了！','請跟老師說你已完成，也可以主動當小老師。');
-  if(!P.doneAt){P.doneAt=new Date().toISOString();save();awardMainCoinsOnce().then(status=>{toast(status==='synced'?'主線 250 金幣已同步。':'已完成，金幣待同步。');render();});}
+  const s=screenShell('Screen 6｜完成','阿工任務完成','請告訴老師你已完成，也可以主動幫同學檢查四步驟。');
+  if(!P.doneAt){P.doneAt=new Date().toISOString();save();awardMainCoinsOnce().then(status=>{toast(status==='synced'?'250 金幣已同步。':'完成，待同步。');render();});}
   const items=collectGeneratedResults();
   const collage=el('div','result-collage');
   if(items.length)items.forEach(item=>collage.append(renderCollageItem(item)));
   else collage.append(el('div','collage-item','還沒有成果紀錄'));
-  const detail=el('div','panel pad grid');
-  detail.innerHTML='<h3>完成提醒</h3>';
+  const detail=el('div','panel pad grid done-badge-panel');
+  detail.innerHTML='<h3>阿工徽章</h3>';
   const facts=el('ul');facts.className='grid';
-  ['四類工具已點亮','完成 '+P.completedPracticeCards.length+' 張任務卡','提示詞句審查通過 '+P.promptReviewPasses+' 次',P.coinsAwarded[MAIN_COIN_TX]?'金幣已領過，本次不重複入帳':(P.syncPending?'已完成，待同步':'金幣同步中')].forEach(x=>facts.append(el('li','review good',x)));
-  detail.append(facts,el('div','review good','你已完成。請跟老師說完成，接著主動當小老師：提醒同學先看任務、選工具、從任務卡找詞造提示詞句。'));
-  s.append(collage,detail);stage.append(s);
+  ['工具全亮','任務 '+P.completedPracticeCards.length+' / 4','審查 '+P.promptReviewPasses+' 次',P.coinsAwarded[MAIN_COIN_TX]?'金幣已領':(P.syncPending?'待同步':'同步中')].forEach(x=>facts.append(el('li','review good',x)));
+  detail.append(facts,el('div','review good','請跟老師說你已完成，接著可以提醒同學：先讀任務卡，再選工具，最後抓重點生成內容。'));
+  const wrap=el('div','done-grid');wrap.append(collage,detail);
+  s.append(wrap);stage.append(s);
 }
 
 function modalBase(title){const n=el('div','modal-card');n.append(el('h3',null,title));return n;}
 function openModal(content,locked=false){modal.innerHTML='';modal.dataset.locked=locked?'1':'0';modal.append(content);modal.classList.add('on');}
 function closeModal(){modal.classList.remove('on');modal.innerHTML='';modal.dataset.locked='0';}
-function startAutoDemo(type){const t=tool(type);const node=modalBase('同類範例提示');setToolVar(node,type);node.append(el('p','lead',t.label+' 通常要看：'+t.slots.join('、')+'。'));node.append(el('div','review','先問自己：要做什麼？用在哪裡？重要細節是什麼？再把答案放進提示詞句。'));const ok=el('button','btn tool','我知道了');setToolVar(ok,type);ok.addEventListener('click',closeModal);node.append(ok);P.teacher.lastAssist=t.label;openModal(node);}
+function startAutoDemo(type){const t=tool(type);const node=modalBase('阿工提示');setToolVar(node,type);node.append(el('p','lead',t.label+' 看：'+t.slots.join('、')));node.append(el('div','review','問自己：做什麼？用在哪？細節？'));const ok=el('button','btn tool','我知道了');setToolVar(ok,type);ok.addEventListener('click',closeModal);node.append(ok);P.teacher.lastAssist=t.label;openModal(node);}
 function showTeacherPanel(){const node=modalBase('老師面板');const grid=el('div','teacher-grid');[['所在頁面',SCREEN_LABELS[SCREENS[P.screenIndex]]],['完成任務卡',P.completedPracticeCards.length+' / 4'],['提示詞句通過',String(P.promptReviewPasses)],['總複習分數',P.summaryScore==null?'未作答':P.summaryScore+' / '+SUMMARY_QUESTIONS.length],['舉手',P.teacher.handRaised?'已按下':'尚未'],['小老師',P.teacher.peerTutor?'已按下':'尚未']].forEach(m=>{const box=el('div','metric');box.innerHTML='<span>'+m[0]+'</span><b>'+m[1]+'</b>';grid.append(box);});node.append(grid);node.append(el('div','review','錯誤類型：'+TOOLS.map(t=>t.label+' '+(P.wrongAttempts['type:'+t.type]||0)).join('　')));const row=el('div','chip-row');const verify=el('button','softbtn','標記已驗收');verify.addEventListener('click',()=>{P.teacher.verified=true;save();toast('老師驗收已記錄。');showTeacherPanel();});const assign=el('button','softbtn','派任小老師');assign.addEventListener('click',()=>{P.teacher.assignedTutor=true;save();toast('已標記派任小老師。');showTeacherPanel();});const close=el('button','btn primary','關閉');close.addEventListener('click',closeModal);row.append(verify,assign,close);node.append(row);openModal(node);}
-function showHelp(){const screen=SCREENS[P.screenIndex];if(screen==='taskB'){const c=nextPracticeCard();if(c)return startAutoDemo(c.type);}const node=modalBase('我卡住了');node.append(el('div','review','先看任務要產出什麼，再選工具。提示詞句要有三段：要做什麼、用在哪裡、重要細節。'));const ok=el('button','btn primary','回去試試看');ok.addEventListener('click',closeModal);node.append(ok);openModal(node);}
+function showHelp(){const screen=SCREENS[P.screenIndex];if(screen==='taskB'){const c=nextPracticeCard();if(c)return startAutoDemo(c.type);}const node=modalBase('阿工提示');node.append(el('div','review','請先讀任務卡，判斷要產生哪一種內容，再選工具並抓出重點詞。'));const ok=el('button','btn primary','回去試試看');ok.addEventListener('click',closeModal);node.append(ok);openModal(node);}
 function burst(){const cols=['#7c3aed','#14b8a6','#2563eb','#f59e0b','#f7c948'];for(let i=0;i<36;i++){const c=el('div','confetti');c.style.left=Math.random()*100+'%';c.style.background=cols[i%cols.length];c.style.transform='rotate('+Math.random()*360+'deg)';document.body.append(c);const d=900+Math.random()*1000;c.animate([{top:'-20px',opacity:1},{top:'110vh',opacity:.7}],{duration:d,easing:'cubic-bezier(.3,.7,.5,1)'});setTimeout(()=>c.remove(),d);}}
 
 document.addEventListener('click',e=>{const b=e.target.closest('.btn');if(!b||b.disabled)return;const r=b.getBoundingClientRect();const s=el('span','ripple');const size=Math.max(r.width,r.height);s.style.width=s.style.height=size+'px';s.style.left=(e.clientX-r.left-size/2)+'px';s.style.top=(e.clientY-r.top-size/2)+'px';b.append(s);setTimeout(()=>s.remove(),560);});
