@@ -54,6 +54,17 @@ const getSessionUser = (): User | null => {
   return null;
 };
 
+/** 登出／換人時把這台瀏覽器上的遊戲存檔一起清掉，共用電腦不留痕跡 */
+const clearLocalGameSaves = () => {
+  try {
+    // 涵蓋現有三種命名：game:xxx / xxx_progress / xxx-progress-vN（新課程），以及繪本草稿
+    const kill = Object.keys(localStorage).filter(
+      (k) => k.startsWith("game:") || /[-_]progress/.test(k) || k.startsWith("l1:draw-progress")
+    );
+    kill.forEach((k) => localStorage.removeItem(k));
+  } catch (e) {}
+};
+
 const setSessionUser = (user: User | null) => {
   if (typeof window === "undefined") return;
   try {
@@ -64,6 +75,7 @@ const setSessionUser = (user: User | null) => {
     } else {
       sessionStorage.removeItem(SESSION_KEY);
       localStorage.removeItem(SESSION_KEY);
+      clearLocalGameSaves();
     }
   } catch (e) {
     console.error("Failed to persist session:", e);
