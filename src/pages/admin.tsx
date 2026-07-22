@@ -5,6 +5,7 @@ import { getAllUsers, getCoinState, saveCoinState, CoinState, getGlobalActivityS
 import { User } from "@/types/User";
 import { ActivityState } from "@/types/Activity";
 import { ACTIVITIES } from "@/data/activityRegistry";
+import NumberField from "@/components/admin/NumberField";
 
 interface UserRow {
   user: User;
@@ -14,6 +15,20 @@ interface UserRow {
 type AdminTab = "students" | "classroom" | "system";
 
 const ADMIN_USERNAMES = ["admin", "teacher", "老師"];
+
+// 定義在元件外面：放在 AdminPage 裡面的話每次 render 都是新的元件型別，
+// React 會整段 unmount/remount，裡面的輸入框會在每次打字後失去焦點。
+const Card: React.FC<{ title: string; desc?: string; accent?: string; children: React.ReactNode }> = ({
+  title, desc, accent = "var(--terminal-primary)", children,
+}) => (
+  <section className="border border-[var(--terminal-primary-dim)]/60 bg-black/20">
+    <div className="px-4 py-2.5 border-b border-[var(--terminal-primary-dim)]/40">
+      <div className="text-sm font-bold" style={{ color: accent }}>{title}</div>
+      {desc && <div className="text-xs text-[var(--terminal-primary-dim)] mt-0.5">{desc}</div>}
+    </div>
+    <div className="p-4">{children}</div>
+  </section>
+);
 
 export default function AdminPage() {
   const { user, isLoading } = useAuth();
@@ -266,18 +281,6 @@ export default function AdminPage() {
   const selectedCount = selectedUsers.size;
   const totalCoins = users.reduce((sum, r) => sum + (r.coins?.balance || 0), 0);
 
-  const Card: React.FC<{ title: string; desc?: string; accent?: string; children: React.ReactNode }> = ({
-    title, desc, accent = "var(--terminal-primary)", children,
-  }) => (
-    <section className="border border-[var(--terminal-primary-dim)]/60 bg-black/20">
-      <div className="px-4 py-2.5 border-b border-[var(--terminal-primary-dim)]/40">
-        <div className="text-sm font-bold" style={{ color: accent }}>{title}</div>
-        {desc && <div className="text-xs text-[var(--terminal-primary-dim)] mt-0.5">{desc}</div>}
-      </div>
-      <div className="p-4">{children}</div>
-    </section>
-  );
-
   return (
     <main className="w-full min-h-screen bg-[var(--terminal-bg)] text-[var(--terminal-primary)]">
       {/* ── Header ───────────────────────────────────────────── */}
@@ -314,9 +317,105 @@ export default function AdminPage() {
             </button>
           ))}
         </nav>
+
+        {/* ── 選了學生才出現的金幣操作列（黏在頁首下方，發放結果也在這裡） ── */}
+        {tab === "students" && selectedCount > 0 && (
+          <div className="border-t border-[var(--terminal-primary)]/40 bg-[var(--terminal-primary)]/5">
+            <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-2.5">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold whitespace-nowrap">
+                    已選 <span className="text-yellow-400">{selectedCount}</span> 位
+                  </span>
+                  <button
+                    onClick={() => setSelectedUsers(new Set())}
+                    className="text-xs border border-[var(--terminal-primary-dim)] px-2 py-0.5 hover:bg-[var(--terminal-primary)]/10"
+                  >
+                    清除
+                  </button>
+                </div>
+
+                <div className="flex">
+                  {([["add", "發放金幣", "#facc15"], ["deduct", "核銷扣點", "#f87171"]] as const).map(([m, label, col]) => (
+                    <button
+                      key={m}
+                      onClick={() => setCoinMode(m)}
+                      className="px-3 py-1.5 text-sm font-bold border-2 transition-colors whitespace-nowrap"
+                      style={
+                        coinMode === m
+                          ? { borderColor: col, background: col, color: "#000" }
+                          : { borderColor: "var(--terminal-primary-dim)", color: "var(--terminal-primary-dim)" }
+                      }
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+                  <NumberField
+                    value={coinMode === "add" ? bonusAmount : deductAmount}
+                    onChange={(v) => (coinMode === "add" ? setBonusAmount(v) : setDeductAmount(v))}
+                    min={1}
+                    max={9999}
+                    className="w-20 bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-2 py-1.5 text-sm"
+                  />
+                  <div className="flex gap-1">
+                    {[5, 10, 20, 50, 100].map((v) => {
+                      const cur = coinMode === "add" ? bonusAmount : deductAmount;
+                      return (
+                        <button
+                          key={v}
+                          onClick={() => (coinMode === "add" ? setBonusAmount(v) : setDeductAmount(v))}
+                          className={`px-2 py-1 text-xs border transition-colors ${
+                            cur === v
+                              ? "border-[var(--terminal-primary)] text-[var(--terminal-primary)] bg-[var(--terminal-primary)]/20"
+                              : "border-[var(--terminal-primary-dim)]/50 text-[var(--terminal-primary-dim)] hover:border-[var(--terminal-primary)]/50"
+                          }`}
+                        >
+                          {v}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <input
+                    type="text"
+                    value={coinMode === "add" ? bonusReason : deductReason}
+                    onChange={(e) => (coinMode === "add" ? setBonusReason(e.target.value) : setDeductReason(e.target.value))}
+                    placeholder={coinMode === "add" ? "原因，例如：課堂獎勵" : "核銷原因，例如：兌換獎品"}
+                    className="flex-1 min-w-[140px] bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-2 py-1.5 text-sm"
+                  />
+                </div>
+
+                <button
+                  onClick={coinMode === "add" ? handleAddCoins : handleDeductCoins}
+                  className="px-5 py-2 text-sm font-bold border-2 transition-colors whitespace-nowrap"
+                  style={
+                    coinMode === "add"
+                      ? { borderColor: "#facc15", color: "#facc15" }
+                      : { borderColor: "#f87171", color: "#f87171" }
+                  }
+                >
+                  {coinMode === "add"
+                    ? `發放 ${bonusAmount} ◆ 給 ${selectedCount} 位`
+                    : `扣除 ${deductAmount} ◆ 共 ${selectedCount} 位`}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 操作結果訊息（清除選取後仍看得到） */}
+        {tab === "students" && (actionMsg || deductMsg) && (
+          <div className="border-t border-[var(--terminal-primary-dim)]/40 bg-black/40">
+            <div className={`max-w-[1400px] mx-auto px-4 md:px-6 py-2 text-sm ${actionMsg ? "text-yellow-400" : "text-red-400"}`}>
+              {actionMsg || deductMsg}
+            </div>
+          </div>
+        )}
       </header>
 
-      <div className={`max-w-[1400px] mx-auto px-4 md:px-6 py-5 ${selectedCount > 0 && tab === "students" ? "pb-44" : "pb-10"}`}>
+      <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-5 pb-10">
         {/* ══ 學生與金幣 ═══════════════════════════════════════ */}
         {tab === "students" && (
           <>
@@ -387,7 +486,7 @@ export default function AdminPage() {
                       <th className="text-right p-2 w-20">金幣</th>
                       <th className="text-right p-2 w-20">總獲得</th>
                       <th className="text-left p-2 w-28">最後活躍</th>
-                      <th className="text-right p-2 w-28">快速選取</th>
+                      <th className="text-right p-2 w-40 pr-3">快速選取</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -436,19 +535,22 @@ export default function AdminPage() {
                           <td className="p-2 text-right font-mono text-yellow-400">{row.coins?.balance ?? 0}</td>
                           <td className="p-2 text-right font-mono text-[var(--terminal-primary-dim)]">{row.coins?.totalEarned ?? 0}</td>
                           <td className="p-2 text-xs text-[var(--terminal-primary-dim)]">{formatDate(row.user.lastActiveAt)}</td>
-                          <td className="p-2 text-right">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setSelectedUsers(new Set([row.user.id])); setCoinMode("add"); }}
-                              className="text-xs border border-yellow-400/50 text-yellow-400 px-2 py-0.5 hover:bg-yellow-400/20 mr-1"
-                            >
-                              +金幣
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setSelectedUsers(new Set([row.user.id])); setCoinMode("deduct"); }}
-                              className="text-xs border border-red-400/50 text-red-400 px-2 py-0.5 hover:bg-red-400/20"
-                            >
-                              -金幣
-                            </button>
+                          {/* 兩顆等寬、同一列靠右對齊，欄位窄的時候也不會上下錯開 */}
+                          <td className="p-2 pr-3">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setSelectedUsers(new Set([row.user.id])); setCoinMode("add"); }}
+                                className="w-16 text-center text-xs border border-yellow-400/50 text-yellow-400 py-0.5 hover:bg-yellow-400/20 whitespace-nowrap"
+                              >
+                                ＋金幣
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setSelectedUsers(new Set([row.user.id])); setCoinMode("deduct"); }}
+                                className="w-16 text-center text-xs border border-red-400/50 text-red-400 py-0.5 hover:bg-red-400/20 whitespace-nowrap"
+                              >
+                                －金幣
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -606,106 +708,6 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* ── 選取後才出現的固定操作列（不用再捲回頁首） ────────── */}
-      {tab === "students" && selectedCount > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--terminal-bg)] border-t-2 border-[var(--terminal-primary)] shadow-[0_-8px_24px_rgba(0,0,0,.6)]">
-          <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold">已選 <span className="text-yellow-400">{selectedCount}</span> 位</span>
-                <button
-                  onClick={() => setSelectedUsers(new Set())}
-                  className="text-xs border border-[var(--terminal-primary-dim)] px-2 py-0.5 hover:bg-[var(--terminal-primary)]/10"
-                >
-                  清除
-                </button>
-              </div>
-
-              <div className="flex">
-                {([["add", "發放金幣", "#facc15"], ["deduct", "核銷扣點", "#f87171"]] as const).map(([m, label, col]) => (
-                  <button
-                    key={m}
-                    onClick={() => setCoinMode(m)}
-                    className="px-3 py-1.5 text-sm font-bold border-2 transition-colors"
-                    style={
-                      coinMode === m
-                        ? { borderColor: col, background: col, color: "#000" }
-                        : { borderColor: "var(--terminal-primary-dim)", color: "var(--terminal-primary-dim)" }
-                    }
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
-                <input
-                  type="number"
-                  min={1}
-                  value={coinMode === "add" ? bonusAmount : deductAmount}
-                  onChange={(e) => {
-                    const v = Math.max(1, parseInt(e.target.value) || 0);
-                    coinMode === "add" ? setBonusAmount(v) : setDeductAmount(v);
-                  }}
-                  className="w-20 bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-2 py-1.5 text-sm"
-                />
-                <div className="flex gap-1">
-                  {[5, 10, 20, 50, 100].map((v) => {
-                    const cur = coinMode === "add" ? bonusAmount : deductAmount;
-                    return (
-                      <button
-                        key={v}
-                        onClick={() => (coinMode === "add" ? setBonusAmount(v) : setDeductAmount(v))}
-                        className={`px-2 py-1 text-xs border transition-colors ${
-                          cur === v
-                            ? "border-[var(--terminal-primary)] text-[var(--terminal-primary)] bg-[var(--terminal-primary)]/20"
-                            : "border-[var(--terminal-primary-dim)]/50 text-[var(--terminal-primary-dim)] hover:border-[var(--terminal-primary)]/50"
-                        }`}
-                      >
-                        {v}
-                      </button>
-                    );
-                  })}
-                </div>
-                <input
-                  type="text"
-                  value={coinMode === "add" ? bonusReason : deductReason}
-                  onChange={(e) => (coinMode === "add" ? setBonusReason(e.target.value) : setDeductReason(e.target.value))}
-                  placeholder={coinMode === "add" ? "原因，例如：課堂獎勵" : "核銷原因，例如：兌換獎品"}
-                  className="flex-1 min-w-[140px] bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-2 py-1.5 text-sm"
-                />
-              </div>
-
-              <button
-                onClick={coinMode === "add" ? handleAddCoins : handleDeductCoins}
-                className="px-5 py-2 text-sm font-bold border-2 transition-colors"
-                style={
-                  coinMode === "add"
-                    ? { borderColor: "#facc15", color: "#facc15" }
-                    : { borderColor: "#f87171", color: "#f87171" }
-                }
-              >
-                {coinMode === "add"
-                  ? `發放 ${bonusAmount} ◆ 給 ${selectedCount} 位`
-                  : `扣除 ${deductAmount} ◆ 共 ${selectedCount} 位`}
-              </button>
-            </div>
-
-            {(actionMsg || deductMsg) && (
-              <div className={`mt-2 text-sm ${actionMsg ? "text-yellow-400" : "text-red-400"}`}>
-                {actionMsg || deductMsg}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 操作結果：沒選人時（訊息在清除選取後仍要看得到） */}
-      {tab === "students" && selectedCount === 0 && (actionMsg || deductMsg) && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 border-2 border-[var(--terminal-primary)] bg-[var(--terminal-bg)] px-5 py-2.5 text-sm">
-          <span className={actionMsg ? "text-yellow-400" : "text-red-400"}>{actionMsg || deductMsg}</span>
-        </div>
-      )}
     </main>
   );
 }
