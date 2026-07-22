@@ -336,16 +336,16 @@ const MOVES={
 };
 // hp＝要打掉幾格；ringMs＝圈縮多慢；win＝判定窗佔比（0.5＝後半段都算中）；gap＝兩拍之間的休息
 const WAVES=[
- { key:'w1', title:P('第一波·先鋒斥候','ㄉㄧˋ ㄧ ㄆㄛ ㄒㄧㄢ ㄈㄥ ㄔˋ ㄏㄡˋ'), sprite:'octoScout', tint:'#c77dd6', sizeK:1.00,
+ { key:'w1', title:P('第一波·先鋒斥候','ㄉㄧˋ ㄧ ㄆㄛ ㄒㄧㄢ ㄈㄥ ㄔˋ ㄏㄡˋ'), name:P('先鋒斥候','ㄒㄧㄢ ㄈㄥ ㄔˋ ㄏㄡˋ'), sprite:'octoScout', tint:'#c77dd6', sizeK:1.00,
    hp:6,  moves:['atk','block'],                 ringMs:3200, gap:1000, win:0.55,
    ultAt:[0.5],       ultSeq:['W','D','click'] },
- { key:'w2', title:P('第二波·噴墨章魚','ㄉㄧˋ ㄦˋ ㄆㄛ ㄆㄣ ㄇㄛˋ ㄓㄤ ㄩˊ'), sprite:'octoInker', tint:'#3a5a8c', sizeK:1.08,
+ { key:'w2', title:P('第二波·噴墨章魚','ㄉㄧˋ ㄦˋ ㄆㄛ ㄆㄣ ㄇㄛˋ ㄓㄤ ㄩˊ'), name:P('噴墨章魚','ㄆㄣ ㄇㄛˋ ㄓㄤ ㄩˊ'), sprite:'octoInker', tint:'#3a5a8c', sizeK:1.08,
    hp:9,  moves:['atk','block','heavy'],         ringMs:3000, gap:950,  win:0.52,
    ultAt:[0.55],      ultSeq:['W','D','S','right'] },
- { key:'w3', title:P('第三波·漩渦章魚','ㄉㄧˋ ㄙㄢ ㄆㄛ ㄒㄩㄢˊ ㄨㄛ ㄓㄤ ㄩˊ'), sprite:'octoSwirl', tint:'#2fb6c0', sizeK:1.14,
+ { key:'w3', title:P('第三波·漩渦章魚','ㄉㄧˋ ㄙㄢ ㄆㄛ ㄒㄩㄢˊ ㄨㄛ ㄓㄤ ㄩˊ'), name:P('漩渦章魚','ㄒㄩㄢˊ ㄨㄛ ㄓㄤ ㄩˊ'), sprite:'octoSwirl', tint:'#2fb6c0', sizeK:1.14,
    hp:12, moves:['atk','block','heavy','magic'], ringMs:2800, gap:900,  win:0.50,
    ultAt:[0.6,0.3],   ultSeq:['W','D','S','A','scroll'] },
- { key:'cap',title:P('前哨隊長','ㄑㄧㄢˊ ㄕㄠˋ ㄉㄨㄟˋ ㄓㄤˇ'), sprite:'captain', tint:'#e0623c', sizeK:1.26,
+ { key:'cap',title:P('前哨隊長','ㄑㄧㄢˊ ㄕㄠˋ ㄉㄨㄟˋ ㄓㄤˇ'), name:P('前哨隊長','ㄑㄧㄢˊ ㄕㄠˋ ㄉㄨㄟˋ ㄓㄤˇ'), sprite:'captain', tint:'#e0623c', sizeK:1.26,
    hp:16, moves:['atk','block','heavy','magic'], ringMs:2600, gap:850,  win:0.48, captain:true,
    ultAt:[0.66,0.33], ultSeq:['W','D','S','A','right','click','scroll'] },
 ];
@@ -672,11 +672,45 @@ function initWave(n){ n=clamp(n,0,N_WAVE-1); S.wave=n; const cfg=WAVES[n];
   st.boss=makeBoss(cfg); }
 function startFight(){ st.mode='fight'; st.nextAt=now()+700; popText(W/2,H*0.34,'開打！','#ffe27a',1.3); Sfx.cue(); }
 function battleLost(){ st.busy=true; st.dead=true; st.beat=null; st.combo=0; shake(22,560); Sfx.bad(); Sfx.tone(110,0.7,'sawtooth',0.07); st.flash={col:'#ff2b3b',until:now()+450}; S.deaths=(S.deaths||0)+1; persist(); }
-function roundClear(){ st.busy=true; st.beat=null; st.combo=0; confetti(); shake(9,300); Sfx.win(); burst(st.boss.x,st.boss.y,'#ffe27a',30);
+/* 擊敗動畫：翻白 → 旋轉縮小沉下去 → 打倒了！橫幅＋金幣，停留夠久再接幕間故事 */
+const KO_MS=3000;
+function roundClear(){ st.busy=true; st.beat=null; st.ult=null; st.combo=0;
+  shake(14,420); Sfx.win(); burst(st.boss.x,st.boss.y,'#ffe27a',34); ripple(st.boss.x,st.boss.y,'#ffe27a');
   const newly=(S.wave+1)>S.waveMax; if(newly){ S.waveMax=S.wave+1; S.coins=Math.min(TOTAL_COINS,S.coins+COIN_WAVE); Account.creditCoins(COINKEY+'_wave'+(S.wave+1),COIN_WAVE,'P1U-W03 第'+(S.wave+1)+'波'); }
-  persist(); st.cleared={until:now()+1500};
-  const w=S.wave;
-  setTimeout(()=>{ if(w+1>=N_WAVE) goPhase('deliver'); else goPhase('story',{set:'inter',i:w}); },1500); }
+  persist();
+  st.ko={ t0:now(), bubbles:[], burst:0 };
+  for(let i=0;i<14;i++) st.ko.bubbles.push({ x:st.boss.x+(Math.random()*2-1)*st.boss.sz*0.3, y:st.boss.y, r:5+Math.random()*13, spd:0.5+Math.random()*1.2, ph:Math.random()*7 });
+  st.cleared={until:now()+KO_MS}; }
+function koT(){ return st.ko? (now()-st.ko.t0)/1000 : 0; }
+function drawKO(){ if(!st.ko) return; const T=koT(), B=st.boss, cfg=st.cfg;
+  // 0~0.55s：翻白＋抖動；0.4s 起旋轉縮小沉下去
+  const fall=clamp((T-0.4)/1.5,0,1);
+  const sz=B.sz*(1-fall*0.72), yy=B.y+fall*H*0.22, rot=fall*2.4, al=1-fall*0.92;
+  ctx.save(); ctx.globalAlpha=Math.max(0,al); ctx.translate(B.x+(T<0.55?Math.sin(now()/18)*10:0), yy); ctx.rotate(rot);
+  if(!drawSprite(B.sprite,0,0,sz)) vOcto(0,0,sz*0.5,B.tint||'#a45bd6',0,B.captain);
+  ctx.restore();
+  if(T<0.55){ ctx.save(); ctx.globalAlpha=0.75*(1-T/0.55); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(B.x,B.y,B.sz*0.42,0,7); ctx.fill(); ctx.restore(); }
+  // 逃走的氣泡
+  for(const b of st.ko.bubbles){ const by=b.y-T*60*b.spd, bx=b.x+Math.sin(now()/420+b.ph)*10;
+    ctx.save(); ctx.globalAlpha=clamp(0.6-T*0.16,0,0.6); ctx.strokeStyle='#cfe8ff'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(bx,by,b.r,0,7); ctx.stroke(); ctx.restore(); }
+  // 間隔灑粒子
+  if(T<1.2 && now()-(st.ko.burst||0)>110){ st.ko.burst=now(); burst(B.x+(Math.random()*2-1)*B.sz*0.3, B.y+(Math.random()*2-1)*B.sz*0.2, '#ffe27a', 8); }
+  if(T<0.9) return;
+  // 打倒橫幅
+  const p=clamp((T-0.9)/0.35,0,1), sc=0.7+p*0.3;
+  ctx.save(); ctx.globalAlpha=p*0.55; ctx.fillStyle='#03111f'; ctx.fillRect(0,0,W,H); ctx.restore();
+  ctx.save(); ctx.translate(W/2,H*0.44); ctx.scale(sc,sc);
+  drawRuby(P('打倒了！','ㄉㄚˇ ㄉㄠˇ ㄌㄜ˙'), 0, 0, Math.min(48,W*0.085), '#7cffb0');
+  ctx.restore();
+  drawRuby(cfg.title, W/2, H*0.545, Math.min(26,W*0.05), '#ffd0d5');
+  if(T>1.5){ const q=clamp((T-1.5)/0.4,0,1); ctx.save(); ctx.globalAlpha=q;
+    const fs=Math.min(24,W*0.042), cr=fs*0.7; ctx.font='900 '+fs+'px "Noto Sans TC",sans-serif';
+    const txt='+'+COIN_WAVE+' 金幣', tw=ctx.measureText(txt).width, tot=cr*2+10+tw, sx=W/2-tot/2, cy=H*0.63;
+    gCoin(sx+cr,cy,cr); ctx.fillStyle='#ffe27a'; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(txt,sx+cr*2+10,cy+1);
+    ctx.textBaseline='alphabetic'; ctx.restore(); }
+  if(T>2.2){ const p2=pulse(); ctx.save(); ctx.globalAlpha=0.6+p2*0.4;
+    drawRuby(S.wave+1>=N_WAVE?P('準備收尾…','ㄓㄨㄣˇ ㄅㄟˋ ㄕㄡ ㄨㄟˇ'):P('接下來發生了什麼事？','ㄐㄧㄝ ㄒㄧㄚˋ ㄌㄞˊ ㄈㄚ ㄕㄥ ㄌㄜ˙ ㄕㄜˊ ㄇㄜ˙ ㄕˋ'),
+      W/2, H*0.74, Math.min(20,W*0.036), '#cfe8ff'); ctx.restore(); } }
 function gameOverBtns(){ const w=Math.min(300,W*0.6), h=Math.min(58,H*0.088), gap=Math.min(16,H*0.02); let y=H*0.50;
   const b={ retry:{x:W/2-w/2,y,w,h} }; y+=h+gap; b.home={x:W/2-w/2,y,w,h}; return b; }
 function handleGameOver(evs){ for(const e of evs){ if(e.t==='down'){ const b=gameOverBtns();
@@ -715,6 +749,8 @@ function drawWaveHUD(){ const cfg=st.cfg; st.ghost=lerp(st.ghost,st.hp,0.14);
 const ST_WAVE={ update(evs){
     if(st.mode==='intro'){ for(const e of evs){ if(e.t==='down'&&inBtn(e,startWaveBtn())){ startFight(); return; } } return; }
     if(st.dead){ handleGameOver(evs); return; }
+    if(st.ko){ if(now()>=st.cleared.until){ const w=S.wave;
+        if(w+1>=N_WAVE) goPhase('deliver'); else goPhase('story',{set:'inter',i:w}); } return; }
     if(st.busy) return;
     if(st.ult){ updateUlt(evs); return; }
     if(!st.beat){ if(now()>=st.nextAt) spawnBeat(); return; }
@@ -722,13 +758,12 @@ const ST_WAVE={ update(evs){
     for(const e of evs){ const a=mouseActOf(e); if(a) judgeBeat(a); if(!st.beat) return; } },
   draw(){ const cfg=st.cfg; seaBg(); drawCover('seabed',0.5);
     if(st.mode==='intro'){ drawWaveIntro(cfg); return; }
+    if(st.ko){ drawKO(); drawFx(); if(st.dead) drawGameOver(); return; }
     drawBoss(); drawBeat(); drawPov(); drawFx(); drawFlash();
     drawMoveCard(st.beat?st.beat.mv:(st.beats[st.bi]||st.beats[st.beats.length-1]), hudBottom()+10);
     drawWaveHUD();
     if(st.ult) drawUlt();
     if(TOUCH) drawKeypad();
-    if(st.cleared&&now()<st.cleared.until){ ctx.save(); ctx.fillStyle='rgba(3,17,31,.45)'; ctx.fillRect(0,0,W,H); ctx.restore();
-      drawRuby(P('打退這一隻了！','ㄉㄚˇ ㄊㄨㄟˋ ㄓㄜˋ ㄧˋ ㄓ ㄌㄜ˙'), W/2, H*0.45, Math.min(36,W*0.07), '#7cffb0'); }
     if(st.dead) drawGameOver(); } };
 
 /* ================= SWIM：關卡之間用 WASD 游過去（沿用 W02 大地圖的引導做法） =================
@@ -814,12 +849,16 @@ const ULT_TOKENS={
   click:{ kind:'mouse', mouse:'click' }, right:{ kind:'mouse', mouse:'right' },
   dbl:{ kind:'mouse', mouse:'dbl' }, scroll:{ kind:'mouse', mouse:'scroll' },
 };
-function ultStepMs(){ return 1500; }                 // 每一步都給足時間（寬鬆）
+function ultStepMs(){ return 2600; }                 // 每一步的時間（加長，小朋友找得到鍵）
+const ULT_WARN_MS=2600;                              // 預告：先讓他們看清楚要按什麼
+// 先進「預告」：XXX 的絕招要來了！請照順序按 ○○○ 閃躲
 function startUlt(){ const cfg=st.cfg;
-  st.beat=null;                                       // 大招期間普通拍停下
-  st.ult={ seq:cfg.ultSeq.slice(), idx:0, t0:now(), stepMs:ultStepMs(), bad:0, done:0 };
-  shake(10,420); Sfx.tone(140,0.5,'sawtooth',0.06);
-  popText(W/2,H*0.30,'大招來了！照順序按！','#ff6b6b',1.5); }
+  st.beat=null;                                      // 大招期間普通拍停下
+  st.ult={ seq:cfg.ultSeq.slice(), idx:0, t0:now(), stepMs:ultStepMs(), bad:0, done:0,
+           warnUntil:now()+ULT_WARN_MS };
+  shake(10,420); Sfx.tone(140,0.5,'sawtooth',0.06); Sfx.cue();
+  popText(W/2,H*0.26,'絕招要來了！','#ff6b6b',1.6); }
+function ultWarning(){ const u=st.ult; return !!(u && u.warnUntil && now()<u.warnUntil); }
 function ultTokenOf(e){
   if(e.t==='key') return e.k;
   if(e.t==='dbl') return 'dbl';
@@ -843,6 +882,8 @@ function ultFail(){ const u=st.ult; u.done=now()+900; u.failed=true;
   popText(W/2,H*0.34,'被大招打中！-'+ULT_DMG,'#ff5d6c',1.6); }
 function updateUlt(evs){ const u=st.ult;
   if(u.done){ if(now()>=u.done){ st.ult=null; if(st.php<=0){ battleLost(); return; } st.nextAt=now()+700; } return; }
+  if(ultWarning()) return;                            // 預告階段：只給看，不計時也不判定
+  if(u.warnUntil){ u.warnUntil=0; u.t0=now(); Sfx.tone(880,0.12,'square',0.05); }  // 預告結束 → 開始計時
   if(now()-u.t0>u.stepMs){ ultFail(); return; }
   for(const e of evs){ const tok=ultTokenOf(e); if(tok){ ultAdvance(tok); if(!st.ult||st.ult.done) return; } } }
 function ultIconSize(){ return Math.min(64, W*0.062, H*0.082); }
@@ -853,8 +894,25 @@ function drawUlt(){ const u=st.ult; if(!u) return;
   ctx.save(); ctx.globalAlpha=0.5+p*0.2;
   if(!drawSprite(B.sprite,W/2,H*0.40,Math.min(W*0.95,H*0.86))) vOcto(W/2,H*0.40,H*0.3,B.tint||'#a45bd6',0,B.captain);
   ctx.restore();
-  drawRuby(P('大招來了！照順序按完就躲得掉','ㄉㄚˋ ㄓㄠ ㄌㄞˊ ㄌㄜ˙ ㄓㄠˋ ㄕㄨㄣˋ ㄒㄩˋ ㄢˋ ㄨㄢˊ ㄐㄧㄡˋ ㄉㄨㄛˇ ㄉㄜ˙ ㄉㄧㄠˋ'),
-    W/2, H*0.13, Math.min(26,W*0.036,H*0.036), '#ff9b6b');
+  const warn=ultWarning(), cfg=st.cfg;
+  if(warn){
+    // ── 預告：XXX 的絕招要來了！請照順序按下面這些閃躲 ──
+    const wp=pulse();
+    ctx.save(); ctx.globalAlpha=0.35+wp*0.35; ctx.fillStyle='#ff2b3b'; ctx.fillRect(0,0,W,H*0.055); ctx.fillRect(0,H*0.945,W,H*0.055); ctx.restore();
+    drawRuby(cfg.name.concat(P('的絕招要來了！','ㄉㄜ˙ ㄐㄩㄝˊ ㄓㄠ ㄧㄠˋ ㄌㄞˊ ㄌㄜ˙')),
+      W/2, H*0.12, Math.min(34,W*0.045,H*0.045), '#ff6b6b');
+    drawRuby(P('請照順序按下面這些閃躲','ㄑㄧㄥˇ ㄓㄠˋ ㄕㄨㄣˋ ㄒㄩˋ ㄢˋ ㄒㄧㄚˋ ㄇㄧㄢˋ ㄓㄜˋ ㄒㄧㄝ ㄕㄢˇ ㄉㄨㄛˇ'),
+      W/2, H*0.20, Math.min(24,W*0.034,H*0.034), '#ffe27a');
+    // 預告倒數
+    const wf=clamp((u.warnUntil-now())/ULT_WARN_MS,0,1);
+    const ww=Math.min(W*0.5,420), wx=W/2-ww/2, wy=H*0.255, wh=Math.min(10,H*0.014);
+    ctx.save(); rr(wx,wy,ww,wh,wh/2); ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fill();
+    rr(wx,wy,Math.max(wh,ww*wf),wh,wh/2); ctx.fillStyle='#ff6b6b'; ctx.fill(); ctx.restore();
+    drawRuby(P('準備…','ㄓㄨㄣˇ ㄅㄟˋ'), W/2, wy+wh+Math.min(20,H*0.028), Math.min(18,W*0.028), '#cfe8ff');
+  } else {
+    drawRuby(P('照順序按完就躲得掉！','ㄓㄠˋ ㄕㄨㄣˋ ㄒㄩˋ ㄢˋ ㄨㄢˊ ㄐㄧㄡˋ ㄉㄨㄛˇ ㄉㄜ˙ ㄉㄧㄠˋ'),
+      W/2, H*0.13, Math.min(26,W*0.036,H*0.036), '#ff9b6b');
+  }
   // 指令列
   const isz=ultIconSize(), gap=Math.min(16,W*0.014), n=u.seq.length;
   const totW=n*isz+(n-1)*gap, x0=W/2-totW/2, cy=H*0.60;
@@ -871,7 +929,7 @@ function drawUlt(){ const u=st.ult; if(!u) return;
       ctx.beginPath(); ctx.moveTo(x-isz*0.2,cy+isz*0.05); ctx.lineTo(x-isz*0.05,cy+isz*0.2); ctx.lineTo(x+isz*0.22,cy-isz*0.16); ctx.stroke(); ctx.restore(); } }
   // 這一步的倒數條
   const bw=Math.min(W*0.62,520), bx=W/2-bw/2, by=cy+isz*0.95, bh=Math.min(14,H*0.018);
-  const frac=u.done?0:clamp(1-(now()-u.t0)/u.stepMs,0,1);
+  const frac=u.done?0:(warn?1:clamp(1-(now()-u.t0)/u.stepMs,0,1)); // 預告階段先顯示滿格，還沒開始倒數
   ctx.save(); rr(bx,by,bw,bh,bh/2); ctx.fillStyle='rgba(255,255,255,.14)'; ctx.fill();
   if(frac>0){ rr(bx,by,Math.max(bh,bw*frac),bh,bh/2); ctx.fillStyle=frac<0.3?'#ff5d6c':'#ffe27a'; ctx.fill(); }
   ctx.restore();
