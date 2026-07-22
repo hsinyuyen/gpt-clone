@@ -11,6 +11,8 @@ interface UserRow {
   coins: CoinState | null;
 }
 
+type AdminTab = "students" | "classroom" | "system";
+
 const ADMIN_USERNAMES = ["admin", "teacher", "老師"];
 
 export default function AdminPage() {
@@ -38,6 +40,8 @@ export default function AdminPage() {
   const [announcementSaved, setAnnouncementSaved] = useState(false);
   const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({ cardGameEnabled: true });
   const [featureFlagsSaved, setFeatureFlagsSaved] = useState(false);
+  const [tab, setTab] = useState<AdminTab>("students");
+  const [coinMode, setCoinMode] = useState<"add" | "deduct">("add");
 
   const isAdmin = user && (ADMIN_USERNAMES.includes(user.username.toLowerCase()) || accessBypass);
 
@@ -246,450 +250,460 @@ export default function AdminPage() {
     );
   }
 
+  const TABS: { id: AdminTab; label: string; hint: string }[] = [
+    { id: "students", label: "學生與金幣", hint: "查看學生、發放／核銷金幣" },
+    { id: "classroom", label: "課堂經營", hint: "公告、課堂分類、活動模式" },
+    { id: "system", label: "系統與素材", hint: "功能開關、卡片與學習單管理" },
+  ];
+
+  const TOOLS = [
+    { label: "卡片圖片", path: "/admin/card-images", color: "#c084fc" },
+    { label: "卡片動畫", path: "/admin/card-animations", color: "#facc15" },
+    { label: "任務卡圖", path: "/admin/quest-images", color: "#22d3ee" },
+    { label: "學習單", path: "/admin/worksheets", color: "#4ade80" },
+  ];
+
+  const selectedCount = selectedUsers.size;
+  const totalCoins = users.reduce((sum, r) => sum + (r.coins?.balance || 0), 0);
+
+  const Card: React.FC<{ title: string; desc?: string; accent?: string; children: React.ReactNode }> = ({
+    title, desc, accent = "var(--terminal-primary)", children,
+  }) => (
+    <section className="border border-[var(--terminal-primary-dim)]/60 bg-black/20">
+      <div className="px-4 py-2.5 border-b border-[var(--terminal-primary-dim)]/40">
+        <div className="text-sm font-bold" style={{ color: accent }}>{title}</div>
+        {desc && <div className="text-xs text-[var(--terminal-primary-dim)] mt-0.5">{desc}</div>}
+      </div>
+      <div className="p-4">{children}</div>
+    </section>
+  );
+
   return (
-    <main className="w-full min-h-screen bg-[var(--terminal-bg)] text-[var(--terminal-primary)] p-4 md:p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-bold glow-text">ADMIN_PANEL</h1>
-          <div className="text-xs text-[var(--terminal-primary-dim)]">
-            管理學生帳號和金幣獎勵 | 登入帳號: {user?.username}
+    <main className="w-full min-h-screen bg-[var(--terminal-bg)] text-[var(--terminal-primary)]">
+      {/* ── Header ───────────────────────────────────────────── */}
+      <header className="sticky top-0 z-30 bg-[var(--terminal-bg)] border-b border-[var(--terminal-primary-dim)]/60">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-baseline gap-3 min-w-0">
+            <h1 className="text-lg font-bold glow-text whitespace-nowrap">ADMIN_PANEL</h1>
+            <span className="text-xs text-[var(--terminal-primary-dim)] truncate">
+              {user?.username} · {users.length} 位學生 · 流通 {totalCoins} ◆
+            </span>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => router.push("/admin/card-images")}
-            className="px-4 py-2 text-sm border border-purple-500 text-purple-400 hover:bg-purple-900/20"
-          >
-            🎨 卡片圖片
-          </button>
-          <button
-            onClick={() => router.push("/admin/card-animations")}
-            className="px-4 py-2 text-sm border border-yellow-500 text-yellow-400 hover:bg-yellow-900/20"
-          >
-            🎬 卡片動畫
-          </button>
-          <button
-            onClick={() => router.push("/admin/quest-images")}
-            className="px-4 py-2 text-sm border border-cyan-500 text-cyan-400 hover:bg-cyan-900/20"
-          >
-            🎴 任務卡圖
-          </button>
-          <button
-            onClick={() => router.push("/admin/worksheets")}
-            className="px-4 py-2 text-sm border border-green-500 text-green-400 hover:bg-green-900/20"
-          >
-            📋 學習單
-          </button>
           <button
             onClick={() => router.push("/")}
-            className="px-4 py-2 text-sm border border-[var(--terminal-primary-dim)] hover:bg-[var(--terminal-primary)]/10"
+            className="px-3 py-1.5 text-xs border border-[var(--terminal-primary-dim)] hover:bg-[var(--terminal-primary)]/10 whitespace-nowrap"
           >
             ← 返回主頁
           </button>
         </div>
-      </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="border border-[var(--terminal-primary-dim)] p-3">
-          <div className="text-xs text-[var(--terminal-primary-dim)]">總用戶</div>
-          <div className="text-2xl font-bold">{users.length}</div>
-        </div>
-        <div className="border border-[var(--terminal-primary-dim)] p-3">
-          <div className="text-xs text-[var(--terminal-primary-dim)]">兒童模式</div>
-          <div className="text-2xl font-bold">
-            {users.filter((r) => r.user.kidMode).length}
-          </div>
-        </div>
-        <div className="border border-[var(--terminal-primary-dim)] p-3">
-          <div className="text-xs text-[var(--terminal-primary-dim)]">已建立 Avatar</div>
-          <div className="text-2xl font-bold">
-            {users.filter((r) => r.user.avatar).length}
-          </div>
-        </div>
-        <div className="border border-[var(--terminal-primary-dim)] p-3">
-          <div className="text-xs text-[var(--terminal-primary-dim)]">總發行金幣</div>
-          <div className="text-2xl font-bold">
-            {users.reduce((sum, r) => sum + (r.coins?.totalEarned || 0), 0)}
-          </div>
-        </div>
-      </div>
-
-      {/* Commander Announcement */}
-      <div className="border border-[var(--terminal-accent)] bg-[var(--terminal-accent)]/5 p-4 mb-6">
-        <div className="text-[var(--terminal-accent)] text-sm font-bold mb-3">📢 指揮官公告</div>
-        <div className="flex flex-wrap gap-3 items-end">
-          <div className="flex-1 min-w-[200px]">
-            <label className="text-xs text-[var(--terminal-primary-dim)] block mb-1">公告訊息（留空則清除）</label>
-            <input
-              type="text"
-              value={announcement}
-              onChange={(e) => {
-                setAnnouncement(e.target.value);
-                setAnnouncementSaved(false);
-              }}
-              className="w-full bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-3 py-2 text-sm"
-              placeholder="輸入要公告給所有學生的訊息..."
-            />
-          </div>
-          <button
-            onClick={async () => {
-              await saveAnnouncement(announcement, user?.username || "admin");
-              setAnnouncementSaved(true);
-              setTimeout(() => setAnnouncementSaved(false), 3000);
-            }}
-            className="px-4 py-2 text-sm font-bold border-2 border-[var(--terminal-accent)] text-[var(--terminal-accent)] hover:bg-[var(--terminal-accent)] hover:text-black transition-colors"
-          >
-            發布公告
-          </button>
-        </div>
-        {announcementSaved && (
-          <div className="mt-2 text-sm text-green-400">公告已發布！學生將在 60 秒內看到。</div>
-        )}
-        {announcement && (
-          <div className="mt-2 text-xs text-[var(--terminal-primary-dim)]">
-            目前公告：「{announcement}」
-          </div>
-        )}
-      </div>
-
-      {/* Classroom Management */}
-      <div className="border border-[var(--terminal-primary)] bg-[var(--terminal-primary)]/5 p-4 mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-[var(--terminal-primary)] text-sm font-bold">📚 課堂分類</div>
-            <div className="text-xs text-[var(--terminal-primary-dim)] mt-1">
-              管理課堂、分配學生、快速發送金幣
-            </div>
-          </div>
-          <button
-            onClick={() => router.push("/admin/classrooms")}
-            className="px-6 py-3 text-sm font-bold border-2 border-[var(--terminal-primary)] text-[var(--terminal-primary)] hover:bg-[var(--terminal-primary)] hover:text-[var(--terminal-bg)] transition-colors"
-          >
-            管理課堂 →
-          </button>
-        </div>
-      </div>
-
-      {/* Feature Flags */}
-      <div className="border border-red-400/50 bg-red-400/5 p-4 mb-6">
-        <div className="text-red-400 text-sm font-bold mb-3">🎮 功能開關</div>
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm">卡片遊戲系統</div>
-            <div className="text-xs text-[var(--terminal-primary-dim)]">
-              控制卡片、抽卡、牌組、對戰等所有遊戲頁面的存取
-            </div>
-          </div>
-          <button
-            onClick={async () => {
-              const newFlags = { ...featureFlags, cardGameEnabled: !featureFlags.cardGameEnabled };
-              setFeatureFlags(newFlags);
-              await saveFeatureFlags(newFlags);
-              setFeatureFlagsSaved(true);
-              setTimeout(() => setFeatureFlagsSaved(false), 3000);
-            }}
-            className={`px-6 py-2 text-sm font-bold border-2 transition-colors ${
-              featureFlags.cardGameEnabled
-                ? "border-green-400 text-green-400 hover:bg-green-400 hover:text-black"
-                : "border-red-400 text-red-400 hover:bg-red-400 hover:text-black"
-            }`}
-          >
-            {featureFlags.cardGameEnabled ? "✅ 已開放" : "🔒 已關閉"}
-          </button>
-        </div>
-        {featureFlagsSaved && (
-          <div className="mt-2 text-sm text-green-400">設定已儲存！學生端會即時更新。</div>
-        )}
-      </div>
-
-      {/* Coin Bonus Controls */}
-      <div className="border border-yellow-400/50 bg-yellow-400/5 p-4 mb-6">
-        <div className="text-yellow-400 text-sm font-bold mb-3">◆ 課堂獎勵發放</div>
-        <div className="flex flex-wrap gap-3 items-end">
-          <div>
-            <label className="text-xs text-[var(--terminal-primary-dim)] block mb-1">金幣數量</label>
-            <input
-              type="number"
-              value={bonusAmount}
-              onChange={(e) => setBonusAmount(Math.max(1, parseInt(e.target.value) || 0))}
-              className="w-20 bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-2 py-1 text-sm"
-              min={1}
-            />
-          </div>
-          <div className="flex-1 min-w-[150px]">
-            <label className="text-xs text-[var(--terminal-primary-dim)] block mb-1">原因</label>
-            <input
-              type="text"
-              value={bonusReason}
-              onChange={(e) => setBonusReason(e.target.value)}
-              className="w-full bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-2 py-1 text-sm"
-              placeholder="課堂獎勵"
-            />
-          </div>
-          <button
-            onClick={handleAddCoins}
-            disabled={selectedUsers.size === 0}
-            className="px-4 py-1 text-sm font-bold border-2 border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            發放給 {selectedUsers.size} 位學生
-          </button>
-        </div>
-        {actionMsg && (
-          <div className="mt-2 text-sm text-yellow-400">{actionMsg}</div>
-        )}
-      </div>
-
-      {/* Coin Deduct Controls */}
-      <div className="border border-red-400/50 bg-red-400/5 p-4 mb-6">
-        <div className="text-red-400 text-sm font-bold mb-3">◆ 核銷扣點</div>
-        <div className="flex flex-wrap gap-3 items-end">
-          <div>
-            <label className="text-xs text-[var(--terminal-primary-dim)] block mb-1">扣除數量</label>
-            <input
-              type="number"
-              value={deductAmount}
-              onChange={(e) => setDeductAmount(Math.max(1, parseInt(e.target.value) || 0))}
-              className="w-20 bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-2 py-1 text-sm"
-              min={1}
-            />
-          </div>
-          <div className="flex gap-1">
-            {[5, 10, 20, 50, 100].map((v) => (
-              <button
-                key={v}
-                onClick={() => setDeductAmount(v)}
-                className={`px-2 py-1 text-xs border transition-colors ${
-                  deductAmount === v
-                    ? "border-red-400 text-red-400 bg-red-400/20"
-                    : "border-[var(--terminal-primary-dim)]/50 text-[var(--terminal-primary-dim)] hover:border-red-400/50"
-                }`}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-          <div className="flex-1 min-w-[150px]">
-            <label className="text-xs text-[var(--terminal-primary-dim)] block mb-1">核銷原因</label>
-            <input
-              type="text"
-              value={deductReason}
-              onChange={(e) => setDeductReason(e.target.value)}
-              className="w-full bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-2 py-1 text-sm"
-              placeholder="兌換獎品"
-            />
-          </div>
-          <button
-            onClick={handleDeductCoins}
-            disabled={selectedUsers.size === 0}
-            className="px-4 py-1 text-sm font-bold border-2 border-red-400 text-red-400 hover:bg-red-400 hover:text-black disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            扣除 {selectedUsers.size} 位學生
-          </button>
-        </div>
-        {deductMsg && (
-          <div className="mt-2 text-sm text-red-400">{deductMsg}</div>
-        )}
-      </div>
-
-      {/* Activity Controls */}
-      <div className="border border-[var(--terminal-cyan)] bg-[var(--terminal-cyan)]/5 p-4 mb-6">
-        <div className="text-[var(--terminal-cyan)] text-sm font-bold mb-3">◉ 活動模式控制</div>
-
-        {activityState.activeActivityId ? (
-          <div>
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-[var(--terminal-accent)] animate-pulse">● ACTIVE</span>
-              <span className="text-sm">
-                {ACTIVITIES.find((a) => a.id === activityState.activeActivityId)?.name || activityState.activeActivityId}
-              </span>
-              <span className="text-xs text-[var(--terminal-primary-dim)]">
-                | 啟動者: {activityState.activatedBy} | 時間: {activityState.activatedAt ? new Date(activityState.activatedAt).toLocaleString("zh-TW") : ""}
-              </span>
-            </div>
+        {/* ── Tabs ───────────────────────────────────────────── */}
+        <nav className="max-w-[1400px] mx-auto px-4 md:px-6 flex gap-1 overflow-x-auto">
+          {TABS.map((t) => (
             <button
-              onClick={async () => {
-                setActivityLoading(true);
-                await setGlobalActivityState({ activeActivityId: null, activatedAt: null, activatedBy: null });
-                setActivityState({ activeActivityId: null, activatedAt: null, activatedBy: null });
-                setActivityLoading(false);
-              }}
-              disabled={activityLoading}
-              className="px-4 py-1 text-sm font-bold border-2 border-red-400 text-red-400 hover:bg-red-400 hover:text-black disabled:opacity-30 transition-colors"
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              title={t.hint}
+              className={`px-4 py-2 text-sm whitespace-nowrap border-b-2 transition-colors ${
+                tab === t.id
+                  ? "border-[var(--terminal-primary)] text-[var(--terminal-primary)] font-bold"
+                  : "border-transparent text-[var(--terminal-primary-dim)] hover:text-[var(--terminal-primary)]"
+              }`}
             >
-              停止活動
+              {t.label}
             </button>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {ACTIVITIES.map((activity) => (
-              <div
-                key={activity.id}
-                className="flex items-center justify-between border border-[var(--terminal-primary-dim)]/30 p-3"
-              >
-                <div>
-                  <div className="text-sm">{activity.name}</div>
-                  <div className="text-xs text-[var(--terminal-primary-dim)]">
-                    {activity.description} | 獎勵: +{activity.coinReward} ◆
-                  </div>
+          ))}
+        </nav>
+      </header>
+
+      <div className={`max-w-[1400px] mx-auto px-4 md:px-6 py-5 ${selectedCount > 0 && tab === "students" ? "pb-44" : "pb-10"}`}>
+        {/* ══ 學生與金幣 ═══════════════════════════════════════ */}
+        {tab === "students" && (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+              {[
+                { label: "總學生", value: users.length },
+                { label: "兒童模式", value: users.filter((r) => r.user.kidMode).length },
+                { label: "已建立 Avatar", value: users.filter((r) => r.user.avatar).length },
+                { label: "總發行金幣", value: users.reduce((s, r) => s + (r.coins?.totalEarned || 0), 0) },
+              ].map((s) => (
+                <div key={s.label} className="border border-[var(--terminal-primary-dim)]/60 px-3 py-2">
+                  <div className="text-[11px] text-[var(--terminal-primary-dim)]">{s.label}</div>
+                  <div className="text-2xl font-bold leading-tight">{s.value}</div>
                 </div>
-                <button
-                  onClick={async () => {
-                    setActivityLoading(true);
-                    const newState: ActivityState = {
-                      activeActivityId: activity.id,
-                      activatedAt: new Date().toISOString(),
-                      activatedBy: user?.username || "admin",
-                    };
-                    await setGlobalActivityState(newState);
-                    setActivityState(newState);
-                    setActivityLoading(false);
-                  }}
-                  disabled={activityLoading}
-                  className="px-4 py-1 text-sm font-bold border-2 border-[var(--terminal-cyan)] text-[var(--terminal-cyan)] hover:bg-[var(--terminal-cyan)] hover:text-black disabled:opacity-30 transition-colors"
-                >
-                  啟動
+              ))}
+            </div>
+
+            <div className="flex flex-wrap gap-2 items-center mb-3">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="搜尋用戶名稱 / 顯示名稱…"
+                className="flex-1 min-w-[200px] bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-3 py-1.5 text-sm"
+              />
+              <span className="text-xs text-[var(--terminal-primary-dim)] whitespace-nowrap">
+                顯示 {filteredUsers.length} / {users.length}
+                {selectedCount > 0 && <span className="text-yellow-400"> · 已選 {selectedCount}</span>}
+              </span>
+              <button
+                onClick={loadUsers}
+                className="px-3 py-1.5 text-sm border border-[var(--terminal-primary-dim)] hover:bg-[var(--terminal-primary)]/10 whitespace-nowrap"
+              >
+                重新載入
+              </button>
+            </div>
+
+            {error && (
+              <div className="border border-red-500 bg-red-500/10 p-4 mb-4 text-red-400 text-sm">
+                <div className="font-bold mb-1">載入失敗</div>
+                <div>{error}</div>
+                <button onClick={loadUsers} className="mt-2 text-xs border border-red-500 px-3 py-1 hover:bg-red-500/20">
+                  重試
                 </button>
               </div>
-            ))}
+            )}
+
+            {loading ? (
+              <div className="text-center py-12 text-[var(--terminal-primary-dim)]">載入用戶資料中…</div>
+            ) : (
+              // 自己捲的表格容器：thead sticky 才會正確吸在表格頂端（不能只用 overflow-x）
+              <div className="border border-[var(--terminal-primary-dim)]/60 overflow-auto max-h-[calc(100vh-300px)] min-h-[300px]">
+                <table className="w-full text-sm border-collapse">
+                  <thead className="sticky top-0 bg-[var(--terminal-bg)] z-10 shadow-[0_1px_0_var(--terminal-primary-dim)]">
+                    <tr className="border-b border-[var(--terminal-primary-dim)] text-[var(--terminal-primary-dim)] text-xs">
+                      <th className="text-left p-2 w-8">
+                        <input
+                          type="checkbox"
+                          checked={selectedCount === filteredUsers.length && filteredUsers.length > 0}
+                          onChange={selectAll}
+                          className="cursor-pointer"
+                          title="全選 / 取消全選"
+                        />
+                      </th>
+                      <th className="text-left p-2 w-12">AVATAR</th>
+                      <th className="text-left p-2">用戶</th>
+                      <th className="text-center p-2 w-14">兒童</th>
+                      <th className="text-right p-2 w-20">金幣</th>
+                      <th className="text-right p-2 w-20">總獲得</th>
+                      <th className="text-left p-2 w-28">最後活躍</th>
+                      <th className="text-right p-2 w-28">快速選取</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredUsers.map((row) => {
+                      const on = selectedUsers.has(row.user.id);
+                      return (
+                        <tr
+                          key={row.user.id}
+                          onClick={() => toggleSelect(row.user.id)}
+                          className={`border-b border-[var(--terminal-primary-dim)]/20 cursor-pointer transition-colors ${
+                            on ? "bg-[var(--terminal-primary)]/15" : "hover:bg-[var(--terminal-primary)]/5"
+                          }`}
+                        >
+                          <td className="p-2">
+                            <input
+                              type="checkbox"
+                              checked={on}
+                              onChange={() => toggleSelect(row.user.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="cursor-pointer"
+                            />
+                          </td>
+                          <td className="p-2">
+                            {row.user.avatar?.frames?.[0] ? (
+                              <img
+                                src={row.user.avatar.frames[0]}
+                                alt=""
+                                className="w-8 h-8 object-contain"
+                                style={{ imageRendering: "pixelated" }}
+                              />
+                            ) : (
+                              <div className="w-8 h-8 border border-[var(--terminal-primary-dim)]/50 flex items-center justify-center text-xs text-[var(--terminal-primary-dim)]">
+                                ?
+                              </div>
+                            )}
+                          </td>
+                          <td className="p-2">
+                            <div className="font-mono">{row.user.username}</div>
+                            {row.user.displayName && (
+                              <div className="text-xs text-[var(--terminal-primary-dim)]">{row.user.displayName}</div>
+                            )}
+                          </td>
+                          <td className="p-2 text-center">
+                            {row.user.kidMode ? <span className="text-yellow-400">★</span> : <span className="text-[var(--terminal-primary-dim)]">-</span>}
+                          </td>
+                          <td className="p-2 text-right font-mono text-yellow-400">{row.coins?.balance ?? 0}</td>
+                          <td className="p-2 text-right font-mono text-[var(--terminal-primary-dim)]">{row.coins?.totalEarned ?? 0}</td>
+                          <td className="p-2 text-xs text-[var(--terminal-primary-dim)]">{formatDate(row.user.lastActiveAt)}</td>
+                          <td className="p-2 text-right">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedUsers(new Set([row.user.id])); setCoinMode("add"); }}
+                              className="text-xs border border-yellow-400/50 text-yellow-400 px-2 py-0.5 hover:bg-yellow-400/20 mr-1"
+                            >
+                              +金幣
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedUsers(new Set([row.user.id])); setCoinMode("deduct"); }}
+                              className="text-xs border border-red-400/50 text-red-400 px-2 py-0.5 hover:bg-red-400/20"
+                            >
+                              -金幣
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {filteredUsers.length === 0 && (
+                  <div className="text-center py-6 text-[var(--terminal-primary-dim)]">沒有找到符合的用戶</div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ══ 課堂經營 ═════════════════════════════════════════ */}
+        {tab === "classroom" && (
+          <div className="grid gap-4 lg:grid-cols-2 items-start">
+            <Card title="📢 指揮官公告" desc="發布後學生側邊欄會在 60 秒內看到" accent="var(--terminal-accent)">
+              <input
+                type="text"
+                value={announcement}
+                onChange={(e) => { setAnnouncement(e.target.value); setAnnouncementSaved(false); }}
+                className="w-full bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-3 py-2 text-sm mb-3"
+                placeholder="輸入要公告給所有學生的訊息…（留空並發布＝清除公告）"
+              />
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={async () => {
+                    await saveAnnouncement(announcement, user?.username || "admin");
+                    setAnnouncementSaved(true);
+                    setTimeout(() => setAnnouncementSaved(false), 3000);
+                  }}
+                  className="px-4 py-2 text-sm font-bold border-2 border-[var(--terminal-accent)] text-[var(--terminal-accent)] hover:bg-[var(--terminal-accent)] hover:text-black transition-colors"
+                >
+                  發布公告
+                </button>
+                {announcementSaved && <span className="text-sm text-green-400">已發布！</span>}
+              </div>
+            </Card>
+
+            <Card title="📚 課堂分類" desc="管理課堂、分配學生、整班快速發送金幣">
+              <button
+                onClick={() => router.push("/admin/classrooms")}
+                className="w-full px-4 py-3 text-sm font-bold border-2 border-[var(--terminal-primary)] text-[var(--terminal-primary)] hover:bg-[var(--terminal-primary)] hover:text-[var(--terminal-bg)] transition-colors"
+              >
+                管理課堂 →
+              </button>
+            </Card>
+
+            <Card
+              title="◉ 活動模式"
+              desc={activityState.activeActivityId ? "目前有活動進行中，學生端會出現全螢幕提示" : "啟動後學生端會出現全螢幕活動提示"}
+              accent="var(--terminal-cyan)"
+            >
+              {activityState.activeActivityId ? (
+                <div>
+                  <div className="flex flex-wrap items-center gap-3 mb-3">
+                    <span className="text-[var(--terminal-accent)] animate-pulse">● ACTIVE</span>
+                    <span className="text-sm font-bold">
+                      {ACTIVITIES.find((a) => a.id === activityState.activeActivityId)?.name || activityState.activeActivityId}
+                    </span>
+                    <span className="text-xs text-[var(--terminal-primary-dim)]">
+                      {activityState.activatedBy} · {activityState.activatedAt ? new Date(activityState.activatedAt).toLocaleString("zh-TW") : ""}
+                    </span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setActivityLoading(true);
+                      await setGlobalActivityState({ activeActivityId: null, activatedAt: null, activatedBy: null });
+                      setActivityState({ activeActivityId: null, activatedAt: null, activatedBy: null });
+                      setActivityLoading(false);
+                    }}
+                    disabled={activityLoading}
+                    className="px-4 py-2 text-sm font-bold border-2 border-red-400 text-red-400 hover:bg-red-400 hover:text-black disabled:opacity-30 transition-colors"
+                  >
+                    停止活動
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {ACTIVITIES.map((activity) => (
+                    <div key={activity.id} className="flex items-center justify-between gap-3 border border-[var(--terminal-primary-dim)]/30 p-2.5">
+                      <div className="min-w-0">
+                        <div className="text-sm truncate">{activity.name}</div>
+                        <div className="text-xs text-[var(--terminal-primary-dim)] truncate">
+                          {activity.description} · 獎勵 +{activity.coinReward} ◆
+                        </div>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setActivityLoading(true);
+                          const newState: ActivityState = {
+                            activeActivityId: activity.id,
+                            activatedAt: new Date().toISOString(),
+                            activatedBy: user?.username || "admin",
+                          };
+                          await setGlobalActivityState(newState);
+                          setActivityState(newState);
+                          setActivityLoading(false);
+                        }}
+                        disabled={activityLoading}
+                        className="flex-shrink-0 px-4 py-1.5 text-sm font-bold border-2 border-[var(--terminal-cyan)] text-[var(--terminal-cyan)] hover:bg-[var(--terminal-cyan)] hover:text-black disabled:opacity-30 transition-colors"
+                      >
+                        啟動
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
+
+        {/* ══ 系統與素材 ═══════════════════════════════════════ */}
+        {tab === "system" && (
+          <div className="grid gap-4 lg:grid-cols-2 items-start">
+            <Card title="🎮 功能開關" desc="關閉後學生無法進入卡片、抽卡、牌組、對戰等頁面" accent="#f87171">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm">卡片遊戲系統</div>
+                <button
+                  onClick={async () => {
+                    const newFlags = { ...featureFlags, cardGameEnabled: !featureFlags.cardGameEnabled };
+                    setFeatureFlags(newFlags);
+                    await saveFeatureFlags(newFlags);
+                    setFeatureFlagsSaved(true);
+                    setTimeout(() => setFeatureFlagsSaved(false), 3000);
+                  }}
+                  className={`px-5 py-2 text-sm font-bold border-2 transition-colors ${
+                    featureFlags.cardGameEnabled
+                      ? "border-green-400 text-green-400 hover:bg-green-400 hover:text-black"
+                      : "border-red-400 text-red-400 hover:bg-red-400 hover:text-black"
+                  }`}
+                >
+                  {featureFlags.cardGameEnabled ? "✅ 已開放" : "🔒 已關閉"}
+                </button>
+              </div>
+              {featureFlagsSaved && <div className="mt-2 text-sm text-green-400">已儲存，學生端即時更新。</div>}
+            </Card>
+
+            <Card title="🗂 素材管理" desc="卡片圖片／動畫、任務卡圖、學習單">
+              <div className="grid grid-cols-2 gap-2">
+                {TOOLS.map((t) => (
+                  <button
+                    key={t.path}
+                    onClick={() => router.push(t.path)}
+                    className="px-3 py-3 text-sm border-2 hover:bg-white/5 transition-colors"
+                    style={{ borderColor: t.color, color: t.color }}
+                  >
+                    {t.label} →
+                  </button>
+                ))}
+              </div>
+            </Card>
           </div>
         )}
       </div>
 
-      {/* Search & Refresh */}
-      <div className="flex gap-3 mb-4">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="搜尋用戶名稱..."
-          className="flex-1 bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-3 py-1 text-sm"
-        />
-        <button
-          onClick={loadUsers}
-          className="px-3 py-1 text-sm border border-[var(--terminal-primary-dim)] hover:bg-[var(--terminal-primary)]/10"
-        >
-          重新載入
-        </button>
-      </div>
+      {/* ── 選取後才出現的固定操作列（不用再捲回頁首） ────────── */}
+      {tab === "students" && selectedCount > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--terminal-bg)] border-t-2 border-[var(--terminal-primary)] shadow-[0_-8px_24px_rgba(0,0,0,.6)]">
+          <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold">已選 <span className="text-yellow-400">{selectedCount}</span> 位</span>
+                <button
+                  onClick={() => setSelectedUsers(new Set())}
+                  className="text-xs border border-[var(--terminal-primary-dim)] px-2 py-0.5 hover:bg-[var(--terminal-primary)]/10"
+                >
+                  清除
+                </button>
+              </div>
 
-      {/* Error Display */}
-      {error && (
-        <div className="border border-red-500 bg-red-500/10 p-4 mb-4 text-red-400 text-sm">
-          <div className="font-bold mb-1">載入失敗</div>
-          <div>{error}</div>
-          <button onClick={loadUsers} className="mt-2 text-xs border border-red-500 px-3 py-1 hover:bg-red-500/20">
-            重試
-          </button>
+              <div className="flex">
+                {([["add", "發放金幣", "#facc15"], ["deduct", "核銷扣點", "#f87171"]] as const).map(([m, label, col]) => (
+                  <button
+                    key={m}
+                    onClick={() => setCoinMode(m)}
+                    className="px-3 py-1.5 text-sm font-bold border-2 transition-colors"
+                    style={
+                      coinMode === m
+                        ? { borderColor: col, background: col, color: "#000" }
+                        : { borderColor: "var(--terminal-primary-dim)", color: "var(--terminal-primary-dim)" }
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+                <input
+                  type="number"
+                  min={1}
+                  value={coinMode === "add" ? bonusAmount : deductAmount}
+                  onChange={(e) => {
+                    const v = Math.max(1, parseInt(e.target.value) || 0);
+                    coinMode === "add" ? setBonusAmount(v) : setDeductAmount(v);
+                  }}
+                  className="w-20 bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-2 py-1.5 text-sm"
+                />
+                <div className="flex gap-1">
+                  {[5, 10, 20, 50, 100].map((v) => {
+                    const cur = coinMode === "add" ? bonusAmount : deductAmount;
+                    return (
+                      <button
+                        key={v}
+                        onClick={() => (coinMode === "add" ? setBonusAmount(v) : setDeductAmount(v))}
+                        className={`px-2 py-1 text-xs border transition-colors ${
+                          cur === v
+                            ? "border-[var(--terminal-primary)] text-[var(--terminal-primary)] bg-[var(--terminal-primary)]/20"
+                            : "border-[var(--terminal-primary-dim)]/50 text-[var(--terminal-primary-dim)] hover:border-[var(--terminal-primary)]/50"
+                        }`}
+                      >
+                        {v}
+                      </button>
+                    );
+                  })}
+                </div>
+                <input
+                  type="text"
+                  value={coinMode === "add" ? bonusReason : deductReason}
+                  onChange={(e) => (coinMode === "add" ? setBonusReason(e.target.value) : setDeductReason(e.target.value))}
+                  placeholder={coinMode === "add" ? "原因，例如：課堂獎勵" : "核銷原因，例如：兌換獎品"}
+                  className="flex-1 min-w-[140px] bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-2 py-1.5 text-sm"
+                />
+              </div>
+
+              <button
+                onClick={coinMode === "add" ? handleAddCoins : handleDeductCoins}
+                className="px-5 py-2 text-sm font-bold border-2 transition-colors"
+                style={
+                  coinMode === "add"
+                    ? { borderColor: "#facc15", color: "#facc15" }
+                    : { borderColor: "#f87171", color: "#f87171" }
+                }
+              >
+                {coinMode === "add"
+                  ? `發放 ${bonusAmount} ◆ 給 ${selectedCount} 位`
+                  : `扣除 ${deductAmount} ◆ 共 ${selectedCount} 位`}
+              </button>
+            </div>
+
+            {(actionMsg || deductMsg) && (
+              <div className={`mt-2 text-sm ${actionMsg ? "text-yellow-400" : "text-red-400"}`}>
+                {actionMsg || deductMsg}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      {/* User Table */}
-      {loading ? (
-        <div className="text-center py-8 text-[var(--terminal-primary-dim)]">載入用戶資料中...</div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b border-[var(--terminal-primary-dim)]">
-                <th className="text-left p-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedUsers.size === filteredUsers.length && filteredUsers.length > 0}
-                    onChange={selectAll}
-                    className="cursor-pointer"
-                  />
-                </th>
-                <th className="text-left p-2">Avatar</th>
-                <th className="text-left p-2">用戶名稱</th>
-                <th className="text-left p-2">顯示名稱</th>
-                <th className="text-center p-2">兒童</th>
-                <th className="text-right p-2">金幣</th>
-                <th className="text-right p-2">總獲得</th>
-                <th className="text-left p-2">最後活躍</th>
-                <th className="text-left p-2">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.map((row) => (
-                <tr
-                  key={row.user.id}
-                  className={`border-b border-[var(--terminal-primary-dim)]/30 hover:bg-[var(--terminal-primary)]/5 ${
-                    selectedUsers.has(row.user.id) ? "bg-[var(--terminal-primary)]/10" : ""
-                  }`}
-                >
-                  <td className="p-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedUsers.has(row.user.id)}
-                      onChange={() => toggleSelect(row.user.id)}
-                      className="cursor-pointer"
-                    />
-                  </td>
-                  <td className="p-2">
-                    {row.user.avatar?.frames?.[0] ? (
-                      <img
-                        src={row.user.avatar.frames[0]}
-                        alt=""
-                        className="w-8 h-8 object-contain"
-                        style={{ imageRendering: "pixelated" }}
-                      />
-                    ) : (
-                      <div className="w-8 h-8 border border-[var(--terminal-primary-dim)] flex items-center justify-center text-xs">
-                        ?
-                      </div>
-                    )}
-                  </td>
-                  <td className="p-2 font-mono">{row.user.username}</td>
-                  <td className="p-2">{row.user.displayName || "-"}</td>
-                  <td className="p-2 text-center">
-                    {row.user.kidMode ? (
-                      <span className="text-yellow-400">★</span>
-                    ) : (
-                      <span className="text-[var(--terminal-primary-dim)]">-</span>
-                    )}
-                  </td>
-                  <td className="p-2 text-right font-mono text-yellow-400">
-                    {row.coins?.balance ?? 0}
-                  </td>
-                  <td className="p-2 text-right font-mono text-[var(--terminal-primary-dim)]">
-                    {row.coins?.totalEarned ?? 0}
-                  </td>
-                  <td className="p-2 text-xs text-[var(--terminal-primary-dim)]">
-                    {formatDate(row.user.lastActiveAt)}
-                  </td>
-                  <td className="p-2 flex gap-1">
-                    <button
-                      onClick={() => {
-                        setSelectedUsers(new Set([row.user.id]));
-                        setBonusAmount(10);
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      }}
-                      className="text-xs border border-yellow-400/50 text-yellow-400 px-2 py-0.5 hover:bg-yellow-400/20"
-                    >
-                      +金幣
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedUsers(new Set([row.user.id]));
-                        setDeductAmount(10);
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      }}
-                      className="text-xs border border-red-400/50 text-red-400 px-2 py-0.5 hover:bg-red-400/20"
-                    >
-                      -金幣
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filteredUsers.length === 0 && (
-            <div className="text-center py-4 text-[var(--terminal-primary-dim)]">
-              沒有找到符合的用戶
-            </div>
-          )}
+      {/* 操作結果：沒選人時（訊息在清除選取後仍要看得到） */}
+      {tab === "students" && selectedCount === 0 && (actionMsg || deductMsg) && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 border-2 border-[var(--terminal-primary)] bg-[var(--terminal-bg)] px-5 py-2.5 text-sm">
+          <span className={actionMsg ? "text-yellow-400" : "text-red-400"}>{actionMsg || deductMsg}</span>
         </div>
       )}
     </main>
