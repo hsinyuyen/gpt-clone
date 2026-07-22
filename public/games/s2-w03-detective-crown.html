@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>阿問偵探社・第三話：消失的慶典皇冠｜S2-W03</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --bg:#0b1a2e; --bg2:#081422; --panel:#14304f; --panel2:#0f2540; --ink:#eef5ff; --ink2:#c3d6ef; --dim:#93b0d4;
+    --paper:#f5ecd6; --paper2:#efe3c6; --ink-dk:#2c2417; --ink-dk2:#5a4a30;
+    --gold:#ffcf5c; --amber:#ff9f43; --good:#4fe08a; --bad:#94a6bd; --line:#28517d;
+    /* 四種長度的識別色（自繪圖示，不用 emoji） */
+    --len-short:#38bdf8; --len-mid:#a78bfa; --len-long:#fb923c; --len-limit:#f472b6;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;background:var(--bg2);color:var(--ink);
+    font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;overflow:hidden}
+  #stage{position:fixed;inset:0;display:flex;flex-direction:column;background:
+    radial-gradient(1100px 620px at 50% -8%,#1b3f68 0%,var(--bg) 55%,var(--bg2) 100%)}
+  .wrap{flex:1;min-height:0;overflow-y:auto;padding:12px clamp(10px,3vw,26px) 20px}
+  .row{display:flex;gap:10px;align-items:center}
+  .grow{flex:1}
+  .hide{display:none!important}
+
+  /* ── 頂列 ── */
+  .top{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:9px clamp(10px,3vw,26px);
+    border-bottom:1px solid var(--line);background:rgba(8,20,34,.94);backdrop-filter:blur(4px)}
+  .brand{font-weight:900;font-size:15px;color:var(--gold);white-space:nowrap}
+  .brand small{display:block;font-size:10px;color:var(--dim);font-weight:700}
+  .bar{flex:1;height:11px;border-radius:99px;background:#0a1c30;border:1px solid var(--line);overflow:hidden;min-width:60px}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--amber),var(--gold));transition:width .45s}
+  .coin{display:flex;align-items:center;gap:5px;font-weight:900;color:var(--gold);font-size:13px;white-space:nowrap}
+  .coin .c{width:17px;height:17px;border-radius:50%;background:radial-gradient(circle at 34% 30%,#ffe9a8,var(--gold));
+    border:2px solid #c8912a;box-shadow:0 0 8px rgba(255,207,92,.5)}
+
+  /* ── 通用元件 ── */
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+    border-radius:16px;padding:clamp(12px,2.4vw,18px);box-shadow:0 8px 26px rgba(0,0,0,.34)}
+  h2{font-size:clamp(19px,3.4vw,26px);font-weight:900;letter-spacing:.5px}
+  h3{font-size:clamp(15px,2.4vw,19px);font-weight:900;color:var(--gold);margin-bottom:6px}
+  p{line-height:1.75;font-size:clamp(14px,2.1vw,17px);color:var(--ink2)}
+  .btn{appearance:none;border:2px solid var(--gold);background:rgba(255,207,92,.12);color:var(--gold);
+    font-weight:900;font-size:clamp(14px,2.1vw,17px);padding:11px 20px;border-radius:12px;cursor:pointer;
+    font-family:inherit;transition:.16s;min-height:46px}
+  .btn:hover:not(:disabled){background:var(--gold);color:#1a1204}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.blue{border-color:#69b7ff;background:rgba(105,183,255,.12);color:#a8d6ff}
+  .btn.blue:hover:not(:disabled){background:#69b7ff;color:#04203c}
+  .btn.ghost{border-color:var(--line);background:transparent;color:var(--dim)}
+  .img{border-radius:14px;overflow:hidden;background:#0a1c30;display:flex;align-items:center;justify-content:center}
+  .img img{width:100%;height:100%;object-fit:contain;display:block}
+  .img.cover img{object-fit:cover}
+  .img.fail{background:linear-gradient(135deg,#1d3f66,#0e2440)}
+  .img.fail img{display:none}
+
+  /* ── 長度晶片（自繪圖示） ── */
+  .lens{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .len{flex:1 1 150px;max-width:210px;min-height:104px;border-radius:14px;cursor:pointer;
+    border:2px solid var(--c);background:rgba(255,255,255,.05);padding:11px 9px;text-align:center;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;transition:.16s;position:relative}
+  .len:hover:not(.lock){background:color-mix(in srgb,var(--c) 22%,transparent);transform:translateY(-2px)}
+  .len.lock{opacity:.45;cursor:not-allowed}
+  .len .g{font-weight:900;font-size:20px;letter-spacing:3px;color:var(--c);line-height:1}
+  .len .n{font-weight:900;font-size:17px;color:var(--ink)}
+  .len .s{font-size:12px;color:var(--dim);font-weight:700}
+  .len .tried{position:absolute;top:5px;right:8px;font-size:11px;font-weight:900;color:var(--bad)}
+
+  /* ── 阿問回答（三態） ── */
+  .ans{border-radius:14px;padding:13px 15px;margin-top:10px;font-size:clamp(13px,2vw,16px);line-height:1.8;
+    border:2px solid;position:relative;white-space:pre-wrap}
+  .ans.good{border-color:var(--good);background:rgba(79,224,138,.1);color:#dfffe9;
+    box-shadow:0 0 22px rgba(79,224,138,.22)}
+  .ans.toolong{border-color:#7c8ba0;background:rgba(124,139,160,.1);color:#b9c6d6;max-height:190px;overflow:hidden}
+  .ans.toolong:after{content:'';position:absolute;left:0;right:0;bottom:0;height:70px;
+    background:linear-gradient(180deg,transparent,rgba(15,37,64,.98))}
+  .ans.tooshort{border-color:#7c8ba0;background:rgba(124,139,160,.1);color:#b9c6d6;
+    clip-path:polygon(0 0,100% 0,100% 62%,72% 62%,72% 100%,0 100%)}
+  .verdict{font-weight:900;font-size:14px;margin-top:8px;display:flex;align-items:center;gap:7px}
+  .verdict.ok{color:var(--good)} .verdict.no{color:#ffb37a}
+
+  /* ── 線索板 ── */
+  .board{background:linear-gradient(180deg,#123049,#0d2138);border:2px solid var(--line);border-radius:16px;padding:13px}
+  .tl{display:flex;gap:8px;margin-top:10px}
+  .slot{flex:1;min-height:112px;border:2px dashed #3a6591;border-radius:12px;padding:7px;
+    display:flex;flex-direction:column;align-items:center;gap:5px;transition:.16s;background:rgba(255,255,255,.03)}
+  .slot .t{font-weight:900;color:var(--gold);font-size:13px}
+  .slot.over{border-color:var(--gold);background:rgba(255,207,92,.14)}
+  .slot.filled{border-style:solid;border-color:var(--good);background:rgba(79,224,138,.1)}
+  .slot.gap{border-color:#ff7a7a;background:rgba(255,122,122,.13);border-style:solid}
+  .pcard{display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 6px;border-radius:10px;
+    background:rgba(255,255,255,.08);border:1px solid var(--line);cursor:grab;user-select:none;min-width:74px}
+  .pcard.drag{opacity:.45}
+  .pcard .av{width:44px;height:44px;border-radius:9px;overflow:hidden;background:#0a1c30}
+  .pcard .av img{width:100%;height:100%;object-fit:cover}
+  .pcard .nm{font-size:11px;font-weight:900;color:var(--ink)}
+  .pool{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:9px;min-height:70px}
+
+  /* ── 連連看 ── */
+  .link{display:grid;grid-template-columns:1fr auto 1fr;gap:9px;align-items:stretch;margin-top:10px}
+  .lcol{display:flex;flex-direction:column;gap:8px}
+  .li{border:2px solid var(--line);border-radius:11px;padding:9px 11px;cursor:pointer;background:rgba(255,255,255,.04);
+    font-size:14px;font-weight:700;color:var(--ink2);transition:.14s;min-height:52px;display:flex;align-items:center}
+  .li:hover:not(.done){border-color:var(--gold);color:var(--ink)}
+  .li.sel{border-color:var(--gold);background:rgba(255,207,92,.16);color:var(--gold)}
+  .li.done{border-color:var(--good);background:rgba(79,224,138,.12);color:#dfffe9;cursor:default}
+  .lmid{display:flex;align-items:center;color:var(--dim);font-weight:900;font-size:12px;padding:0 2px}
+
+  /* ── 泡泡題（防硬 A：隨機位置＋洗牌） ── */
+  .bubwrap{position:relative;height:clamp(230px,42vh,330px);margin-top:10px}
+  .bub{position:absolute;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;
+    padding:14px;cursor:pointer;font-weight:900;color:#062a45;font-size:clamp(12px,1.9vw,16px);line-height:1.35;
+    background:radial-gradient(circle at 33% 28%,rgba(238,252,255,.99),rgba(152,216,255,.94) 68%,rgba(108,180,250,.8));
+    border:2px solid rgba(220,245,255,.85);box-shadow:0 6px 20px rgba(0,0,0,.3);transition:transform .16s}
+  .bub:hover{transform:scale(1.04)}
+  .bub.lockd{opacity:.55;cursor:not-allowed}
+
+  .note{border-left:4px solid var(--gold);padding:8px 12px;background:rgba(255,207,92,.09);border-radius:0 10px 10px 0;
+    font-size:14px;color:var(--ink2);line-height:1.7}
+  .tag{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:900;
+    border:1px solid var(--line);color:var(--dim)}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;background:rgba(6,18,32,.97);
+    border:2px solid var(--gold);color:var(--gold);font-weight:900;padding:11px 20px;border-radius:12px;z-index:60;
+    font-size:15px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+  .acct{position:fixed;left:50%;transform:translateX(-50%);bottom:6px;font-size:11px;color:var(--dim);
+    background:rgba(4,18,32,.9);border:1px solid var(--line);border-radius:99px;padding:4px 13px;z-index:5}
+  .spot{position:absolute;width:38px;height:38px;border-radius:50%;border:3px solid var(--gold);cursor:pointer;
+    background:rgba(255,207,92,.2);animation:pulse 1.7s infinite;display:flex;align-items:center;justify-content:center;
+    color:var(--gold);font-weight:900;font-size:17px}
+  .spot.got{border-color:var(--good);background:rgba(79,224,138,.24);color:var(--good);animation:none}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,207,92,.55)}50%{box-shadow:0 0 0 11px rgba(255,207,92,0)}}
+  @keyframes pop{from{transform:scale(.86);opacity:0}to{transform:scale(1);opacity:1}}
+  .pop{animation:pop .28s ease-out}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="top">
+    <div class="brand">阿問偵探社・第三話<small>消失的慶典皇冠</small></div>
+    <div class="bar"><i id="pbar" style="width:0%"></i></div>
+    <div class="coin"><span class="c"></span><span id="coinN">0</span></div>
+  </div>
+  <div class="wrap" id="wrap"></div>
+</div>
+<div class="acct" id="acct">連線中…</div>
+<script>
+/* =========================================================================
+   S2-W03《阿問偵探社・第三話：消失的慶典皇冠》
+   學習核心＝字數／長度控制：要 AI 用對的長度回答，且「長度」是解開每條線索的鑰匙。
+   40 分鐘單一連貫懸案、5 章；蒐證 → 選長度提煉 → 追問迭代 → 線索板推理 → 破章。
+   全本地判定（預寫剛好/太長/太短版答案與干擾），可離線、可重現；阿問只陪伴不判定。
+   規格：S2-W03-課程規格（綁定實作檔 public/games/s2-w03-detective-crown.html）
+   ========================================================================= */
+const $=(s,r)=>(r||document).querySelector(s);
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;};
+const wrap=$('#wrap');
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function pic(name,cls){const w=el('div','img'+(cls?' '+cls:''));const im=document.createElement('img');
+  im.src='assets/'+name;im.alt='';im.onerror=()=>w.classList.add('fail');w.appendChild(im);return w;}
+
+/* ---------- 音效（程序化，無外部檔） ---------- */
+const Sfx=(()=>{let ac=null;function c(){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();}catch(e){}return ac;}
+  function tone(f,d,t,v){const a=c();if(!a)return;const o=a.createOscillator(),g=a.createGain();o.type=t||'sine';o.frequency.value=f;
+    g.gain.setValueAtTime(0,a.currentTime);g.gain.linearRampToValueAtTime(v||.06,a.currentTime+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+(d||.15));o.connect(g);g.connect(a.destination);
+    o.start();o.stop(a.currentTime+(d||.15));}
+  return{tick(){tone(430,.05,'triangle',.05);},ok(){tone(880,.12,'sine',.06);setTimeout(()=>tone(1320,.14,'sine',.05),70);},
+    no(){tone(200,.16,'square',.05);},unlock(){[620,940,1240].forEach((f,i)=>setTimeout(()=>tone(f,.11,i?'sine':'square',.05),i*72));},
+    win(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.16,'square',.05),i*95));}};
+})();
+
+/* ---------- 帳號綁定（gameKey s2w03；coins 錢包與全系列共用累積） ---------- */
+const GAMEKEY='s2w03', COIN_PER_CH=60, COIN_SOLVE=60, COIN_TA=12;
+const FB={apiKey:"AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78",authDomain:"gpt-clone-68b9f.firebaseapp.com",projectId:"gpt-clone-68b9f",storageBucket:"gpt-clone-68b9f.firebasestorage.app",messagingSenderId:"436942056069",appId:"1:436942056069:web:8762675dfff7b7e92017ec"};
+const Account=(()=>{let uid=null,uname='',db=null,ready=false;
+  function su(){try{const r=(sessionStorage.getItem('@session/currentUser')||localStorage.getItem('@session/currentUser'));return r?JSON.parse(r):null;}catch(e){return null;}}
+  function init(){const u=su();if(u&&u.id){uid=u.id;uname=u.displayName||u.username||'';}
+    if(uid&&window.firebase){try{if(!firebase.apps.length)firebase.initializeApp(FB);db=firebase.firestore();ready=true;}catch(e){}}}
+  async function load(){if(!ready)return null;try{const s=await db.collection('gameProgress').doc(uid).get();return s.exists?(s.data()[GAMEKEY]||null):null;}catch(e){return null;}}
+  async function save(st){if(!ready)return;try{await db.collection('gameProgress').doc(uid).set({[GAMEKEY]:st,name:uname,updatedAt:new Date().toISOString()},{merge:true});}catch(e){}}
+  async function creditCoins(id,amount,reason){if(!ready||!(amount>0))return;const ref=db.collection('coins').doc(uid);
+    try{await db.runTransaction(async tx=>{const s=await tx.get(ref);const c=s.exists?s.data():{balance:0,totalEarned:0,transactions:[]};
+      const txs=Array.isArray(c.transactions)?c.transactions:[];if(txs.some(t=>t&&t.id===id))return;
+      txs.push({id,amount,reason,timestamp:new Date().toISOString()});
+      tx.set(ref,{balance:(c.balance||0)+amount,totalEarned:(c.totalEarned||0)+amount,transactions:txs.slice(-160)});});}catch(e){}}
+  return{init,load,save,creditCoins,get ready(){return ready;},get name(){return uname;}};
+})();
+
+/* =========================================================================
+   長度詞彙表（單一真相・自繪圖示非 emoji）
+   ========================================================================= */
+const LEN={
+  short:{id:'short',g:'•',   n:'很短', s:'一句話',      c:'var(--len-short)'},
+  mid:  {id:'mid',  g:'••',  n:'中等', s:'幾句話',      c:'var(--len-mid)'},
+  long: {id:'long', g:'•••', n:'詳細', s:'一段話',      c:'var(--len-long)'},
+  limit:{id:'limit',g:'#',   n:'限字', s:'不超過 N 字', c:'var(--len-limit)'},
+};
+const LEN_ORDER=['short','mid','long','limit'];
+
+/* =========================================================================
+   關係人（一角一圖複用）
+   ========================================================================= */
+const PEOPLE={
+  keeper :{id:'keeper', name:'老陳',   role:'糊塗管理員', img:'s2w03-keeper.png'},
+  visitor:{id:'visitor',name:'小葉',   role:'神秘訪客',   img:'s2w03-visitor.png'},
+  baker  :{id:'baker',  name:'阿福',   role:'點心師傅',   img:'s2w03-baker.png'},
+  cleaner:{id:'cleaner',name:'秀琴',   role:'打掃阿姨',   img:'s2w03-cleaner.png'},
+  chair  :{id:'chair',  name:'林主席', role:'慶典主席',   img:'s2w03-chair.png'},
+};
+
+/* =========================================================================
+   5 章案件資料（線索、干擾長度、太長/太短版答案全部預寫 → 本地判定、可離線）
+   ========================================================================= */
+const CH=[
+{ id:'ch1', title:'第一章・管理員的落落長證詞', scene:'s2w03-hall.jpg', teach:'要短',
+  lead:'慶典前一夜，展示櫃是開的、紅色軟墊上空空如也——皇冠不見了，明天早上就要用。',
+  spots:[
+    {x:26,y:63,label:'展示櫃',fact:'櫃門沒被撬開，是用鑰匙正常打開的'},
+    {x:12,y:38,label:'牆上的鐘',fact:'大廳的鐘停在 9:00，是巡邏員發現時的時間'},
+    {x:62,y:80,label:'地板',fact:'櫃子前的地板上有一點點白白的粉末'},
+  ],
+  who:'keeper',
+  ask:'老陳一口氣講了三分鐘，什麼都講——他的孫子、他的關節痛、昨天的晚餐……你要先問出「皇冠到底幾點不見的」。',
+  want:'short', hint:'證詞落落長、重點被埋住 → 要他「一句話講重點」。',
+  answers:{
+    short:{v:'good',t:'皇冠是在 8:00 到 9:00 之間不見的。'},
+    mid:{v:'toolong',t:'老陳說他 8 點左右有去大廳看過一次，那時候皇冠還在。後來他就在門口坐著，中間有沒有人進去他不太確定。等到 9 點巡邏的時候才發現皇冠不見了，他嚇了一大跳，趕快通知大家。'},
+    long:{v:'toolong',t:'老陳說他今天一早六點就到館裡了，因為他孫子昨天發燒所以他沒睡好，膝蓋也在痛。他先去泡了一杯茶，然後掃了一下門口。八點左右他有進大廳看過一次，那時候皇冠好好的在櫃子裡，他還特地擦了一下玻璃。後來他就坐在門口的椅子上，因為太累了所以有點恍神。中間好像有人走來走去，但他真的沒有看清楚是誰。他記得晚餐吃的是滷肉飯，配了一碗湯……然後九點巡邏的時候，他才發現皇冠不見了，整個人嚇醒，趕快去通知主席。'},
+    limit:{v:'tooshort',t:'皇冠不見了。'},
+  },
+  clue:{id:'c1',name:'消失時段',text:'皇冠在 8:00–9:00 之間消失'},
+  quiz:{q:'老陳講了一大堆，你是怎麼把「幾點不見的」挖出來的？',
+    opts:['請阿問用「一句話」講重點','請阿問講得更詳細一點','請阿問畫一張表格','自己把三分鐘全部背下來'],a:0},
+  bridge:'時段抓出來了。接下來要一個一個確認：這一小時裡，每個人都在哪裡？'
+},
+{ id:'ch2', title:'第二章・太短的紙條', scene:'s2w03-backstage.jpg', teach:'要詳細',
+  lead:'後台的桌上留著一張皺皺的小紙條，字很少，看不懂在說什麼。',
+  spots:[
+    {x:52,y:58,label:'小紙條',fact:'紙條上只寫著「8:30 我在。—葉」'},
+    {x:20,y:70,label:'衣架',fact:'掛著一件深藍色的外套，口袋裡有一支錄音筆'},
+    {x:80,y:47,label:'箱子',fact:'裝飾用的箱子被人翻過，但沒有東西不見'},
+  ],
+  who:'visitor',
+  ask:'紙條只有六個字，什麼都看不出來。你要問出「這個『葉』到底是誰、8:30 她人在哪裡做什麼」。',
+  want:'long', hint:'情報太少、缺一角 → 要阿問「說詳細一點」。',
+  answers:{
+    short:{v:'tooshort',t:'她是小葉。'},
+    mid:{v:'tooshort',t:'小葉是一位年輕的記者，她 8:30 的時候人在後台。她說她不是壞人。'},
+    long:{v:'good',t:'「葉」是小葉，一位小報記者。她想搶先拍到明天要戴的皇冠，所以偷偷溜進來，怕被趕出去才躲躲藏藏。她 8:30 的時候人在後台，正在把錄音筆藏進外套口袋——打掃的秀琴阿姨從走廊經過時看到了她，可以作證。她說她只有在後台待著，沒有進過大廳，也沒有碰過展示櫃。'},
+    limit:{v:'tooshort',t:'記者小葉。'},
+  },
+  clue:{id:'c2',name:'訪客身分',text:'小葉是記者，8:30 在後台（秀琴可作證）'},
+  quiz:{q:'紙條只有短短六個字，你用哪一種長度才把整件事問清楚？',
+    opts:['請阿問「說詳細一點、講一段」','請阿問用一句話就好','請阿問不要超過 4 個字','請阿問只回答「是」或「不是」'],a:0},
+  bridge:'小葉洗清了。但她提到一件事：大廳旁邊那扇上鎖的門，今晚有人開過。'
+},
+{ id:'ch3', title:'第三章・只容得下四個字的密碼鎖', scene:'s2w03-vault.jpg', teach:'限字',
+  lead:'大廳旁的儲藏室裝著老式的轉盤密碼鎖——只有四格，多一個字都塞不進去。',
+  spots:[
+    {x:44,y:52,label:'密碼鎖',fact:'轉盤只有四格，密碼是四個中文字'},
+    {x:74,y:64,label:'門邊便條',fact:'便條上寫著「提示：問阿問今年慶典的主題」'},
+    {x:18,y:74,label:'門縫',fact:'門縫下露出一角白色的布'},
+  ],
+  who:'keeper',
+  ask:'你得問出今年慶典的主題當密碼——但轉盤只有四格，答案「不能超過 4 個字」。',
+  want:'limit', limitN:4, hint:'鎖只吃 4 個字 → 要阿問「不超過 4 個字」回答。',
+  answers:{
+    short:{v:'toolong',t:'今年慶典的主題是「星光與月亮」。'},
+    mid:{v:'toolong',t:'今年慶典的主題跟星星有關，主辦單位選了「星光與月亮之夜」當主題，因為傳說皇冠上的寶石就是星星做的。'},
+    long:{v:'toolong',t:'今年慶典的主題是「星光與月亮之夜」。這個主題是三個月前由慶典委員會投票決定的，因為鎮上流傳一個古老的傳說：皇冠正中央的那顆藍寶石，是從天上掉下來的星星做成的。委員會希望今年的慶典能重現那個傳說，所以整個會場都掛上了星星和月亮的旗子，連點心師傅做的蛋糕上面也都是星星造型的糖霜。'},
+    limit:{v:'good',t:'星光月夜'},
+  },
+  clue:{id:'c3',name:'密室物證',text:'白手套一隻，上面沾著糖霜'},
+  evidence:'s2w03-glove.png',
+  quiz:{q:'密碼鎖只有四格。為什麼要叫阿問「不超過 4 個字」？',
+    opts:['因為答案要剛好塞得進去，太長就用不了','因為短的答案比較有禮貌','因為阿問只會講四個字','因為四個字比較好看'],a:0},
+  bridge:'手套上沾著糖霜——第一個想到的就是點心師傅阿福。但先別急著下結論。'
+},
+{ id:'ch4', title:'第四章・對不上的兩份說法', scene:'s2w03-corridor.jpg', teach:'追問迭代',
+  lead:'阿福說他整晚都在廚房；可是秀琴阿姨說，她看到有人從後台把手套拿走了。兩邊兜不起來。',
+  spots:[
+    {x:28,y:56,label:'問阿福',fact:'阿福：手套我都放在後台的架子上，誰都拿得到'},
+    {x:70,y:58,label:'問秀琴',fact:'秀琴：我 8:45 在補衛生紙，只瞄到一個紅色的影子'},
+    {x:50,y:22,label:'走廊的鐘',fact:'走廊的鐘顯示，8:40 到 8:55 之間沒有人在大廳附近'},
+  ],
+  who:'cleaner',
+  /* 追問迭代：三輪，每輪的正解長度不同，逼學生「調長度再問」 */
+  rounds:[
+    { ask:'先問個大方向：這段時間，每個人分別在哪裡？',
+      want:'mid', hint:'要的是「幾個人的位置」——一句話講不完，一整段又太雜。',
+      answers:{
+        short:{v:'tooshort',t:'大家都有事在忙。'},
+        mid:{v:'good',t:'阿福 8:00–9:00 都在廚房，三個廚工可以作證。秀琴 8:15 在走廊拖地、8:45 在廁所補衛生紙。小葉 8:30 在後台。林主席說她 8:40–8:55 在辦公室打電話。'},
+        long:{v:'toolong',t:'阿福從八點開始就在廚房裡準備明天慶典要用的三層蛋糕，他先打發鮮奶油，接著調糖霜，中間還跟三個廚工聊了很久關於他兒子考試的事情，所以他們都記得他一直在。秀琴阿姨八點十五分開始拖走廊的地板，她說地板很滑要小心，拖完之後她去了廁所補衛生紙，因為明天人會很多。小葉八點半在後台，她那時候正在把錄音筆收起來。林主席說她八點四十到八點五十五分在辦公室打電話，她說是打給花店確認明天的花……'},
+        limit:{v:'tooshort',t:'各自在忙。'},
+      }},
+    { ask:'林主席說她在打電話——把這件事查清楚。',
+      want:'short', hint:'只要查一件事的真假 → 一句話就夠。',
+      answers:{
+        short:{v:'good',t:'總機說，8:40–8:55 辦公室沒有任何通話紀錄。'},
+        mid:{v:'toolong',t:'我幫你問了總機。總機小姐說她那天值班到很晚，她有查了一下紀錄。她說辦公室的電話在那段時間沒有撥出去也沒有接進來。不過她也說有時候紀錄會有誤差。'},
+        long:{v:'toolong',t:'關於林主席說的那通電話，我去查了總機的通話紀錄系統。這個系統會記錄每一通撥出和接聽的電話，包含時間、長度和對方號碼。我查了 8:00 到 9:00 這一個小時的所有紀錄，發現辦公室分機在 8:12 有一通打給廚房的內線，通話 40 秒；接著一直到 9:03 才有下一通紀錄。也就是說 8:40 到 8:55 這段時間，辦公室的電話完全沒有使用……'},
+        limit:{v:'tooshort',t:'沒有紀錄。'},
+      }},
+    { ask:'最後一步：把「沒有不在場證明的人」和「手套」串起來。',
+      want:'long', hint:'要把好幾條線索接成完整的一段推理 → 要詳細。',
+      answers:{
+        short:{v:'tooshort',t:'是林主席。'},
+        mid:{v:'tooshort',t:'林主席在 8:40–8:55 沒有不在場證明，而且手套是從後台拿走的。'},
+        long:{v:'good',t:'8:40 到 8:55 這段時間，阿福在廚房有人證、秀琴在廁所、小葉在後台，只有林主席說不出自己在哪裡——總機也證明她沒有在打電話。而秀琴看到「紅色的影子」把手套拿走，林主席今天正好穿深紅色的套裝。她戴上點心師傅的白手套，是為了不在玻璃櫃上留下指紋——手套上的糖霜，是從後台架子上沾到的，不是點心師傅本人留下的。'},
+        limit:{v:'tooshort',t:'林主席。'},
+      }},
+  ],
+  clue:{id:'c4',name:'關鍵破綻',text:'8:40–8:55 只有林主席沒有不在場證明'},
+  quiz:{q:'這一章你問了三次，每次要的長度都不一樣。為什麼不能三次都用同一種？',
+    opts:['因為每次要問的事情大小不同，該用剛好的長度','因為阿問會膩，要換口味','因為長度要越換越長才有禮貌','因為規定一定要換'],a:0},
+  bridge:'兇手浮現了。最後一步：把所有線索排上時間軸，指認「誰、怎麼拿、為什麼」。'
+},
+{ id:'ch5', title:'第五章・真相：誰、怎麼拿、為什麼', scene:'s2w03-truth.jpg', teach:'全自主',
+  lead:'線索板快滿了。最後由你自己決定每一步要問多長，把真相拼完整。',
+  spots:[],
+  who:'chair',
+  rounds:[
+    { ask:'先確認結論：皇冠是誰拿走的？',
+      want:'short', hint:'結論就一句 → 很短。',
+      answers:{
+        short:{v:'good',t:'是慶典主席林主席拿走的。'},
+        mid:{v:'toolong',t:'根據時間軸和物證來看，最有可能拿走皇冠的人是慶典主席林主席。她在關鍵時段沒有不在場證明，而且手套的線索也指向她。'},
+        long:{v:'toolong',t:'把所有線索整合起來之後，可以判斷拿走皇冠的人是慶典主席林主席。理由有三個：第一，8:40 到 8:55 這個關鍵時段，其他四個人都有不在場證明，只有她沒有；第二，總機的通話紀錄證明她說的「在打電話」不是真的；第三，秀琴阿姨看到的紅色影子，和她今天穿的深紅色套裝吻合……'},
+        limit:{v:'tooshort',t:'主席。'},
+      }},
+    { ask:'再問手法：她是怎麼拿走的？',
+      want:'mid', hint:'手法有幾個步驟，一句話講不清、一整段又太囉唆。',
+      answers:{
+        short:{v:'tooshort',t:'她用鑰匙開櫃子。'},
+        mid:{v:'good',t:'她先去後台借了點心師傅放在架上的白手套，戴上以免留下指紋，再用自己保管的備份鑰匙打開展示櫃，把皇冠拿走藏進儲藏室。手套上的糖霜就是在後台架子上沾到的。'},
+        long:{v:'toolong',t:'她的做法是這樣的：首先她在 8:40 左右離開辦公室，走到後台，那裡的架子上放著點心師傅阿福平常在用的白手套。她拿了一隻戴上，目的是不要在展示櫃的玻璃上留下自己的指紋。接著她走到大廳，用她身為慶典主席保管的那把備份鑰匙——這也是為什麼櫃門沒有被撬開的痕跡——打開了展示櫃……'},
+        limit:{v:'tooshort',t:'戴手套開櫃。'},
+      }},
+    { ask:'最後問動機：她為什麼要這麼做？',
+      want:'long', hint:'動機要講清楚前因後果 → 詳細一段。',
+      answers:{
+        short:{v:'tooshort',t:'因為寶石鬆了。'},
+        mid:{v:'tooshort',t:'因為她發現皇冠上的寶石鬆了，怕明天典禮上會掉下來。'},
+        long:{v:'good',t:'她在檢查會場的時候，發現皇冠正面那顆藍寶石的爪座鬆了，只要一戴上台走動，寶石很可能會當場掉下來摔碎。她想在今晚偷偷把皇冠送去修好、天亮前放回來，就不會有人知道。她沒有說出來，是因為皇冠是在她任內鬆掉的，她怕被大家責怪。她不是要偷皇冠——她是想保護慶典，只是用錯了方法。'},
+        limit:{v:'tooshort',t:'怕寶石掉。'},
+      }},
+  ],
+  clue:{id:'c5',name:'真相',text:'林主席為了修好鬆掉的寶石，才把皇冠藏起來'},
+  quiz:{q:'整個案子破下來，「長度」在這件事裡扮演什麼角色？',
+    opts:['問對長度才拿得到能用的線索，長度是解謎的鑰匙','長度只是好看，跟破案沒關係','越長的回答一定越好用','越短的回答一定越好用'],a:0},
+  bridge:''
+}];
+
+/* 時間軸：四個時段，四張人物卡；主席那格會露出「沒有人能證明」的破綻 */
+const SLOTS=[
+  {t:'8:00',who:'baker',  note:'廚房・三個廚工作證'},
+  {t:'8:15',who:'cleaner',note:'走廊拖地・老陳看到'},
+  {t:'8:30',who:'visitor',note:'後台・秀琴看到'},
+  {t:'8:45',who:'chair',  note:'說在辦公室打電話——總機查無紀錄',gap:true},
+];
+/* 連連看：物證 ↔ 說明（3 條，含干擾） */
+const LINKS=[
+  {l:'沾糖霜的白手套',        r:'從後台架上借走的，不是師傅本人戴的'},
+  {l:'櫃門沒有被撬開',        r:'兇手手上本來就有備份鑰匙'},
+  {l:'8:40–8:55 的空白時段',  r:'只有林主席說不出自己在哪裡'},
+];
+const LINK_DISTRACT=['皇冠被拿去賣掉換錢','慶典要取消了','是外面的小偷翻窗進來的'];
+
+/* =========================================================================
+   狀態／存檔（綁 uid；本地即時真相＋雲端背景備份）
+   ========================================================================= */
+const VERSION=1;
+const STORE=(function(){ // 存檔鍵綁使用者：共用電腦時下一位學生不會繼承上一位的進度
+  var base='s2w03_progress';
+  try{ localStorage.removeItem(base); }catch(e){}
+  try{ var r=sessionStorage.getItem('@session/currentUser')||localStorage.getItem('@session/currentUser');
+       var u=r?JSON.parse(r):null; return base+':'+((u&&u.id)||'anon'); }catch(e){ return base+':anon'; } })();
+function defaultState(){return{v:VERSION,phase:'start',ci:0,sub:'lead',round:0,facts:{},clues:[],
+  board:{},links:[],coins:0,ta:false,done:false,pct:0};}
+let S=loadLocal();
+function loadLocal(){try{const r=JSON.parse(localStorage.getItem(STORE));if(r&&r.v===VERSION&&r.phase)return r;}catch(e){}return defaultState();}
+function progressScore(s){return s?((s.clues||[]).length*10+(s.ci||0)*100+(s.done?1000:0)):-1;}
+function pct(){if(S.done)return 1;return clamp(((S.clues||[]).length)/CH.length,0,1);}
+function save(){S.pct=pct();try{localStorage.setItem(STORE,JSON.stringify(S));}catch(e){}
+  clearTimeout(save._t);save._t=setTimeout(()=>Account.save(S),600);}
+function addCoins(n,id,reason){S.coins=(S.coins||0)+n;Account.creditCoins(id,n,reason);save();renderTop();
+  toast('＋'+n+' 金幣');}
+
+/* ---------- 頂列 / toast ---------- */
+function renderTop(){$('#pbar').style.width=Math.round(pct()*100)+'%';$('#coinN').textContent=S.coins||0;}
+let toastT=null;
+function toast(msg){const old=$('.toast');if(old)old.remove();const t=el('div','toast',msg);document.body.appendChild(t);
+  clearTimeout(toastT);toastT=setTimeout(()=>t.remove(),1900);}
+function renderAcct(){const a=$('#acct');
+  a.textContent=Account.ready?('已綁定：'+(Account.name||'我的帳號')):'訪客模式（登入後才會記錄金幣與進度）';}
+
+/* =========================================================================
+   畫面
+   ========================================================================= */
+function go(phase,sub){S.phase=phase;if(sub)S.sub=sub;save();render();}
+
+function render(){
+  wrap.innerHTML='';renderTop();
+  if(S.phase==='start')return renderStart();
+  if(S.phase==='done')return renderDone();
+  return renderChapter();
+}
+
+/* ---- 開場：案件簡報＋線索板預告（收集閉環頭） ---- */
+function renderStart(){
+  const c=el('div','card pop');
+  c.appendChild(pic('s2w03-hall.jpg','cover')).style.height='clamp(150px,26vh,240px)';
+  const h=el('h2','','消失的慶典皇冠');h.style.marginTop='12px';c.appendChild(h);
+  c.appendChild(el('p','','慶典前一夜，展示櫃裡的皇冠不見了——明天早上就要用。你和阿問只有今晚，分五章把它找回來。'));
+  const n=el('div','note');n.style.marginTop='10px';
+  n.innerHTML='<b>這一課的鑰匙是「長度」。</b><br>同一個問題，叫阿問用<b>對的長度</b>回答才拿得到能用的線索：太長會把重點淹沒、太短會缺一角，兩種都上不了線索板。';
+  c.appendChild(n);
+  const lens=el('div','lens');lens.style.marginTop='12px';
+  LEN_ORDER.forEach(k=>{const L=LEN[k];const d=el('div','len');d.style.setProperty('--c',L.c);d.style.cursor='default';
+    d.appendChild(el('div','g',L.g));d.appendChild(el('div','n',L.n));d.appendChild(el('div','s',L.s));lens.appendChild(d);});
+  c.appendChild(lens);
+  const prev=el('div','board');prev.style.marginTop='12px';
+  prev.appendChild(el('h3','','線索板（還是空的）'));
+  const tl=el('div','tl');SLOTS.forEach(s=>{const d=el('div','slot');d.appendChild(el('div','t',s.t));
+    d.appendChild(el('div','',' ')).style.cssText='font-size:11px;color:var(--dim)';tl.appendChild(d);});
+  prev.appendChild(tl);c.appendChild(prev);
+  const b=el('button','btn','開始辦案');b.style.cssText='margin-top:14px;width:100%';
+  b.onclick=()=>{Sfx.unlock();S.ci=0;S.sub='lead';go('chapter');};
+  c.appendChild(b);
+  wrap.appendChild(c);
+}
+
+/* ---- 章節主流程 ---- */
+function renderChapter(){
+  const c=CH[S.ci];if(!c)return go('done');
+  if(S.sub==='lead')return chLead(c);
+  if(S.sub==='ask')return chAsk(c);
+  if(S.sub==='board')return chBoard(c);
+  if(S.sub==='quiz')return chQuiz(c);
+  if(S.sub==='clear')return chClear(c);
+  return chLead(c);
+}
+
+/* 蒐證：點亮現場所有觀察點才能開始問阿問 */
+function chLead(c){
+  const card=el('div','card pop');
+  card.appendChild(el('div','tag','第 '+(S.ci+1)+' / '+CH.length+' 章　·　'+c.teach));
+  const h=el('h2','',c.title);h.style.margin='8px 0 6px';card.appendChild(h);
+  card.appendChild(el('p','',c.lead));
+  const got=S.facts[c.id]||[];
+  if(c.spots.length){
+    const box=el('div');box.style.cssText='position:relative;margin-top:12px;border-radius:14px;overflow:hidden';
+    const im=pic(c.scene,'cover');im.style.height='clamp(180px,32vh,300px)';box.appendChild(im);
+    c.spots.forEach((sp,i)=>{const d=el('div','spot'+(got.includes(i)?' got':''),got.includes(i)?'✓':'?');
+      d.style.left=sp.x+'%';d.style.top=sp.y+'%';d.title=sp.label;
+      d.onclick=()=>{if(got.includes(i))return;got.push(i);S.facts[c.id]=got;Sfx.tick();save();render();};
+      box.appendChild(d);});
+    card.appendChild(box);
+    const list=el('div');list.style.marginTop='10px';
+    c.spots.forEach((sp,i)=>{const r=el('div','note');r.style.marginTop='6px';
+      r.innerHTML=got.includes(i)?('<b>'+sp.label+'</b>：'+sp.fact):('<b>'+sp.label+'</b>：<span style="color:var(--dim)">（還沒查）</span>');
+      list.appendChild(r);});
+    card.appendChild(list);
+  }
+  const all=c.spots.length===0||got.length>=c.spots.length;
+  const b=el('button','btn',all?'去問阿問':'先把現場查完（'+got.length+'/'+c.spots.length+'）');
+  b.disabled=!all;b.style.cssText='margin-top:14px;width:100%';
+  b.onclick=()=>{S.round=0;go('chapter','ask');};
+  card.appendChild(b);
+  wrap.appendChild(card);
+}
+
+/* 提煉：選長度 → 看阿問的回答（剛好/太長/太短） */
+function chAsk(c){
+  const rounds=c.rounds||[{ask:c.ask,want:c.want,hint:c.hint,answers:c.answers,limitN:c.limitN}];
+  const r=rounds[S.round]||rounds[0];
+  const card=el('div','card pop');
+  card.appendChild(el('div','tag','提煉線索　·　'+(rounds.length>1?('追問 '+(S.round+1)+' / '+rounds.length):'選對長度')));
+  const h=el('h3','','問阿問');h.style.margin='9px 0 4px';card.appendChild(h);
+  card.appendChild(el('p','',r.ask));
+  const hint=el('div','note');hint.style.marginTop='9px';hint.innerHTML='💡 '+r.hint;card.appendChild(hint);
+
+  const st=chState(c.id,S.round);
+  const lens=el('div','lens');lens.style.marginTop='13px';
+  // 防硬 A：位置隨機，但只在「答錯」時重洗——不要在讀答案時讓選項跳來跳去
+  st.order.forEach(k=>{
+    const L=LEN[k];const d=el('div','len'+(st.locked?' lock':''));d.style.setProperty('--c',L.c);
+    d.appendChild(el('div','g',L.g));
+    d.appendChild(el('div','n',L.n+(k==='limit'&&r.limitN?('（'+r.limitN+'字）'):'')));
+    d.appendChild(el('div','s',L.s));
+    if(st.tried.includes(k))d.appendChild(el('div','tried','試過'));
+    d.onclick=()=>{if(st.locked)return;pickLen(c,r,k);};
+    lens.appendChild(d);
+  });
+  card.appendChild(lens);
+
+  if(st.last){
+    const a=r.answers[st.last];
+    const box=el('div','ans '+a.v);box.textContent=a.t;card.appendChild(box);
+    const v=el('div','verdict '+(a.v==='good'?'ok':'no'));
+    v.textContent=a.v==='good'?'剛好！這條線索可以放上線索板。'
+      :(a.v==='toolong'?'太長了——重點被淹沒在一大段話裡，抓不出可用的線索。'
+                       :'太短了——缺了一角，這樣還不夠用。');
+    card.appendChild(v);
+    if(a.v==='good'){
+      const b=el('button','btn','收進線索板');b.style.cssText='margin-top:12px;width:100%';
+      b.onclick=()=>advance(c,rounds);card.appendChild(b);
+    }else{
+      const t=el('div');t.style.cssText='margin-top:10px;font-size:13px;color:var(--dim);font-weight:700';
+      t.textContent=st.locked?('等一下下…（'+st.remain+' 秒）再換一種長度問問看'):'換一種長度再問一次。';
+      card.appendChild(t);
+    }
+  }
+  wrap.appendChild(card);
+  if(st.locked)tickLock(c.id,S.round);
+}
+
+/* 每一輪提問的暫時狀態（不進存檔，重整就重來一輪，不影響章進度） */
+const askState={};
+function chState(cid,round){const k=cid+'#'+round;
+  if(!askState[k])askState[k]={tried:[],last:null,wrong:0,lockUntil:0,order:shuffle(LEN_ORDER)};
+  const s=askState[k];const now=Date.now();
+  s.locked=now<s.lockUntil;s.remain=Math.max(0,Math.ceil((s.lockUntil-now)/1000));return s;}
+function tickLock(cid,round){clearTimeout(tickLock._t);
+  tickLock._t=setTimeout(()=>{const s=chState(cid,round);render();},400);}
+function pickLen(c,r,k){
+  const s=chState(c.id,S.round);const a=r.answers[k];
+  if(!s.tried.includes(k))s.tried.push(k);
+  s.last=k;
+  if(a.v==='good'){Sfx.ok();}
+  else{Sfx.no();s.wrong++;s.lockUntil=Date.now()+(2000+(s.wrong-1)*1000);s.order=shuffle(s.order);} // 鎖 2＋N 秒（升冪）＋重洗位置
+  render();
+}
+function advance(c,rounds){
+  if(S.round<rounds.length-1){S.round++;askStateClear(c.id,S.round);Sfx.tick();save();render();return;}
+  // 這一章的線索到手
+  if(!S.clues.some(x=>x.id===c.clue.id)){S.clues.push({id:c.clue.id,name:c.clue.name,text:c.clue.text});}
+  Sfx.unlock();
+  go('chapter', c.id==='ch5' ? 'board' : (needBoard(c) ? 'board' : 'quiz'));
+}
+function askStateClear(cid,round){delete askState[cid+'#'+round];}
+function needBoard(c){return c.id==='ch4';}   // 章1–3 收線索、章4 排時間軸、章5 連連看
+
+/* 線索板：章4＝時間軸拖放；章5＝連連看 */
+function chBoard(c){
+  if(c.id==='ch5')return boardLinks(c);
+  return boardTimeline(c);
+}
+
+function boardTimeline(c){
+  const card=el('div','card pop');
+  card.appendChild(el('div','tag','線索板　·　時間軸'));
+  const h=el('h3','','把每個人排到他的時段');h.style.margin='9px 0 4px';card.appendChild(h);
+  card.appendChild(el('p','','皇冠在 8:00–9:00 之間消失。把四個人拖到「有人能證明他在那裡」的時段——排完就看得出哪一格出問題。'));
+  const b=el('div','board');b.style.marginTop='11px';
+  const tl=el('div','tl');
+  SLOTS.forEach((s,i)=>{
+    const d=el('div','slot');d.dataset.i=i;
+    d.appendChild(el('div','t',s.t));
+    const placed=S.board[s.t];
+    if(placed){d.classList.add(s.gap?'gap':'filled');d.appendChild(personCard(PEOPLE[placed],false));
+      const n=el('div','',s.note);n.style.cssText='font-size:10px;color:var(--ink2);text-align:center;line-height:1.35';d.appendChild(n);}
+    d.ondragover=e=>{e.preventDefault();d.classList.add('over');};
+    d.ondragleave=()=>d.classList.remove('over');
+    d.ondrop=e=>{e.preventDefault();d.classList.remove('over');dropPerson(s,e.dataTransfer.getData('id'));};
+    d.onclick=()=>{if(dragSel){dropPerson(s,dragSel);}};
+    tl.appendChild(d);
+  });
+  b.appendChild(tl);
+  const pool=el('div','pool');
+  SLOTS.map(s=>s.who).filter(w=>!Object.values(S.board).includes(w)).forEach(w=>pool.appendChild(personCard(PEOPLE[w],true)));
+  if(!pool.children.length)pool.appendChild(el('div','','（都排好了）')).style.cssText='color:var(--dim);font-size:13px';
+  b.appendChild(pool);
+  card.appendChild(b);
+
+  const done=SLOTS.every(s=>S.board[s.t]===s.who);
+  if(done){
+    const n=el('div','note');n.style.cssText='margin-top:11px;border-left-color:#ff7a7a;background:rgba(255,122,122,.1)';
+    n.innerHTML='<b>看出來了嗎？</b> 8:45 那一格是紅的——阿福在廚房、秀琴在廁所、小葉在後台都有人證，<b>只有林主席說不出自己在哪裡</b>，總機也查不到她說的那通電話。';
+    card.appendChild(n);
+    const btn=el('button','btn','記進線索板');btn.style.cssText='margin-top:12px;width:100%';
+    btn.onclick=()=>go('chapter','quiz');card.appendChild(btn);
+  }
+  wrap.appendChild(card);
+}
+let dragSel=null;
+function personCard(p,draggable){
+  const d=el('div','pcard');d.dataset.id=p.id;
+  const av=el('div','av');const im=document.createElement('img');im.src='assets/'+p.img;im.onerror=()=>av.style.background='#1d3f66';
+  av.appendChild(im);d.appendChild(av);
+  d.appendChild(el('div','nm',p.name));
+  const r=el('div','','');r.textContent=p.role;r.style.cssText='font-size:9px;color:var(--dim)';d.appendChild(r);
+  if(draggable){
+    d.draggable=true;
+    d.ondragstart=e=>{e.dataTransfer.setData('id',p.id);d.classList.add('drag');};
+    d.ondragend=()=>d.classList.remove('drag');
+    d.onclick=()=>{dragSel=(dragSel===p.id?null:p.id);
+      [...document.querySelectorAll('.pcard')].forEach(x=>x.style.outline='');
+      if(dragSel)d.style.outline='3px solid var(--gold)';toast(dragSel?'選好了，點一個時段放上去':'取消選取');};
+  }
+  return d;
+}
+function dropPerson(slot,pid){
+  if(!pid)return;
+  if(slot.who!==pid){Sfx.no();toast('這個時段沒有人能證明他在那裡');return;}
+  S.board[slot.t]=pid;dragSel=null;Sfx.ok();save();render();
+}
+
+/* 章5 連連看：物證 ↔ 說明 */
+function boardLinks(c){
+  const card=el('div','card pop');
+  card.appendChild(el('div','tag','線索板　·　連連看'));
+  const h=el('h3','','把物證和說明連起來');h.style.margin='9px 0 4px';card.appendChild(h);
+  card.appendChild(el('p','','點左邊一條，再點右邊對應的說明。連對三組，真相就完整了。'));
+  const st=linkState();
+  const g=el('div','link');
+  const L=el('div','lcol'),M=el('div','lmid','↔'),R=el('div','lcol');
+  st.left.forEach(i=>{const d=el('div','li'+(S.links.includes(i)?' done':(st.sel===i?' sel':'')),LINKS[i].l);
+    d.onclick=()=>{if(S.links.includes(i))return;st.sel=(st.sel===i?null:i);render();};L.appendChild(d);});
+  st.right.forEach(o=>{
+    const isReal=typeof o==='number';const txt=isReal?LINKS[o].r:o;
+    const d=el('div','li'+(isReal&&S.links.includes(o)?' done':''),txt);
+    d.onclick=()=>{
+      if(st.sel==null){toast('先點左邊一條線索');return;}
+      if(isReal&&o===st.sel){S.links.push(o);st.sel=null;Sfx.ok();save();render();}
+      else{Sfx.no();toast('這兩條兜不起來，再想想');}
+    };R.appendChild(d);});
+  g.appendChild(L);g.appendChild(M);g.appendChild(R);card.appendChild(g);
+
+  if(S.links.length>=LINKS.length){
+    const n=el('div','note');n.style.marginTop='11px';
+    n.innerHTML='<b>真相拼齊了。</b>林主席戴上點心師傅的手套、用備份鑰匙打開展示櫃，把皇冠拿去修——因為那顆藍寶石鬆了，她怕明天在台上掉下來。';
+    card.appendChild(n);
+    const b=el('button','btn','指認兇手');b.style.cssText='margin-top:12px;width:100%';
+    b.onclick=()=>go('chapter','quiz');card.appendChild(b);
+  }
+  wrap.appendChild(card);
+}
+let _linkState=null;
+function linkState(){
+  if(!_linkState){
+    const rights=LINKS.map((_,i)=>i).concat(LINK_DISTRACT);   // 干擾 ≥3
+    _linkState={left:LINKS.map((_,i)=>i),right:shuffle(rights),sel:null};
+  }
+  return _linkState;
+}
+
+/* 顯性理解檢核（泡泡題・隨機位置＋鎖秒＋洗牌） */
+const quizState={};
+function chQuiz(c){
+  const k=c.id;
+  if(!quizState[k])quizState[k]={opts:shuffle(c.quiz.opts.map((t,i)=>({t,ok:i===c.quiz.a}))),wrong:0,lockUntil:0,pos:null};
+  const q=quizState[k];const now=Date.now();const locked=now<q.lockUntil;
+  const card=el('div','card pop');
+  card.appendChild(el('div','tag','考考你　·　複述一次'));
+  const h=el('h3','',c.quiz.q);h.style.margin='9px 0 2px';card.appendChild(h);
+  const bw=el('div','bubwrap');
+  if(!q.pos)q.pos=layoutBubbles(q.opts.length);
+  q.opts.forEach((o,i)=>{
+    const b=el('div','bub'+(locked?' lockd':''),'');b.textContent=textOf(o.t);
+    const p=q.pos[i];b.style.cssText+=';left:'+p.x+'%;top:'+p.y+'%;width:'+p.d+'px;height:'+p.d+'px;margin-left:'+(-p.d/2)+'px;margin-top:'+(-p.d/2)+'px';
+    b.onclick=()=>{
+      if(locked)return;
+      if(o.ok){Sfx.win();chapterCleared(c);}
+      else{Sfx.no();q.wrong++;q.lockUntil=Date.now()+(2000+(q.wrong-1)*1000);
+        q.opts=shuffle(q.opts);q.pos=layoutBubbles(q.opts.length);   // 點錯洗牌換位置
+        toast('再想想～答案就在剛剛的辦案過程裡');render();}
+    };
+    bw.appendChild(b);
+  });
+  card.appendChild(bw);
+  if(locked){const t=el('div','');t.style.cssText='text-align:center;color:var(--gold);font-weight:900;font-size:14px';
+    t.textContent='等一下下… '+Math.ceil((q.lockUntil-now)/1000);card.appendChild(t);
+    clearTimeout(chQuiz._t);chQuiz._t=setTimeout(render,400);}
+  wrap.appendChild(card);
+}
+function textOf(t){return t;}
+function layoutBubbles(n){
+  const d=Math.max(96,Math.min(140,Math.floor(520/n)+52));
+  const out=[];const cols=n<=2?2:2, rows=Math.ceil(n/cols);
+  for(let i=0;i<n;i++){
+    const cx=(i%cols),cy=Math.floor(i/cols);
+    out.push({x:18+cx*64+(Math.random()*10-5), y:22+cy*(70/Math.max(1,rows-1||1))+(Math.random()*8-4), d});
+  }
+  return out;
+}
+
+function chapterCleared(c){
+  const first=!(S.clearedList||[]).includes(c.id);
+  S.clearedList=S.clearedList||[];
+  if(first){S.clearedList.push(c.id);addCoins(COIN_PER_CH,'s2w03_ch_'+c.id,'S2-W03 破章：'+c.title);}
+  save();go('chapter','clear');
+}
+
+function chClear(c){
+  const card=el('div','card pop');
+  const h=el('h2','','第 '+(S.ci+1)+' 章・破了！');h.style.marginBottom='8px';card.appendChild(h);
+  if(c.evidence){const im=pic(c.evidence);im.style.cssText='height:130px;margin:6px auto';card.appendChild(im);}
+  const n=el('div','note');n.innerHTML='<b>新線索：'+c.clue.name+'</b><br>'+c.clue.text;card.appendChild(n);
+  card.appendChild(clueBoard());
+  if(c.bridge){const p=el('p','',c.bridge);p.style.marginTop='10px';card.appendChild(p);}
+  const last=S.ci>=CH.length-1;
+  const b=el('button','btn',last?'公布真相':'進入第 '+(S.ci+2)+' 章');
+  b.style.cssText='margin-top:14px;width:100%';
+  b.onclick=()=>{if(last){go('done');}else{S.ci++;S.sub='lead';S.round=0;save();render();}};
+  card.appendChild(b);
+  wrap.appendChild(card);
+}
+function clueBoard(){
+  const b=el('div','board');b.style.marginTop='11px';
+  b.appendChild(el('h3','','線索板（'+S.clues.length+' / '+CH.length+'）'));
+  const g=el('div');g.style.cssText='display:flex;flex-wrap:wrap;gap:7px;margin-top:7px';
+  CH.forEach((c,i)=>{
+    const got=S.clues.find(x=>x.id===c.clue.id);
+    const d=el('div','');d.style.cssText='flex:1 1 150px;border:2px solid '+(got?'var(--good)':'var(--line)')+
+      ';border-radius:11px;padding:8px 10px;background:'+(got?'rgba(79,224,138,.1)':'rgba(255,255,255,.03)');
+    d.innerHTML='<div style="font-weight:900;font-size:13px;color:'+(got?'var(--good)':'var(--dim)')+'">'+
+      (got?'✓ '+c.clue.name:'第 '+(i+1)+' 章・未解')+'</div>'+
+      (got?'<div style="font-size:12px;color:var(--ink2);margin-top:3px;line-height:1.5">'+c.clue.text+'</div>':'');
+    g.appendChild(d);
+  });
+  b.appendChild(g);return b;
+}
+
+/* ---- 結局：頒獎 ---- */
+function renderDone(){
+  if(!S.done){S.done=true;addCoins(COIN_SOLVE,'s2w03_solve','S2-W03 破案：消失的慶典皇冠');
+    CH.forEach(c=>Account.creditCoins('s2w03_ch_'+c.id,COIN_PER_CH,'S2-W03 破章：'+c.title));save();}
+  const card=el('div','card pop');
+  const im=pic('s2w03-truth.jpg','cover');im.style.height='clamp(160px,28vh,250px)';card.appendChild(im);
+  const h=el('h2','','破案！皇冠回來了');h.style.margin='12px 0 6px';card.appendChild(h);
+  card.appendChild(el('p','','林主席在天亮前把修好的皇冠送了回來。她說她只是怕寶石在典禮上掉下來，卻用錯了方法——慶典照常舉行，這次由你戴著偵探徽章站在台上。'));
+  const n=el('div','note');n.style.marginTop='11px';
+  n.innerHTML='<b>你學會的事：</b>同一個問題，問法不變、只要換一個<b>長度</b>，拿到的答案就完全不同。<br>'+
+    '要重點 → 一句話；要補齊細節 → 一段話；有硬限制 → 指定字數。<b>問對長度，才拿得到能用的答案。</b>';
+  card.appendChild(n);
+  card.appendChild(clueBoard());
+  const coin=el('div','');coin.style.cssText='text-align:center;font-weight:900;color:var(--gold);font-size:20px;margin-top:12px';
+  coin.textContent='本課共獲得 '+(S.coins||0)+' 金幣';card.appendChild(coin);
+  const ta=el('button','btn blue',S.ta?'已成為小偵探學長 ✓':'我是小偵探學長 · 去教一位同學');
+  ta.style.cssText='margin-top:12px;width:100%';ta.disabled=!!S.ta;
+  ta.onclick=()=>{S.ta=true;addCoins(COIN_TA,'s2w03_ta','S2-W03 小老師 TA');
+    toast('去教一位同學：怎麼決定要問多長');render();};
+  card.appendChild(ta);
+  const again=el('button','btn ghost','再玩一次（不會重複發金幣）');
+  again.style.cssText='margin-top:8px;width:100%';
+  again.onclick=()=>{const keep={coins:S.coins,ta:S.ta,done:S.done};S=Object.assign(defaultState(),keep,{phase:'start'});
+    Object.keys(quizState).forEach(k=>delete quizState[k]);_linkState=null;save();render();};
+  card.appendChild(again);
+  wrap.appendChild(card);
+}
+
+/* =========================================================================
+   啟動：本地為即時真相、雲端背景比對取較遠者
+   ========================================================================= */
+Account.init();renderAcct();
+window.addEventListener('online',renderAcct);window.addEventListener('offline',renderAcct);
+render();
+(async()=>{try{const cloud=await Account.load();
+  if(cloud&&cloud.v===VERSION&&progressScore(cloud)>progressScore(S)){S=cloud;save();render();}
+  else Account.save(S);}catch(e){}renderAcct();})();
+
+/* ---------- 測試接口（免截圖驗證；學生端無副作用） ---------- */
+window.W3S=({S:()=>S,go:(p,s)=>go(p,s),render,CH,LEN,SLOTS,LINKS,
+  chapter:(i,sub)=>{S.phase='chapter';S.ci=i;S.sub=sub||'lead';S.round=0;render();},
+  pick:(k)=>{const c=CH[S.ci];const rs=c.rounds||[{answers:c.answers,want:c.want,hint:c.hint,ask:c.ask}];
+    pickLen(c,rs[S.round],k);return chState(c.id,S.round);},
+  state:()=>{const c=CH[S.ci];return chState(c.id,S.round);},
+  fillSpots:()=>{const c=CH[S.ci];S.facts[c.id]=c.spots.map((_,i)=>i);render();},
+  fillBoard:()=>{SLOTS.forEach(s=>S.board[s.t]=s.who);save();render();},
+  fillLinks:()=>{S.links=LINKS.map((_,i)=>i);save();render();},
+  answerQuiz:()=>{const c=CH[S.ci];const q=quizState[c.id];if(!q)return 'no-quiz';
+    q.lockUntil=0;const i=q.opts.findIndex(o=>o.ok);document.querySelectorAll('.bub')[i].click();return 'ok';},
+  reset:()=>{S=defaultState();save();render();}});
+</script>
+</body>
+</html>
