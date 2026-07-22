@@ -870,7 +870,7 @@ let STAGES=[], stageIdx=0;
 const STAGE_MIN_SEC=0, PROG_KEY='l1:draw-progress';
 let stageSec=0, stageTimer=null, nextStageStartSec=0;
 function fmtMMSS(s){ s=Math.max(0,Math.ceil(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
-function progUid(){ try{ const u=JSON.parse(localStorage.getItem('@session/currentUser')||'null'); return (u&&u.id)?u.id:'anon'; }catch(e){ return 'anon'; } }
+function progUid(){ try{ const u=JSON.parse((sessionStorage.getItem('@session/currentUser')||localStorage.getItem('@session/currentUser'))||'null'); return (u&&u.id)?u.id:'anon'; }catch(e){ return 'anon'; } }
 function saveProgress(){ if(!$('#p2').classList.contains('on'))return;
   try{ localStorage.setItem(PROG_KEY, JSON.stringify({ v:1, uid:progUid(), grade:state.grade, species:state.species, color:state.color,
     feature:state.feature, accessory:state.accessory, desc:descText(), stageIdx, stageSec, canvas:pad.toDataURL('image/png') })); }catch(e){} }
@@ -1015,7 +1015,7 @@ $('#restart2').onclick=()=>{ clearProgress(); location.reload(); };
 // ── 存到帳號（users/{uid}/picturebook/main；縮成 640² JPEG 直接存文件）──
 const FB={apiKey:"AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78",authDomain:"gpt-clone-68b9f.firebaseapp.com",projectId:"gpt-clone-68b9f",storageBucket:"gpt-clone-68b9f.firebasestorage.app",messagingSenderId:"436942056069",appId:"1:436942056069:web:8762675dfff7b7e92017ec"};
 const Account=(()=>{ let uid=null,uname='',db=null,ready=false;
-  const su=()=>{ try{ const r=localStorage.getItem('@session/currentUser'); return r?JSON.parse(r):null; }catch(e){ return null; } };
+  const su=()=>{ try{ const r=(sessionStorage.getItem('@session/currentUser')||localStorage.getItem('@session/currentUser')); return r?JSON.parse(r):null; }catch(e){ return null; } };
   function init(){ const u=su(); if(u&&u.id){ uid=u.id; uname=u.displayName||u.username||''; }
     if(uid&&window.firebase){ try{ if(!firebase.apps.length)firebase.initializeApp(FB); db=firebase.firestore(); ready=true; }catch(e){} } }
   async function saveCharacter(payload){ if(!ready)throw new Error('not-ready');

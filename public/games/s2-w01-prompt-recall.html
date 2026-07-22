@@ -145,7 +145,7 @@ const Sfx=(()=>{let ac=null; function ctx(){try{ac=ac||new (window.AudioContext|
 const GAMEKEY='s2w01', COIN_ID='s2w01_complete', COIN_AMT=25;
 const FB={apiKey:"AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78",authDomain:"gpt-clone-68b9f.firebaseapp.com",projectId:"gpt-clone-68b9f",storageBucket:"gpt-clone-68b9f.firebasestorage.app",messagingSenderId:"436942056069",appId:"1:436942056069:web:8762675dfff7b7e92017ec"};
 const Account=(()=>{let uid=null,uname='',db=null,ready=false;
-  function su(){try{const r=localStorage.getItem('@session/currentUser'); return r?JSON.parse(r):null;}catch(e){return null;}}
+  function su(){try{const r=(sessionStorage.getItem('@session/currentUser')||localStorage.getItem('@session/currentUser')); return r?JSON.parse(r):null;}catch(e){return null;}}
   function init(){const u=su(); if(u&&u.id){uid=u.id; uname=u.displayName||u.username||'';} if(uid&&window.firebase){try{if(!firebase.apps.length)firebase.initializeApp(FB); db=firebase.firestore(); ready=true;}catch(e){}}}
   async function load(){if(!ready)return null; try{const s=await db.collection('gameProgress').doc(uid).get(); return s.exists?(s.data()[GAMEKEY]||null):null;}catch(e){return null;}}
   async function save(state){if(!ready)return; try{await db.collection('gameProgress').doc(uid).set({[GAMEKEY]:state,name:uname,updatedAt:new Date().toISOString()},{merge:true});}catch(e){}}
