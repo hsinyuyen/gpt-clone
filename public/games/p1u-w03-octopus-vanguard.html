@@ -896,8 +896,16 @@ function ultFail(){ const u=st.ult; u.done=now()+900; u.failed=true;
   popText(W/2,H*0.34,'被大招打中！-'+ULT_DMG,'#ff5d6c',1.6); }
 function updateUlt(evs){ const u=st.ult;
   if(u.done){ if(now()>=u.done){ st.ult=null; if(st.php<=0){ battleLost(); return; } st.nextAt=now()+700; } return; }
-  if(ultWarning()) return;                            // 預告階段：只給看，不計時也不判定
-  if(u.warnUntil){ u.warnUntil=0; u.t0=now(); Sfx.tone(880,0.12,'square',0.05); }  // 預告結束 → 開始計時
+  if(ultWarning()){
+    // 預告階段不計時、也不罰按錯；但「提前按對」要算數——不然事件被丟掉，
+    // 學生會覺得第一顆怎麼按都沒反應（keydown 壓著時不會重送事件，得放開再按）
+    for(const e of evs){ const tk=ultTokenOf(e);
+      if(tk && tk===u.seq[u.idx]){ u.warnUntil=0; u.t0=now(); ultAdvance(tk); return; } }
+    return; }
+  if(u.warnUntil){ u.warnUntil=0; u.t0=now(); Sfx.tone(880,0.12,'square',0.05);   // 預告結束 → 開始計時
+    // 學生常常在預告時就把鍵按著等 → 直接算他按到，不用放開再按一次
+    const want=u.seq[u.idx], T=ULT_TOKENS[want];
+    if(T && T.kind==='key' && held[want]){ ultAdvance(want); if(!st.ult||st.ult.done) return; } }
   if(now()-u.t0>u.stepMs){ ultFail(); return; }
   for(const e of evs){ const tok=ultTokenOf(e); if(tok){ ultAdvance(tok); if(!st.ult||st.ult.done) return; } } }
 function ultIconSize(){ return Math.min(64, W*0.062, H*0.082); }
