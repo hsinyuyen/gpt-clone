@@ -676,10 +676,16 @@
   }
   /* ===== W03 追加：審問關係人（說簡潔／說詳細） ===== */
   .ivwrap{width:100%;max-width:560px;}
-  .ivperson{display:flex;gap:12px;align-items:flex-start;margin-bottom:6px;}
-  .ivav{flex:0 0 72px;height:72px;border-radius:14px;overflow:hidden;background:#0a1c30;border:2px solid var(--line);}
-  .ivav img{width:100%;height:100%;object-fit:cover;}
-  .ivsay{flex:1;background:linear-gradient(180deg,#173355,#122843);border:1.5px solid var(--line);border-radius:14px;border-top-left-radius:4px;padding:11px 14px;font-size:clamp(14px,2.1vw,16.5px);line-height:1.72;}
+  /* 人物站在案發場景裡受審 */
+  .ivstage{position:relative;width:min(100%,680px);aspect-ratio:7/4;margin:0 auto;border-radius:18px 18px 0 0;overflow:hidden;border:2px solid rgba(255,207,92,.32);border-bottom:none;box-shadow:0 12px 30px rgba(0,0,0,.45);background:#0f2136;}
+  .ivstage .ivbg,.ivstage .ivbg img{position:absolute;inset:0;width:100%;height:100%;} .ivstage .ivbg img{object-fit:cover;filter:brightness(.72) saturate(1.05);}
+  .ivstage::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,18,34,.05),rgba(8,18,34,.5) 78%,rgba(8,18,34,.9));z-index:1;}
+  .ivchar{position:absolute;left:5%;bottom:-1%;height:94%;z-index:2;animation:ivin .4s ease-out;}
+  .ivchar .img,.ivchar .img img{height:100%;width:auto;} .ivchar .img img{object-fit:contain;filter:drop-shadow(0 8px 14px rgba(0,0,0,.6));}
+  @keyframes ivin{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .ivtag{position:absolute;right:5%;top:8%;z-index:3;background:rgba(6,18,32,.86);border:1.5px solid var(--gold);color:var(--gold);font-size:13px;font-weight:900;padding:5px 13px;border-radius:99px;box-shadow:0 3px 10px rgba(0,0,0,.4);}
+  .ivsay{position:relative;width:min(100%,680px);margin:0 auto;background:linear-gradient(180deg,#173355,#122843);border:2px solid rgba(255,207,92,.32);border-top:none;border-radius:0 0 18px 18px;padding:13px 16px 15px;font-size:clamp(14px,2.1vw,16.5px);line-height:1.75;}
+  .ivsay:before{content:'';position:absolute;left:9%;top:-11px;border:10px solid transparent;border-bottom-color:#173355;border-top:none;}
   .ivsay .who{display:block;font-size:12px;font-weight:900;color:#7fe0c0;margin-bottom:3px;}
   .ivask{font-size:13px;color:var(--dim);text-align:center;font-weight:700;margin:10px 0 2px;}
   .ivbtns{display:flex;gap:12px;justify-content:center;margin:8px 0 4px;flex-wrap:wrap;}
@@ -1210,10 +1216,12 @@ const ivState={};
 function stepInterview(c){ const iv=c.interview; const who=PEOPLE[iv.who]||PEOPLE[c.who];
   const st=(ivState[c.id]=ivState[c.id]||{picked:null});
   const s=el('div','screen'); s.appendChild(el('h1','serif','🎙 審問・'+(who?who.name:'關係人')));
-  const person=el('div','ivperson');
-  if(who){ const av=el('div','ivav'); av.appendChild(pic(who.img)); person.appendChild(av); }
-  const say=el('div','ivsay'); say.innerHTML='<span class="who">'+(who?who.name+'（'+who.role+'）':'')+'</span>'+(st.picked?iv[st.picked]:iv.open);
-  person.appendChild(say); s.appendChild(person);
+  // 人物站在案發場景裡受審
+  const st2=el('div','ivstage'); st2.appendChild(pic(c.scene,'ivbg'));
+  if(who){ const ch=el('div','ivchar'); ch.appendChild(pic(who.img)); st2.appendChild(ch); st2.appendChild(el('div','ivtag',who.name+'・'+who.role)); }
+  s.appendChild(st2);
+  const say=el('div','ivsay'); say.innerHTML='<span class="who">'+(who?who.name:'')+'</span>'+(st.picked?iv[st.picked]:iv.open);
+  s.appendChild(say);
   const good = st.picked && st.picked===iv.need;
   if(good){
     const ans=el('div','ivans good'); ans.textContent='✔ '+iv.reveal; s.appendChild(ans);
