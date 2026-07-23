@@ -757,6 +757,8 @@
   .culog .loghd{font-size:12px;font-weight:900;color:var(--gold);text-align:center;margin-bottom:6px;}
   .culog .lr{display:flex;justify-content:space-between;gap:10px;padding:6px 9px;border-bottom:1px solid var(--line);color:var(--ink2);font-size:13px;font-weight:700;}
   .culog .lr.gap{background:rgba(255,122,122,.16);color:#ffb3b3;border-radius:6px;}
+
+  .recapans{margin-top:8px;padding:8px 12px;border-radius:10px;border:2px solid var(--good);background:rgba(79,224,138,.12);color:#dfffe9;font-weight:800;font-size:15px;}
 </style>
 </head>
 <body>
@@ -919,6 +921,11 @@ const CASES=[
     detail:'今天傍晚巡場的時候，我發現皇冠正中央那顆藍寶石——爪座鬆了。明天只要有人戴著它走上台、輕輕一晃，寶石就會當場掉下來、摔個粉碎。我想，要是今晚偷偷把它送去修、天亮前放回來，就沒有人會知道，慶典也能平平安安。我沒有說出來，是因為……它是在我任內鬆掉的，我怕大家怪我。',
     reveal:'你忽然想起——祈福牌上寫的「修好就還」、照片裡她抱著皇冠小心翼翼的樣子。她從第一步就在告訴你：「我會還。」只是那些話都太短了，短到你差點把一個想救皇冠的人，當成小偷。',
     kws:[{id:'k_loose',text:'爪座鬆了'},{id:'k_repair',text:'天亮前修好放回'},{id:'k_short',text:'太短'}] },
+  recap:{ intro:'林主席一口氣講了一長串。趁還記得，把她的話抓成三個重點——',
+    qs:[
+      {q:'皇冠是誰拿走的？', opts:['慶典主席林主席','點心師傅阿福','記者小葉'], a:0},
+      {q:'她是怎麼拿走的？', opts:['借白手套、用備份鑰匙開櫃，把皇冠藏進儲藏室','打破玻璃搶走','從窗戶爬進來偷'], a:0},
+      {q:'她為什麼要這麼做？', opts:['寶石鬆了怕摔碎，想偷偷送修、天亮前放回','想把皇冠賣掉換錢','討厭慶典想搞破壞'], a:0} ] },
   board:'none',
   solved:'第五章破了！請她「說詳細一點」，你才聽見她的真心——她不是小偷，是想護著皇冠、只是用錯了方法。所有關鍵字都到齊了。回偵探社，把真相拼出來！' } ];
 const RANKS=[[0,'實習偵探'],[2,'見習長度偵探'],[4,'長度神探']];
@@ -1157,7 +1164,7 @@ function stepIntro(c){ const s=el('div','screen');
   const sc=el('div','scene');sc.appendChild(pic(c.scene));s.appendChild(sc);
   const f=el('div','paper');f.innerHTML='<h3>📩 案情</h3><div class="body">'+c.hook+'</div>';s.appendChild(f);
   s.appendChild(awenRow('','這案跟「時間」有關！去現場找線索，一起排出真相。'));
-  const b=el('button','btn','開始查案　▶');b.onclick=()=>{S.ckFound=[];S.ckScene=0;delete ivState[c.id];delete w1State[c.id];S.sub=(c.gate?'gate':firstStep(c));save();render();};s.appendChild(b);
+  const b=el('button','btn','開始查案　▶');b.onclick=()=>{S.ckFound=[];S.ckScene=0;delete ivState[c.id];delete w1State[c.id];delete recapState[c.id];S.sub=(c.gate?'gate':firstStep(c));save();render();};s.appendChild(b);
   stage.appendChild(s); }
 /* 進解謎前的拖拉填空確認關：沒看案情就答不出來 */
 function stepGate(c){ const s=el('div','screen'); s.appendChild(el('h1','serif','📖 看懂案情了嗎？'));
@@ -1280,6 +1287,27 @@ function stepW1(c){ const w=c.w1; if(!w){ S.sub='interview'; save(); return rend
 
 /* --- 審問：關係人先給錯長度的話，你請他「說簡潔／說詳細」，只有對的一邊吐出關鍵字 --- */
 const ivState={};
+const recapState={};
+/* --- 整理證詞：最後證人講完長長的真相，玩家自己抓成三個重點，才記得住 --- */
+function stepRecap(c){ const rc=c.recap; if(!rc){ S.sub='solved'; return render(); }
+  const st=(recapState[c.id]=recapState[c.id]||{i:0});
+  const who=PEOPLE[c.who]; const s=el('div','screen');
+  s.appendChild(el('h1','serif','📝 整理'+(who?who.name:'')+'的話'));
+  s.appendChild(awenRow('happy', rc.intro));
+  const done=st.i>=rc.qs.length;
+  rc.qs.forEach((q,qi)=>{ if(qi>st.i)return; const card=el('div','paper'); card.style.marginBottom='10px';
+    card.appendChild(el('div','body',(qi+1)+'. '+q.q));
+    if(qi<st.i){ card.appendChild(el('div','recapans','✔ '+q.opts[q.a])); s.appendChild(card); return; }
+    const note=el('div','lockmsg'); let wrongN=0; const opts=[];
+    shuffle(q.opts.map((t,i)=>({t,i}))).forEach(o=>{ const b=el('button','opt',o.t); opts.push(b);
+      b.onclick=()=>{ if(o.i===q.a){ b.classList.add('right'); opts.forEach(x=>x.disabled=true); Sfx.ding(); st.i++; setTimeout(()=>{ if(S.phase==='case'&&S.sub==='recap')render(); },520); }
+        else { b.classList.add('wrong'); Sfx.pop(); S.misses=(S.misses||0)+1; save(); lockChoices(opts,++wrongN,note); } };
+      card.appendChild(b); });
+    card.appendChild(note); s.appendChild(card); });
+  if(done){ s.appendChild(awenRow('happy','整理好了！誰、怎麼拿、為什麼——你都抓到了。最後一步：把一路查到的所有線索，拼成完整的真相！'));
+    const b=el('button','btn green','去拼出完整真相 ▶'); b.onclick=()=>{ Sfx.win(); S.sub='solved'; save(); render(); }; s.appendChild(b); }
+  stage.appendChild(s);
+}
 function stepInterview(c){ const iv=c.interview; const who=PEOPLE[iv.who]||PEOPLE[c.who];
   const st=(ivState[c.id]=ivState[c.id]||{diag:null,picked:null});
   const diagAns = iv.need==='concise' ? 'toolong' : 'tooshort';
@@ -1294,7 +1322,7 @@ function stepInterview(c){ const iv=c.interview; const who=PEOPLE[iv.who]||PEOPL
   if(good){
     const ans=el('div','ivans good'); ans.textContent='✔ '+iv.reveal; s.appendChild(ans);
     const b=el('button','btn green','記下關鍵字，繼續 ▶');
-    b.onclick=()=>{ (iv.kws||[]).forEach(k=>addKeyword(k.id,k.text)); Sfx.win(); S.sub=(c.board==='timeline')?'board':'solved'; save(); render(); };
+    b.onclick=()=>{ (iv.kws||[]).forEach(k=>addKeyword(k.id,k.text)); Sfx.win(); S.sub=(c.board==='timeline')?'board':(c.recap?'recap':'solved'); save(); render(); };
     s.appendChild(b);
   } else if(!st.diag){
     // 第一步・診斷：先讀他的話，判斷是太長還是太短
@@ -1383,6 +1411,7 @@ function scrCase(){const c=CASES[S.caseIdx];if(!c){S.phase='quiz';S.quizIdx=0;sa
     if(S.sub==='explore')return hasScene?stepExplore(c):(c.w1?stepW1(c):stepInterview(c));
     if(S.sub==='w1')return stepW1(c);
     if(S.sub==='interview')return stepInterview(c);
+    if(S.sub==='recap')return stepRecap(c);
     if(S.sub==='board')return boardTimeline(c);
     if(S.sub==='solved')return caseSolved(c);
     return stepIntro(c);
@@ -1625,8 +1654,9 @@ function caseSolved(c){ S.solved=S.solved||[]; const fresh=S.solved.indexOf(c.id
   s.appendChild(awenRow('happy',c.solved));
   const cl=el('div');cl.style.cssText='font-weight:900;color:var(--gold);font-size:21px;text-align:center';cl.textContent=(fresh?'＋'+COIN_PER_CASE+' 金幣 已存入錢包！':'（本案金幣已領取）')+(c.mode==='stepcase'?'':'　·　放大鏡碎片 '+S.shards);s.appendChild(cl);
   const allDone=(S.solved||[]).length>=CASES.length;
-  const b=el('button','btn',allDone?'回偵探社結案　▶':'回地圖繼續探索　▶');
-  b.onclick=()=>{ S.phase='world'; save(); transition('破案！',allDone?'全部破完了！回 ★ 偵探社結案報告！':'回到地圖，還有案子等你！',1500,render); }; // 回大地圖
+  const b=el('button','btn',allDone?'把真相拼出來　▶':'回地圖繼續探索　▶');
+  b.onclick=()=>{ if(allDone){ S.phase='quiz'; save(); transition('最後一步','把一路查到的線索，拼成完整的真相！',1500,render); } // 最後證人→直接進真相重組，不用走回偵探社
+    else { S.phase='world'; save(); transition('破案！','回到地圖，還有案子等你！',1500,render); } };
   s.appendChild(b);stage.appendChild(s);}
 
 /* ===== 案件之間：城鎮地圖行走 ＋ 壞蛋戰（問阿問→找弱點→點擊攻擊／問阿問→怎麼躲→點擊閃避）===== */
