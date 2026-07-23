@@ -746,6 +746,18 @@
   .rating .rk.mid{color:#7fe0c0;}
   .rating .rk.low{color:#9fb6d0;}
   .rating .rd{font-size:13px;color:var(--ink2);margin-top:5px;line-height:1.6;}
+
+  /* 放大鏡近照 */
+  .cuwrap{width:min(78%,280px);margin:2px auto 12px;border-radius:14px;overflow:hidden;border:2px solid var(--gold);box-shadow:0 8px 22px rgba(0,0,0,.4);background:#0a1c30;}
+  .cuwrap.cuimg{aspect-ratio:1/1;} .cuwrap .img,.cuwrap .img img{width:100%;height:100%;} .cuwrap .img img{object-fit:cover;}
+  .cuwrap.cudraw{padding:16px;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#13314e,#0d1f34);}
+  .cuclock{width:132px;height:132px;}
+  .cutag{display:flex;gap:6px;background:#b98a52;padding:11px;border-radius:9px;box-shadow:inset 0 0 0 2px #8a6a3a;}
+  .cutag .tg{width:38px;height:44px;background:#efe0c0;border:1.5px solid #8a6a3a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;color:#4a3418;}
+  .culog{width:100%;max-width:250px;}
+  .culog .loghd{font-size:12px;font-weight:900;color:var(--gold);text-align:center;margin-bottom:6px;}
+  .culog .lr{display:flex;justify-content:space-between;gap:10px;padding:6px 9px;border-bottom:1px solid var(--line);color:var(--ink2);font-size:13px;font-weight:700;}
+  .culog .lr.gap{background:rgba(255,122,122,.16);color:#ffb3b3;border-radius:6px;}
 </style>
 </head>
 <body>
@@ -827,9 +839,9 @@ const CASES=[
     parts:['慶典前一夜，展示櫃裡的',{blank:'皇冠'},'不見了，',{blank:'明天'},'早上就要用！'],
     bank:['皇冠','明天','獎盃','下週'] },
   scenes:[{key:'hall',name:'展示廳',img:'s2w03-hall.jpg',desc:'皇冠原本擺放的展示大廳。',spots:[
-    {id:'case', label:'展示櫃', x:26,y:63, obs:{q:'湊近看展示櫃的門——它是怎麼被打開的？',opts:['被硬撬開的（門框有裂痕）','門好好的，是用鑰匙開的','玻璃被打破的'],a:1}, clue:'櫃門沒被撬開，是用鑰匙正常打開的。', kw:{id:'k_nocrack',text:'沒被撬'}},
-    {id:'clock',label:'牆上的鐘', x:12,y:38, obs:{q:'抬頭看牆上的大鐘，指針停在幾點？',opts:['七點','九點','十二點'],a:1}, clue:'牆上的鐘停在九點，是巡邏發現的時間。', kw:{id:'k_clock',text:'停在9點'}},
-    {id:'floor',label:'地板', x:62,y:80, obs:{q:'蹲下來看櫃子前的地板，上面有什麼？',opts:['一灘水','一點白白的粉末','一片碎玻璃'],a:1}, clue:'櫃子前的地板上，有一點白白的粉末。', kw:{id:'k_powder',text:'白粉末'}} ]}],
+    {id:'case', label:'展示櫃', x:26,y:63, obs:{cu:{img:'s2w03-cu-case.jpg'}, q:'湊近看展示櫃的門——它是怎麼被打開的？',opts:['被硬撬開的（門框有裂痕）','門好好的，是用鑰匙開的','玻璃被打破的'],a:1}, clue:'櫃門沒被撬開，是用鑰匙正常打開的。', kw:{id:'k_nocrack',text:'沒被撬'}},
+    {id:'clock',label:'牆上的鐘', x:12,y:38, obs:{cu:{draw:'clock',hour:9}, q:'抬頭看牆上的大鐘，指針停在幾點？',opts:['七點','九點','十二點'],a:1}, clue:'牆上的鐘停在九點，是巡邏發現的時間。', kw:{id:'k_clock',text:'停在9點'}},
+    {id:'floor',label:'地板', x:62,y:80, obs:{cu:{img:'s2w03-cu-floor.jpg'}, q:'蹲下來看櫃子前的地板，上面有什麼？',opts:['一灘水','一點白白的粉末','一片碎玻璃'],a:1}, clue:'櫃子前的地板上，有一點白白的粉末。', kw:{id:'k_powder',text:'白粉末'}} ]}],
   interview:{ who:'keeper', need:'concise',
     open:'唉喲你不知道，我今天一早六點就來了，我那個孫子昨天發燒我一整晚沒睡好，膝蓋又在痛，晚餐吃滷肉飯配一碗湯，我還泡了茶、擦了玻璃，那個櫃子我擦得可亮了……',
     concise:'皇冠是八點到九點之間不見的。',
@@ -845,8 +857,8 @@ const CASES=[
     parts:['後台的鑰匙箱開著、',{blank:'備份鑰匙'},'不見了；旁邊有個鬼鬼祟祟的',{blank:'記者'},'。'],
     bank:['備份鑰匙','記者','皇冠','警察'] },
   scenes:[{key:'backstage',name:'後台',img:'s2w03-backstage.jpg',desc:'舞台後方堆著道具的後台。',spots:[
-    {id:'box', label:'鑰匙箱', x:52,y:55, obs:{q:'後台的鑰匙箱，現在是什麼狀態？',opts:['鎖得好好的','開著、備份鑰匙不見了','被砸壞了'],a:1}, clue:'鑰匙箱開著，備份鑰匙真的不見了。'},
-    {id:'coat',label:'衣架上的外套', x:20,y:70, obs:{q:'翻翻深藍外套的口袋，裡面藏著什麼？',opts:['一支錄音筆','一串鑰匙','一張照片'],a:0}, clue:'深藍外套的口袋裡，有一支錄音筆。', kw:{id:'k_recorder',text:'錄音筆'}} ]}],
+    {id:'box', label:'鑰匙箱', x:52,y:55, obs:{cu:{img:'s2w03-cu-keybox.jpg'}, q:'後台的鑰匙箱，現在是什麼狀態？',opts:['鎖得好好的','開著、備份鑰匙不見了','被砸壞了'],a:1}, clue:'鑰匙箱開著，備份鑰匙真的不見了。'},
+    {id:'coat',label:'衣架上的外套', x:20,y:70, obs:{cu:{img:'s2w03-cu-recorder.jpg'}, q:'翻翻深藍外套的口袋，裡面藏著什麼？',opts:['一支錄音筆','一串鑰匙','一張照片'],a:0}, clue:'深藍外套的口袋裡，有一支錄音筆。', kw:{id:'k_recorder',text:'錄音筆'}} ]}],
   w1:{ intro:'小葉很防備。先把問題「問清楚」，她才肯開口——上禮拜學的：對象＋根據＋問題。',
     steps:[
       {lbl:'對象（要問誰）', cls:'role', opts:[{t:'鬼祟的小葉',ok:true},{t:'管理員老陳',ok:false},{t:'點心師傅阿福',ok:false}]},
@@ -867,9 +879,9 @@ const CASES=[
     parts:['紅影子把東西帶到了儲藏室；門上掛著一塊只寫得下',{blank:'四個字'},'的',{blank:'祈福牌'},'。'],
     bank:['四個字','祈福牌','一整段','購物單'] },
   scenes:[{key:'vault',name:'儲藏室',img:'s2w03-vault.jpg',desc:'祈福亭旁半開的儲藏室。',spots:[
-    {id:'tag', label:'門上的祈福牌', x:44,y:52, obs:{q:'門上的小祈福牌只有四格，寫著哪四個字？',opts:['修好就還','完璧歸趙','借一下下'],a:0}, clue:'一塊小祈福牌，只有四格，寫著「修好就還」。', kw:{id:'k_return',text:'修好就還'}},
-    {id:'glove',label:'地上的手套', x:74,y:64, obs:{q:'地上掉著什麼東西？',opts:['一隻白手套','一條圍巾','一頂帽子'],a:0}, clue:'地上掉著一隻白手套。', kw:{id:'k_glove',text:'白手套'}},
-    {id:'door', label:'門縫', x:18,y:74, obs:{q:'門縫下面，露出一角什麼顏色的布？',opts:['藍色','紅色','綠色'],a:1}, clue:'門縫下，露出一角紅色的布。'} ]}],
+    {id:'tag', label:'門上的祈福牌', x:44,y:52, obs:{cu:{draw:'tag',text:'修好就還'}, q:'門上的小祈福牌只有四格，寫著哪四個字？',opts:['修好就還','完璧歸趙','借一下下'],a:0}, clue:'一塊小祈福牌，只有四格，寫著「修好就還」。', kw:{id:'k_return',text:'修好就還'}},
+    {id:'glove',label:'地上的手套', x:74,y:64, obs:{cu:{img:'s2w03-cu-glove.jpg'}, q:'地上掉著什麼東西？',opts:['一隻白手套','一條圍巾','一頂帽子'],a:0}, clue:'地上掉著一隻白手套。', kw:{id:'k_glove',text:'白手套'}},
+    {id:'door', label:'門縫', x:18,y:74, obs:{cu:{img:'s2w03-cu-cloth.jpg'}, q:'門縫下面，露出一角什麼顏色的布？',opts:['藍色','紅色','綠色'],a:1}, clue:'門縫下，露出一角紅色的布。'} ]}],
   interview:{ who:'baker', need:'concise',
     open:'那手套是我的沒錯啦！可是我今天做了三層蛋糕，先打鮮奶油、再調糖霜，還跟三個廚工聊我兒子考試的事，我整晚都在廚房沒出去過，手套我平常都放後台架子上，誰都拿得到，我真的沒有拿皇冠……',
     concise:'手套上的糖霜，是放在後台架子上沾到的，不是我戴著的時候弄的。',
@@ -885,8 +897,8 @@ const CASES=[
     parts:['阿福說沒出廚房，秀琴卻看到',{blank:'紅色影子'},'。要把「誰幾點在哪」排成',{blank:'時間軸'},'才看得清。'],
     bank:['紅色影子','時間軸','點心','一句話'] },
   scenes:[{key:'corridor',name:'走廊',img:'s2w03-corridor.jpg',desc:'連接後台與大廳的走廊。',spots:[
-    {id:'clock', label:'走廊的鐘', x:50,y:22, obs:{q:'看走廊的鐘——哪一段時間大廳附近完全沒人？',opts:['8:00–8:15','8:40–8:55','9:00–9:15'],a:1}, clue:'走廊的鐘顯示，8:40 到 8:55 之間，沒有人在大廳附近。'},
-    {id:'office',label:'辦公室門', x:78,y:60, obs:{q:'走廊底的辦公室門，看起來怎樣？',opts:['開著、燈亮著','關著、裡面黑黑的','貼著封條'],a:1}, clue:'走廊底的辦公室門關著，裡面黑黑的。'} ]}],
+    {id:'clock', label:'走廊的鐘', x:50,y:22, obs:{cu:{draw:'log'}, q:'看走廊的鐘——哪一段時間大廳附近完全沒人？',opts:['8:00–8:15','8:40–8:55','9:00–9:15'],a:1}, clue:'走廊的鐘顯示，8:40 到 8:55 之間，沒有人在大廳附近。'},
+    {id:'office',label:'辦公室門', x:78,y:60, obs:{cu:{img:'s2w03-cu-office.jpg'}, q:'走廊底的辦公室門，看起來怎樣？',opts:['開著、燈亮著','關著、裡面黑黑的','貼著封條'],a:1}, clue:'走廊底的辦公室門關著，裡面黑黑的。'} ]}],
   interview:{ who:'cleaner', need:'detail',
     open:'我就……看到紅紅的一個影子。',
     concise:'紅紅的，一下就不見了啦。',
@@ -1164,6 +1176,24 @@ function stepGate(c){ const s=el('div','screen'); s.appendChild(el('h1','serif',
     if(filled>=need){ Sfx.win(); setTimeout(()=>{ const goExp=!!(c.scenes&&c.scenes.length); const b=el('button','btn green',goExp?'看懂了！進現場查案 ▶':'看懂了！開始問話 ▶'); b.onclick=()=>{Sfx.tick();S.sub=firstStep(c);save();render();}; s.appendChild(b); try{b.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){} },300); }
     return true; });
   stage.appendChild(s); }
+/* 放大鏡近照：實體物件用生成近照圖；時間/文字用程式畫，保證跟題目對得上 */
+function closeUpEl(cu){ if(cu.img){ const w=el('div','cuwrap cuimg'); w.appendChild(pic(cu.img)); return w; }
+  const w=el('div','cuwrap cudraw');
+  if(cu.draw==='clock') w.appendChild(svgClock(cu.hour||9));
+  else if(cu.draw==='tag'){ const d=el('div','cutag'); [...(cu.text||'')].forEach(ch=>d.appendChild(el('div','tg',ch))); w.appendChild(d); }
+  else if(cu.draw==='log'){ const d=el('div','culog'); d.appendChild(el('div','loghd','🕵 走廊巡邏紀錄'));
+    [['8:00–8:15','秀琴在走廊'],['8:15–8:40','阿福在廚房'],['8:40–8:55','—　沒有人'],['8:55–9:00','老陳巡邏']].forEach(([t,wname])=>{ const r=el('div','lr'+(/沒有人/.test(wname)?' gap':'')); r.appendChild(el('span',null,t)); r.appendChild(el('span',null,wname)); d.appendChild(r); }); w.appendChild(d); }
+  return w; }
+function svgClock(hour){ const ns='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(ns,'svg'); svg.setAttribute('viewBox','0 0 100 100'); svg.setAttribute('class','cuclock');
+  const mk=(tag,at)=>{ const e=document.createElementNS(ns,tag); for(const k in at)e.setAttribute(k,at[k]); return e; };
+  svg.appendChild(mk('circle',{cx:50,cy:50,r:46,fill:'#f3ead2',stroke:'#8a6a3a','stroke-width':4}));
+  for(let i=0;i<12;i++){ const a=i*30*Math.PI/180; svg.appendChild(mk('line',{x1:50+Math.sin(a)*40,y1:50-Math.cos(a)*40,x2:50+Math.sin(a)*44,y2:50-Math.cos(a)*44,stroke:'#8a6a3a','stroke-width':2})); }
+  const ha=(hour%12)*30*Math.PI/180;
+  svg.appendChild(mk('line',{x1:50,y1:50,x2:50+Math.sin(ha)*24,y2:50-Math.cos(ha)*24,stroke:'#2a2a2a','stroke-width':5,'stroke-linecap':'round'}));
+  svg.appendChild(mk('line',{x1:50,y1:50,x2:50,y2:14,stroke:'#2a2a2a','stroke-width':3,'stroke-linecap':'round'}));
+  svg.appendChild(mk('circle',{cx:50,cy:50,r:3.5,fill:'#2a2a2a'}));
+  return svg; }
 function stepExplore(c){ S.ckFound=S.ckFound||[]; if(typeof S.ckScene!=='number')S.ckScene=0;
   const found=new Set(S.ckFound); const total=c.scenes.reduce((a,z)=>a+z.spots.length,0); const z=c.scenes[S.ckScene];
   const s=el('div','screen'); s.appendChild(el('h1','serif','🔎 蒐證：'+c.title));
@@ -1193,7 +1223,7 @@ function stepExplore(c){ S.ckFound=S.ckFound||[]; if(typeof S.ckScene!=='number'
     fc(); drawTray(); refreshLock();
     if(found.size>=total){ Sfx.win(); toast('✅ 現場都查過了！接下來去問關係人'); try{cont.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){} } }
   function openObs(sp,hs){ closeObs(); if(!sp.obs){ doFind(sp,hs); return; }
-    const p=el('div','obspanel'); p.appendChild(el('div','obsq','🔍 '+sp.obs.q));
+    const p=el('div','obspanel'); if(sp.obs.cu)p.appendChild(closeUpEl(sp.obs.cu)); p.appendChild(el('div','obsq','🔍 '+sp.obs.q));
     const ob=el('div','obsopts');
     sp.obs.opts.forEach((t,i)=>{ const b=el('button','obsopt',t);
       b.onclick=(e)=>{ e.stopPropagation();
