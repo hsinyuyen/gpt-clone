@@ -1103,30 +1103,44 @@ function scrStart(){const i=clamp(S.storyStep||0,0,STORY.length-1);const beat=ST
 let demoStep=0;
 function scrTutorial(){ renderDemo(); }
 function goWorld(){ Sfx.win(); S.owMode=true; S.phase='world'; save(); transition('阿問偵探社','用方向鍵或下方按鈕走路，去地圖上找 ❗ 案件！',1800,render); }
-/* 教學：同一問題選四種長度 → 親眼看到「太長淹沒 / 太短缺角 / 剛好發光」的差別 */
-const DEMO_Q={ ask:'先練習一次！問阿問同一個問題：「皇冠是幾點不見的？」——四種長度都點點看，你會發現只有「很短」剛剛好。',
-  answers:{
-    short:{v:'good',t:'皇冠是在 8:00 到 9:00 之間不見的。'},
-    mid:{v:'toolong',t:'管理員說他 8 點左右去看過一次，那時皇冠還在，後來他坐在門口，中間有沒有人進去不太確定，等到 9 點巡邏才發現不見了。'},
-    long:{v:'toolong',t:'管理員說他一早六點就到館裡，因為孫子發燒沒睡好、膝蓋也在痛，先泡了茶、掃了門口，八點進大廳看過皇冠還好好的、還擦了玻璃，後來坐在門口有點恍神，中間好像有人走動但沒看清楚，晚餐吃的是滷肉飯配一碗湯，一直到九點巡邏才嚇醒發現皇冠不見了……'},
-    limit:{v:'tooshort',t:'不見了。'} } };
-let demoTried={}, demoLast=null;
-function renderDemo(){ clearStage(); const s=el('div','screen');
+/* 教學：六個生活化例子——3 個「太長→精簡」＋3 個「太短→變長」，兩個方向都練到 */
+const DEMO_EX=[
+  // ── 太長 → 精簡（話太多，重點被淹沒）──
+  {kind:'long',  bad:'呃…我想跟你借那個，就是昨天你帶來、藍藍的、上面還貼了貼紙的那個鉛筆盒，你等一下如果沒有要用的話……',
+                 good:'可以借我你的鉛筆盒嗎？', why:'一堆形容詞，把「借鉛筆盒」這件事淹沒了。'},
+  {kind:'long',  bad:'我今天早上先刷牙、洗臉、吃早餐，然後找襪子找好久，出門又忘了帶書包回去拿，公車還等超久……',
+                 good:'我路上耽擱了，所以遲到了。', why:'講一長串經過，別人抓不到「你遲到了」。'},
+  {kind:'long',  bad:'我要一個有加起司、不要洋蔥、麵包要烤過、旁邊要配薯條、可樂不要冰的那種……漢堡餐。',
+                 good:'我要一份起司漢堡餐。', why:'細節太多，重點「起司漢堡餐」被埋住。'},
+  // ── 太短 → 變長（話太少，缺一角）──
+  {kind:'short', bad:'六點。', good:'我今天傍晚六點，會到你家門口找你。', why:'只有「六點」——是誰、去哪、做什麼，全都缺。'},
+  {kind:'short', bad:'不見了。', good:'我放在桌上的水壺不見了，可能被別人拿走了。', why:'什麼不見、在哪不見，缺了一角。'},
+  {kind:'short', bad:'幫我。', good:'我的數學第三題不會，你可以教我嗎？', why:'太短了，別人根本不知道要怎麼幫你。'},
+];
+let demoI=0, demoRevealed=false;
+function renderDemo(){ clearStage(); const s=el('div','screen'); const ex=DEMO_EX[demoI];
   s.appendChild(el('h1','serif','🎓 先學一招：問對「長度」'));
-  s.appendChild(awenRow('happy','同一個問題，換一種長度問，我給你的答案就完全不同。太長會淹沒重點、太短會缺一角，只有剛好才拿得到能用的線索。'));
-  const qb=el('div','askbubble');qb.innerHTML='<span class="who">問阿問</span>'+DEMO_Q.ask;s.appendChild(qb);
-  const lens=el('div','lens');
-  shuffle(LEN_ORDER).forEach(k=>{ const L=LEN[k]; const d=el('div','len'); d.style.setProperty('--c',L.c);
-    d.appendChild(el('div','g',L.g)); d.appendChild(el('div','n',L.n)); d.appendChild(el('div','s',L.s));
-    if(demoTried[k])d.appendChild(el('div','tried','試過'));
-    d.onclick=()=>{ demoTried[k]=1; demoLast=k; (DEMO_Q.answers[k].v==='good')?Sfx.ding():Sfx.pop(); renderDemo(); };
-    lens.appendChild(d); });
-  s.appendChild(lens);
-  if(demoLast){ const a=DEMO_Q.answers[demoLast]; const box=el('div','w3ans '+a.v);box.textContent=a.t;s.appendChild(box);
-    const v=el('div','w3verdict '+(a.v==='good'?'ok':'no'));
-    v.textContent=a.v==='good'?'剛好！這一句就是能用的線索。':(a.v==='toolong'?'太長了——重點被一大段話淹沒了。':'太短了——缺了一角，不夠用。'); s.appendChild(v); }
-  if(demoTried.short){ const b=el('button','btn green','學會了！出發辦案 ▶'); b.onclick=()=>{ demoTried={}; demoLast=null; goWorld(); }; s.appendChild(b); }
-  else s.appendChild(el('div','ptip','（試試看：哪一種長度，能剛好問出「幾點不見的」？）'));
+  s.appendChild(awenRow('happy','同一件事，說得太長會把重點淹沒、太短會缺一角。看看下面這句——是太長還是太短？該怎麼調到剛好？（'+(demoI+1)+' / '+DEMO_EX.length+'）'));
+  const bad=el('div','w3ans '+(ex.kind==='long'?'toolong':'tooshort')); bad.textContent='「'+ex.bad+'」'; s.appendChild(bad);
+  if(!demoRevealed){
+    s.appendChild(el('div','ivdiaglbl','這句話——是太長還是太短？'));
+    const btns=el('div','ivbtns');
+    const mk=(kind,ic,tt,ss,col)=>{ const b=el('button','ivbtn'); b.style.setProperty('--c',col);
+      b.innerHTML='<div class="ib">'+ic+'</div><div class="it">'+tt+'</div><div class="is">'+ss+'</div>';
+      b.onclick=()=>{ if(kind===ex.kind){ Sfx.ding(); demoRevealed=true; renderDemo(); } else { Sfx.pop(); toast(ex.kind==='long'?'再看看——它是不是話太多了？':'再看看——它是不是話太少了？'); } }; return b; };
+    btns.appendChild(mk('long','•','太長了','把它精簡一點','var(--len-short)'));
+    btns.appendChild(mk('short','•••','太短了','把它說詳細一點','var(--len-long)'));
+    s.appendChild(btns);
+  } else {
+    const v=el('div','w3verdict no'); v.textContent=(ex.kind==='long'?'太長了——':'太短了——')+ex.why; s.appendChild(v);
+    s.appendChild(el('div','ptip',ex.kind==='long'?'精簡成剛好 ↓':'補齊成剛好 ↓'));
+    const good=el('div','w3ans good'); good.textContent='「'+ex.good+'」'; s.appendChild(good);
+    s.appendChild(el('div','w3verdict ok','剛好！這樣才聽得懂、用得上。'));
+    const last=demoI>=DEMO_EX.length-1;
+    const b=el('button','btn green', last?'六個都練完了！出發辦案 ▶':'下一個 ▶');
+    b.onclick=()=>{ if(last){ demoI=0; demoRevealed=false; goWorld(); } else { demoI++; demoRevealed=false; Sfx.tick(); renderDemo(); } };
+    s.appendChild(b);
+  }
   stage.appendChild(s);
 }
 function mkLamp(k,name,on){const d=el('div','lamp '+k+(on?' on':''));d.innerHTML='<span class="b"></span>'+name;d.dataset.k=k;return d;}
