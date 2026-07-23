@@ -10,14 +10,22 @@
   * { margin:0; padding:0; box-sizing:border-box; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
   html,body { height:100%; overflow:hidden; background:#03111f; font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif; }
   #cv { display:block; position:fixed; inset:0; touch-action:none; }
-  .acct-badge { position:fixed; left:50%; transform:translateX(-50%); bottom:8px; z-index:5; font-size:12px; color:#8fb7d6; background:rgba(4,18,32,.9); border:1px solid #235; border-radius:999px; padding:5px 14px; display:flex; align-items:center; gap:7px; max-width:94vw; }
+  .acct-badge { position:fixed; left:50%; transform:translateX(-50%); bottom:48px; z-index:5; font-size:12px; color:#8fb7d6; background:rgba(4,18,32,.9); border:1px solid #235; border-radius:999px; padding:5px 14px; display:flex; align-items:center; gap:7px; max-width:94vw; }
   .acct-badge .dot { width:8px; height:8px; border-radius:50%; } .acct-badge .dot.ok { background:#2bd17e; box-shadow:0 0 8px #2bd17e; } .acct-badge .dot.warn { background:#ffce47; }
   .acct-badge a { color:#5bc0ff; }
+  /* 速度拉桿：老師可即時調整難易度 */
+  #spdbar { position:fixed; left:50%; transform:translateX(-50%); bottom:8px; z-index:20; display:flex; align-items:center; gap:8px; background:rgba(3,14,26,.85); border:1.5px solid rgba(124,208,255,.4); border-radius:999px; padding:5px 15px; color:#bfe6ff; font-family:"Noto Sans TC",system-ui,sans-serif; font-size:13px; font-weight:700; backdrop-filter:blur(3px); }
+  #spdbar .lb { color:#ffce47; font-weight:900; }
+  #spdbar .e { font-size:12px; color:#8fb7d6; }
+  #spdbar input[type=range] { width:min(46vw,230px); accent-color:#ffce47; cursor:pointer; height:24px; }
+  #spdbar #spdv { min-width:42px; text-align:right; color:#7cffb0; font-weight:900; }
+  @media (max-width:560px){ #spdbar{ font-size:11px; padding:4px 10px; gap:5px; } #spdbar input[type=range]{ width:42vw; } #spdbar .e{ display:none; } }
 </style>
 </head>
 <body>
 <canvas id="cv"></canvas>
 <div class="acct-badge" id="acct"><span class="dot warn"></span> 連線中…</div>
+<div id="spdbar"><span class="lb">速度</span><span class="e">慢</span><input type="range" id="spd" min="0.5" max="1.6" step="0.05"><span class="e">快</span><span id="spdv">×1</span></div>
 <script>
 /* =========================================================
    章魚軍團前哨：兩手齊發 QTE（P1U-W03 · v2）· 承 W02
@@ -307,6 +315,10 @@ const VERSION=2; // v2＝節奏拍 QTE 版（v1 彈幕版已封存成 -v1-bullet
 function defaultState(){ return { v:VERSION, phase:'cover', wave:0, waveMax:0, coins:0, done:false, pct:0, quizOK:false }; }
 // 只有一個難度：整體很寬鬆（圈慢、判定窗大、按錯不扣血、連續沒跟上會自動再放慢）
 let S=defaultState();
+/* 速度拉桿：即時調整一般拍與絕招縮圈速度（高=快=難）。獨立存檔、不進 S */
+let SPD=(function(){ try{ var v=parseFloat(localStorage.getItem('p1uw03_spd')); return (v>=0.5&&v<=1.6)?v:1; }catch(e){ return 1; } })();
+function spd(){ return SPD; }
+function setSpd(v){ SPD=Math.max(0.5,Math.min(1.6,v)); try{ localStorage.setItem('p1uw03_spd',SPD); }catch(e){} }
 const N_WAVE=4; // 3 波先鋒 + 1 隊長
 function overallPct(){ if(S.done) return 1; return clamp(S.waveMax/N_WAVE,0,1); }
 const SKEY=(function(){ // 存檔鍵綁使用者：共用電腦時下一位學生不會繼承上一位的進度
@@ -577,10 +589,10 @@ function targetRad(){ return Math.min(mwh()*0.088, 74); }
 function beatRad(p){ return lerp(mwh()*0.22, targetRad(), clamp(p,0,1)); }
 function beatSpots(){ const B=st.boss, r=B.sz*0.30; return [ {x:B.x,y:B.y-r}, {x:B.x-r*1.05,y:B.y+r*0.12}, {x:B.x+r*1.05,y:B.y+r*0.12}, {x:B.x,y:B.y+r} ]; }
 function spawnBeat(){ if(!st.tut && st.bi>=st.beats.length){ roundClear(); return; }
-  const mv=st.tut?TUT[st.ti].mv:st.beats[st.bi];
+  const mv=st.tut?(st.ti<TUT.length?TUT[st.ti].mv:st.tutMv):st.beats[st.bi];
   const sp=beatSpots(); let i=Math.floor(Math.random()*sp.length); if(i===st.lastSpot) i=(i+1)%sp.length; st.lastSpot=i;
   const pad=targetRad()*2.2;
-  st.beat={ mv, x:clamp(sp[i].x,pad,W-pad), y:clamp(sp[i].y,H*0.26,H-pad), t0:now(), dur:st.ringMs, resolved:false };
+  st.beat={ mv, x:clamp(sp[i].x,pad,W-pad), y:clamp(sp[i].y,H*0.26,H-pad), t0:now(), dur:st.ringMs/spd(), resolved:false };
   Sfx.cue(); }
 function beatP(){ const b=st.beat; return b?(now()-b.t0)/b.dur:0; }
 function beatInWin(){ const b=st.beat; if(!b) return false; const p=beatP(); return p>=1-st.cfg.win && p<=1+LATE; }
@@ -644,12 +656,16 @@ const TUT=[
  { mv:'heavy', why:P('為什麼：用力打一次可以打掉兩格血','ㄨㄟˋ ㄕㄜˊ ㄇㄜ˙ ㄩㄥˋ ㄌㄧˋ ㄉㄚˇ ㄧˊ ㄘˋ ㄎㄜˇ ㄧˇ ㄉㄚˇ ㄉㄧㄠˋ ㄌㄧㄤˇ ㄍㄜˊ ㄒㄩㄝˋ') },
  { mv:'magic', why:P('為什麼：魔法很強，滾輪往前才放得出來','ㄨㄟˋ ㄕㄜˊ ㄇㄜ˙ ㄇㄛˊ ㄈㄚˇ ㄏㄣˇ ㄑㄧㄤˊ ㄍㄨㄣˇ ㄌㄨㄣˊ ㄨㄤˇ ㄑㄧㄢˊ ㄘㄞˊ ㄈㄤˋ ㄉㄜˊ ㄔㄨ ㄌㄞˊ') },
 ];
+const TUT_MOVES=['atk','block','heavy','magic'];
+const TUT_TOTAL=16;
 function initTut(){ st.tut=true; st.ti=0; st.tdone=0; st.php=PLAYER_HP; st.combo=0; st.flash=null; st.lockUntil=0; st.lastSpot=-1;
-  st.cfg={ ...WAVES[0], win:0.62, gap:700 }; st.ringMs=3600;
+  st.cfg={ ...WAVES[0], win:0.62, gap:700 }; st.ringMs=3600; st.tutMv='atk';
   st.boss=makeBoss(WAVES[0]); st.beat=null; st.nextAt=now()+650; }
 function tutPass(){ Sfx.win(); st.flash={col:'#ffe27a',until:now()+340};
-  if(st.ti>=TUT.length-1){ st.tdone=now()+1400; popText(W/2,H*0.30,'四招都學會了！','#7cffb0',1.4); return; }
-  st.ti++; st.nextAt=now()+800; }
+  if(st.ti>=TUT_TOTAL-1){ st.tdone=now()+1400; popText(W/2,H*0.30,'全部練完了！','#7cffb0',1.4); return; }
+  st.ti++;
+  if(st.ti>=TUT.length){ st.tutMv=pick(TUT_MOVES); st.ringMs=3200; }   // 進入練習段：隨機出招、稍微加速
+  st.nextAt=now()+700; }
 function tutBanner(){ const w=Math.min(W*0.94,980), h=Math.min(H*0.235,190), y=H*0.015; return {x:W/2-w/2, y, w, h}; }
 const ST_TUT={ update(evs){
     if(st.tdone){ if(now()>=st.tdone) goPhase('wave',0); return; }
@@ -657,14 +673,23 @@ const ST_TUT={ update(evs){
     if(beatP()>1+LATE){ beatMiss(); return; }
     for(const e of evs){ const a=mouseActOf(e); if(a) judgeBeat(a); if(!st.beat) return; } },
   draw(){ seaBg(); drawCover('seabed',0.45); drawBoss(); drawBeat(); drawPov(); drawFx(); drawFlash();
-    const T=TUT[st.ti], mv=MOVES[T.mv], bn=tutBanner();
+    const teach=st.ti<TUT.length; const mvk=teach?TUT[st.ti].mv:st.tutMv; const mv=MOVES[mvk]; const bn=tutBanner();
     ctx.save(); rr(bn.x,bn.y,bn.w,bn.h,18); ctx.fillStyle='rgba(3,14,26,.88)'; ctx.fill(); ctx.strokeStyle='rgba(124,208,255,.5)'; ctx.lineWidth=2.5; ctx.stroke(); ctx.restore();
-    drawRuby(STEP_LBL[st.ti].concat(mv.label), W/2, bn.y+bn.h*0.24, Math.min(38,W*0.05,H*0.052), '#fff');
-    drawRuby(T.why,  W/2, bn.y+bn.h*0.55, Math.min(24,W*0.031,H*0.034), '#ffd75e');
-    drawRuby(mv.how, W/2, bn.y+bn.h*0.82, Math.min(24,W*0.031,H*0.034), '#bfe6ff');
-    drawMoveCard(T.mv, bn.y+bn.h+Math.min(16,H*0.022));
-    const dotY=bn.y+bn.h+Math.min(16,H*0.022)+moveCardH()+Math.min(20,H*0.026);
-    for(let i=0;i<TUT.length;i++){ ctx.fillStyle=i<st.ti?'#7cffb0':i===st.ti?'#ffce47':'#3a5872'; ctx.beginPath(); ctx.arc(W/2-(TUT.length-1)*14+i*28, dotY, 6,0,7); ctx.fill(); }
+    if(teach){
+      drawRuby(STEP_LBL[st.ti].concat(mv.label), W/2, bn.y+bn.h*0.24, Math.min(38,W*0.05,H*0.052), '#fff');
+      drawRuby(TUT[st.ti].why, W/2, bn.y+bn.h*0.55, Math.min(24,W*0.031,H*0.034), '#ffd75e');
+      drawRuby(mv.how, W/2, bn.y+bn.h*0.82, Math.min(24,W*0.031,H*0.034), '#bfe6ff');
+    } else {
+      drawRuby(P('練習！','ㄌㄧㄢˋ ㄒㄧˊ').concat(mv.label), W/2, bn.y+bn.h*0.26, Math.min(38,W*0.05,H*0.052), '#fff');
+      drawRuby(P('兩隻手一起做，多練幾次就熟了','ㄌㄧㄤˇ ㄓ ㄕㄡˇ ㄧˋ ㄑㄧˇ ㄗㄨㄛˋ ㄉㄨㄛ ㄌㄧㄢˋ ㄐㄧˇ ㄘˋ ㄐㄧㄡˋ ㄕㄡˊ ㄌㄜ˙'), W/2, bn.y+bn.h*0.56, Math.min(22,W*0.03,H*0.032), '#ffd75e');
+      drawRuby(mv.how, W/2, bn.y+bn.h*0.82, Math.min(24,W*0.031,H*0.034), '#bfe6ff');
+    }
+    drawMoveCard(mvk, bn.y+bn.h+Math.min(16,H*0.022));
+    const barY=bn.y+bn.h+Math.min(16,H*0.022)+moveCardH()+Math.min(18,H*0.024);
+    const bw=Math.min(W*0.5,360), bx=W/2-bw/2, bh=Math.min(9,H*0.013);
+    ctx.save(); rr(bx,barY,bw,bh,bh/2); ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fill();
+    rr(bx,barY,Math.max(bh,bw*(st.ti+1)/TUT_TOTAL),bh,bh/2); ctx.fillStyle='#7cffb0'; ctx.fill(); ctx.restore();
+    ctx.save(); ctx.font='900 '+Math.min(15,Math.max(11,W*0.022))+'px system-ui'; ctx.fillStyle='#9fc4e0'; ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText((st.ti+1)+' / '+TUT_TOTAL, W/2, barY+bh+Math.min(7,H*0.01)); ctx.restore();
     if(TOUCH) drawKeypad();
     if(st.tdone){ ctx.save(); ctx.fillStyle='rgba(3,17,31,.45)'; ctx.fillRect(0,0,W,H); ctx.restore();
       drawRuby(P('學會了！先鋒來了！','ㄒㄩㄝˊ ㄏㄨㄟˋ ㄌㄜ˙ ㄒㄧㄢ ㄈㄥ ㄌㄞˊ ㄌㄜ˙'), W/2, H*0.44, Math.min(34,W*0.07), '#7cffb0'); } } };
@@ -855,13 +880,14 @@ const ULT_TOKENS={
   click:{ kind:'mouse', mouse:'click' }, right:{ kind:'mouse', mouse:'right' },
   dbl:{ kind:'mouse', mouse:'dbl' }, scroll:{ kind:'mouse', mouse:'scroll' },
 };
-function ultStepMs(){ return 2600; }                 // 每一步的時間（加長，小朋友找得到鍵）
+function ultStepMs(){ return 2600/spd(); }                 // 每一步的時間（加長，小朋友找得到鍵）
 const ULT_WARN_MS=2600;                              // 預告：先讓他們看清楚要按什麼
 // 先進「預告」：XXX 的絕招要來了！請照順序按 ○○○ 閃躲
 function startUlt(){ const cfg=st.cfg;
   st.beat=null;                                      // 大招期間普通拍停下
+  const _warnMs=ULT_WARN_MS/spd();
   st.ult={ seq:cfg.ultSeq.slice(), idx:0, t0:now(), stepMs:ultStepMs(), bad:0, done:0,
-           warnUntil:now()+ULT_WARN_MS };
+           warnMs:_warnMs, warnUntil:now()+_warnMs };
   shake(10,420); Sfx.tone(140,0.5,'sawtooth',0.06); Sfx.cue();
   popText(W/2,H*0.26,'絕招要來了！','#ff6b6b',1.6); }
 function ultWarning(){ const u=st.ult; return !!(u && u.warnUntil && now()<u.warnUntil); }
@@ -923,7 +949,7 @@ function drawUlt(){ const u=st.ult; if(!u) return;
     drawRuby(P('一個一個按，不用按著','ㄧˊ ㄍㄜˋ ㄧˊ ㄍㄜˋ ㄢˋ ㄅㄨˊ ㄩㄥˋ ㄢˋ ㄓㄜ˙'),
       W/2, H*0.245, Math.min(19,W*0.028,H*0.027), '#cfe8ff');
     // 預告倒數
-    const wf=clamp((u.warnUntil-now())/ULT_WARN_MS,0,1);
+    const wf=clamp((u.warnUntil-now())/(u.warnMs||ULT_WARN_MS),0,1);
     const ww=Math.min(W*0.5,420), wx=W/2-ww/2, wy=H*0.285, wh=Math.min(10,H*0.014);
     ctx.save(); rr(wx,wy,ww,wh,wh/2); ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fill();
     rr(wx,wy,Math.max(wh,ww*wf),wh,wh/2); ctx.fillStyle='#ff6b6b'; ctx.fill(); ctx.restore();
@@ -1039,8 +1065,17 @@ function boot(){ bootT=now();
   (async()=>{ try{ const cloud=await Account.load(); if(cloud && (cloud.waveMax||0)>(S.waveMax||0)){ const ph=S.phase; S=cloud; S.phase=DISPATCH[ph]?ph:'cover'; } }catch(e){} })(); }
 boot();
 
+/* 速度拉桿：老師即時調整一般拍與絕招縮圈速度（高=快=難） */
+(function(){ var el=document.getElementById('spd'), v=document.getElementById('spdv'), bar=document.getElementById('spdbar'); if(!el) return;
+  var fmt=function(){ return '×'+(Math.round(SPD*100)/100); };
+  el.value=SPD; v.textContent=fmt();
+  el.addEventListener('input',function(){ setSpd(parseFloat(el.value)); v.textContent=fmt(); });
+  ['pointerdown','pointerup','mousedown','mouseup','click','wheel','contextmenu','touchstart','touchend'].forEach(function(t){ bar.addEventListener(t,function(e){ e.stopPropagation(); }); });
+})();
+
 /* ---------- 測試接口（免截圖驗證） ---------- */
 window.W3={ S:()=>S, st:()=>st, phase:(p,x)=>goPhase(p,x), wave:(n)=>goPhase('wave',n),
+  spd:()=>SPD, setSpd:(v)=>setSpd(v), TUT_TOTAL:()=>TUT_TOTAL, ultStepMs:()=>ultStepMs(),
   ev:(e)=>evQ.push(e), frame:()=>frame1(), setWH:(w,h)=>{ W=w; H=h; }, TOUCH,
   hold:(k,v)=>{ held[k]=v?1:0; }, held:()=>({...held}), keyHeld:(k)=>keyHeld(k),
   mode:()=>st.mode, ti:()=>st.ti, hp:()=>st.hp, php:()=>st.php, combo:()=>st.combo,
