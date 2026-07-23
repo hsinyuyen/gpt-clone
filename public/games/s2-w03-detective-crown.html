@@ -67,8 +67,8 @@
   .paper.evidence{border:2px solid var(--good);}
   .stampSolved{position:absolute;top:8px;right:10px;transform:rotate(-14deg);border:3px solid #d4453e;color:#d4453e;font-weight:900;font-size:20px;padding:3px 12px;border-radius:8px;letter-spacing:3px;opacity:.85;font-family:serif;}
   /* 場景插圖框 */
-  .scene{width:min(100%,460px);aspect-ratio:1/1;border-radius:20px;overflow:hidden;position:relative;box-shadow:0 12px 30px rgba(0,0,0,.4);border:2px solid rgba(255,207,92,.35);background:linear-gradient(160deg,#1c3d5f,#0f2136);}
-  .scene .img,.scene .img img{width:100%;height:100%;}
+  .scene{width:min(100%,760px);aspect-ratio:7/4;border-radius:20px;overflow:hidden;position:relative;box-shadow:0 16px 40px rgba(0,0,0,.5);border:2px solid rgba(255,207,92,.35);background:linear-gradient(160deg,#1c3d5f,#0f2136);}
+  .scene .img,.scene .img img{width:100%;height:100%;} .scene .img img{object-fit:cover;}
   .scene.small{width:120px;aspect-ratio:1/1;border-radius:14px;}
   /* 三要素儀表燈 */
   .gauge{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;}
@@ -103,7 +103,7 @@
   .sectlbl{align-self:stretch;max-width:640px;margin:2px auto 0;font-size:14.5px;font-weight:900;color:var(--gold);letter-spacing:.5px;}
   .scene.mid{width:min(88%,320px);}
   /* 案發現場：可點擊熱點（在場景圖上找線索） */
-  .scene.invest{width:min(100%,440px);cursor:crosshair;}
+  .scene.invest{width:min(100%,760px);cursor:crosshair;}
   .hotspot{position:absolute;transform:translate(-50%,-50%);background:none;border:0;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;z-index:3;}
   .hotspot .lens{position:relative;width:40px;height:40px;border-radius:50%;background:rgba(255,207,92,.94);color:#2a1c00;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px rgba(255,207,92,.35),0 3px 9px rgba(0,0,0,.45);}
   .hotspot .ring{position:absolute;top:20px;left:50%;width:40px;height:40px;border-radius:50%;border:3px solid var(--gold);transform:translate(-50%,-50%);animation:hspulse 1.5s ease-out infinite;}
@@ -599,7 +599,7 @@
     .fmtbubble{flex-basis:calc(50% - 6px);padding:15px 17px;} .fmtbubble .fi{width:50px;height:50px;} .fmtbubble .fn{font-size:19px;} .fmtbubble .fd{font-size:14px;}
     .tutfmt{padding:13px 16px;} .tutfmt .tt{font-size:17px;} .tutfmt .tt b{font-size:19px;} .tutfmt .eg{font-size:14px;} .tutfmt .fi{width:50px;height:50px;}
     .btn{font-size:22px;padding:17px 38px;}
-    .scene,.scene.invest{max-width:840px;}
+    .scene,.scene.invest{width:min(100%,960px);max-width:960px;}
     .invrow{max-width:900px !important;} .invbtn{font-size:17px;padding:12px 19px;}
     .invstage{max-width:900px !important;} .invnote{font-size:17.5px;} .invtitle{font-size:17px;} .countfig{font-size:38px;} .countnum b{font-size:26px;}
     .findcount{font-size:18px;}
