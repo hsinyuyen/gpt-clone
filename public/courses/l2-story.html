@@ -6,6 +6,7 @@
 <title>第 2 堂 · 你的故事｜AI 繪本工作坊</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="/courses/zhuyin.js"></script>
 <style>
   :root{
     --paper:#fdf6ec; --ink:#3a2f27; --muted:#7a6a5c; --line:#e7d8c4;
@@ -35,11 +36,20 @@
   .btn[disabled]{background:none;color:var(--lock);border:2px solid var(--line);box-shadow:none;cursor:not-allowed;}
   .btn.ghost{background:none;color:var(--accent);border:2px solid var(--accent);box-shadow:none;}
   .btn.wide{display:block;width:100%;text-align:center;}
-  /* 主角小卡 */
-  .heroChip{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 14px;box-shadow:var(--shadow);}
-  .heroChip img{width:54px;height:54px;border-radius:12px;object-fit:cover;background:#eee;border:1px solid var(--line);}
-  .heroChip .nm{font-weight:900;font-size:16px;}
-  .heroChip .sub{color:var(--muted);font-size:13px;}
+  /* 主角卡：圖片是主秀，一定要大 */
+  .heroChip{display:flex;align-items:center;gap:22px;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:20px 24px;box-shadow:var(--shadow);}
+  .heroChip img{width:min(44vw,220px);height:min(44vw,220px);flex:0 0 auto;border-radius:20px;object-fit:cover;
+    background:#f4ead8;border:3px solid #fff;box-shadow:0 8px 22px rgba(90,60,30,.22);}
+  .heroChip .nm{font-weight:900;font-size:clamp(24px,5vw,34px);line-height:1.2;}
+  .heroChip .sub{color:var(--muted);font-size:clamp(14px,2.6vw,16px);margin-top:6px;}
+  @media(max-width:520px){ .heroChip{flex-direction:column;text-align:center;gap:16px;padding:18px;} }
+  /* 八格機頁上方的主角提醒（也要看得到牠） */
+  .heroMini{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);
+    border-radius:18px;padding:12px 16px;box-shadow:var(--shadow);margin-bottom:12px;}
+  .heroMini img{width:96px;height:96px;flex:0 0 auto;border-radius:14px;object-fit:cover;background:#f4ead8;
+    border:3px solid #fff;box-shadow:0 5px 14px rgba(90,60,30,.2);}
+  .heroMini .nm{font-weight:900;font-size:19px;}
+  .heroMini .sub{color:var(--muted);font-size:13.5px;margin-top:3px;}
   /* 八格 */
   .machineHead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 8px;}
   .pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:800;color:var(--muted);}
@@ -67,6 +77,13 @@
   .cards{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px;}
   .cardpick{border:1px dashed var(--line);background:#fff;border-radius:10px;padding:7px 11px;font-size:13.5px;cursor:pointer;color:var(--ink);}
   .cardpick:active{background:#f3efe6;}
+  /* 低年級：點子卡（大、好點、不用打字） */
+  .pickbox{margin-top:10px;display:flex;flex-direction:column;gap:9px;}
+  .picklbl{font-size:14px;font-weight:800;color:var(--muted);}
+  .pickcard{text-align:left;background:#fff;border:2px solid var(--line);border-radius:14px;padding:14px 16px;
+    font-size:17px;line-height:1.9;font-family:inherit;color:var(--ink);cursor:pointer;box-shadow:0 2px 8px rgba(90,60,30,.1);}
+  .pickcard:hover{border-color:var(--accent);background:rgba(90,143,107,.06);}
+  .pickcard:active{transform:translateY(1px);}
   .rollbox{margin-top:10px;background:#f2f7fb;border:1px solid #d5e6f2;border-radius:12px;padding:11px 13px;}
   .rollbox .rt{font-size:15px;line-height:1.65;}
   .rollbox .rr{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap;}
@@ -84,7 +101,33 @@
   .savemsg.ok{color:var(--good);} .savemsg.warn{color:var(--warn);}
   .spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.5);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;}
   @keyframes sp{to{transform:rotate(360deg);}}
+  /* 年級入口（比照第 1 堂） */
+  .gradepick{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px;}
+  @media(max-width:560px){ .gradepick{grid-template-columns:1fr;} }
+  .gradebtn{background:var(--card);border:2px solid var(--line);border-radius:20px;padding:24px 20px;cursor:pointer;
+    font-family:inherit;text-align:center;box-shadow:var(--shadow);transition:.15s;color:var(--ink);}
+  .gradebtn:hover{border-color:var(--accent);transform:translateY(-2px);}
+  .gradebtn:active{transform:translateY(0);}
+  .gradebtn.sug{border-color:var(--accent);background:rgba(90,143,107,.08);}
+  .gradebtn .gt{font-size:26px;font-weight:900;}
+  .gradebtn .gs{color:var(--muted);font-size:14px;margin-top:4px;}
+  .gradebtn .gd{font-size:14px;margin-top:10px;line-height:1.6;}
   .gate{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px;text-align:center;box-shadow:var(--shadow);margin-top:20px;}
+  /* 讀自己的故事：拖拉填空 */
+  .qwrap{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px 22px;box-shadow:var(--shadow);}
+  .qsent{font-size:clamp(16px,3vw,19px);line-height:2.5;font-family:"Noto Serif TC",serif;}
+  .qblank{display:inline-block;min-width:104px;height:34px;vertical-align:-9px;margin:0 4px;border-bottom:3px solid var(--accent);
+    background:rgba(90,143,107,.09);border-radius:8px 8px 0 0;text-align:center;line-height:34px;font-size:16px;font-weight:800;color:var(--accent);}
+  .qblank.hot{background:rgba(90,143,107,.28);}
+  .qblank.filled{background:rgba(90,143,107,.16);color:var(--ink);}
+  .qtray{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px;padding-top:16px;border-top:1px dashed var(--line);}
+  .qchip{background:#fff;border:2px solid var(--line);border-radius:12px;padding:9px 15px;font-size:16px;font-weight:800;cursor:grab;
+    box-shadow:0 2px 6px rgba(90,60,30,.1);user-select:none;touch-action:none;color:var(--ink);}
+  .qchip.placed{opacity:.32;pointer-events:none;}
+  .qchip.nope{animation:qshake .35s;}
+  @keyframes qshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  .qchip.ghost{position:fixed;z-index:99;pointer-events:none;opacity:.92;transform:scale(1.06);box-shadow:0 8px 20px rgba(0,0,0,.25);}
+  .qtip{min-height:22px;margin-top:12px;font-size:14px;font-weight:800;color:var(--warn);}
   .demoRow{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
   .footwrap{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
 </style>
@@ -98,8 +141,27 @@
 
 <div class="wrap">
 
+  <!-- pg：先選年級（跟第 1 堂一樣的入口） -->
+  <div class="panel on" id="pg">
+    <h1>你是哪個年級？</h1>
+    <p class="lead">先選一個，這一堂會用最適合你的方式進行。</p>
+    <div class="gradepick">
+      <button class="gradebtn" data-g="high">
+        <div class="gt">高年級</div>
+        <div class="gs">小四、小五、小六</div>
+        <div class="gd">可以自己打字寫故事、AI 幫你潤稿</div>
+      </button>
+      <button class="gradebtn" data-g="low">
+        <div class="gt">低年級</div>
+        <div class="gs">小二、小三</div>
+        <div class="gd">點一點選點子、全部有注音</div>
+      </button>
+    </div>
+    <div class="note" id="gradeHint" style="display:none;"></div>
+  </div>
+
   <!-- p0：開場（顯示主角） -->
-  <div class="panel on" id="p0">
+  <div class="panel" id="p0">
     <h1>你的故事</h1>
     <p class="lead">上一堂你做好了主角。這一堂，我們用「<b>故事八格機</b>」一格一格把牠的故事編出來，最後組成一本完整的繪本存起來。</p>
     <div id="heroWrap"></div>
@@ -122,13 +184,12 @@
   <!-- p2：八格機（主任務） -->
   <div class="panel" id="p2">
     <h1>故事八格機</h1>
+    <div id="machineHero"></div>
     <p class="lead">把 8 格都填上內容（自己打字 or 骰一個）。<b>三次嘗試</b>是重頭戲——三次都不一樣、一次比一次接近成功，故事才好看！</p>
     <div class="machineHead">
       <span class="pill">填好 <b id="cntFill">0</b> / 8</span>
-      <span class="pill">自己動的格 <b id="cntSelf">0</b> / 至少 3</span>
     </div>
     <div class="slots" id="slots"></div>
-    <div class="note warn" id="thWarn" style="display:none;">很棒！不過故事幾乎都是 AI 骰的——<b>挑至少 3 格改成你自己的</b>，才算你的故事喔！</div>
     <div class="footwrap"><button class="btn wide" id="toCompose" disabled>把八格組成我的繪本 ▶</button></div>
   </div>
 
@@ -144,7 +205,20 @@
         <button class="mini" id="pgNext">下一頁 →</button>
       </div>
     </div>
-    <h2 style="margin-top:20px;">幫它取個書名</h2>
+    <div class="footwrap"><button class="btn" id="toQuiz" disabled>把每一頁都讀過，才能繼續</button></div>
+  </div>
+
+  <!-- pq：讀自己的故事 → 拖拉確認 -->
+  <div class="panel" id="pq">
+    <h1>你的故事在說什麼？</h1>
+    <p class="lead">把下面的詞拖進空格，拼出你自己的故事——拼對了，就表示你真的讀懂它了！</p>
+    <div id="quizBox"></div>
+  </div>
+
+  <!-- pt：取書名 ＋ 存檔 -->
+  <div class="panel" id="pt">
+    <h1>幫它取個書名</h1>
+    <p class="lead">選一個，或自己想一個。這個名字會印在你的繪本封面上。</p>
     <div class="titles" id="titles"></div>
     <div class="editbox"><textarea id="titleSelf" rows="1" placeholder="或自己想一個書名…"></textarea></div>
     <div class="footwrap">
@@ -171,7 +245,8 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const AST='/courses/assets/';
 function go(id){ $$('.panel').forEach(p=>p.classList.remove('on')); $('#'+id).classList.add('on'); window.scrollTo(0,0);
-  const map={p0:'',p1:'暖身',p2:'第 1 步／填八格',p3:'第 2 步／組成',p4:'完成'}; $('#stepTag').textContent=map[id]||''; }
+  const map={p0:'',p1:'暖身',p2:'第 1 步／填八格',p3:'第 2 步／讀自己的繪本',pq:'第 3 步／拼出你的故事',pt:'第 4 步／取書名',p4:'完成'};
+  $('#stepTag').textContent=map[id]||''; }
 
 /* ---------- 帳號（讀 L1 主角、寫 L2 故事到同一份 picturebook/main） ---------- */
 const FB={apiKey:"AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78",authDomain:"gpt-clone-68b9f.firebaseapp.com",projectId:"gpt-clone-68b9f",storageBucket:"gpt-clone-68b9f.firebasestorage.app",messagingSenderId:"436942056069",appId:"1:436942056069:web:8762675dfff7b7e92017ec"};
@@ -180,11 +255,15 @@ const Account=(()=>{ let uid=null,uname='',db=null,ready=false;
   function init(){ const u=su(); if(u&&u.id){ uid=u.id; uname=u.displayName||u.username||''; }
     if(uid&&window.firebase){ try{ if(!firebase.apps.length)firebase.initializeApp(FB); db=firebase.firestore(); ready=true; }catch(e){} } }
   async function loadMain(){ if(!ready)return null; try{ const s=await db.collection('users').doc(uid).collection('picturebook').doc('main').get(); return s.exists?s.data():null; }catch(e){ return null; } }
+  // 編到一半的八格也存進資料庫（換裝置／換電腦都能接回來，不只存在這台的 localStorage）
+  async function saveProgress(slots){ if(!ready)return;
+    try{ await db.collection('users').doc(uid).collection('picturebook').doc('main')
+      .set({ l2Progress:{ slots, updatedAt:new Date().toISOString() } },{merge:true}); }catch(e){} }
   async function saveStory(story){ if(!ready)throw new Error('not-ready');
     await db.collection('users').doc(uid).collection('picturebook').doc('main')
       .set({ lesson:'l2', storyTitle:story.title, story, storyUpdatedAt:new Date().toISOString() },{merge:true}); }
   init();
-  return { get ready(){return ready;}, get uid(){return uid;}, get name(){return uname;}, loadMain, saveStory }; })();
+  return { get ready(){return ready;}, get uid(){return uid;}, get name(){return uname;}, loadMain, saveStory, saveProgress }; })();
 
 /* ---------- 八格定義 ---------- */
 const SLOTS=[
@@ -211,16 +290,23 @@ const IDEAS={
 
 /* ---------- 狀態 ---------- */
 let state={ grade:'high', char:{}, slots:{} }; // slots[key]={text,source}
+const lastRoll={}; // 每格「上一次骰出但還沒採用」的句子，重骰時一併避開，避免骰到很像的內容
 let PROG_KEY='l2:story-progress';
 function progUid(){ return Account.uid||'anon'; }
-function saveProgress(){ try{ localStorage.setItem(PROG_KEY, JSON.stringify({ v:1, uid:progUid(), slots:state.slots })); }catch(e){} }
+let _progT=null;
+function saveProgress(){
+  try{ localStorage.setItem(PROG_KEY, JSON.stringify({ v:1, uid:progUid(), slots:state.slots })); }catch(e){}
+  // 同步寫進資料庫（去彈跳：連續操作只寫最後一次）
+  if(Account.ready){ clearTimeout(_progT); _progT=setTimeout(()=>Account.saveProgress(state.slots),800); }
+}
+function filledCount(o){ return Object.keys(o||{}).filter(k=>o[k]&&o[k].text).length; }
 function loadProgress(){ try{ const d=JSON.parse(localStorage.getItem(PROG_KEY)||'null'); if(d&&d.uid===progUid()&&d.slots)return d.slots; }catch(e){} return null; }
 function clearProgress(){ try{ localStorage.removeItem(PROG_KEY); }catch(e){} }
 
 /* ---------- 主角小卡 / 開場 ---------- */
 function renderHero(){
   const c=state.char, w=$('#heroWrap');
-  if(!c||!c.name){ w.innerHTML='<div class="gate"><img src="'+AST+'pb-l2.png" alt="" style="width:150px;border-radius:14px;box-shadow:var(--shadow);"><h2 style="margin-top:14px;">還沒有主角</h2>'+
+  if(!c||!c.name){ w.innerHTML='<div class="gate"><img src="'+AST+'pb-l2.png" alt="" style="width:min(72vw,300px);border-radius:20px;box-shadow:var(--shadow);"><h2 style="margin-top:16px;">還沒有主角</h2>'+
     '<p class="lead">要先上完<b>第 1 堂・認識你的主角</b>，才有主人翁來編故事喔。</p>'+
     '<a class="btn" href="/courses/l1-character.html">去做我的主角</a></div>';
     $('#toWarm').style.display='none'; return; }
@@ -237,9 +323,16 @@ async function callStory(payload){
   const r=await fetch('/api/picturebook-story',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify(Object.assign({grade:state.grade,character:charForApi()},payload))});
   if(!r.ok) throw new Error('http '+r.status);
-  return r.json();
+  const j=await r.json();
+  // 低年級：AI 會連同它用到的字回傳注音，合併進字典後重畫，才不會有字沒注音
+  if(state.grade==='low' && j && j.zy && typeof zyAddDict==='function'){ zyAddDict(j.zy); }
+  return j;
 }
+function zyTouch(){ if(state.grade==='low' && typeof zyRefresh==='function') zyRefresh(); }
 function charForApi(){ const c=state.char||{}; return {name:c.name,species:c.species,color:c.color,like:c.like,skill:c.skill}; }
+/* 其他格目前的內容——審核／寫順都要拿到，才能判斷有沒有跟別格重複或矛盾 */
+function filledCtx(exceptKey){ return SLOTS.filter(s=>s.key!==exceptKey && state.slots[s.key] && state.slots[s.key].text)
+  .map(s=>({key:s.key,label:s.lab,text:state.slots[s.key].text})); }
 function rnd(a){ return a[Math.floor(Math.random()*a.length)]; }
 async function rollSlot(def, avoid){
   try{
@@ -263,14 +356,21 @@ $('#demoDice').onclick=async()=>{
 function selfCount(){ return SLOTS.filter(s=>{const v=state.slots[s.key];return v&&v.text&&(v.source==='self'||v.source==='edited');}).length; }
 function fillCount(){ return SLOTS.filter(s=>state.slots[s.key]&&state.slots[s.key].text).length; }
 function refreshHead(){
-  const fc=fillCount(), sc=selfCount();
-  $('#cntFill').textContent=fc; $('#cntSelf').textContent=sc;
-  const ready=(fc>=8 && sc>=3);
-  $('#toCompose').disabled=!ready;
-  $('#thWarn').style.display=(fc>=8 && sc<3)?'block':'none';
-  $('#toCompose').textContent = (fc>=8&&sc<3) ? '先挑 3 格改成你的' : '把八格組成我的繪本 ▶';
+  // 不再要求「至少 3 格自己寫」；8 格填滿就能組成，理解由最後的拖拉題把關
+  const fc=fillCount();
+  $('#cntFill').textContent=fc;
+  $('#toCompose').disabled=(fc<8);
+}
+/* 八格機頁上方也放主角（寫故事時一直看得到牠是誰） */
+function renderMachineHero(){
+  const c=state.char||{}, box=$('#machineHero'); if(!box)return;
+  if(!c.name){ box.innerHTML=''; return; }
+  const img=c.imageData?('<img src="'+c.imageData+'" alt="">'):('<img src="'+AST+'pb-l2.png" alt="">');
+  box.innerHTML='<div class="heroMini">'+img+'<div><div class="nm">'+esc(c.name)+' 的故事</div>'+
+    '<div class="sub">'+[c.species,c.color,c.skill?('會'+c.skill):''].filter(Boolean).map(esc).join('・')+'</div></div></div>';
 }
 function renderSlots(){
+  renderMachineHero();
   const wrap=$('#slots'); wrap.innerHTML='';
   SLOTS.forEach((def)=>{
     const v=state.slots[def.key]||{text:'',source:''};
@@ -283,14 +383,17 @@ function renderSlots(){
       '<div class="sh"><span class="lab">'+def.lab+'</span><span class="hint">'+esc(def.hint)+'</span>'+tag+'</div>'+
       '<div class="txt'+(v.text?'':' empty')+'">'+(v.text?esc(v.text):'還沒填…')+'</div>'+
       '<div class="acts">'+
-        '<button class="mini p" data-act="edit">自己打字</button>'+
-        '<button class="mini dice" data-act="dice">'+(v.text?'重骰一個':'骰一個')+'</button>'+
-        ((def.twist&&v.text)?'<button class="mini" data-act="whatif">換一個試試</button>':'')+
+        (state.grade==='low'
+          ? '<button class="mini p" data-act="pick">'+(v.text?'換一個':'選一個點子')+'</button>'   // 低年級：只用點的
+          : '<button class="mini p" data-act="edit">'+(v.text?'修改':'自己打字')+'</button>'+
+            '<button class="mini dice" data-act="dice">'+(v.text?'重骰一個':'骰一個')+'</button>'+
+            ((def.twist&&v.text)?'<button class="mini" data-act="whatif">換一個試試</button>':''))+
       '</div>'+
       '<div class="slotwork"></div>';
     // 事件
-    el.querySelector('[data-act="edit"]').onclick=()=>openEdit(def, el);
-    el.querySelector('[data-act="dice"]').onclick=()=>doDice(def, el);
+    const pk=el.querySelector('[data-act="pick"]'); if(pk) pk.onclick=()=>doPick(def, el);
+    const ed=el.querySelector('[data-act="edit"]'); if(ed) ed.onclick=()=>openEdit(def, el);
+    const dc=el.querySelector('[data-act="dice"]'); if(dc) dc.onclick=()=>doDice(def, el);
     const wif=el.querySelector('[data-act="whatif"]'); if(wif) wif.onclick=()=>doDice(def, el, true);
     wrap.appendChild(el);
   });
@@ -313,28 +416,73 @@ function openEdit(def, el, prefill){
     '</div><div class="savemsg" data-msg></div></div>';
   const ta=work.querySelector('textarea'); ta.focus();
   work.querySelectorAll('.cardpick').forEach(b=>b.onclick=()=>{ ta.value=(IDEAS[def.key]||[])[+b.dataset.i]; });
-  work.querySelector('[data-act="ok"]').onclick=()=>{
+  // 自己打的內容要先給「AI 故事老師」看過（骰出來沒改的不用審）
+  let tries=0; // 只用來在卡住時提示可以按「骰一個」找靈感，沒有跳過的選項
+  const okBtn=work.querySelector('[data-act="ok"]'), msgEl=work.querySelector('[data-msg]');
+  okBtn.onclick=async()=>{
     const t=ta.value.trim(); if(!t){ ta.focus(); return; }
     // source：本來是 AI、內容沒改 → 仍算 ai；改過或自己打 → 算你寫的
     const prev=state.slots[def.key]||{};
     const src=(prev.source==='ai' && t===prev.text) ? 'ai' : (prev.source==='ai' ? 'edited' : 'self');
-    setSlot(def.key, t, src);
+    if(src==='ai'){ setSlot(def.key, t, src); return; }
+    okBtn.disabled=true; const old=okBtn.textContent; okBtn.innerHTML='<span class="spin" style="border-color:rgba(0,0,0,.2);border-top-color:#5a8f6b;"></span> 老師看看…';
+    msgEl.className='savemsg'; msgEl.textContent='';
+    let r=null;
+    try{ r=await Promise.race([ callStory({mode:'review',slot:{key:def.key,label:def.lab,hint:def.hint,text:t},filled:filledCtx(def.key)}),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),12000)) ]); }catch(e){ r=null; }
+    okBtn.disabled=false; okBtn.textContent=old;
+    if(!r || r.pass!==false){ // 通過，或 AI 掛掉／逾時 → 一律放行，不擋小孩
+      if(r&&r.praise){ msgEl.className='savemsg ok'; msgEl.textContent='✓ '+r.praise; setTimeout(()=>setSlot(def.key,t,src),750); }
+      else setSlot(def.key,t,src);
+      return; }
+    tries++;
+    msgEl.className='savemsg warn';
+    msgEl.textContent='故事老師：'+(r.hint||'這一格好像不是寫這個喔，再看看上面的說明～')
+      + (tries>=2 ? '（想不出來的話，按「骰一個」看看點子，再改成你自己的！）' : '');
+    ta.focus();
   };
   const sm=work.querySelector('[data-act="smooth"]'); if(sm) sm.onclick=async()=>{
     const t=ta.value.trim(); if(!t){ ta.focus(); return; }
-    sm.disabled=true; sm.innerHTML='<span class="spin"></span>';
-    try{ const j=await callStory({mode:'rewrite',slot:{key:def.key,label:def.lab,text:t}}); if(j&&j.text) ta.value=j.text; }catch(e){ work.querySelector('[data-msg]').textContent='寫順失敗，先用你自己的也很好。'; }
+    sm.disabled=true; sm.innerHTML='<span class="spin" style="border-color:rgba(0,0,0,.2);border-top-color:#5a8f6b;"></span>';
+    msgEl.className='savemsg'; msgEl.textContent='';
+    try{
+      const j=await callStory({mode:'rewrite',slot:{key:def.key,label:def.lab,hint:def.hint,text:t},filled:filledCtx(def.key)});
+      if(j&&j.needIdea){ // 看不出任何想法 → 不幫他編，請他先寫一點
+        msgEl.className='savemsg warn'; msgEl.textContent='故事老師：先寫一點點你自己的想法，老師才知道要怎麼幫你順喔！'; }
+      else if(j&&j.text){ ta.value=j.text; msgEl.className='savemsg ok';
+        msgEl.textContent=(j.note?('幫你順好了：'+j.note+'。'):'幫你順好了，')+'看看喜不喜歡，也可以再自己改。'; }
+    }catch(e){ msgEl.className='savemsg warn'; msgEl.textContent='寫順失敗，先用你自己的也很好。'; }
     sm.disabled=false; sm.innerHTML='幫我寫順';
   };
   work.querySelector('[data-act="cancel"]').onclick=()=>{ work.innerHTML=''; };
 }
 
+/* 低年級：一次給 3 張點子卡，用點的選，完全不用打字 */
+async function doPick(def, el){
+  const work=el.querySelector('.slotwork');
+  work.innerHTML='<div class="rollbox"><div class="rt"><span class="spin" style="border-color:rgba(0,0,0,.2);border-top-color:#5b8fb9;"></span> 想點子中…</div></div>';
+  const avoid=[]; const cur=(state.slots[def.key]||{}).text; if(cur)avoid.push(cur);
+  if(def.tryslot) ['try1','try2','try3'].filter(k=>k!==def.key).forEach(k=>{ const t=(state.slots[k]||{}).text; if(t)avoid.push(t); });
+  let opts=[];
+  try{ const j=await callStory({mode:'options',slot:{key:def.key,label:def.lab,hint:def.hint},filled:filledCtx(def.key),avoid});
+       opts=(j&&j.options)||[]; }catch(e){ opts=[]; }
+  if(!opts.length) opts=(IDEAS[def.key]||[]).slice(0,3);   // 後援：本地點子庫
+  const box=document.createElement('div'); box.className='pickbox';
+  const lbl=document.createElement('div'); lbl.className='picklbl'; lbl.textContent='點一張你喜歡的：'; box.appendChild(lbl);
+  opts.forEach(t=>{ const c=document.createElement('button'); c.className='pickcard'; c.textContent=t;
+    c.onclick=()=>setSlot(def.key,t,'ai'); box.appendChild(c); });
+  const again=document.createElement('button'); again.className='mini'; again.style.marginTop='8px';
+  again.textContent='都不喜歡，換 3 個'; again.onclick=()=>doPick(def,el); box.appendChild(again);
+  work.innerHTML=''; work.appendChild(box); zyTouch();
+}
 async function doDice(def, el, whatif){
   const work=el.querySelector('.slotwork');
   const avoid = def.tryslot ? ['try1','try2','try3'].filter(k=>k!==def.key).map(k=>(state.slots[k]||{}).text).filter(Boolean) : [];
-  if(whatif && (state.slots[def.key]||{}).text) avoid.push(state.slots[def.key].text);
+  // 重骰時把「目前這一句」也排除，否則會一直骰到很像的內容
+  const cur=(state.slots[def.key]||{}).text; if(cur) avoid.push(cur);
+  if(lastRoll[def.key]) avoid.push(lastRoll[def.key]);
   work.innerHTML='<div class="rollbox"><div class="rt"><span class="spin" style="border-color:rgba(0,0,0,.2);border-top-color:#5b8fb9;"></span> 骰中…</div></div>';
-  const t=await rollSlot(def, avoid);
+  const t=await rollSlot(def, avoid); lastRoll[def.key]=t;
   work.innerHTML='<div class="rollbox"><div class="rt">'+esc(t)+'</div>'+
     (whatif?'<div class="tmpl" style="margin-top:6px;">看！換一個，整個故事就會不一樣～</div>':'')+
     '<div class="rr">'+
@@ -356,13 +504,90 @@ $('#toCompose').onclick=async()=>{
     const j=await callStory({mode:'compose',slots});
     pages=(j.pages||[]).map(p=>p.text); storyTitles=j.titles||[];
     if(!pages.length) throw new Error('no-pages');
-    pgIdx=0; renderBook(); renderTitles(); go('p3');
+    pgIdx=0; seenPages.clear(); quizData=null; renderBook(); go('p3');
   }catch(e){ b.disabled=false; b.textContent=old; alert('組成沒成功，網路或 AI 忙線，稍等再按一次。'); }
 };
+const seenPages=new Set();
 function renderBook(){ $('#bookPage').textContent=pages[pgIdx]||''; $('#pgNum').textContent=(pgIdx+1)+' / '+pages.length;
-  $('#pgPrev').disabled=pgIdx<=0; $('#pgNext').disabled=pgIdx>=pages.length-1; }
+  $('#pgPrev').disabled=pgIdx<=0; $('#pgNext').disabled=pgIdx>=pages.length-1;
+  seenPages.add(pgIdx); // 每一頁都翻過才放行——先讀，才考
+  const all=seenPages.size>=pages.length, b=$('#toQuiz');
+  b.disabled=!all; b.textContent=all?'讀完了，來拼拼看 ▶':('把每一頁都讀過，才能繼續（還差 '+(pages.length-seenPages.size)+' 頁）'); }
 $('#pgPrev').onclick=()=>{ if(pgIdx>0){pgIdx--;renderBook();} };
 $('#pgNext').onclick=()=>{ if(pgIdx<pages.length-1){pgIdx++;renderBook();} };
+/* ---------- 拖拉：把詞拖回自己的故事 ---------- */
+function dnd(root,onDrop){ let chip=null,ghost=null,ox=0,oy=0;
+  function slotAt(x,y){ ghost.style.display='none'; const t=document.elementFromPoint(x,y); ghost.style.display='';
+    const sl=t?t.closest('.qblank'):null; return (sl&&root.contains(sl)&&!sl.classList.contains('filled'))?sl:null; }
+  function move(e){ if(!chip)return; ghost.style.left=(e.clientX-ox)+'px'; ghost.style.top=(e.clientY-oy)+'px';
+    root.querySelectorAll('.qblank.hot').forEach(s=>s.classList.remove('hot'));
+    const sl=slotAt(e.clientX,e.clientY); if(sl)sl.classList.add('hot'); }
+  function up(e){ if(!chip)return; const sl=slotAt(e.clientX,e.clientY);
+    root.querySelectorAll('.qblank.hot').forEach(s=>s.classList.remove('hot'));
+    const c=chip; ghost.remove(); ghost=null; chip=null;
+    window.removeEventListener('pointermove',move); window.removeEventListener('pointerup',up);
+    let ok=false; if(sl) ok=onDrop(c,sl)!==false;
+    if(!ok){ c.classList.remove('nope'); void c.offsetWidth; c.classList.add('nope'); } }
+  root.addEventListener('pointerdown',e=>{ const c=e.target.closest('.qchip'); if(!c||c.classList.contains('placed'))return;
+    e.preventDefault(); const r=c.getBoundingClientRect(); ox=e.clientX-r.left; oy=e.clientY-r.top;
+    ghost=c.cloneNode(true); ghost.classList.add('ghost'); ghost.style.width=r.width+'px';
+    ghost.style.left=r.left+'px'; ghost.style.top=r.top+'px'; document.body.appendChild(ghost); chip=c;
+    window.addEventListener('pointermove',move); window.addEventListener('pointerup',up); }); }
+
+/* ---------- 讀完自己的故事 → 拖拉題 ---------- */
+let quizData=null;
+$('#toQuiz').onclick=async()=>{
+  const b=$('#toQuiz'); b.disabled=true; const old=b.textContent; b.innerHTML='<span class="spin"></span> 出題中…';
+  try{
+    if(!quizData){
+      const slots=SLOTS.map(s=>({key:s.key,label:s.lab,text:(state.slots[s.key]||{}).text||''}));
+      quizData=await callStory({mode:'quiz',slots});
+    }
+    renderQuiz(); go('pq');
+  }catch(e){ b.disabled=false; b.textContent=old; alert('出題沒成功，稍等再按一次。'); }
+};
+function renderQuiz(){
+  const box=$('#quizBox'); box.innerHTML='';
+  const wrap=document.createElement('div'); wrap.className='qwrap';
+  const sent=document.createElement('div'); sent.className='qsent';
+  const blanks=[];
+  (quizData.parts||[]).forEach(p=>{
+    if(typeof p==='string'){ sent.appendChild(document.createTextNode(p)); }
+    else if(p&&p.blank){ const s=document.createElement('span'); s.className='qblank'; s.dataset.ans=p.blank; sent.appendChild(s); blanks.push(s); }
+  });
+  wrap.appendChild(sent);
+  const tray=document.createElement('div'); tray.className='qtray';
+  const bank=(quizData.bank||[]).slice().sort(()=>Math.random()-0.5);
+  bank.forEach(w=>{ const c=document.createElement('div'); c.className='qchip'; c.dataset.word=w; c.textContent=w; tray.appendChild(c); });
+  wrap.appendChild(tray);
+  const tip=document.createElement('div'); tip.className='qtip'; wrap.appendChild(tip);
+  box.appendChild(wrap);
+  let filled=0; const need=blanks.length;
+  dnd(wrap,(chip,slot)=>{
+    if(chip.dataset.word!==slot.dataset.ans){ tip.textContent='再想想～這個詞不是放這裡喔。回去翻翻你的故事！'; return false; }
+    slot.classList.add('filled'); slot.textContent=chip.dataset.word; chip.classList.add('placed'); tip.textContent=''; filled++;
+    if(filled>=need){
+      const done=document.createElement('div'); done.className='savemsg ok'; done.style.marginTop='14px';
+      done.textContent='全部答對！你真的讀懂自己的故事了。';
+      wrap.appendChild(done);
+      const nb=document.createElement('button'); nb.className='btn'; nb.style.marginTop='14px'; nb.textContent='幫它取個書名 ▶';
+      nb.onclick=()=>goTitles(nb); wrap.appendChild(nb);
+    }
+    return true; });
+}
+/* 進書名頁：compose 若沒帶回書名建議，這裡補抓一次，確保一定有得選 */
+async function goTitles(btn){
+  if(!storyTitles.length){
+    const old=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> 想書名中…'; }
+    try{
+      const slots=SLOTS.map(s=>({key:s.key,label:s.lab,text:(state.slots[s.key]||{}).text||''}));
+      const j=await callStory({mode:'titles',slots,summary:pages.slice(0,3).join(' ')});
+      storyTitles=(j&&j.titles)||[];
+    }catch(e){ storyTitles=[]; }
+    if(btn){ btn.disabled=false; btn.textContent=old; }
+  }
+  renderTitles(); go('pt');
+}
 function renderTitles(){ const w=$('#titles'); w.innerHTML=''; (storyTitles.length?storyTitles:['我的故事']).forEach(t=>{
   const b=document.createElement('button'); b.className='titlepick'; b.textContent=t;
   b.onclick=()=>{ $$('.titlepick').forEach(x=>x.classList.remove('on')); b.classList.add('on'); $('#titleSelf').value=''; chosenTitle=t; };
@@ -372,23 +597,69 @@ $('#titleSelf').oninput=()=>{ if($('#titleSelf').value.trim()){ $$('.titlepick')
 
 /* ---------- 存 ---------- */
 $('#saveStory').onclick=async()=>{
-  const title=($('#titleSelf').value.trim())||chosenTitle||storyTitles[0]||((state.char.name||'我')+'的故事');
+  const selfTitle=$('#titleSelf').value.trim();
+  const title=selfTitle||chosenTitle||storyTitles[0]||((state.char.name||'我')+'的故事');
   const msg=$('#saveMsg'), b=$('#saveStory');
   if(!Account.ready){ msg.className='savemsg warn'; msg.textContent='要先登入帳號才能存（從首頁進來會自動登入）。'; return; }
-  b.disabled=true; const old=b.textContent; b.innerHTML='<span class="spin"></span> 存檔中…';
+  b.disabled=true; const old=b.textContent;
+  // 自己取的書名會印在封面，要先給老師看過（AI 建議的書名不用再審）
+  if(selfTitle){
+    b.innerHTML='<span class="spin"></span> 老師看看書名…'; msg.className='savemsg'; msg.textContent='';
+    let tr=null;
+    try{ tr=await Promise.race([ callStory({mode:'reviewTitle',title:selfTitle,summary:pages.slice(0,2).join(' ')}),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),12000)) ]); }catch(e){ tr=null; }
+    if(tr && tr.pass===false){
+      b.disabled=false; b.textContent=old;
+      msg.className='savemsg warn'; msg.textContent='故事老師：'+(tr.hint||'這個書名不太適合印在封面上，換一個吧！');
+      $('#titleSelf').focus(); return; }
+  }
+  b.innerHTML='<span class="spin"></span> 存檔中…';
   try{
     await Account.saveStory({ title, titles:storyTitles,
       slots:SLOTS.map(s=>({key:s.key,label:s.lab,text:(state.slots[s.key]||{}).text||'',source:(state.slots[s.key]||{}).source||''})),
       pages, madeAt:new Date().toISOString() });
     clearProgress();
+    clearTimeout(_progT); try{ await Account.saveProgress(null); }catch(e){} // 完成了，清掉雲端的半成品進度
     $('#finalTitle').textContent='《'+title+'》';
     b.textContent='已存好 ✓'; go('p4');
   }catch(e){ b.disabled=false; b.textContent=old; msg.className='savemsg warn'; msg.textContent='存檔沒成功，再按一次。'; }
 };
 
+/* ---------- 年級入口 ---------- */
+function pickGrade(g){
+  state.grade=(g==='low')?'low':'high';
+  if(state.grade==='low'){ applyLowGradeCopy(); if(typeof enableZhuyin==='function') enableZhuyin(); }
+  renderHero(); go('p0');
+}
+$$('.gradebtn').forEach(b=>b.onclick=()=>pickGrade(b.dataset.g));
+
 /* ---------- 導覽 ---------- */
 $('#toWarm').onclick=()=>go('p1');
 $('#toMachine').onclick=()=>{ renderSlots(); go('p2'); };
+
+/* ---------- 低年級：指令／說明全部縮短，並拿掉需要打字的地方 ---------- */
+function applyLowGradeCopy(){
+  const set=(sel,txt)=>{ const e=document.querySelector(sel); if(e) e.textContent=txt; };
+  set('#p0 h1','你的故事');
+  set('#p0 .lead','上次做好了主角。這次幫牠編一個故事！');
+  set('#p1 h1','先玩玩看');
+  set('#p1 .lead','每一格都有點子可以選。先試一次！');
+  set('#p1 .note','不喜歡？可以再換一個。');
+  set('#demoDice','給我一個點子');
+  set('#toWarm','開始 ▶'); set('#toMachine','開始編故事 ▶');
+  set('#p2 h1','故事八格機');
+  set('#p2 .lead','把 8 格都選好。三次辦法要不一樣喔！');
+  set('#p3 h1','你的繪本');
+  set('#p3 .lead','一頁一頁讀讀看。');
+  set('#pq h1','你的故事在說什麼？');
+  set('#pq .lead','把詞拖回空格，拼出你的故事！');
+  set('#pt h1','取一個書名');
+  set('#pt .lead','點一個你喜歡的。');
+  set('#p4 h1','完成！'); set('#p4 .lead','跟同學說說你的故事～');
+  const note=document.querySelector('#p4 .note');
+  if(note) note.innerHTML='<b>說說看：</b>你的主角是誰？牠遇到什麼麻煩？試了哪三次？最後怎麼成功的？';
+  const ts=document.querySelector('#titleSelf'); if(ts&&ts.parentElement) ts.parentElement.style.display='none'; // 低年級不打字
+}
 
 /* ---------- 開機 ---------- */
 (async function boot(){
@@ -397,9 +668,24 @@ $('#toMachine').onclick=()=>{ renderSlots(); go('p2'); };
       species:(main.elements||{}).species, color:(main.elements||{}).color, imageData:main.imageData };
     state.grade=((main.elements||{}).grade==='low')?'low':'high';
   }
-  // 續作：把上次填到一半的八格接回來
-  const saved=loadProgress(); if(saved) state.slots=saved;
-  renderHero(); renderSlots(); go('p0');
+  const sug=state.grade; // 第 1 堂選過的年級，拿來當建議
+  // 續作：本機與雲端都看，取「填得比較多」的那份（換裝置也接得回來）
+  const local=loadProgress();
+  const cloud=(main&&main.l2Progress&&main.l2Progress.slots)?main.l2Progress.slots:null;
+  const pick=(filledCount(cloud)>filledCount(local))?cloud:local;
+  if(pick) state.slots=pick;
+  renderSlots();
+  // 網址直接指定就跳過選擇（老師預覽／示範用）：?grade=low 或 ?grade=high
+  let forced=null; try{ const g=new URLSearchParams(location.search).get('grade'); if(g==='low'||g==='high') forced=g; }catch(e){}
+  if(forced){ pickGrade(forced); return; }
+  // 否則停在年級入口，並把上一堂的年級標示出來
+  const btn=document.querySelector('.gradebtn[data-g="'+sug+'"]');
+  if(btn && state.char && state.char.name){
+    btn.classList.add('sug');
+    const h=$('#gradeHint'); h.style.display='';
+    h.innerHTML='上一堂 <b>'+esc(state.char.name)+'</b> 是用「'+(sug==='low'?'低年級':'高年級')+'」做的，建議選一樣的。';
+  }
+  renderHero(); go('pg');
 })();
 </script>
 </body>
