@@ -247,13 +247,38 @@
   .mbwrap{width:min(100%,1180px);margin:0 auto;}
   .mbarena{display:flex;gap:12px;align-items:stretch;width:100%;}
   .mbarena>.mbstage{flex:1 1 auto;min-width:0;}
+  /* 真正在捲的是 #stage（高 ≈ 100vh − 97px 頁首）。舞台以外的 UI（遭遇文字＋HP＋提示＋技能鈕＋
+     移動鈕＋愛心＋間距）實測約 353–373px，所以直接給戰鬥區一個算得出來的高度：100vh − 450px。
+     舞台依這個高度反推寬度（16:10），右側說明欄自己內捲，就不會再把舞台撐高。
+     ⚠️ 之前是 align-items:stretch 讓「說明欄的內容高度」決定舞台高度，才會把按鈕擠出畫面。 */
+  /* 戰鬥畫面：.screen 預設 gap:20px＋padding 30/44，7 個子元素光空白就吃掉 236px，
+     是按鈕被擠出畫面的主因。這裡收緊，把高度還給舞台。 */
+  .screen.mbscreen{gap:8px;padding-top:14px;padding-bottom:16px;}
+  .screen.mbscreen .mbtop,.screen.mbscreen .mbbar,.screen.mbscreen .mbctrl,.screen.mbscreen .mbhearts{margin-top:0;}
+  @media(min-width:761px){
+    .mbarena{height:max(170px,calc(100vh - 390px));justify-content:center;align-items:flex-start;}
+    .mbarena>.mbstage{flex:0 0 auto;height:100%;width:auto;}
+    .mbguide{align-self:stretch;overflow:auto;}
+  }
+  /* 短螢幕再把周邊 UI 收緊，讓舞台不會被壓得太小 */
+  @media(max-height:780px){
+    .mbctrl{margin-top:8px;} .mbcbtn{width:56px;height:44px;font-size:19px;} .mbcbtn.jump{width:84px;font-size:15px;}
+    .mbbar{margin-top:8px;} .mbhearts{margin-top:6px;}
+  }
   .mbguide{flex:0 0 178px;align-self:stretch;background:rgba(18,26,44,.82);border:1px solid rgba(255,207,92,.3);border-radius:14px;padding:12px;color:#dfe8f5;font-size:13px;line-height:1.45;}
   .mbguide .gh{font-weight:900;color:#ffd75e;font-size:16px;margin-bottom:8px;}
   .mbguide .gr{margin:5px 0;} .mbguide .gr b{color:#8fd0ff;}
   .mbguide .gd{height:1px;background:rgba(255,255,255,.14);margin:9px 0;}
   .mbguide .gt{color:#9fb4d0;font-size:12px;font-weight:700;}
   .mbguide .gm{color:#ffb37a;font-weight:800;font-size:12.5px;} .mbguide .gw{color:#ff9db5;font-weight:800;}
-  @media(max-width:760px){ .mbarena{flex-direction:column;} .mbguide{flex:0 0 auto;} }
+  /* 窄螢幕：說明欄改排到舞台下方，壓成可內捲的小條，並把周邊間距再收緊，
+     否則說明欄＋間距會把技能鈕／移動鈕／愛心整個推出畫面 */
+  @media(max-width:760px){
+    .mbarena{flex-direction:column;}
+    .mbguide{flex:0 0 auto;max-height:76px;overflow:auto;}
+    .screen.mbscreen{gap:6px;padding-top:10px;padding-bottom:10px;}
+    .screen.mbscreen>.muted{font-size:12px;line-height:1.35;}
+  }
   .mbask{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);z-index:11;width:min(86%,430px);text-align:center;background:rgba(10,16,30,.92);border:2px solid var(--mt,#ffd75e);border-radius:16px;padding:16px 18px;box-shadow:0 10px 34px rgba(0,0,0,.55);}
   .mbask .t{font-weight:900;font-size:18px;color:#ffe08a;margin-bottom:6px;}
   .mbask .q{font-size:15px;color:#dfe8f5;margin-bottom:12px;}
@@ -1854,7 +1879,7 @@ let mb=null, mbRAF=0, mbLast=0;
 function mbStop(){ if(mbRAF){cancelAnimationFrame(mbRAF);mbRAF=0;} mb=null; }
 function mbPop(txt,bad){ const st=mb&&mb.els?mb.els.st:$('.mbstage'); if(!st)return; const p=el('div','mbpop '+(bad?'bad':'good'),txt); st.appendChild(p); setTimeout(()=>{try{p.remove();}catch(e){}},1000); }
 // 建立戰鬥場景一次，啟動即時迴圈
-function mbRenderBattle(s){ const mon=tv.mon;
+function mbRenderBattle(s){ const mon=tv.mon; s.classList.add('mbscreen'); // 戰鬥畫面用更緊的間距，確保按鈕不用捲動
   s.appendChild(el('div','muted','⚔️ 遇到怪物：'+mon.name+'！'+(mon.atk&&mon.atk.desc||'')+' 靠近點技能拆解牠！血被扣完就要重來！'));
   const wrap=el('div','mbwrap'); const arena=el('div','mbarena'); const st=el('div','mbstage'); st.style.setProperty('--mt',mon.mt);
   const bg=el('div','mbBg'); bg.appendChild(pic('det-alley')); st.appendChild(bg); st.appendChild(el('div','mbGround'));
@@ -2135,16 +2160,19 @@ function scrWorld(){ if(!ow)initWorld(); const s=el('div','screen world');
 function owClearInput(){ owKeys.up=owKeys.down=owKeys.left=owKeys.right=0; if(ow)ow.dpad=null; }
 // 鍵盤（只在大地圖時才吃方向鍵；其他畫面不設鍵，避免殘留按鍵讓角色自己走）
 window.addEventListener('keydown',e=>{ const k=e.key.toLowerCase();
+  // 方向鍵／空白鍵一律不讓瀏覽器捲動畫面（正在打字的欄位除外）——戰鬥中按 ↑↓ 不會再跟著滾
+  const tg=(e.target&&e.target.tagName||'').toLowerCase();
+  const typing=(tg==='input'||tg==='textarea'||(e.target&&e.target.isContentEditable));
+  if(!typing && ['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
   if(mb && tv && tv.stage==='battle'){ // 即時怪物戰：←→移動、↑/空白跳、1-4放格式、5弱點
-    if(['arrowleft','a'].includes(k)){mb.keys.left=1;e.preventDefault();}
-    else if(['arrowright','d'].includes(k)){mb.keys.right=1;e.preventDefault();}
-    else if(['arrowup','w',' '].includes(k)){mbJump();e.preventDefault();}
+    if(['arrowleft','a'].includes(k)){mb.keys.left=1;}
+    else if(['arrowright','d'].includes(k)){mb.keys.right=1;}
+    else if(['arrowup','w',' '].includes(k)){mbJump();}
     else if(['1','2'].includes(k)){mbCast(parseInt(k,10)-1);}
     else if(['3','4','5'].includes(k)){mbWeapon();}
     return; }
   if(S.phase!=='world')return;
-  if(['arrowup','w'].includes(k))owKeys.up=1; else if(['arrowdown','s'].includes(k))owKeys.down=1; else if(['arrowleft','a'].includes(k))owKeys.left=1; else if(['arrowright','d'].includes(k))owKeys.right=1; else if([' ','enter'].includes(k))owInteract();
-  if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault(); });
+  if(['arrowup','w'].includes(k))owKeys.up=1; else if(['arrowdown','s'].includes(k))owKeys.down=1; else if(['arrowleft','a'].includes(k))owKeys.left=1; else if(['arrowright','d'].includes(k))owKeys.right=1; else if([' ','enter'].includes(k))owInteract(); });
 window.addEventListener('keyup',e=>{ const k=e.key.toLowerCase();
   if(mb && tv && tv.stage==='battle'){ if(['arrowleft','a'].includes(k))mb.keys.left=0; else if(['arrowright','d'].includes(k))mb.keys.right=0; return; }
   if(['arrowup','w'].includes(k))owKeys.up=0; else if(['arrowdown','s'].includes(k))owKeys.down=0; else if(['arrowleft','a'].includes(k))owKeys.left=0; else if(['arrowright','d'].includes(k))owKeys.right=0; });
