@@ -106,7 +106,7 @@ const Sfx = (function(){ let ac=null,on=true;
 /* ---------- 帳號綁定（沿用 p1uw01 gameKey） ---------- */
 const FB_CONFIG = { apiKey:"AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78", authDomain:"gpt-clone-68b9f.firebaseapp.com", projectId:"gpt-clone-68b9f", storageBucket:"gpt-clone-68b9f.firebasestorage.app", messagingSenderId:"436942056069", appId:"1:436942056069:web:8762675dfff7b7e92017ec" };
 const Account = (function(){ let uid=null,uname='',db=null,ready=false;
-  function su(){ try{ const r=localStorage.getItem('@session/currentUser'); return r?JSON.parse(r):null; }catch(e){ return null; } }
+  function su(){ try{ const r=(sessionStorage.getItem('@session/currentUser')||localStorage.getItem('@session/currentUser')); return r?JSON.parse(r):null; }catch(e){ return null; } }
   function init(){ const u=su(); if(u&&u.id){ uid=u.id; uname=u.displayName||u.username||''; } if(uid&&window.firebase){ try{ if(!firebase.apps.length) firebase.initializeApp(FB_CONFIG); db=firebase.firestore(); ready=true; }catch(e){ console.warn('fb',e); } } }
   async function load(){ if(!ready)return null; try{ const s=await db.collection('gameProgress').doc(uid).get(); return s.exists?(s.data().p1uw01||null):null; }catch(e){ return null; } }
   async function save(state){ if(!ready)return; try{ await db.collection('gameProgress').doc(uid).set({ p1uw01: state, name:uname, updatedAt:new Date().toISOString() },{merge:true}); }catch(e){} }
@@ -219,7 +219,11 @@ function ICO(key,x,y,r){ ctx.save(); if(key==='flower'){ ctx.fillStyle='#ff7ab0'
   else { ctx.fillStyle='#ffce47'; ctx.beginPath(); for(let i=0;i<10;i++){ const ang=-Math.PI/2+i*Math.PI/5, rad=i%2?r*0.45:r; ctx[i?'lineTo':'moveTo'](x+Math.cos(ang)*rad,y+Math.sin(ang)*rad); } ctx.closePath(); ctx.fill(); } ctx.restore(); }
 
 /* ---------- 狀態 ---------- */
-const STORE='p1uw01_progress';
+const STORE=(function(){ // 存檔鍵綁使用者：共用電腦時下一位學生不會繼承上一位的進度
+  var base='p1uw01_progress';
+  try{ localStorage.removeItem(base); }catch(e){}   // 清掉舊版沒綁人的存檔，避免被繼承
+  try{ var r=sessionStorage.getItem('@session/currentUser')||localStorage.getItem('@session/currentUser');
+       var u=r?JSON.parse(r):null; return base+':'+((u&&u.id)||'anon'); }catch(e){ return base+':anon'; } })();
 const VERSION=6; // v6 = Boss 後新增「王城入關登記」5 關(閱讀理解+方向+動作)；與舊檔不相容，載到舊檔即重來
 const STA=[null,
  {n:'第1站 · 淺海泡泡海', magic:'單擊魔法', p:'用左鍵戳破發光的泡泡！', sp:'衝刺！快戳泡泡', ico:'click', key:'s1', target:12, speedN:6, speedT:5000, coin:30, cid:'mouse_s1_bubble'},

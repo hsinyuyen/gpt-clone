@@ -9,7 +9,8 @@ import { CardDefinition } from '@/types/Card';
 import { getRarityColor, getRarityLabel } from '@/utils/cardStats';
 import { compressImageToDataUrl, compressBlobToDataUrl, fetchBlobWithTimeout } from '@/utils/imageCompression';
 import ImageCropModal from '@/components/cards/ImageCropModal';
-
+
+import NumberField from "@/components/admin/NumberField";
 const ADMIN_USERNAMES = ['admin', 'teacher', '老師'];
 
 // Generate art prompt for a card
@@ -409,10 +410,9 @@ export default function CardImagesAdmin() {
 
           <div className="flex items-center gap-2">
             <label className="text-xs text-gray-400">間隔 (ms):</label>
-            <input
-              type="number"
+            <NumberField
               value={delayMs}
-              onChange={(e) => setDelayMs(Number(e.target.value))}
+              onChange={setDelayMs}
               className="bg-black border border-gray-600 rounded px-2 py-1 text-sm w-20"
               style={{ color: 'var(--terminal-color)' }}
               min={1000}

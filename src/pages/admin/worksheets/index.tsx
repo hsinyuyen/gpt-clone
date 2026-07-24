@@ -12,6 +12,7 @@ import { Worksheet, Task } from "@/types/Worksheet";
 import { parseWorksheetMarkdown, extractWorksheetTitle, extractSemesterAndWeek } from "@/utils/worksheetParser";
 import { ParsedTask, ParseResult } from "@/types/Worksheet";
 
+import NumberField from "@/components/admin/NumberField";
 const ADMIN_USERNAMES = ["admin", "teacher", "老師"];
 
 export default function WorksheetsPage() {
@@ -660,12 +661,11 @@ function UploadModal({
                       <label className="text-sm text-[var(--terminal-primary-dim)] block mb-1">
                         週次
                       </label>
-                      <input
-                        type="number"
+                      <NumberField
                         min={1}
                         max={30}
                         value={week}
-                        onChange={(e) => setWeek(parseInt(e.target.value) || 1)}
+                        onChange={setWeek}
                         className="w-full bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-3 py-2 outline-none"
                       />
                     </div>
@@ -757,13 +757,11 @@ function UploadModal({
                               )}
                             </div>
                             <div className="flex items-center gap-2">
-                              <input
-                                type="number"
+                              <NumberField
                                 min={0}
+                                max={9999}
                                 value={task.coins}
-                                onChange={(e) =>
-                                  updateTaskCoins(idx, parseInt(e.target.value) || 0)
-                                }
+                                onChange={(v) => updateTaskCoins(idx, v)}
                                 className={`w-20 bg-[var(--terminal-bg)] border px-2 py-1 text-right outline-none ${
                                   task.coinsMissing
                                     ? "border-yellow-600 text-yellow-400"

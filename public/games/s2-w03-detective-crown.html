@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-<title>阿問偵探社 · S2-W02：問對格式</title>
+<title>阿問偵探社 · S2-W03：問對長度（消失的慶典皇冠）</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
@@ -33,7 +33,6 @@
   .coinchip .c{width:17px;height:17px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2b0,var(--gold));box-shadow:0 0 7px var(--gold);}
   .iconbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:rgba(20,48,79,.7);color:var(--ink);font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;}
   .iconbtn:hover{border-color:var(--gold);} .iconbtn .dot{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;border-radius:9px;background:var(--amber);color:#2a1600;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;}
-  .iconbtn.skip{font-size:16px;opacity:.62;border-style:dashed;} .iconbtn.skip:hover{opacity:1;}
   /* ---- 進度條 ---- */
   #prog{position:relative;z-index:5;display:flex;align-items:center;gap:10px;padding:8px 16px;background:rgba(8,16,30,.55);border-bottom:1px solid var(--line);}
   #prog .lbl{font-size:12.5px;font-weight:800;color:var(--ink2);white-space:nowrap;}
@@ -67,8 +66,8 @@
   .paper.evidence{border:2px solid var(--good);}
   .stampSolved{position:absolute;top:8px;right:10px;transform:rotate(-14deg);border:3px solid #d4453e;color:#d4453e;font-weight:900;font-size:20px;padding:3px 12px;border-radius:8px;letter-spacing:3px;opacity:.85;font-family:serif;}
   /* 場景插圖框 */
-  .scene{width:min(100%,460px);aspect-ratio:1/1;border-radius:20px;overflow:hidden;position:relative;box-shadow:0 12px 30px rgba(0,0,0,.4);border:2px solid rgba(255,207,92,.35);background:linear-gradient(160deg,#1c3d5f,#0f2136);}
-  .scene .img,.scene .img img{width:100%;height:100%;}
+  .scene{width:min(100%,760px);aspect-ratio:7/4;border-radius:20px;overflow:hidden;position:relative;box-shadow:0 16px 40px rgba(0,0,0,.5);border:2px solid rgba(255,207,92,.35);background:linear-gradient(160deg,#1c3d5f,#0f2136);}
+  .scene .img,.scene .img img{width:100%;height:100%;} .scene .img img{object-fit:cover;}
   .scene.small{width:120px;aspect-ratio:1/1;border-radius:14px;}
   /* 三要素儀表燈 */
   .gauge{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;}
@@ -103,7 +102,7 @@
   .sectlbl{align-self:stretch;max-width:640px;margin:2px auto 0;font-size:14.5px;font-weight:900;color:var(--gold);letter-spacing:.5px;}
   .scene.mid{width:min(88%,320px);}
   /* 案發現場：可點擊熱點（在場景圖上找線索） */
-  .scene.invest{width:min(100%,440px);cursor:crosshair;}
+  .scene.invest{width:min(100%,760px);cursor:crosshair;}
   .hotspot{position:absolute;transform:translate(-50%,-50%);background:none;border:0;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;z-index:3;}
   .hotspot .lens{position:relative;width:40px;height:40px;border-radius:50%;background:rgba(255,207,92,.94);color:#2a1c00;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px rgba(255,207,92,.35),0 3px 9px rgba(0,0,0,.45);}
   .hotspot .ring{position:absolute;top:20px;left:50%;width:40px;height:40px;border-radius:50%;border:3px solid var(--gold);transform:translate(-50%,-50%);animation:hspulse 1.5s ease-out infinite;}
@@ -248,13 +247,38 @@
   .mbwrap{width:min(100%,1180px);margin:0 auto;}
   .mbarena{display:flex;gap:12px;align-items:stretch;width:100%;}
   .mbarena>.mbstage{flex:1 1 auto;min-width:0;}
+  /* 真正在捲的是 #stage（高 ≈ 100vh − 97px 頁首）。舞台以外的 UI（遭遇文字＋HP＋提示＋技能鈕＋
+     移動鈕＋愛心＋間距）實測約 353–373px，所以直接給戰鬥區一個算得出來的高度：100vh − 450px。
+     舞台依這個高度反推寬度（16:10），右側說明欄自己內捲，就不會再把舞台撐高。
+     ⚠️ 之前是 align-items:stretch 讓「說明欄的內容高度」決定舞台高度，才會把按鈕擠出畫面。 */
+  /* 戰鬥畫面：.screen 預設 gap:20px＋padding 30/44，7 個子元素光空白就吃掉 236px，
+     是按鈕被擠出畫面的主因。這裡收緊，把高度還給舞台。 */
+  .screen.mbscreen{gap:8px;padding-top:14px;padding-bottom:16px;}
+  .screen.mbscreen .mbtop,.screen.mbscreen .mbbar,.screen.mbscreen .mbctrl,.screen.mbscreen .mbhearts{margin-top:0;}
+  @media(min-width:761px){
+    .mbarena{height:max(170px,calc(100vh - 390px));justify-content:center;align-items:flex-start;}
+    .mbarena>.mbstage{flex:0 0 auto;height:100%;width:auto;}
+    .mbguide{align-self:stretch;overflow:auto;}
+  }
+  /* 短螢幕再把周邊 UI 收緊，讓舞台不會被壓得太小 */
+  @media(max-height:780px){
+    .mbctrl{margin-top:8px;} .mbcbtn{width:56px;height:44px;font-size:19px;} .mbcbtn.jump{width:84px;font-size:15px;}
+    .mbbar{margin-top:8px;} .mbhearts{margin-top:6px;}
+  }
   .mbguide{flex:0 0 178px;align-self:stretch;background:rgba(18,26,44,.82);border:1px solid rgba(255,207,92,.3);border-radius:14px;padding:12px;color:#dfe8f5;font-size:13px;line-height:1.45;}
   .mbguide .gh{font-weight:900;color:#ffd75e;font-size:16px;margin-bottom:8px;}
   .mbguide .gr{margin:5px 0;} .mbguide .gr b{color:#8fd0ff;}
   .mbguide .gd{height:1px;background:rgba(255,255,255,.14);margin:9px 0;}
   .mbguide .gt{color:#9fb4d0;font-size:12px;font-weight:700;}
   .mbguide .gm{color:#ffb37a;font-weight:800;font-size:12.5px;} .mbguide .gw{color:#ff9db5;font-weight:800;}
-  @media(max-width:760px){ .mbarena{flex-direction:column;} .mbguide{flex:0 0 auto;} }
+  /* 窄螢幕：說明欄改排到舞台下方，壓成可內捲的小條，並把周邊間距再收緊，
+     否則說明欄＋間距會把技能鈕／移動鈕／愛心整個推出畫面 */
+  @media(max-width:760px){
+    .mbarena{flex-direction:column;}
+    .mbguide{flex:0 0 auto;max-height:76px;overflow:auto;}
+    .screen.mbscreen{gap:6px;padding-top:10px;padding-bottom:10px;}
+    .screen.mbscreen>.muted{font-size:12px;line-height:1.35;}
+  }
   .mbask{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);z-index:11;width:min(86%,430px);text-align:center;background:rgba(10,16,30,.92);border:2px solid var(--mt,#ffd75e);border-radius:16px;padding:16px 18px;box-shadow:0 10px 34px rgba(0,0,0,.55);}
   .mbask .t{font-weight:900;font-size:18px;color:#ffe08a;margin-bottom:6px;}
   .mbask .q{font-size:15px;color:#dfe8f5;margin-bottom:12px;}
@@ -371,8 +395,6 @@
   .bigface{width:128px;height:128px;animation:bob 3s ease-in-out infinite;} @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
   .bubble.big{font-size:clamp(16px,4.3vw,19.5px);line-height:1.85;padding:18px 22px;border-radius:18px;text-align:center;} .bubble.big b{color:#ffe6a6;}
   .storydots{display:flex;gap:8px;margin-top:2px;} .sd{width:9px;height:9px;border-radius:50%;background:#2a3f5a;transition:.25s;} .sd.on{background:var(--gold);box-shadow:0 0 7px var(--gold);}
-  .skiplink{background:none;border:0;color:var(--dim);font-size:13px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:4px;}
-  .skiplink:hover{color:var(--ink2);}
   /* 開場劇情：打字機 + 每頁小互動 + 確認關 */
   .tcursor{display:inline-block;width:2px;height:1em;background:var(--gold);margin-left:1px;vertical-align:-2px;animation:tblink .7s steps(1) infinite;}
   @keyframes tblink{0%,49%{opacity:1}50%,100%{opacity:0}}
@@ -401,7 +423,7 @@
   .acct{position:fixed;left:10px;bottom:8px;font-size:11.5px;color:var(--dim);z-index:6;}
   .acct .d{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;} .acct .ok{background:var(--good);} .acct .warn{background:var(--gold);}
   .offtag{font-size:11px;color:var(--gold);border:1px solid #6a5320;border-radius:12px;padding:1px 8px;}
-  /* ===== S2-W02 格式控制：格式泡泡 + 好版/亂版答案 ===== */
+  /* ===== S2-W03 格式控制：格式泡泡 + 好版/亂版答案 ===== */
   .fmtbubbles{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:640px;width:100%;margin:6px auto;}
   .fmtbubble{flex:1 1 44%;min-width:150px;display:flex;align-items:center;gap:10px;background:linear-gradient(180deg,#12263f,#0e1d31);border:2px solid var(--fc);border-radius:16px;padding:11px 13px;cursor:pointer;font-family:inherit;text-align:left;box-shadow:0 4px 12px rgba(0,0,0,.3);transition:transform .12s;}
   .fmtbubble:hover{transform:translateY(-2px);} .fmtbubble:active{transform:scale(.97);} .fmtbubble:disabled{cursor:not-allowed;}
@@ -578,7 +600,7 @@
   .findzone{position:absolute;transform:translate(-50%,-50%);width:19%;height:19%;min-width:58px;min-height:58px;border-radius:50%;cursor:pointer;z-index:3;-webkit-tap-highlight-color:transparent;}
   .findzone:hover{background:radial-gradient(circle,rgba(255,255,255,.13),transparent 68%);}
   .findzone.done{cursor:default;}
-  .findzone .foundmark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;background:rgba(79,224,138,.92);color:#06331c;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 2px 8px rgba(0,0,0,.45);animation:pop .35s;}
+  .findzone .foundmark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:17px;height:17px;border-radius:50%;background:rgba(79,224,138,.5);color:#eafff2;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:10px;animation:pop .35s;}
   .findzone .findrip{position:absolute;left:50%;top:50%;width:20px;height:20px;border-radius:50%;border:3px solid var(--gold);transform:translate(-50%,-50%);animation:findripa .6s ease-out;pointer-events:none;}
   @keyframes findripa{0%{opacity:.9;transform:translate(-50%,-50%) scale(.4)}100%{opacity:0;transform:translate(-50%,-50%) scale(2.5)}}
   /* 訊問對話 */
@@ -599,7 +621,7 @@
     .fmtbubble{flex-basis:calc(50% - 6px);padding:15px 17px;} .fmtbubble .fi{width:50px;height:50px;} .fmtbubble .fn{font-size:19px;} .fmtbubble .fd{font-size:14px;}
     .tutfmt{padding:13px 16px;} .tutfmt .tt{font-size:17px;} .tutfmt .tt b{font-size:19px;} .tutfmt .eg{font-size:14px;} .tutfmt .fi{width:50px;height:50px;}
     .btn{font-size:22px;padding:17px 38px;}
-    .scene,.scene.invest{max-width:840px;}
+    .scene,.scene.invest{width:min(100%,960px);max-width:960px;}
     .invrow{max-width:900px !important;} .invbtn{font-size:17px;padding:12px 19px;}
     .invstage{max-width:900px !important;} .invnote{font-size:17.5px;} .invtitle{font-size:17px;} .countfig{font-size:38px;} .countnum b{font-size:26px;}
     .findcount{font-size:18px;}
@@ -608,6 +630,184 @@
     .storyart{width:min(100%,760px) !important;}
     .filmcard{font-size:24px;}
   }
+
+  /* ===== S2-W03 長度控制 UI（W03 專用類別，不覆蓋 W02） ===== */
+  :root{ --len-short:#38bdf8; --len-mid:#a78bfa; --len-long:#fb923c; --len-limit:#f472b6; }
+  .askq{display:flex;gap:10px;align-items:flex-start;margin:8px 0 4px}
+  .askq .askav{flex:none;width:62px;height:62px;border-radius:12px;overflow:hidden;background:#0a1c30;border:2px solid var(--line)}
+  .askq .askav img{width:100%;height:100%;object-fit:cover}
+  .askbubble{flex:1;background:linear-gradient(180deg,#173355,#122843);border:1.5px solid var(--line);border-radius:14px;border-top-left-radius:4px;padding:11px 14px;font-size:clamp(14px,2.1vw,17px);line-height:1.62}
+  .askbubble .who{display:block;font-size:12px;font-weight:900;color:#7fe0c0;margin-bottom:3px}
+  .lens{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:13px 0 4px}
+  .len{flex:1 1 150px;max-width:220px;min-height:104px;border-radius:14px;cursor:pointer;border:2px solid var(--c);background:rgba(255,255,255,.05);padding:11px 9px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;transition:.16s;position:relative}
+  .len:hover:not(.lock){background:color-mix(in srgb,var(--c) 22%,transparent);transform:translateY(-2px)}
+  .len.lock{opacity:.45;cursor:not-allowed}
+  .len .g{font-weight:900;font-size:20px;letter-spacing:3px;color:var(--c);line-height:1}
+  .len .n{font-weight:900;font-size:17px;color:var(--ink)}
+  .len .s{font-size:12px;color:var(--dim);font-weight:700}
+  .len .tried{position:absolute;top:5px;right:8px;font-size:11px;font-weight:900;color:var(--bad)}
+  .w3ans{border-radius:14px;padding:13px 15px;margin-top:10px;font-size:clamp(13px,2vw,16px);line-height:1.85;border:2px solid;position:relative;white-space:pre-wrap}
+  .w3ans.good{border-color:var(--good);background:rgba(79,224,138,.1);color:#dfffe9;box-shadow:0 0 22px rgba(79,224,138,.22)}
+  .w3ans.toolong{border-color:#7c8ba0;background:rgba(124,139,160,.1);color:#b9c6d6;max-height:188px;overflow:hidden}
+  .w3ans.toolong:after{content:'';position:absolute;left:0;right:0;bottom:0;height:78px;background:linear-gradient(180deg,transparent,rgba(15,37,64,.98))}
+  .w3ans.tooshort{border-color:#7c8ba0;background:rgba(124,139,160,.1);color:#b9c6d6;clip-path:polygon(0 0,100% 0,100% 60%,70% 60%,70% 100%,0 100%)}
+  .w3verdict{font-weight:900;font-size:14px;margin-top:9px}
+  .w3verdict.ok{color:var(--good)} .w3verdict.no{color:#ffb37a}
+  /* 教學：六例同頁（上排三題太長、下排三題太短） */
+  .demogrid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-top:12px;}
+  @media(max-width:860px){ .demogrid{grid-template-columns:repeat(2,1fr);} }
+  @media(max-width:560px){ .demogrid{grid-template-columns:1fr;} }
+  .democard{border:2px solid var(--line);border-radius:16px;padding:11px 12px 13px;background:rgba(255,255,255,.03);display:flex;flex-direction:column;}
+  .democard.done{border-color:rgba(79,224,138,.5);background:rgba(79,224,138,.06);}
+  .demonum{font-size:12px;font-weight:800;color:var(--dim);}
+  .democard .w3ans{margin-top:6px;font-size:clamp(13px,1.4vw,15px);}
+  .democard .w3ans.toolong{max-height:128px;}
+  .democard .w3verdict{font-size:12.5px;line-height:1.6;margin-top:8px;}
+  .democard .ptip{margin:7px 0 0;}
+  .demobtns{display:flex;gap:9px;margin-top:auto;padding-top:10px;}
+  .demobtn{flex:1;border:2px solid var(--c);color:var(--c);background:rgba(255,255,255,.04);border-radius:11px;padding:9px 6px;font-family:inherit;font-weight:900;font-size:15px;cursor:pointer;transition:.15s;}
+  .demobtn:hover{background:color-mix(in srgb,var(--c) 18%,transparent);transform:translateY(-2px);}
+  .demobtn.shake{animation:shake .4s;}
+  /* 一段文字後接的拖拉確認題 */
+  .dqwrap{margin-top:14px;}
+  .dqlbl{font-weight:800;color:var(--dim);font-size:14px;margin-bottom:8px;text-align:center;}
+  .obsclue{background:rgba(255,207,92,.12);border:1px solid rgba(255,207,92,.4);border-radius:12px;padding:10px 13px;margin:10px 0 4px;font-size:15px;line-height:1.7;color:var(--ink);}
+  /* 不在場證明的供詞卡 */
+  .alibis{display:flex;flex-direction:column;gap:8px;margin:6px 0 2px;}
+  .alibi{display:flex;gap:11px;align-items:center;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:12px;padding:8px 12px;}
+  .alibi .alav{width:40px;height:40px;border-radius:9px;overflow:hidden;flex:0 0 auto;background:rgba(255,255,255,.06);}
+  .alibi .alav img{width:100%;height:100%;object-fit:cover;}
+  .alname{font-weight:800;font-size:14px;color:var(--ink);}
+  .alclaim{font-size:13px;color:var(--ink2);line-height:1.55;margin-top:1px;}
+  .cwin{margin:12px 0 6px;text-align:center;font-weight:800;font-size:13.5px;color:var(--gold);background:rgba(255,207,92,.1);border:1px solid rgba(255,207,92,.32);border-radius:11px;padding:8px 12px;line-height:1.5;}
+  .clueboard{background:linear-gradient(180deg,#123049,#0d2138);border:2px solid var(--line);border-radius:16px;padding:13px;margin:8px 0}
+  .cluelist{display:flex;flex-direction:column;gap:7px;margin-top:9px}
+  .clueitem{border-left:4px solid var(--gold);padding:7px 11px;background:rgba(255,207,92,.08);border-radius:0 9px 9px 0;font-size:14px;line-height:1.6}
+  .clueitem b{color:var(--gold)}
+  .clueempty{font-size:13px;color:var(--dim);margin-top:6px}
+  .tl{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+  .slot.tlslot{flex:1 1 22%;min-width:118px;min-height:120px;border:2px dashed #3a6591;border-radius:12px;padding:7px;display:flex;flex-direction:column;align-items:center;gap:5px;background:rgba(255,255,255,.03);color:var(--ink)}
+  .slot.tlslot.hot{border-color:var(--gold);background:rgba(255,207,92,.14)}
+  .slot.tlslot.filled{border-style:solid;border-color:var(--good);background:rgba(79,224,138,.1)}
+  .slot.tlslot.gap{border-color:#ff7a7a;background:rgba(255,122,122,.14);border-style:solid}
+  .tlslot .tt{font-weight:900;color:var(--gold);font-size:14px}
+  .tlnote{font-size:10.5px;color:var(--dim);text-align:center;line-height:1.4}
+  .pcard{display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 6px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid var(--line);min-width:76px}
+  .pcard .av{width:46px;height:46px;border-radius:9px;overflow:hidden;background:#0a1c30}
+  .pcard .av img{width:100%;height:100%;object-fit:cover}
+  .pcard .nm{font-size:11px;font-weight:900;color:var(--ink)}
+  .pool{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:11px;min-height:74px}
+  .chip.pcardchip{cursor:grab;padding:4px;background:transparent;border:none;box-shadow:none}
+  .link{display:grid;grid-template-columns:1fr auto 1fr;gap:9px;margin-top:11px}
+  .lcol{display:flex;flex-direction:column;gap:8px}
+  .li{border:2px solid var(--line);border-radius:11px;padding:9px 11px;cursor:pointer;background:rgba(255,255,255,.04);font-size:13.5px;font-weight:700;color:var(--ink2);transition:.14s;min-height:52px;display:flex;align-items:center}
+  .li:hover:not(.done){border-color:var(--gold);color:var(--ink)}
+  .li.sel{border-color:var(--gold);background:rgba(255,207,92,.16);color:var(--gold)}
+  .li.done{border-color:var(--good);background:rgba(79,224,138,.12);color:#dfffe9;cursor:default}
+  .lmid{display:flex;align-items:center;justify-content:center;color:var(--dim);font-weight:900;font-size:12px}
+
+  /* ===== W03 追加：左側關鍵字欄 ===== */
+  #mainrow{flex:1;display:flex;min-height:0;}
+  #krail{flex:0 0 150px;display:flex;flex-direction:column;min-height:0;background:rgba(8,20,34,.5);border-right:1px solid var(--line);}
+  #krail .kh{flex:0 0 auto;font-size:12px;font-weight:900;color:var(--gold);text-align:center;padding:8px 4px;border-bottom:1px solid var(--line);}
+  #kwrap{flex:1;overflow-y:auto;padding:8px 7px;display:flex;flex-direction:column;gap:6px;}
+  .kw{background:linear-gradient(180deg,#173355,#122843);border:1px solid var(--line);border-radius:9px;padding:6px 8px;font-size:12.5px;font-weight:800;color:#e2ecff;line-height:1.35;animation:kwpop .3s ease-out;}
+  .kw .kc{display:block;font-size:9px;color:var(--dim);font-weight:700;}
+  @keyframes kwpop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+  .kwempty{font-size:11px;color:var(--dim);text-align:center;padding:14px 6px;line-height:1.7;}
+  @media(max-width:640px){
+    #mainrow{flex-direction:column;}
+    #krail{flex:0 0 auto;flex-direction:row;max-height:74px;border-right:none;border-bottom:1px solid var(--line);}
+    #krail .kh{writing-mode:vertical-rl;border-bottom:none;border-right:1px solid var(--line);display:flex;align-items:center;padding:2px 5px;}
+    #kwrap{flex-direction:row;overflow-x:auto;overflow-y:hidden;align-items:center;}
+    .kw{white-space:nowrap;flex:0 0 auto;}
+    .kw .kc{display:inline;margin-right:4px;}
+  }
+  /* ===== W03 追加：審問關係人（說簡潔／說詳細） ===== */
+  .ivwrap{width:100%;max-width:560px;}
+  /* 人物站在案發場景裡受審 */
+  .ivstage{position:relative;width:min(100%,680px);aspect-ratio:7/4;margin:0 auto;border-radius:18px 18px 0 0;overflow:hidden;border:2px solid rgba(255,207,92,.32);border-bottom:none;box-shadow:0 12px 30px rgba(0,0,0,.45);background:#0f2136;}
+  .ivstage .ivbg,.ivstage .ivbg img{position:absolute;inset:0;width:100%;height:100%;} .ivstage .ivbg img{object-fit:cover;filter:brightness(.72) saturate(1.05);}
+  .ivstage::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,18,34,.05),rgba(8,18,34,.5) 78%,rgba(8,18,34,.9));z-index:1;}
+  .ivchar{position:absolute;left:5%;bottom:-1%;height:94%;z-index:2;animation:ivin .4s ease-out;}
+  .ivchar .img,.ivchar .img img{height:100%;width:auto;} .ivchar .img img{object-fit:contain;filter:drop-shadow(0 8px 14px rgba(0,0,0,.6));}
+  @keyframes ivin{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .ivtag{position:absolute;right:5%;top:8%;z-index:3;background:rgba(6,18,32,.86);border:1.5px solid var(--gold);color:var(--gold);font-size:13px;font-weight:900;padding:5px 13px;border-radius:99px;box-shadow:0 3px 10px rgba(0,0,0,.4);}
+  .ivsay{position:relative;width:min(100%,680px);margin:0 auto;background:linear-gradient(180deg,#173355,#122843);border:2px solid rgba(255,207,92,.32);border-top:none;border-radius:0 0 18px 18px;padding:13px 16px 15px;font-size:clamp(14px,2.1vw,16.5px);line-height:1.75;}
+  .ivsay:before{content:'';position:absolute;left:9%;top:-11px;border:10px solid transparent;border-bottom-color:#173355;border-top:none;}
+  .ivsay .who{display:block;font-size:12px;font-weight:900;color:#7fe0c0;margin-bottom:3px;}
+  .ivask{font-size:13px;color:var(--dim);text-align:center;font-weight:700;margin:10px 0 2px;}
+  .ivbtns{display:flex;gap:12px;justify-content:center;margin:8px 0 4px;flex-wrap:wrap;}
+  .ivbtn{flex:1 1 190px;max-width:250px;border:2px solid var(--c);background:rgba(255,255,255,.05);border-radius:14px;padding:13px 12px;cursor:pointer;font-family:inherit;text-align:center;transition:.15s;}
+  .ivbtn:hover:not(:disabled){background:color-mix(in srgb,var(--c) 20%,transparent);transform:translateY(-2px);}
+  .ivbtn:disabled{opacity:.45;cursor:not-allowed;}
+  .ivbtn .ib{font-size:22px;line-height:1;color:var(--c);}
+  .ivbtn .it{font-weight:900;font-size:16px;color:var(--c);margin-top:4px;}
+  .ivbtn .is{font-size:12px;color:var(--dim);margin-top:1px;}
+  .ivans{border-radius:14px;padding:12px 15px;margin-top:8px;font-size:clamp(13px,2vw,16px);line-height:1.85;white-space:pre-wrap;}
+  .ivans.good{border:2px solid var(--good);background:rgba(79,224,138,.1);color:#dfffe9;}
+  .ivans.bad{border:2px solid #7c8ba0;background:rgba(124,139,160,.1);color:#b9c6d6;}
+  /* ===== W03 追加：W01 三要素複習（把問題組清楚） ===== */
+  .w1card{width:100%;max-width:520px;display:flex;flex-direction:column;gap:11px;}
+  .w1q{display:flex;flex-direction:column;gap:6px;}
+  .w1lbl{font-size:13px;font-weight:900;}
+  .w1lbl.role{color:var(--role,#b07dff);} .w1lbl.bg{color:var(--bgc,#3fc6dd);} .w1lbl.prob{color:var(--prob,#ff8fbb);}
+  .w1opts{display:flex;gap:8px;flex-wrap:wrap;}
+  .w1opt{border:2px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer;font-size:14px;font-weight:700;color:var(--ink2);background:rgba(255,255,255,.04);transition:.14s;}
+  .w1opt:hover:not(.sel){border-color:var(--gold);color:var(--ink);}
+  .w1opt.sel{border-color:var(--good);background:rgba(79,224,138,.14);color:#dfffe9;}
+  .w1opt.wrong{animation:shake .3s;border-color:var(--bad);}
+  /* ===== W03 追加：真相重組頁 ===== */
+  .trwrap{width:100%;max-width:660px;}
+  .trtext{background:linear-gradient(180deg,#f5ecd6,#efe3c6);color:#3a2f1c;border-radius:16px;padding:18px 20px;font-size:clamp(15px,2.3vw,18px);line-height:2.5;font-weight:600;box-shadow:0 8px 26px rgba(0,0,0,.3);}
+  .trblank{display:inline-flex;align-items:center;justify-content:center;min-width:82px;height:31px;margin:0 3px;padding:0 6px;border:2px dashed #b8863f;border-radius:8px;vertical-align:middle;color:#9c7433;font-weight:900;font-size:13.5px;background:rgba(184,134,63,.08);}
+  .trblank.hot{background:rgba(255,180,60,.35);border-color:#d98a00;}
+  .trblank.filled{border-style:solid;border-color:#2b8f56;background:rgba(43,143,86,.16);color:#1a6b3a;}
+  .trbanklbl{text-align:center;font-size:13px;color:var(--dim);font-weight:700;margin:14px 0 6px;}
+  .trbank{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
+  .trbank .chip{background:linear-gradient(180deg,#173355,#122843);border:2px solid var(--gold);border-radius:10px;padding:8px 12px;font-size:14px;font-weight:800;color:#ffe6a6;cursor:grab;user-select:none;}
+  .trbank .chip.placed{opacity:.3;pointer-events:none;}
+  .trbank .chip.ghost{position:fixed;z-index:80;pointer-events:none;}
+  .trbank .chip.nope{animation:shake .3s;}
+
+  /* ===== W03 追加：觀察題／診斷式審問／偵探評級 ===== */
+  /* 不圈線索：未找到的熱點完全不標記，玩家自己在圖裡找 */
+  .obspanel{width:min(100%,560px);margin:12px auto 0;background:linear-gradient(180deg,#13314e,#0e2338);border:2px solid var(--gold);border-radius:16px;padding:14px 16px;animation:kwpop .25s ease-out;}
+  .obsq{font-weight:900;font-size:clamp(15px,2.2vw,17px);color:#ffe6a6;margin-bottom:11px;text-align:center;line-height:1.5;}
+  .obsopts{display:flex;flex-direction:column;gap:9px;}
+  .obsopt{border:2px solid var(--line);border-radius:11px;padding:11px 13px;cursor:pointer;font-size:15px;font-weight:700;color:var(--ink2);background:rgba(255,255,255,.04);text-align:center;transition:.14s;font-family:inherit;}
+  .obsopt:hover:not(:disabled){border-color:var(--gold);color:var(--ink);}
+  .obsopt:disabled{cursor:not-allowed;}
+  .obsopt.wrong{animation:shake .3s;border-color:var(--bad);opacity:.55;}
+  .obsopt.right{border-color:var(--good);background:rgba(79,224,138,.16);color:#dfffe9;}
+  .ivdiaglbl{text-align:center;font-size:13.5px;font-weight:800;color:var(--dim);margin:10px 0 4px;}
+  .ivdiag{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:2px 0 6px;}
+  .ivdiagb{flex:1 1 220px;max-width:290px;border:2px solid var(--line);border-radius:14px;padding:13px;cursor:pointer;font-family:inherit;text-align:center;background:rgba(255,255,255,.04);transition:.15s;}
+  .ivdiagb:hover:not(:disabled){border-color:var(--gold);transform:translateY(-2px);}
+  .ivdiagb .dt{font-weight:900;font-size:16px;color:var(--ink);}
+  .ivdiagb .ds{font-size:12.5px;color:var(--dim);margin-top:3px;}
+  .ivdiagb.wrong{animation:shake .3s;border-color:var(--bad);}
+  .ivdiagb.done{border-color:var(--good);background:rgba(79,224,138,.12);}
+  .rating{text-align:center;margin:8px auto;background:rgba(8,20,34,.5);border:1px solid var(--line);border-radius:16px;padding:14px 18px;max-width:420px;}
+  .rating .rk{font-size:32px;font-weight:900;line-height:1.2;}
+  .rating .rk.ace{color:#ffd75e;text-shadow:0 0 18px rgba(255,207,92,.6);}
+  .rating .rk.mid{color:#7fe0c0;}
+  .rating .rk.low{color:#9fb6d0;}
+  .rating .rd{font-size:13px;color:var(--ink2);margin-top:5px;line-height:1.6;}
+
+  /* 放大鏡近照 */
+  .cuwrap{width:min(78%,280px);margin:2px auto 12px;border-radius:14px;overflow:hidden;border:2px solid var(--gold);box-shadow:0 8px 22px rgba(0,0,0,.4);background:#0a1c30;}
+  .cuwrap.cuimg{aspect-ratio:1/1;} .cuwrap .img,.cuwrap .img img{width:100%;height:100%;} .cuwrap .img img{object-fit:cover;}
+  .cuwrap.cudraw{padding:16px;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#13314e,#0d1f34);}
+  .cuclock{width:132px;height:132px;}
+  .cutag{display:flex;gap:6px;background:#b98a52;padding:11px;border-radius:9px;box-shadow:inset 0 0 0 2px #8a6a3a;}
+  .cutag .tg{width:38px;height:44px;background:#efe0c0;border:1.5px solid #8a6a3a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;color:#4a3418;}
+  .culog{width:100%;max-width:250px;}
+  .culog .loghd{font-size:12px;font-weight:900;color:var(--gold);text-align:center;margin-bottom:6px;}
+  .culog .lr{display:flex;justify-content:space-between;gap:10px;padding:6px 9px;border-bottom:1px solid var(--line);color:var(--ink2);font-size:13px;font-weight:700;}
+  .culog .lr.gap{background:rgba(255,122,122,.16);color:#ffb3b3;border-radius:6px;}
+
+  .recapans{margin-top:8px;padding:8px 12px;border-radius:10px;border:2px solid var(--good);background:rgba(79,224,138,.12);color:#dfffe9;font-weight:800;font-size:15px;}
 </style>
 </head>
 <body>
@@ -625,7 +825,10 @@
     <div class="bar"><i id="progFill"></i></div>
     <span class="pips" id="pips"></span>
   </div>
-  <div id="stage"></div>
+  <div id="mainrow">
+    <aside id="krail"><div class="kh">🔑 關鍵字</div><div id="kwrap"></div></aside>
+    <div id="stage"></div>
+  </div>
 </div>
 <div id="nb"><div class="book"><div class="bh"><span class="t serif">📖 偵探筆記本</span><span class="x" id="nbX">✕</span></div><div class="pages" id="nbPages"></div></div></div>
 <div id="overlay"></div>
@@ -634,8 +837,10 @@
 <script>
 'use strict';
 /* =========================================================================
-   S2-W02《阿問偵探社・第二話：問對格式》— 基於 S2-W01 chassis
-   邏輯（AI 訊問迴圈 / 本地三要素閘門 / 存檔 / 金幣）不變；重建整個呈現層：
+   S2-W03《阿問偵探社・第三話：消失的慶典皇冠》— 基於 S2-W01/W02 chassis
+   學習核心＝字數/長度控制：選對長度才拿得到能用的線索（太長淹沒／太短缺角／剛好發光）。
+   40 分鐘單一連貫懸案、5 章：蒐證→選長度提煉→追問迭代→線索板(時間軸/連連看)→破章泡泡題。
+   引擎（劇情打字機 / 大地圖 RPG / 打怪 / 存檔綁 uid / 金幣冪等）沿用 W02；只換教學層。
    大字高對比、場景插圖、真進度條、偵探筆記本、破案儀式感。
    ========================================================================= */
 const stage=document.getElementById('stage'), overlay=document.getElementById('overlay');
@@ -646,7 +851,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const now=()=>performance.now();
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 // 圖片元件：載入失敗→退回 CSS 色塊（離線也不開天窗）
-function pic(name,cls){const w=el('div','img'+(cls?' '+cls:''));const im=document.createElement('img');im.src='assets/'+name+'.png';im.alt='';im.onerror=()=>w.classList.add('fail');w.appendChild(im);return w;}
+function pic(name,cls){const w=el('div','img'+(cls?' '+cls:''));const im=document.createElement('img');im.src='assets/'+name+(/\.(png|jpe?g|webp|gif)$/i.test(name)?'':'.png');im.alt='';im.onerror=()=>w.classList.add('fail');w.appendChild(im);return w;}
 
 /* ---------- 音效 ---------- */
 const Sfx=(()=>{let ac=null;function ctx(){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();}catch(e){}return ac;}
@@ -658,8 +863,8 @@ const Sfx=(()=>{let ac=null;function ctx(){try{ac=ac||new(window.AudioContext||w
     win(){[523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>tone(f,.17,'square',.05),i*95));},resume(){ctx();}};
 })();
 
-/* ---------- 帳號綁定（gameKey s2w02 獨立存檔；coins/{uid} 錢包與全系列共用累積） ---------- */
-const GAMEKEY='s2w02', COIN_ID='s2w02_complete', COIN_AMT=25, COIN_PER_CASE=60; // 每破一案 60，6 案共 360
+/* ---------- 帳號綁定（gameKey s2w03 獨立存檔；coins/{uid} 錢包與全系列共用累積） ---------- */
+const GAMEKEY='s2w03', COIN_ID='s2w03_complete', COIN_AMT=25, COIN_PER_CASE=60; // 每破一案 60，6 案共 360
 const FB={apiKey:"AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78",authDomain:"gpt-clone-68b9f.firebaseapp.com",projectId:"gpt-clone-68b9f",storageBucket:"gpt-clone-68b9f.firebasestorage.app",messagingSenderId:"436942056069",appId:"1:436942056069:web:8762675dfff7b7e92017ec"};
 const Account=(()=>{let uid=null,uname='',db=null,ready=false;
   function su(){try{const r=(sessionStorage.getItem('@session/currentUser')||localStorage.getItem('@session/currentUser'));return r?JSON.parse(r):null;}catch(e){return null;}}
@@ -677,21 +882,114 @@ const Account=(()=>{let uid=null,uname='',db=null,ready=false;
    ========================================================================= */
 // 每層：client=委託人這關的話(疑點)；spots=案發現場可點選調查的「客觀觀察事實」(不含因果)；
 //       roles=可選角色；probs=可問的問題；seed=阿問推理出的「答案/因果」(只在此揭曉)。
-const CASES=[{"id": "case-list-eraser", "title": "案1・不見的印章：把進出的人排成清單", "scene": "sc-fmt1", "client": "班長小庭", "victim": "小偵探快幫忙！老師桌上的「乖寶寶印章」午休時不見了，可是午休時好多人進進出出，我根本記不清誰做過什麼、誰最可疑…", "primaryFormat": "list", "evidenceName": "午休進出清單", "solveQ": {"q": "把清單上的線索拼起來——乖寶寶印章最後是被誰、怎麼拿走的？", "opts": ["大雄午休翻了老師桌角，把印章握進手裡、放進口袋帶走了", "拿掃把的婷婷經過老師桌，說不定是她順手拿的", "削鉛筆的小安剛好也靠近過老師桌，可能是他拿的"], "ans": 0}, "solved": "破案！排成清單一看就懂——是大雄午休翻了老師桌、把印章放進口袋。印章找回來了，也還了大家清白！", "layers": [{"client": "班長小庭說：午休時教室門一直開著，好多同學進進出出，人太多我全記在一起、亂成一團。你能不能請阿問幫我把『每個進出的人＋他在做什麼』一個一個排清楚，這樣才看得出誰最可疑。", "img": "sc-f1-0", "spots": [{"s": "看門口", "f": "午休時教室門一直開著", "x": 10, "y": 22}, {"s": "數人數", "f": "午休有六個人進出過教室", "x": 40, "y": 50}, {"s": "看老師桌", "f": "印章本來放在老師桌角落", "x": 83, "y": 83}], "question": "阿問，請把午休『進出教室的每個人＋他在做什麼』一個一個排出來給我看。", "correctFormat": "list", "neat": {"kind": "list", "list": ["12:10 小安 — 進來削鉛筆，削完就走", "12:15 阿凱 — 進來書櫃還書", "12:20 小美 — 進來喝水，站在飲水機旁", "12:25 大雄 — 一個人走到老師桌旁邊翻東西", "12:30 婷婷 — 進來拿掃把去外面掃地", "12:35 小安 — 又回來拿走忘記的鉛筆盒"]}, "reveal": "把六個人一個一個排成清單，每個人旁邊都寫著「幾點、在做什麼」。大部分人都在做自己的事，只有一列，人是「一個人走到老師桌旁邊翻東西」——排整齊了，怪怪的那一列就跳出來了。"}, {"client": "班長小庭說：大雄最可疑，可是不能只憑一句話就冤枉他。同學們七嘴八舌講了好多『他們看到大雄做的事』，全混在一起我聽不懂。請阿問把『大家看到大雄做過的動作』一件一件排清楚，才知道哪件真的碰到印章。", "img": "sc-f1-1", "spots": [{"s": "問小安", "f": "小安說大雄在老師桌前站了很久", "x": 31, "y": 55}, {"s": "問小美", "f": "小美說大雄手上好像握著小小的東西", "x": 60, "y": 58}, {"s": "看地上", "f": "老師桌下掉了一個印章的盒蓋", "x": 58, "y": 90}], "question": "阿問，請把『同學看到大雄做過的每一件事』一件一件排出來。", "correctFormat": "list", "neat": {"kind": "list", "list": ["大雄走到老師桌旁邊停下來", "大雄彎腰去翻桌角的東西", "大雄手上握著一個小小的東西", "大雄離開時，桌下掉了一個印章盒蓋", "大雄走出教室時把手放進口袋"]}, "reveal": "把「同學看到的動作」一件一件排成清單：走到桌旁、彎腰翻桌角、手上握著小東西、桌下掉了印章盒蓋、走時把手放進口袋。清單排開，每一件事看得清清楚楚——接下來換你把它們拼起來。"}]}, {"id": "trophy", "title": "獎盃失蹤案・雙嫌對決", "scene": "sc-fmt2", "client": "阿彤", "victim": "阿彤紅著眼眶跑進偵探社：「班上的合唱比賽獎盃不見了！大家都在猜是阿凱還是小薇拿的，兩個人看起來都有可能，可是我分不出來，快幫我比一比！」", "primaryFormat": "table", "evidenceName": "雙嫌對照表", "solveQ": {"q": "把表格裡的線索兩兩比一比——真正拿走獎盃的是誰？", "opts": ["阿凱：他沒有不在場證明，鞋底又沾到獎盃座的金漆", "小薇：她午休時人不在教室，最可疑", "是外班同學趁亂溜進來拿的"], "ans": 0}, "solved": "破案！表格兩兩一比，破綻全露：阿凱沒有人證、鞋底又沾到獎盃座的金漆。獎盃找回來了！", "layers": [{"client": "阿彤說：大家都在吵是阿凱還是小薇，可是你一句我一句，愈聽愈亂。你把兩個人的說法一條一條問清楚，才發現得用同幾個欄位並排比，才比得出來。", "img": "sc-f2-0", "spots": [{"s": "看獎盃架", "f": "架子上留下一圈沒有灰塵的印子", "x": 27, "y": 11}, {"s": "問阿凱", "f": "阿凱說午休他一直在教室", "x": 38, "y": 55}, {"s": "問小薇", "f": "小薇說午休她去了保健室", "x": 78, "y": 58}], "question": "阿問，把阿凱和小薇的『午休在哪裡、有沒有人可以證明』用同樣的欄位並排做成一張表格，我要一眼比出誰的說法站得住腳。", "correctFormat": "table", "neat": {"kind": "table", "tableCols": ["嫌疑人", "午休在哪裡", "有沒有人證明"], "tableRows": [["阿凱", "說在教室，但沒人看到他", "沒有人能作證"], ["小薇", "去保健室擦藥", "保健室阿姨可以證明"]]}, "reveal": "並排一比就清楚了：小薇去保健室有阿姨作證，站得住腳；阿凱說在教室卻沒人看到，這一欄他是空的——先別放過阿凱。"}, {"client": "阿彤說：光靠『有沒有人證明』還不夠，阿凱說他也可以去問保健室阿姨。你決定再加一個欄位——身上有沒有留下證據——一起並排比，才看得出破綻。", "img": "sc-f2-1", "spots": [{"s": "看阿凱的鞋", "f": "阿凱鞋底沾到一點金色的漆", "x": 19, "y": 78}, {"s": "看獎盃座", "f": "獎盃底座剛好是掉漆的金色", "x": 60, "y": 50}, {"s": "看小薇的手", "f": "小薇手上有保健室的白藥膏", "x": 83, "y": 76}], "question": "阿問，把阿凱和小薇用同樣三個欄位——午休在哪、有沒有人證明、身上留下什麼——並排做成表格，我要比出哪一欄對得起來、哪一欄對不上。", "correctFormat": "table", "neat": {"kind": "table", "tableCols": ["嫌疑人", "午休在哪裡", "有沒有人證明", "身上留下什麼"], "tableRows": [["阿凱", "說在教室，沒人看到", "沒有人作證", "鞋底沾到獎盃座的金漆"], ["小薇", "去保健室擦藥", "阿姨可以作證", "手上是白藥膏，跟獎盃無關"]]}, "reveal": "三欄並排一比，破綻全露出來了：小薇每一欄都對得上、又有藥膏證明她真的在擦藥；阿凱沒人證、鞋底金漆又剛好對上掉漆的獎盃座——矛盾都指向阿凱。"}]}, {"id": "order", "title": "倒帶謎案", "scene": "sc-fmt3", "client": "小柔", "victim": "自然課下課後，實驗桌上的藍色藥水打翻了，還有人滑倒！大家都說是我弄的，可是我明明最後才進教室…拜託幫我把「到底先發生什麼、再發生什麼」查清楚！", "primaryFormat": "steps", "evidenceName": "監視器時間軸重建表", "solveQ": {"q": "把線索照順序拼起來——藍色藥水到底是怎麼打翻的？", "opts": ["小明先進來拿水壺、勾倒藥水又滑倒，小柔最後才進來幫忙擦", "小柔一進教室就打翻藥水，還滑倒撞倒椅子", "藥水自己蒸發爆開，沒有人碰到它"], "ans": 0}, "solved": "破案！照順序倒帶一看就清楚——是小明勾倒藥水又滑倒，小柔是最後進來、還好心幫忙擦地的人，冤枉洗清了！", "layers": [{"client": "小柔被冤枉打翻藥水。案發現場一團亂，光看畫面根本分不出誰先誰後。阿問說：現場有四段監視器片段，但被打散了。要先問阿問「照發生的先後順序」把這四段排好，順序一排對，就知道小柔到底是第幾個進教室的。", "img": "sc-f3-0", "spots": [{"s": "看桌面", "f": "實驗桌上有打翻的藍色藥水", "x": 13, "y": 47}, {"s": "看椅子", "f": "一張椅子倒在地上", "x": 66, "y": 73}, {"s": "看門口", "f": "門邊掛著一支拖把", "x": 90, "y": 45}], "question": "阿問，把這四段監視器畫面『照發生的先後順序，一步一步』排出來，讓我看清楚到底先發生什麼。", "correctFormat": "steps", "neat": {"kind": "steps", "steps": ["小明先跑進教室，去拿他忘在桌上的水壺", "小明的袖子勾到藥水瓶，瓶子倒下、藍色藥水灑出來", "小明踩到地上的藥水，滑了一下，把椅子撞倒", "最後小柔才走進教室，看到一團亂"]}, "reveal": "把四段監視器照順序排好：①小明先跑進來拿水壺 → ②袖子勾倒藥水瓶、藍藥水灑出來 → ③踩到藥水滑倒、撞倒椅子 → ④小柔最後才走進來。順序一排清楚，就看得出小柔是「最後」才進來的。可是她手上怎麼會沾到藍色？再往下追一層。"}, {"client": "小柔身上沾到藍色藥水，變成新的疑點。阿問說：小柔進教室後其實做了幾個動作，但她自己嚇到了，記得亂七八糟。要問阿問『照順序列出小柔進教室後做了哪些動作』，才知道她是怎麼沾到藥水的——是弄翻的人，還是想幫忙的人。", "img": "sc-f3-1", "spots": [{"s": "看小柔的手", "f": "小柔的手上沾到一點藍色", "x": 45, "y": 78}, {"s": "看拖把", "f": "拖把是濕的、剛用過", "x": 68, "y": 47}, {"s": "看地板", "f": "地上的藥水被擦掉一半", "x": 80, "y": 80}], "question": "阿問，把小柔進教室後做的動作『照先後順序，一步一步』列出來。", "correctFormat": "steps", "neat": {"kind": "steps", "steps": ["小柔走進教室，看到地上灑了藥水", "小柔趕快去門邊拿拖把", "小柔一邊擦地板，藥水沾到了她的手", "小柔擦到一半，被同學看到，就被誤會是她弄的"]}, "reveal": "把小柔進來後的動作照順序排好：①走進來看到地上灑了藥水 → ②去門邊拿拖把 → ③一邊擦、藥水沾到手 → ④擦到一半被同學看到。順序擺出來，她手上的藍色是「哪一步」沾到的，一目了然。"}]}, {"id": "s2-w02-case4", "title": "案4・圖書館的失蹤名冊", "scene": "sc-fmt4", "client": "圖書股長・小恬", "victim": "阿問偵探！我們班的漫畫書一直不見，我問了好多人、記了好多東西，可是資料太多了，我整個看不出到底是誰！你可以幫我挑出真正重要的線索嗎？", "primaryFormat": "keypoints", "evidenceName": "只剩三條的關鍵筆記", "solveQ": {"q": "把阿問幫你濃縮出的關鍵拼起來——漫畫一直不見，真正的原因是？", "opts": ["阿丞想一次追完整套，趁午休把後半本拿走看、又忘了登記", "圖書館的書自己被風吹走了", "是隔壁班同學跑進來亂拿的"], "ans": 0}, "solved": "破案！把一堆線索濃縮成三條關鍵，一下就指向阿丞——他想一次追完整套漫畫，趁午休拿走又忘了登記。漫畫都回來了！", "layers": [{"client": "小恬把她問到的東西一股腦全丟給你：時間、天氣、誰在場、誰穿什麼……她說「我全記下來了，可是好亂，根本看不出重點」。這時候資訊太多、太雜，你要請阿問幫你「只留下真正指向真相的關鍵」，而不是全部照抄。", "img": "sc-f4-0", "spots": [{"s": "看書架", "f": "漫畫書架上剛好空了三格", "x": 15, "y": 35}, {"s": "看登記本", "f": "借書登記本最後三頁是空白的", "x": 57, "y": 66}, {"s": "看時間", "f": "書都是「午休」那段時間不見的", "x": 60, "y": 17}], "question": "阿問，小恬記了一大堆事情，太多太雜了。請你幫我把這些資訊濃縮，只留下真正指向真相的最關鍵幾條就好。", "correctFormat": "keypoints", "neat": {"kind": "keypoints", "keypointsAll": ["書都是在「午休」時間不見的", "不見的都是同一套漫畫的後半本", "不見時登記本上都沒有人登記借書", "那天天氣很熱、窗戶開著", "圖書館牆壁是淺藍色的", "小恬自己最喜歡看故事書", "午休時圖書館只開一半的燈", "隔壁班那天在上音樂課"], "keypointsKey": ["書都是在「午休」時間不見的", "不見的都是同一套漫畫的後半本", "不見時登記本上都沒有人登記借書"]}, "reveal": "阿問把一大堆資訊濃縮成三條最關鍵的：書都在「午休」不見、不見的都是「同一套漫畫的後半本」、而且「都沒有人登記」。牆壁顏色、天氣、燈光這些通通是雜訊，可以丟掉——只留下這三條，事情清爽多了。"}, {"client": "順著阿問挑出的三條關鍵，你發現嫌疑指向「想一次追完整套漫畫的人」。小恬又冒出一堆關於同學的話：誰坐哪、誰午休做什麼、誰跟誰好……又是一團亂。你得再請阿問幫你濃縮，挑出真正把矛頭指向「某一個人」的關鍵。", "img": "sc-f4-1", "spots": [{"s": "看座位", "f": "靠窗的位子午休常常有人坐", "x": 21, "y": 62}, {"s": "看還書箱", "f": "還書箱裡有一本這套漫畫的第一集", "x": 51, "y": 58}, {"s": "看地板", "f": "書架下有一張皺皺的午餐發票", "x": 75, "y": 82}], "question": "阿問，關於同學的資訊又太多太雜了。請幫我濃縮，只留下真正指向「是哪一個人」的最關鍵幾條。", "correctFormat": "keypoints", "neat": {"kind": "keypoints", "keypointsAll": ["有人把這套漫畫的第一集還回來了", "只有阿丞午休都不去操場、留在圖書館", "阿丞跟同學說他「在追一套漫畫、快看完了」", "阿丞的座位就在漫畫書架旁邊", "阿丞那天穿了藍色的衣服", "圖書館午休有開電風扇", "阿丞的鉛筆盒是恐龍圖案", "那天午餐是咖哩飯"], "keypointsKey": ["只有阿丞午休都不去操場、留在圖書館", "阿丞跟同學說他「在追一套漫畫、快看完了」", "阿丞的座位就在漫畫書架旁邊"]}, "reveal": "阿問再濃縮一次，只留下真正有用的三條：午休不去操場、只留在圖書館的人；自己說「在追一套快看完的漫畫」的人；還有座位就緊貼著漫畫書架的人。衣服、鉛筆盒、電風扇、午餐全是雜訊。三條擺在一起——是誰、為什麼，等你自己拼。"}]}, {"id": "s2-w02-case5-boss", "title": "案5・失蹤的園遊會錢箱（Boss 大案）", "scene": "sc-fmt5", "client": "園遊會班長・小恩", "victim": "小偵探！我們班的園遊會錢箱不見了！攤位上一堆人來來去去，我頭好亂，完全理不出頭緒⋯⋯拜託幫我問阿問，把這團亂變清楚！", "primaryFormat": "table", "evidenceName": "錢箱底部的貓掌濕印子", "solveQ": {"q": "把三層線索拼起來——錢箱到底發生了什麼事？", "opts": ["橘貓跳窗撞倒錢箱，箱子滾出窗外掉進花圃，沒有人偷", "收錢的阿哲趁午休把錢箱藏起來了", "來換零錢的美美順手把錢箱帶走了"], "ans": 0}, "solved": "破案！沒有人偷錢箱——清單挑出怪怪的那一列、表格排除了每個人、步驟還原了經過：是橘貓跳窗撞倒錢箱、滾進花圃，錢一毛沒少！", "layers": [{"client": "小恩：現場靠近過錢箱的人好多，我一口氣講給你聽你一定記不住。先把『所有靠近過錢箱的人』一個一個列清楚，我們才不會漏掉誰。", "img": "sc-f5-0", "spots": [{"s": "看攤位登記表", "f": "登記表上有五個當班的名字", "x": 12, "y": 29}, {"s": "看地上", "f": "桌子旁邊有一攤沒擦掉的手印和腳印", "x": 45, "y": 78}, {"s": "聽小恩說", "f": "小恩說『大家都擠在一起、我記不清順序』", "x": 87, "y": 52}], "question": "阿問，把午休時靠近過錢箱的人，一個一個列出來給我看。", "correctFormat": "list", "neat": {"kind": "list", "list": ["收錢的阿哲 — 一直站在桌子後面收錢", "來換零錢的美美 — 換完就走", "搬飲料箱經過的阿力 — 只是路過", "來買氣球的低年級小朋友 — 一群人", "一隻橘貓 — 從窗戶跳進來，沒人說得出牠來做什麼"]}, "reveal": "把靠近錢箱的人事物一個一個排成清單，每一列旁邊都寫著「來做什麼」：收錢、換零錢、路過、買氣球——大家都有理由。只有一列，理由是空的、對不上。排成清單，怪怪的那一列自己就浮出來了。"}, {"client": "小恩：名單裡阿哲和美美嫌疑最大，可是我一直搞混『誰做了什麼、誰有錢箱鑰匙』。我需要把這兩個人擺在一起、一項一項比，才看得出誰對不上。", "img": "sc-f5-1", "spots": [{"s": "問阿哲", "f": "阿哲午休全程站在桌子後面收錢", "x": 24, "y": 50}, {"s": "問美美", "f": "美美只來換一次零錢、待不到一分鐘", "x": 57, "y": 57}, {"s": "看鑰匙圈", "f": "錢箱鑰匙只有收錢的人身上有", "x": 90, "y": 57}], "question": "阿問，把阿哲和美美擺在一起，用『在場多久、有沒有鑰匙、離開時間』一項一項比給我看。", "correctFormat": "table", "neat": {"kind": "table", "tableCols": ["比對項目", "阿哲", "美美"], "tableRows": [["在場多久", "整個午休都在", "不到一分鐘"], ["身上有鑰匙嗎", "有（他在收錢）", "沒有"], ["錢箱不見時人在哪", "還站在桌子後面", "早就離開了"]]}, "reveal": "把阿哲和美美用同樣的欄位並排成表格：美美待不到一分鐘、身上又沒有鑰匙；阿哲整場都站在桌子後面、鑰匙在他身上。表格一比，誰有機會搬走錢箱、誰沒機會，每一欄清清楚楚。"}, {"client": "小恩：人都排除了，可是錢箱真的不見了！阿問說桌子底下有一連串痕跡，要照『先發生什麼、再發生什麼』的順序讀，才知道錢箱是怎麼移動的。", "img": "sc-f5-2", "spots": [{"s": "看桌腳", "f": "錢箱原本放的位置留下一圈灰塵印", "x": 27, "y": 48}, {"s": "跟著濕印", "f": "地上有一排小小的貓掌濕印，一路往窗戶", "x": 50, "y": 82}, {"s": "看窗台", "f": "窗台邊掉著錢箱的蓋子，箱子卡在花圃裡", "x": 84, "y": 40}], "question": "阿問，把錢箱從桌上到花圃的經過，照發生順序一步一步排出來。", "correctFormat": "steps", "neat": {"kind": "steps", "steps": ["橘貓從窗戶跳上桌，撞到沒關好的錢箱", "錢箱被撞倒，蓋子鬆開掉在窗台", "箱子順著桌子邊滑下去、翻出窗外", "掉進窗戶下面的花圃裡卡住"]}, "reveal": "照順序把現場排好：①錢箱本來放在桌上（留下一圈灰塵印）→ ②地上一排小小的貓掌濕印，一路通到窗戶 → ③錢箱蓋掉在窗台、箱子卡在花圃裡，錢一毛沒少。步驟擺出來，是「什麼」把錢箱弄出窗外——答案就在眼前了。"}]}];
-const RANKS=[[0,'實習偵探'],[2,'見習格式偵探'],[4,'格式神探']];
-function rankName(sh){let n='實習偵探';RANKS.forEach(r=>{if(sh>=r[0])n=r[1];});return n;}
-const QUIZ=[{"q": "委託人給了你「六個嫌疑犯的名字」，要一個一個看清楚、不漏掉。這時候該叫阿問用哪種格式回答？", "opts": ["清單，一行寫一個", "一段話全部連著寫", "畫一張圖"], "ans": 0}, {"q": "你要判斷「兩個嫌疑犯」誰的說法對，得把他們的「時間、地點、有沒有不在場證明」一項一項<b>比一比</b>。用哪種格式最好看？", "opts": ["表格，讓兩個人的每一項對齊", "清單，把兩個人分開各列一串", "重點，只留下最重要的一句"], "ans": 0}, {"q": "阿問要教你「怎麼採指紋」，這件事有<b>先做什麼、再做什麼</b>的順序。哪種格式最不會做錯？", "opts": ["步驟，標上 1、2、3 照順序", "表格，做成好幾欄", "清單，隨便列幾條"], "ans": 0}, {"q": "剛剛在案子裡，阿問給你一大段落落長的證詞，你只想留下<b>最關鍵的三條</b>。是哪種格式幫你把答案變清楚的？", "opts": ["重點，只挑出關鍵的幾條", "步驟，全部照順序抄下來", "表格，把整段話塞進格子"], "ans": 0}];
+const CASES=[
+{ id:'ch1', mode:'stepcase', title:'落落長的報案', scene:'s2w03-hall.jpg', who:'keeper',
+  hook:'夜裡的展示廳好安靜，安靜到你聽得見自己的腳步聲。明天早上，全鎮的人都會擠進來看那頂慶典皇冠——金色的，正中央一顆藍寶石，亮得像把整個夜空縮成一顆星。明天，慶典主席林主席就要親手把它，戴到今年得獎的孩子頭上。可是現在，玻璃櫃的門開著，紅色的軟墊上空空的。皇冠不見了。',
+  gate:{ intro:'先確認你有看懂案情！把對的詞拖進空格。',
+    parts:['慶典前一夜，展示櫃裡的',{blank:'皇冠'},'不見了，',{blank:'明天'},'早上就要用！'],
+    bank:['皇冠','明天','獎盃','下週'] },
+  scenes:[{key:'hall',name:'展示廳',img:'s2w03-hall.jpg',desc:'皇冠原本擺放的展示大廳。',spots:[
+    {id:'case', label:'展示櫃', x:26,y:63, obs:{cu:{img:'s2w03-cu-case.jpg'}, q:'湊近看展示櫃的門——它是怎麼被打開的？',opts:['被硬撬開的（門框有裂痕）','門好好的，是用鑰匙開的','玻璃被打破的'],a:1}, clue:'櫃門沒被撬開，是用鑰匙正常打開的。', kw:{id:'k_nocrack',text:'沒被撬'}},
+    {id:'clock',label:'牆上的鐘', x:12,y:38, obs:{cu:{draw:'clock',hour:9}, q:'抬頭看牆上的大鐘，指針停在幾點？',opts:['七點','九點','十二點'],a:1}, clue:'牆上的鐘停在九點，是巡邏發現的時間。', kw:{id:'k_clock',text:'停在9點'}},
+    {id:'floor',label:'地板', x:62,y:80, obs:{cu:{img:'s2w03-cu-floor.jpg'}, q:'蹲下來看櫃子前的地板，上面有什麼？',opts:['一灘水','一點白白的粉末','一片碎玻璃'],a:1}, clue:'櫃子前的地板上，有一點白白的粉末。', kw:{id:'k_powder',text:'白粉末'}} ]}],
+  interview:{ who:'keeper', need:'concise',
+    open:'唉喲你不知道，我今天一早六點就來了，我那個孫子昨天發燒我一整晚沒睡好，膝蓋又在痛，晚餐吃滷肉飯配一碗湯，我還泡了茶、擦了玻璃，那個櫃子我擦得可亮了……',
+    concise:'皇冠是八點到九點之間不見的。',
+    detail:'……然後我擦完玻璃又去巡了一下福利社，遇到掃地的秀琴，我還問她要不要吃我帶的餅乾，對了我那個膝蓋喔，天氣一冷就痛得不得了……',
+    reveal:'抓到重點了！老陳臉一白：「櫃門沒被撬……那開櫃的人有鑰匙。備份鑰匙……不見了！」',
+    kws:[{id:'k_key',text:'備份鑰匙'}] },
+  board:'none',
+  solved:'第一章破了！落落長的證詞裡，「請他說簡潔一點」挖出了消失時段，還發現備份鑰匙不見了——開櫃的人手上有鑰匙。去後台看看！' },
 
+{ id:'ch2', mode:'stepcase', title:'閃躲的記者', scene:'s2w03-backstage.jpg', who:'visitor',
+  hook:'後台堆滿道具，燈只開一半。一個穿深藍外套的人影，一看到你就把臉別開——是她，鬼鬼祟祟的小葉。備份鑰匙的線索，把你帶到了這裡。',
+  gate:{ intro:'先確認你有看懂案情！把對的詞拖進空格。',
+    parts:['後台的鑰匙箱開著、',{blank:'備份鑰匙'},'不見了；旁邊有個鬼鬼祟祟的',{blank:'記者'},'。'],
+    bank:['備份鑰匙','記者','皇冠','警察'] },
+  scenes:[{key:'backstage',name:'後台',img:'s2w03-backstage.jpg',desc:'舞台後方堆著道具的後台。',spots:[
+    {id:'box', label:'鑰匙箱', x:52,y:55, obs:{cu:{img:'s2w03-cu-keybox.jpg'}, q:'後台的鑰匙箱，現在是什麼狀態？',opts:['鎖得好好的','開著、備份鑰匙不見了','被砸壞了'],a:1}, clue:'鑰匙箱開著，備份鑰匙真的不見了。'},
+    {id:'coat',label:'衣架上的外套', x:20,y:70, obs:{cu:{img:'s2w03-cu-recorder.jpg'}, q:'翻翻深藍外套的口袋，裡面藏著什麼？',opts:['一支錄音筆','一串鑰匙','一張照片'],a:0}, clue:'深藍外套的口袋裡，有一支錄音筆。', kw:{id:'k_recorder',text:'錄音筆'}} ]}],
+  w1:{ intro:'小葉很防備。先把問題「問清楚」，她才肯開口——上禮拜學的：對象＋根據＋問題。',
+    steps:[
+      {lbl:'對象（要問誰）', cls:'role', opts:[{t:'鬼祟的小葉',ok:true},{t:'管理員老陳',ok:false},{t:'點心師傅阿福',ok:false}]},
+      {lbl:'根據（你手上的線索）', cls:'bg', opts:[{t:'她 8:35 就在這後台',ok:true},{t:'她喜歡吃布丁',ok:false},{t:'今天禮拜三',ok:false}]},
+      {lbl:'問題（要問什麼）', cls:'prob', opts:[{t:'妳到底看到了什麼？',ok:true},{t:'妳叫什麼名字？',ok:false},{t:'現在幾點？',ok:false}]} ] },
+  interview:{ who:'visitor', need:'detail',
+    open:'我……我沒幹嘛啦。就……路過而已。',
+    concise:'就……有個紅紅的影子。反正不是我。',
+    detail:'好啦好啦！我是記者，想搶先偷拍明天的皇冠。八點三十五我在後台，手機拍到一個紅色的影子，抱著一個東西、小心翼翼往祈福亭去——真的不是我！打掃的秀琴阿姨可以證明我一直待在這裡。',
+    reveal:'小葉洗清了。她把照片給你看：那個紅色的影子，抱著東西往祈福亭去了。',
+    kws:[{id:'k_shadow',text:'紅色影子'}] },
+  board:'none',
+  solved:'第二章破了！先用「對象＋根據＋問題」把話問清楚，再請她「說詳細一點」，才問出照片裡的紅色影子——順便洗清了她。跟著紅影子去祈福亭！' },
+
+{ id:'ch3', mode:'stepcase', title:'只寫得下四個字的祈福牌', scene:'s2w03-vault.jpg', who:'baker',
+  hook:'祈福亭旁的儲藏室，門半開著。慶典的習俗——每個人在小小的祈福牌上寫四個字的願望掛起來。紅影子在這裡停過，還留下了東西。',
+  gate:{ intro:'先確認你有看懂案情！把對的詞拖進空格。',
+    parts:['紅影子把東西帶到了儲藏室；門上掛著一塊只寫得下',{blank:'四個字'},'的',{blank:'祈福牌'},'。'],
+    bank:['四個字','祈福牌','一整段','購物單'] },
+  scenes:[{key:'vault',name:'儲藏室',img:'s2w03-vault.jpg',desc:'祈福亭旁半開的儲藏室。',spots:[
+    {id:'tag', label:'門上的祈福牌', x:44,y:52, obs:{cu:{draw:'tag',text:'修好就還'}, q:'門上的小祈福牌只有四格，寫著哪四個字？',opts:['修好就還','完璧歸趙','借一下下'],a:0}, clue:'一塊小祈福牌，只有四格，寫著「修好就還」。', kw:{id:'k_return',text:'修好就還'}},
+    {id:'glove',label:'地上的手套', x:74,y:64, obs:{cu:{img:'s2w03-cu-glove.jpg'}, q:'地上掉著什麼東西？',opts:['一隻白手套','一條圍巾','一頂帽子'],a:0}, clue:'地上掉著一隻白手套。', kw:{id:'k_glove',text:'白手套'}},
+    {id:'door', label:'門縫', x:18,y:74, obs:{cu:{img:'s2w03-cu-cloth.jpg'}, q:'門縫下面，露出一角什麼顏色的布？',opts:['藍色','紅色','綠色'],a:1}, clue:'門縫下，露出一角紅色的布。'} ]}],
+  interview:{ who:'baker', need:'concise',
+    open:'那手套是我的沒錯啦！可是我今天做了三層蛋糕，先打鮮奶油、再調糖霜，還跟三個廚工聊我兒子考試的事，我整晚都在廚房沒出去過，手套我平常都放後台架子上，誰都拿得到，我真的沒有拿皇冠……',
+    concise:'手套上的糖霜，是放在後台架子上沾到的，不是我戴著的時候弄的。',
+    detail:'……而且我跟你講那個三層蛋糕喔，最上面那層我還特地擠了星星，糖霜是我昨天調好的，用的是進口糖粉，我兒子最愛吃這個了，每次都偷挖一口……',
+    reveal:'阿福有三個廚工作證。糖霜是架子上沾到的——手套是被「別人」借走戴的，別急著怪點心師傅。',
+    kws:[{id:'k_frost',text:'糖霜'}] },
+  board:'none',
+  solved:'第三章破了！阿福落落長喊冤，「請他說簡潔一點」才問出重點：糖霜是架上沾的、手套是別人借走的。那到底是誰戴走了手套？' },
+
+{ id:'ch4', mode:'stepcase', title:'對不上的兩份說法', scene:'s2w03-corridor.jpg', who:'cleaner',
+  hook:'阿福喊冤、秀琴堅持看到紅影子，兩邊兜不起來。阿問閃著燈：「嗶——皇冠不見的那一刻，每個人到底在哪？把大家的『不在場證明』對一對就清楚了。就是上禮拜學的『整理成格式』！」',
+  gate:{ intro:'先確認你有看懂案情！把對的詞拖進空格。',
+    parts:['阿福說沒出廚房，秀琴卻看到',{blank:'紅色影子'},'。皇冠不見的那一刻，要對每個人的',{blank:'不在場證明'},'。'],
+    bank:['紅色影子','不在場證明','點心','一句話'] },
+  scenes:[{key:'corridor',name:'走廊',img:'s2w03-corridor.jpg',desc:'連接後台與大廳的走廊。',spots:[
+    {id:'clock', label:'看守紀錄板', x:50,y:22, obs:{cu:{draw:'log'}, q:'看大廳的看守紀錄——哪一段時間大廳完全沒人看守？',opts:['8:00–8:15','8:40–8:55','9:00–9:15'],a:1}, clue:'看守紀錄顯示：8:40–8:55 之間，大廳沒有人看守——皇冠就是趁這時候不見的。'},
+    {id:'office',label:'辦公室門', x:78,y:60, obs:{cu:{img:'s2w03-cu-office.jpg'}, q:'走廊底那間是慶典主席林主席的辦公室——門看起來怎樣？',opts:['開著、燈亮著','關著、裡面黑黑的','貼著封條'],a:1}, clue:'走廊底是慶典主席林主席的辦公室——門關著、裡面黑黑的，她卻說整晚都在裡面打電話。'} ]}],
+  interview:{ who:'cleaner', need:'detail',
+    open:'我就……看到紅紅的一個影子。',
+    concise:'紅紅的，一下就不見了啦。',
+    detail:'八點四十五我在補衛生紙，看到一個紅色的影子從後台把手套拿走，抱著一個東西往大廳去。那時候廚房、走廊都有人，只有辦公室那一邊……安安靜靜的，一個聲音都沒有。',
+    reveal:'紅影子往大廳去了。奇怪的是，走廊底慶典主席林主席的辦公室——她說整晚在裡面打電話，卻安安靜靜、一點聲音都沒有。把案發那一刻、四個人的不在場證明對一對，就看得出破綻——',
+    kws:[] },
+  board:'timeline',
+  solved:'第四章破了！請秀琴「說詳細一點」問出關鍵，再對一對四個人的不在場證明——皇冠不見的 8:40–8:55，只有林主席說不出自己在哪、沒人能證明。去找她當面問清楚。' },
+
+{ id:'ch5', mode:'stepcase', title:'最後一問', scene:'s2w03-truth.jpg', who:'chair',
+  hook:'你站到林主席面前。她穿著深紅色的套裝，手裡緊緊抱著一個東西，低著頭。空氣好安靜。不在場證明、手套、紅影子——所有線索都指向她。可是……真的是這樣嗎？最後一步，由你自己決定要問得多長。',
+  gate:{ intro:'先確認你有看懂案情！把對的詞拖進空格。',
+    parts:['所有線索都指向',{blank:'林主席'},'。最後一步，當面問清楚她',{blank:'為什麼'},'。'],
+    bank:['林主席','為什麼','點心師傅','現在幾點'] },
+  scenes:[],
+  interview:{ who:'chair', need:'detail',
+    open:'（她抱著皇冠，低下頭。）……是我拿走皇冠的。你要抓我，我不會跑。',
+    concise:'因為……寶石鬆了。',
+    detail:'今天傍晚巡場的時候，我發現皇冠正中央那顆藍寶石——爪座鬆了。明天只要有人戴著它走上台、輕輕一晃，寶石就會當場掉下來、摔個粉碎。我想，要是今晚偷偷把它送去修、天亮前放回來，就沒有人會知道，慶典也能平平安安。我沒有說出來，是因為……它是在我任內鬆掉的，我怕大家怪我。',
+    reveal:'你忽然想起——祈福牌上寫的「修好就還」、照片裡她抱著皇冠小心翼翼的樣子。她從第一步就在告訴你：「我會還。」只是那些話都太短了，短到你差點把一個想救皇冠的人，當成小偷。',
+    kws:[{id:'k_loose',text:'爪座鬆了'},{id:'k_repair',text:'天亮前修好放回'},{id:'k_short',text:'太短'}] },
+  recap:{ intro:'林主席一口氣講了一長串。趁還記得，把她的話抓成三個重點——',
+    qs:[
+      {q:'皇冠是誰拿走的？', opts:['慶典主席林主席','點心師傅阿福','記者小葉'], a:0},
+      {q:'她是怎麼拿走的？', opts:['借白手套、用備份鑰匙開櫃，把皇冠藏進儲藏室','打破玻璃搶走','從窗戶爬進來偷'], a:0},
+      {q:'她為什麼要這麼做？', opts:['寶石鬆了怕摔碎，想偷偷送修、天亮前放回','想把皇冠賣掉換錢','討厭慶典想搞破壞'], a:0} ] },
+  board:'none',
+  solved:'第五章破了！請她「說詳細一點」，你才聽見她的真心——她不是小偷，是想護著皇冠、只是用錯了方法。所有關鍵字都到齊了。回偵探社，把真相拼出來！' } ];
+const RANKS=[[0,'實習偵探'],[2,'見習長度偵探'],[4,'長度神探']];
+function rankName(sh){let n='實習偵探';RANKS.forEach(r=>{if(sh>=r[0])n=r[1];});return n;}
+const QUIZ=[{q:'管理員落落長講了三分鐘，你只想知道「幾點不見的」。該叫阿問用哪種長度？',opts:['很短，一句話講重點','詳細，講一大段','不超過四個字'],ans:0},{q:'一張太短的紙條看不懂，缺了一角。這時候要叫阿問怎麼回答？',opts:['詳細一點，補齊細節','再更短一點','完全不要回答'],ans:0},{q:'密碼鎖只有四格，答案要塞得進去。該叫阿問用哪種長度？',opts:['限字，不超過四個字','詳細，講一整段','中等，講幾句'],ans:0},{q:'整個案子破下來，「長度」是什麼角色？',opts:['問對長度才拿得到能用的線索——長度是鑰匙','長度只是好看','越長一定越好'],ans:0}];
 /* =========================================================================
    狀態 / 存檔（notebook 記到每案的線索）
    ========================================================================= */
 const VERSION=2;
 const STORE=(function(){ // 存檔鍵綁使用者：共用電腦時下一位學生不會繼承上一位的進度
-  var base='s2w02_progress';
+  var base='s2w03_progress';
   try{ localStorage.removeItem(base); }catch(e){}   // 清掉舊版沒綁人的存檔，避免被繼承
   try{ var r=sessionStorage.getItem('@session/currentUser')||localStorage.getItem('@session/currentUser');
        var u=r?JSON.parse(r):null; return base+':'+((u&&u.id)||'anon'); }catch(e){ return base+':anon'; } })();
-function defaultState(){return {v:VERSION,phase:'start',storyStep:0,owMode:false,owHero:null,caseIdx:0,layerIdx:0,sub:'intro',compared:false,shards:0,solved:[],notebook:{},quizIdx:0,coins:0,done:false,pct:0,weaponsUnlocked:{}};}
+function defaultState(){return {v:VERSION,phase:'start',storyStep:0,owMode:false,owHero:null,caseIdx:0,layerIdx:0,round:0,sub:'intro',compared:false,shards:0,solved:[],notebook:{},clues:[],keywords:[],misses:0,board:{},links:[],quizIdx:0,coins:0,done:false,pct:0,weaponsUnlocked:{},endq:{}};}
 let S=load();
 function load(){try{const r=JSON.parse(localStorage.getItem(STORE));if(r&&r.v===VERSION&&r.phase){r.notebook=r.notebook||{};return r;}}catch(e){}return defaultState();}
 const PHASES=['start','tutorial','case','quiz','done'];
@@ -736,21 +1034,7 @@ function renderNB(){const p=$('#nbPages');p.innerHTML='';const nb=S.notebook||{}
     p.appendChild(sec);});
   if(!any)p.appendChild(el('div','nbempty','還沒有線索。去訊問阿問，破解第一條線索吧！'));}
 $('#nbBtn').onclick=openNB; $('#nbX').onclick=closeNB; $('#nb').addEventListener('click',e=>{if(e.target.id==='nb')closeNB();});
-/* 跳過這一關（老師/測試用：往下一個階段前進；跳過案件會自動補齊線索、記為破案） */
-function skipStage(){ Sfx.tick();
-  if(S.phase==='start'){ S.phase='tutorial'; S.storyStep=0; }
-  else if(S.phase==='tutorial'){ S.owMode=true; S.phase='world'; }
-  else if(S.phase==='world'||S.phase==='battle'){ tv=null; S.notebook=S.notebook||{}; S.solved=S.solved||[]; // 跳過探索→全部標記破案→結案考
-    CASES.forEach(c=>{ S.notebook[c.id]=(c.layers?c.layers.map(l=>l.seed):[]); if(S.solved.indexOf(c.id)<0)S.solved.push(c.id); });
-    S.shards=Object.values(S.notebook).reduce((a,arr)=>a+(arr?arr.length:0),0); S.phase='quiz'; S.quizIdx=0; }
-  else if(S.phase==='case'){ const c=CASES[S.caseIdx]; S.notebook=S.notebook||{}; S.notebook[c.id]=(c.layers?c.layers.map(l=>l.seed):[]);
-    S.solved=S.solved||[]; if(S.solved.indexOf(c.id)<0)S.solved.push(c.id); S.shards=Object.values(S.notebook).reduce((a,arr)=>a+(arr?arr.length:0),0);
-    if(S.owMode){ S.phase='world'; } else { S.caseIdx++; S.compared=false; S.layerIdx=0; if(S.caseIdx>=CASES.length){S.phase='quiz';S.quizIdx=0;}else{S.sub='intro';} } }
-  else if(S.phase==='travel'){ tv=null; S.phase='case'; S.sub='intro'; S.layerIdx=0; }
-  else if(S.phase==='quiz'){ S.phase='done'; }
-  else return; // done：沒東西可跳
-  owStop(); overlay&&overlay.classList&&overlay.classList.remove('on'); save(); render(); }
-// 跳關鈕已移除（S2-W02 保底改為自適應：連錯 3 次阿問自動示範，見 autoDemo）
+// 跳過機制已整個移除（S2-W03 全程用拖拉確認題卡住每一段，不提供跳過；保底靠自適應提示）
 
 /* ---------- 過場 / toast / 撒花 ---------- */
 function transition(text,sub,dur,then){overlay.innerHTML='';overlay.appendChild(el('div','big serif',text));if(sub){const s=el('div','sub');s.innerHTML=sub;overlay.appendChild(s);}overlay.classList.add('on');
@@ -764,23 +1048,48 @@ function flyTo(target,from,make){const t=(typeof target==='string'?$(target):tar
    畫面
    ========================================================================= */
 function clearStage(){stage.innerHTML='';}
+/* ---- 關鍵字欄：找到線索／審問成功時掉字，飛進左欄 ---- */
+function addKeyword(id,text,ch){ S.keywords=S.keywords||[]; if(S.keywords.some(k=>k.id===id)){renderRail();return;}
+  S.keywords.push({id:id,text:text,ch:ch||((S.caseIdx||0)+1)}); save(); renderRail();
+  try{ flyTo('#krail', stage, ()=>{ const c=el('div','kw'); c.textContent=text; return c; }); }catch(e){} }
+function renderRail(){ const w=$('#kwrap'); if(!w)return; w.innerHTML='';
+  const ks=S.keywords||[]; if(!ks.length){ w.appendChild(el('div','kwempty','還沒有關鍵字～去現場找線索、問關係人，就會收集到這裡。')); return; }
+  ks.forEach(k=>{ const c=el('div','kw'); c.innerHTML=(k.ch?'<span class="kc">第'+k.ch+'章</span>':'')+k.text; w.appendChild(c); }); }
+/* 拖放：把 .chip 拖到 .slot（未 filled）上，呼叫 onDrop(chip,slot)，回傳 false=拒絕並抖動 */
+function dnd(root,onDrop){let chip=null,ghost=null,ox=0,oy=0;
+  function slotAt(x,y){ghost.style.display='none';const t=document.elementFromPoint(x,y);ghost.style.display='';const sl=t?t.closest('.slot'):null;return(sl&&root.contains(sl)&&!sl.classList.contains('filled'))?sl:null;}
+  function move(e){if(!chip)return;ghost.style.left=(e.clientX-ox)+'px';ghost.style.top=(e.clientY-oy)+'px';root.querySelectorAll('.slot.hot').forEach(s=>s.classList.remove('hot'));const sl=slotAt(e.clientX,e.clientY);if(sl)sl.classList.add('hot');}
+  function up(e){if(!chip)return;const sl=slotAt(e.clientX,e.clientY);root.querySelectorAll('.slot.hot').forEach(s=>s.classList.remove('hot'));
+    const c=chip;c.classList.remove('dragging');ghost.remove();ghost=null;chip=null;window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);
+    let ok=false;if(sl)ok=onDrop(c,sl)!==false;if(!ok){c.classList.remove('nope');void c.offsetWidth;c.classList.add('nope');}}
+  root.addEventListener('pointerdown',e=>{const c=e.target.closest('.chip');if(!c||c.classList.contains('placed'))return;e.preventDefault();
+    const r=c.getBoundingClientRect();ox=e.clientX-r.left;oy=e.clientY-r.top;
+    ghost=c.cloneNode(true);ghost.classList.add('ghost');ghost.style.width=r.width+'px';ghost.style.height=r.height+'px';ghost.style.left=r.left+'px';ghost.style.top=r.top+'px';
+    document.body.appendChild(ghost);c.classList.add('dragging');chip=c;window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);});}
 function awenRow(mood,txt){const r=el('div','awenrow');const f=pic('det-awen','face');r.appendChild(f);const b=el('div','bubble'+(mood?' '+mood:''));b.innerHTML='<span class="who">阿問終端機</span><span class="t">'+txt+'</span>';r.appendChild(b);
   // 若圖失敗，face 用向量退回
   const im=f.querySelector('img');im.addEventListener('error',()=>f.classList.add('fail'));return r;}
 
 function render(){ if(S.phase!=='world'&&owRAF){cancelAnimationFrame(owRAF);owRAF=0;} clearStage();renderTop();
-  ({start:scrStart,tutorial:scrTutorial,world:scrWorld,case:scrCase,travel:scrTravel,battle:()=>drawTravel(),quiz:scrQuiz,done:scrDone}[S.phase]||scrStart)();}
+  ({start:scrStart,tutorial:scrTutorial,world:scrWorld,case:scrCase,travel:scrTravel,battle:()=>drawTravel(),quiz:renderTruth,done:scrDone}[S.phase]||scrStart)(); renderRail(); }
 
 const STORY=[
-{art:"story-fmt0",text:"上個禮拜，你和搭檔<b>阿問</b>（一台超會查資料的機器人）在這座城市破了好多案子——你們成了小有名氣的<b>小偵探</b>！",
- tap:{hint:"👋 點一下阿問，擊個掌！",icon:"det-awen",reveal:{who:"阿問",text:"嗶嗶——我們是最佳拍檔！這禮拜也要一起加油喔！"}}},
-{art:"story-fmt0",text:"但這禮拜，城裡出現一種<b>新型案件</b>——<br>線索多到爆炸，<b>滿滿一整面都是字</b>，<br>看得人眼花撩亂、<b>難以捉摸</b>，不知道從哪查起……",
- tap:{hint:"📄 點開看看，這種案子長什麼樣",label:"📄 新型案件的線索",reveal:{messy:"布丁還在桌上小華經過桌子窗戶開著今天禮拜三小華嘴邊沾到布丁地上有橡皮擦布丁不見了時鐘滴答響有人在掃地……（全部擠成一團，看不出哪個才是重點）"}}},
-{art:"story-fmt0",text:"別怕！阿問幫你準備了<b>四個 AI 工具</b>，<br>可以在一大堆資訊裡<b>抽絲剝繭</b>：<br><b>抓重點 → 列清單 → 排表格 → 排步驟</b>。<br>學會這四招，再多線索都能找出真相！",
- gate:{q:"準備好學這四招、破解新型案件了嗎？",options:[
-   {t:"準備好了！開始學四招 ✨",ok:true},
-   {t:"用猜的就好啦",ok:false,no:"線索這麼多，用猜的會被騙喔！用對工具才找得到真相。"}
- ]}}
+{art:"s2w03-hall.jpg",text:"上個禮拜，你和搭檔<b>阿問</b>（一台超會查資料的機器人）在這座城市破了好多案子——你們成了小有名氣的<b>小偵探</b>！",
+ tap:{hint:"👋 點一下阿問，擊個掌！",icon:"det-awen",reveal:{who:"阿問",text:"嗶嗶——今晚有一件大案子，只有我們能破！"}},
+ dq:{parts:['你和阿問是這座城市的小',{blank:'偵探'},'，今晚有一件大',{blank:'案子'},'要破。'], bank:['偵探','案子','老師','點心']}},
+{art:"s2w03-hall.jpg",text:"今晚是<b>慶典前一夜</b>。展示廳裡，那頂明天早上就要戴的<b>慶典皇冠</b>——<br><b>不見了！</b>櫃門開著、紅色軟墊上空空的。",
+ tap:{hint:"🔍 點開看看現場",label:"🔍 空空的展示櫃",reveal:{who:"阿問",text:"櫃門沒被撬開，是用鑰匙開的。我們只有今晚，分五章把皇冠找回來！"}},
+ dq:{parts:['慶典前一夜，展示櫃裡的',{blank:'皇冠'},'不見了；櫃門沒被撬，是有人用',{blank:'鑰匙'},'打開的。'], bank:['皇冠','鑰匙','獎盃','榔頭']}},
+{art:"s2w03-hall.jpg",text:"這次破案的鑰匙，是<b>「長度」</b>。<br>同一個問題，叫我用<b>不同的長度</b>回答，拿到的東西差很多：<br><b>太長</b>會把重點<b>淹沒</b>、<b>太短</b>會<b>缺一角</b>，只有<b>剛好</b>的長度，才拿得到能用的線索。",
+ gate:{q:"管理員落落長講了三分鐘，你只想知道「皇冠幾點不見的」。該叫阿問怎麼回答？",options:[
+   {t:"很短，一句話講重點 ✨",ok:true},
+   {t:"越詳細越好，全部講一遍",ok:false,no:"落落長會把那句重點淹沒掉——要他一句話講重點，才挖得出來！"}]},
+ dq:{parts:['同一句話，太長會把重點',{blank:'淹沒'},'、太短會',{blank:'缺一角'},'，只有剛好的長度才拿得到線索。'], bank:['淹沒','缺一角','更清楚','更好笑']}},
+{art:"s2w03-hall.jpg",text:"五章、五條線索、一頂皇冠。<br>每一章都要<b>問對長度</b>才拿得到線索，最後拼出<b>誰拿的、怎麼拿的、為什麼</b>。",
+ gate:{q:"準備好用「長度」把皇冠找回來了嗎？",options:[
+   {t:"準備好了！出發辦案 ✨",ok:true},
+   {t:"用猜的就好啦",ok:false,no:"皇冠這麼重要，用猜的會冤枉好人喔！用對長度，才問得出真相。"}]},
+ dq:{parts:['這一夜要分成',{blank:'五'},'章來查，最後拼出皇冠是誰拿的、',{blank:'為什麼'},'拿。'], bank:['五','為什麼','三','幾點']}}
 ];
 function awenBig(txt){const w=el('div','awenbig');w.appendChild(pic('det-awen','bigface'));const b=el('div','bubble big');b.innerHTML='<span class="who">阿問</span><span class="t">'+txt+'</span>';w.appendChild(b);return w;}
 // 打字機：逐字顯示 HTML（標籤瞬間出現、文字一個一個），回傳 finish() 讓「點一下」立刻補完
@@ -790,6 +1099,22 @@ function typeHTML(node,html,speed,onDone){speed=speed||26;
   function finish(){if(done)return;done=true;if(timer){clearTimeout(timer);timer=null;}node.innerHTML=html;onDone&&onDone();}
   function step(){if(i>=toks.length){finish();return;}buf+=toks[i];i++;node.innerHTML=buf+'<span class="tcursor"></span>';const tagNext=i<toks.length&&toks[i][0]==='<';timer=setTimeout(step,tagNext?0:speed);}
   step();return finish;}
+/* 可重用：一段文字後面接的拖拉確認題（把對的詞拖進空格，全對才 onDone） */
+function dragQuiz(mount, dq, onDone){
+  const wrap=el('div','practice dqwrap');wrap.style.setProperty('--pc',FORMATS.keypoints.color);
+  wrap.appendChild(el('div','dqlbl','🧩 讀懂了嗎？把對的詞拖進空格：'));
+  const sent=el('div','gsent');const blanks=[];
+  dq.parts.forEach(p=>{ if(typeof p==='string')sent.appendChild(el('span','gtext',p)); else {const slot=el('span','gblank slot');slot.dataset.ans=p.blank;sent.appendChild(slot);blanks.push(slot);} });
+  wrap.appendChild(sent);
+  const tray=el('div','dtray');shuffle(dq.bank.slice()).forEach(w=>{const chip=el('div','chip',w);chip.dataset.word=w;tray.appendChild(chip);});wrap.appendChild(tray);
+  const hint=el('div','ptip');wrap.appendChild(hint); mount.appendChild(wrap);
+  let filled=0;const need=blanks.length; let fired=false;
+  dnd(wrap,(chip,slot)=>{ if(!slot.classList.contains('gblank'))return false;
+    if(chip.dataset.word!==slot.dataset.ans){ Sfx.pop(); hint.textContent='🔎 再讀一次上面那段～'; return false; }
+    slot.classList.add('filled'); slot.textContent=chip.dataset.word; chip.classList.add('placed'); Sfx.tick(); hint.textContent=''; filled++;
+    if(filled>=need && !fired){ fired=true; Sfx.win(); onDone&&onDone(); }
+    return true; });
+}
 function scrStart(){const i=clamp(S.storyStep||0,0,STORY.length-1);const beat=STORY[i];const last=i>=STORY.length-1;const s=el('div','screen story');
   if(i===0){const h=el('h1','serif');h.innerHTML='阿問偵探社<span class="sub">A-WEN　DETECTIVE　AGENCY</span>';s.appendChild(h);}
   if(beat.art){const art=el('div','storyart');art.appendChild(pic(beat.art));s.appendChild(art);}
@@ -797,14 +1122,15 @@ function scrStart(){const i=clamp(S.storyStep||0,0,STORY.length-1);const beat=ST
   const dots=el('div','storydots');STORY.forEach((_,k)=>dots.appendChild(el('div','sd'+(k<=i?' on':''))));s.appendChild(dots);
   const zone=el('div','storyzone');s.appendChild(zone);
   function goNext(){Sfx.resume();if(last){Sfx.win();S.phase='tutorial';S.storyStep=0;save();render();}else{Sfx.tick();S.storyStep=i+1;save();render();}}
+  function contBtn(){ const bwrap=el('div','contwrap'); const b=el('button','btn'+(beat.dq?' green':''),last?'接下第一件案子　▶':'繼續　▶'); b.onclick=goNext; bwrap.appendChild(b); zone.appendChild(bwrap); try{b.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){} }
+  function afterBeat(){ if(beat.dq){ dragQuiz(zone, beat.dq, contBtn); } else { contBtn(); } }
   // ② 打字機 + 點一下補完：字沒打完，點畫面先把整段補完；打完才顯示互動
   let typing=true;
   const finish=typeHTML(card,beat.text,26,()=>{typing=false;showInteraction();});
   const tapComplete=()=>{Sfx.resume();if(typing)finish();};
   card.style.cursor='pointer';card.addEventListener('click',tapComplete);
   if(beat.art)s.querySelector('.storyart').addEventListener('click',tapComplete);
-  function showInteraction(){zone.innerHTML='';if(beat.gate)return renderGate();if(beat.tap)return renderTap();
-    const b=el('button','btn',last?'接下第一件案子　▶':'繼續　▶');b.onclick=goNext;zone.appendChild(b);}
+  function showInteraction(){zone.innerHTML='';if(beat.gate)return renderGate();if(beat.tap)return renderTap();afterBeat();}
   // ① 每頁綁一個「跟劇情有關」的小互動，點了才前進
   function renderTap(){const t=beat.tap;const wrap=el('div','tapwrap');
     wrap.appendChild(el('div','taphint',t.hint));
@@ -817,13 +1143,13 @@ function scrStart(){const i=clamp(S.storyStep||0,0,STORY.length-1);const beat=ST
       if(r.who){const row=el('div','awenrow');row.appendChild(pic('det-awen','face'));const bub=el('div','bubble happy');bub.innerHTML='<span class="who">'+r.who+'</span><span class="t">'+r.text+'</span>';row.appendChild(bub);rev.appendChild(row);}
       else if(r.messy){const box=el('div','answerbox bad');box.appendChild(el('div','ansmalllbl','😵 阿問給的答案（全擠在一起）：'));box.appendChild(el('div','messy',r.messy));rev.appendChild(box);}
       zone.appendChild(rev);
-      const bwrap=el('div','contwrap');const b=el('button','btn',last?'接下第一件案子　▶':'繼續　▶');b.onclick=goNext;bwrap.appendChild(b);zone.appendChild(bwrap);};}
+      afterBeat();};}
   // ③ 最後一頁：超簡單的確認關（同時當任務預覽）；答錯溫柔提示、不放行
   function renderGate(){const g=beat.gate;zone.appendChild(el('div','gateq',g.q));
     const opts=el('div','gateopts');
     g.options.forEach(o=>{const btn=el('button','gateopt',o.t);
       btn.onclick=()=>{Sfx.resume();
-        if(o.ok){Sfx.win();btn.classList.add('right');[...opts.children].forEach(c=>c.disabled=true);setTimeout(goNext,700);}
+        if(o.ok){Sfx.win();btn.classList.add('right');[...opts.children].forEach(c=>c.disabled=true);setTimeout(afterBeat,600);}
         else{Sfx.pop();btn.classList.remove('shakeit');void btn.offsetWidth;btn.classList.add('shakeit','wrong');
           let h=zone.querySelector('.gatehint');if(!h){h=el('div','gatehint');zone.appendChild(h);}h.textContent='🔎 '+(o.no||'再看一次線索喔～');}};
       opts.appendChild(btn);});
@@ -831,262 +1157,100 @@ function scrStart(){const i=clamp(S.storyStep||0,0,STORY.length-1);const beat=ST
   stage.appendChild(s);}
 
 let demoStep=0;
-function scrTutorial(){ demoStep=0; renderDemo(); }
+function scrTutorial(){ renderDemo(); }
 function goWorld(){ Sfx.win(); S.owMode=true; S.phase='world'; save(); transition('阿問偵探社','用方向鍵或下方按鈕走路，去地圖上找 ❗ 案件！',1800,render); }
-/* ---------- 拖拉引擎（滑鼠＋觸控通用；把 .chip 拖進 .slot） ---------- */
-function dnd(root,onDrop){let chip=null,ghost=null,ox=0,oy=0;
-  function slotAt(x,y){ghost.style.display='none';const t=document.elementFromPoint(x,y);ghost.style.display='';const sl=t?t.closest('.slot'):null;return(sl&&root.contains(sl)&&!sl.classList.contains('filled'))?sl:null;}
-  function move(e){if(!chip)return;ghost.style.left=(e.clientX-ox)+'px';ghost.style.top=(e.clientY-oy)+'px';root.querySelectorAll('.slot.hot').forEach(s=>s.classList.remove('hot'));const sl=slotAt(e.clientX,e.clientY);if(sl)sl.classList.add('hot');}
-  function up(e){if(!chip)return;const sl=slotAt(e.clientX,e.clientY);root.querySelectorAll('.slot.hot').forEach(s=>s.classList.remove('hot'));
-    const c=chip;c.classList.remove('dragging');ghost.remove();ghost=null;chip=null;window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);
-    let ok=false;if(sl)ok=onDrop(c,sl)!==false;if(!ok){c.classList.remove('nope');void c.offsetWidth;c.classList.add('nope');}}
-  root.addEventListener('pointerdown',e=>{const c=e.target.closest('.chip');if(!c||c.classList.contains('placed'))return;e.preventDefault();
-    const r=c.getBoundingClientRect();ox=e.clientX-r.left;oy=e.clientY-r.top;
-    ghost=c.cloneNode(true);ghost.classList.add('ghost');ghost.style.width=r.width+'px';ghost.style.height=r.height+'px';ghost.style.left=r.left+'px';ghost.style.top=r.top+'px';
-    document.body.appendChild(ghost);c.classList.add('dragging');chip=c;window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);});}
-/* ===== 開場動畫技能示範：一面線索牆 → 重點→清單→表格→步驟 → 真相 ===== */
-const DEMO={
-  keys:[{who:'布丁',act:'還在桌上',time:'12:10'},{who:'小華',act:'走過桌子',time:'12:15'},{who:'小華',act:'嘴邊有布丁',time:'12:18'},{who:'布丁',act:'消失了',time:'12:20'}],
-  scram:[2,0,3,1],
-  scatter:[{fx:.27,fy:.30},{fx:.61,fy:.24},{fx:.32,fy:.64},{fx:.64,fy:.66}],
-  noise:['窗戶開著','今天禮拜三','地上有橡皮擦','小明在看漫畫','黑板寫功課','便當盒藍色','有人在掃地','時鐘滴答響'],
-  truth:'12:15 小華走過桌子 → 12:18 嘴邊有布丁 → 12:20 布丁不見了。<b>是小華把布丁吃掉了！</b>',
-};
-const DEMO_SKILLS=[['keypoints','重點'],['list','清單'],['table','表格'],['steps','步驟']];
-const DEMO_CAPS=[
-  '哇——滿滿一整面都是線索，眼花撩亂！用「重點」把最關鍵的挑出來。',
-  '✨ 抓到重點了！其他資訊淡掉。再用「清單」把它們排到左邊。',
-  '📋 排成清單，一條一條！用「表格」把「主角」和「動作」分開對齊。',
-  '🔀 主角、動作分好欄！最後用「步驟」照時間，把順序上下排好。',
-  '⏱️ 順序一排，真相就浮出來了——這就是抽絲剝繭！',
+/* 教學：六個生活化例子全放一頁——上排 3「太長→精簡」、下排 3「太短→變長」，逐句原地診斷＋揭曉 */
+const DEMO_EX=[
+  // ── 太長 → 精簡（該講的都講完了，但繞一大圈，重點被埋住）──
+  {kind:'long',
+   bad:'欸我跟你講喔，我今天早上出門超趕，一個不小心就把鉛筆盒忘在家裡書桌上了，可是等一下第三節數學課又要用到尺跟橡皮擦，我剛剛想到你昨天好像帶了兩個鉛筆盒來，如果你等一下自己沒有要用的話，可以先借我一個嗎？',
+   good:'可以先借我一個鉛筆盒嗎？',
+   why:'該講的都講到了，但繞了一大圈——重點只有「借鉛筆盒」，前面怎麼忘的都能省。'},
+  {kind:'long',
+   bad:'老師我跟您說，我媽媽今天早上打電話提醒我，說我下禮拜三要去大醫院看牙齒、可能還要拔一顆牙，那天一整天都沒辦法來上課，她要我一定要先跟您報備一聲，麻煩您幫我記一下喔。',
+   good:'老師，我下禮拜三要看牙醫，想請一天假。',
+   why:'資訊都在裡面，但重點是「哪天、請假」——看什麼牙、誰打電話都能省。'},
+  {kind:'long',
+   bad:'欸那個，我們這禮拜六不是約好要去圖書館嗎，我想說早上人比較少、位子也比較好找，我大概九點多就會出門，你看我們要不要就約早上十點整，在圖書館一樓正門口那邊集合？',
+   good:'禮拜六早上十點，圖書館正門口見。',
+   why:'話講完了，可是重點只有「時間、地點」——中間那些考量都是多說的。'},
+  // ── 太短 → 變長（話太少，缺一角）──
+  {kind:'short', bad:'六點。',   good:'我今天傍晚六點，會到你家門口找你。', why:'只有「六點」——是誰、去哪、做什麼，全都缺。'},
+  {kind:'short', bad:'不見了。', good:'我放在桌上的水壺不見了，可能被別人拿走了。', why:'什麼不見、在哪不見，缺了一大角。'},
+  {kind:'short', bad:'幫我。',   good:'我的數學第三題不會，你可以教我嗎？', why:'太短了，別人根本不知道要怎麼幫你。'},
 ];
-const DEMO_POOL=['線索','時間','地點','人物','證據','疑點','布丁','教室','桌子','窗戶','經過','不見','沾到','還在','掃地','漫畫','時鐘','橡皮擦','便當','奶油','盤子','腳步','聲音','剛剛','旁邊','偷偷','奇怪','消失','午餐','嘴邊','小華','小明','為什麼','什麼時候','誰','12:10','12:15','12:18','12:20','禮拜三','線報','紀錄','目擊','？'];
-let demoEls=null;
-function demoGalaxy(field){ const R=(a,b)=>a+Math.random()*(b-a);
-  const P=640,VW=window.innerWidth||1200,FH=Math.max(380,(window.innerHeight||760)-300),HW=VW*0.47,HH=FH*0.46;
-  function place(cls,txt,sx,sy,z,op,blur){const f=(P-z)/P;const e=el('div','word'+cls);e.textContent=txt;e.style.setProperty('--x',(sx*f).toFixed(0)+'px');e.style.setProperty('--y',(sy*f).toFixed(0)+'px');e.style.setProperty('--z',z.toFixed(0)+'px');e.style.opacity=op.toFixed(2);if(blur>0)e.style.filter='blur('+blur.toFixed(1)+'px)';field.appendChild(e);}
-  for(let i=0;i<150;i++)place(' deep',DEMO_POOL[(i*13+3)%DEMO_POOL.length],R(-HW,HW),R(-HH,HH),R(-300,-130),R(.3,.55),R(1,2.2));
-  for(let i=0;i<90;i++)place(' mid',DEMO_POOL[(i*7+11)%DEMO_POOL.length],R(-HW,HW),R(-HH,HH),R(-120,-45),R(.55,.82),R(.2,.9));
-}
-// 狀態機：0 牆 / 1 重點 / 2 清單 / 3 表格 / 4 步驟+真相（同一舞台上連續動畫）
-function applyDemoState(n){ demoStep=n; const D=demoEls; if(!D)return;
-  const W=D.space.clientWidth||1000, H=D.space.clientHeight||560;
-  D.cap.innerHTML='<span class="who">阿問</span><span class="t">'+DEMO_CAPS[n]+'</span>';
-  if(n===0)D.cstage.classList.add('notrans');
-  D.cstage.className='cluestage s-'+['wall','key','list','table','step'][n]+(n===0?' notrans':'');
-  if(n>=1){ D.field.classList.add('faded'); D.field.style.animationPlayState='paused'; }
-  const rowH=Math.min(74,Math.max(46,H*0.14)), blockH=D.cards.length*rowH, listTop=Math.max(rowH*1.1,H/2-blockH/2), listX=Math.max(20,W*0.06);
-  D.cards.forEach((c,idx)=>{ const disp=DEMO.scram.indexOf(idx), sorted=idx, slot=(n>=4)?sorted:disp;
-    if(n<=1){ c.style.transitionDelay='0ms'; c.style.setProperty('--tx',(DEMO.scatter[idx].fx*W).toFixed(0)+'px'); c.style.setProperty('--ty',(DEMO.scatter[idx].fy*H).toFixed(0)+'px'); }
-    else { c.style.transitionDelay=(slot*70)+'ms'; c.style.setProperty('--tx',listX+'px'); c.style.setProperty('--ty',(listTop+slot*rowH).toFixed(0)+'px'); }
-    c.querySelector('.cc-num').textContent=(n>=2)?String(slot+1):''; c.classList.toggle('lit',n>=1);
+let demoState=null;
+function renderDemo(){ clearStage();
+  if(!demoState) demoState=DEMO_EX.map(()=>false);
+  const s=el('div','screen'); s.appendChild(el('h1','serif','🎓 先學一招：問對「長度」'));
+  const doneN=demoState.filter(Boolean).length;
+  s.appendChild(awenRow('happy','下面六句話，有的話太多、把重點淹沒，有的話太少、缺了一角。逐句判斷是太長還是太短，再看看怎麼調到「剛好」。（已完成 '+doneN+' / '+DEMO_EX.length+'）'));
+  const grid=el('div','demogrid');
+  DEMO_EX.forEach((ex,i)=>{ const done=demoState[i];
+    const card=el('div','democard'+(done?' done':''));
+    card.appendChild(el('div','demonum','第 '+(i+1)+' 句'));
+    const bad=el('div','w3ans '+(ex.kind==='long'?'toolong':'tooshort')); bad.textContent='「'+ex.bad+'」'; card.appendChild(bad);
+    if(!done){
+      card.appendChild(el('div','ivdiaglbl','這句——太長還是太短？'));
+      const btns=el('div','demobtns');
+      const mk=(kind,tt,col)=>{ const b=el('button','demobtn'); b.style.setProperty('--c',col); b.textContent=tt;
+        b.onclick=()=>{ if(kind===ex.kind){ Sfx.ding(); demoState[i]=true; renderDemo(); }
+          else { Sfx.pop(); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); toast(ex.kind==='long'?'再看看——它是不是話太多、重點被埋了？':'再看看——它是不是話太少、講不清楚？'); } };
+        return b; };
+      btns.appendChild(mk('long','太長了','var(--len-long)'));
+      btns.appendChild(mk('short','太短了','var(--len-short)'));
+      card.appendChild(btns);
+    } else {
+      const v=el('div','w3verdict no'); v.textContent=(ex.kind==='long'?'太長了：':'太短了：')+ex.why; card.appendChild(v);
+      card.appendChild(el('div','ptip',ex.kind==='long'?'精簡成剛好 ↓':'補齊成剛好 ↓'));
+      const good=el('div','w3ans good'); good.textContent='「'+ex.good+'」'; card.appendChild(good);
+    }
+    grid.appendChild(card);
   });
-  D.head.style.setProperty('--tx',listX+'px'); D.head.style.setProperty('--ty',(listTop-rowH*0.95).toFixed(0)+'px'); D.head.style.opacity=(n>=3)?'1':'0';
-  D.truth.classList.toggle('show',n>=4);
-  [...D.bar.children].forEach((b,i)=>{ b.style.display=(i>n)?'none':''; b.classList.toggle('done',i<n); b.classList.toggle('active',i===n); b.disabled=(i!==n); let chk=b.querySelector('.skchk'); if(i<n){ if(!chk){chk=el('span','skchk','✓');b.appendChild(chk);} } else if(chk){chk.remove();} });
-  D.go.style.display=(n>=4)?'':'none';
-  if(n===0){ void D.cstage.offsetWidth; D.cstage.classList.remove('notrans'); }
-  if(n>=4) setTimeout(()=>{try{D.go.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}},300);
-}
-function renderDemo(){ clearStage(); demoStep=0; const s=el('div','screen demo');
-  s.appendChild(el('h1','serif','抽絲剝繭：四個 AI 工具'));
-  const cap=el('div','democap');s.appendChild(cap);
-  const content=el('div','democontent full');s.appendChild(content);
-  const space=el('div','wordspace');content.appendChild(space);
-  const field=el('div','wordfield');space.appendChild(field);demoGalaxy(field);
-  const cstage=el('div','cluestage');space.appendChild(cstage);
-  const head=el('div','tblhead');head.innerHTML='<span class="th th-num"></span><span class="th th-time">時間</span><span class="th th-who">主角</span><span class="th th-act">動作</span>';cstage.appendChild(head);
-  const cards=DEMO.keys.map((k,idx)=>{ const c=el('div','cluecard');c.dataset.k=idx;
-    c.innerHTML='<span class="cc-num"></span><span class="cc-time">'+k.time+'</span><span class="cc-who">'+k.who+'</span><span class="cc-act">'+k.act+'</span>';
-    cstage.appendChild(c); return c; });
-  const truth=el('div','truthpanel');truth.innerHTML='<div class="tp-hd">🎯 真相</div><div class="tp-body">'+DEMO.truth+'</div>';cstage.appendChild(truth);
-  const bar=el('div','skillbar');
-  DEMO_SKILLS.forEach(([k,name],i)=>{ const b=el('button','skillbtn f-'+k);b.style.setProperty('--fc',FORMATS[k].color);
-    b.innerHTML='<span class="ski">'+fmtIcon(k)+'</span><span class="skn">'+name+'</span>';
-    b.onclick=()=>{ if(demoStep!==i||b.disabled)return; Sfx.resume(); b.classList.add('firing');
-      if(demoEls&&demoEls.space){demoEls.space.classList.remove('hit');void demoEls.space.offsetWidth;demoEls.space.classList.add('hit');setTimeout(()=>{demoEls&&demoEls.space&&demoEls.space.classList.remove('hit');},360);}
-      [...bar.children].forEach(x=>x.disabled=true);
-      if(i===0){ Sfx.unlock(); demoEls.field.querySelectorAll('.word').forEach(w=>w.classList.add('gone')); demoEls.cards.forEach(c=>c.classList.add('lit')); }
-      else Sfx.ding();
-      setTimeout(()=>{ b.classList.remove('firing'); applyDemoState(demoStep+1); }, i===0?1000:620);
-    };
-    bar.appendChild(b); });
-  s.appendChild(bar);
-  const go=el('button','btn green','換我當偵探！出發辦案 ▶');go.onclick=goWorld;go.style.display='none';s.appendChild(go);
-  demoEls={s,cap,space,field,cstage,head,cards,truth,bar,go};
+  s.appendChild(grid);
+  if(doneN>=DEMO_EX.length){
+    s.appendChild(el('div','w3verdict ok','六句都調到剛好了！你已經會判斷「太長就精簡、太短就補齊」——出發辦案吧。'));
+    const b=el('button','btn green','出發辦案 ▶'); b.onclick=()=>{ demoState=null; goWorld(); }; s.appendChild(b);
+  }
   stage.appendChild(s);
-  applyDemoState(0);
 }
 function mkLamp(k,name,on){const d=el('div','lamp '+k+(on?' on':''));d.innerHTML='<span class="b"></span>'+name;d.dataset.k=k;return d;}
 
 /* ================= 步驟關重構：點擊式解謎《消失的冠軍餅乾》 =================
    流程：intro → explore(多場景找線索) → sift(拖拉篩選) → format(選步驟) → timeline(讀時間線) → deduce(推理) → solved */
-const STEPCASE={ id:'cookie', mode:'stepcase', title:'消失的冠軍餅乾', scene:'ck-hero',
-  hook:'烘焙賽頒獎，評審咬下小美的冠軍餅乾——竟然又鹹又苦，當場吐出來！半小時前明明超香。是誰、什麼時候把餅乾掉包了？',
-  gate:{ intro:'先確認你有看懂案情！把對的詞拖進空格。',
-    parts:['評審咬到又',{blank:'鹹'},'又苦的餅乾，其實那盤是被',{blank:'掉包'},'的。半小時前小美的餅乾明明還很',{blank:'香'},'。'],
-    bank:['鹹','掉包','香','甜','偷吃'] },
-  scenes:[
-    {key:'table', name:'作品展示桌', img:'ck-table', desc:'餅乾排排站，等評審評分。', spots:[
-      {id:'time', label:'值日生白板', x:63,y:28, key:true, who:'小雅', act:'離開了', time:'2:22', clue:'白板記錄：小雅 2:22 端完餅乾就離開，之後沒人顧著桌子。'},
-      {id:'cloth', label:'格子桌巾', x:45,y:78, key:false, clue:'桌上鋪著漂亮的紅白格子桌巾。'},
-    ]},
-    {key:'hall', name:'走廊窗戶', img:'ck-hall', desc:'教室外的走廊，通到洗手間。', spots:[
-      {id:'meisaw', label:'問小美', x:19,y:38, key:true, who:'老師', act:'來收餅乾', time:'2:28', clue:'小美說：老師 2:28 來收餅乾時，那一盤已經變成壞的了。'},
-    ]},
-    {key:'judge', name:'評審台', img:'ck-judge', desc:'評審一咬就變了臉。', spots:[
-      {id:'bag', label:'阿豪的書包', x:83,y:46, key:true, who:'阿豪', act:'走到桌子旁', time:'2:25', clue:'有人看到：阿豪 2:25 走到了桌子旁邊。'},
-      {id:'dog', label:'校犬胖胖', x:42,y:85, key:false, clue:'校犬胖胖趴在桌子底下睡覺。'},
-    ]},
-  ],
-  correctFormat:'steps', gapIndex:1,
-  eventScram:[2,0,1],
-  timeline:[
-    '2:20　小雅把小美的香餅乾端上桌。',
-    '2:22　小雅離開，沒人看著桌子。',
-    '2:22～2:28　空窗！只有阿豪在桌邊。',
-    '2:28　老師來收餅乾（已被換成焦的那盤）。',
-    '2:30　評審一咬——又鹹又苦，掉包被抓包！',
-  ],
-  messy:{
-    list:'阿豪餅乾焦・白板2:20上桌2:22小雅走2:28老師收・小美牌前是焦的・阿豪書包有香餅乾・胖胖在睡。',
-    table:'小美→洗手間；阿豪→桌邊；小雅→離開；老師→評審台。',
-    keypoints:'重點：餅乾被掉包了。',
-  },
-  messyWhy:{
-    list:'看不出誰先誰後，也找不到那段沒人看的空窗。',
-    table:'記不住「幾點幾分」的先後，抓不到 2:22～2:28 的縫。',
-    keypoints:'只剩一句「被掉包」，時間全不見，兇手藏起來了。',
-  },
-  solveFill:{
-    parts:['真相是：只有',{blank:'阿豪'},'在',{blank:'2:25'},'走到桌子旁，正好卡在沒人看的空窗——就是他把餅乾掉包的！'],
-    bank:['阿豪','小雅','老師','2:25','2:22','2:28'] },
-  solveQ:{ q:'把時間排好後——是誰趁「沒人看桌子」的空窗掉包的？',
-    opts:[
-      '阿豪——他 2:25 走到桌子旁，正好卡在沒人看的空窗裡',
-      '小雅——但她 2:22 就先離開了',
-      '老師——但他 2:28 才來收餅乾',
-      '校犬胖胖',
-    ], ans:0 },
-  solved:'真相大白！沒人偷、也不是狗——是阿豪不甘心，趁空窗把小美的好餅乾藏進書包、換上自己失敗的那盤。他坦白道歉，把冠軍還給小美。你靠「排時間線」抓到了藏在空窗裡的真相！',
-};
-if(typeof CASES!=='undefined' && Array.isArray(CASES) && CASES.length>2) CASES[2]=STEPCASE; // 取代原「倒帶謎案（步驟）」
-
-/* ===== 其餘 4 案全部改成「時間線推理」範式（比照餅乾案） =====
-   共同結構：hook → gate 拖拉填空 → 3 場景找 5 線索（3 事件+2 干擾）→ 篩選 → 阿問整理(重點→清單→表格→步驟) → 讀時間線 → 拖拉破案。
-   詭計：兩個事件界定「沒人看的空窗」(有人離開→有人稍後才發現不見)，兇手正好卡在空窗中間。兇手線索一律「中性動作」，非排時間不可。 */
-const STEPCASE_STAMP={ id:'case-list-eraser', mode:'stepcase', title:'消失的好棒章', scene:'st-hero',
-  hook:'午休結束鐘一響，老師要蓋大家最愛的「好棒章」——打開講台上的印章盒，裡面空空的，印章不見了！沒有章，全班作業都蓋不了。是誰，在午休那段沒人看的時間把印章拿走的？',
-  gate:{ intro:'先確認你有看懂案情！把對的詞拖進空格。',
-    parts:[{blank:'午休'},'時，老師蓋作業的',{blank:'好棒章'},'，從',{blank:'講台'},'上不見了！'],
-    bank:['午休','好棒章','講台','下課','橡皮擦'] },
-  scenes:[
-    {key:'podium', name:'講台', img:'st-podium', desc:'老師改作業、蓋章的地方。', spots:[
-      {id:'box', label:'空空的印章盒', x:60,y:80, key:true, who:'老師', act:'回來發現沒了', time:'12:40', clue:'老師 12:40 午休回來要蓋章，一開盒子——印章不見了！'},
-      {id:'hw', label:'翻開的作業本', x:23,y:73, key:false, clue:'講台上一本作業本翻開著，紅筆改到一半。'},
-    ]},
-    {key:'hall', name:'走廊', img:'st-hall', desc:'午休時通往福利社的走廊。', spots:[
-      {id:'jie', label:'問值日生小潔', x:77,y:79, key:true, who:'小潔', act:'收完就離開', time:'12:30', clue:'小潔說：我 12:30 收好老師的桌子，離開時印章還在盒子裡。'},
-    ]},
-    {key:'locker', name:'置物區', img:'st-locker', desc:'教室後方掛書包的地方。', spots:[
-      {id:'kai', label:'阿凱的書包', x:28,y:50, key:true, who:'阿凱', act:'走到講台旁', time:'12:33', clue:'有人看到：阿凱 12:33 一個人走到老師的講台旁。'},
-      {id:'sink', label:'滴水的洗手台', x:9,y:52, key:false, clue:'教室後面的洗手台一直在滴水。'},
-    ]},
-  ],
-  eventScram:[2,0,1],
-  solveFill:{ parts:['真相是：只有',{blank:'阿凱'},'在',{blank:'12:33'},'走到講台旁，正好卡在沒人看的空窗——好棒章是他拿走的！'],
-    bank:['阿凱','12:33','小潔','老師','12:30','12:40'] },
-  solveQ:{ q:'把時間排好後——是誰趁「沒人看講台」的空窗把印章拿走的？',
-    opts:['阿凱——他 12:33 走到講台旁，正好卡在沒人看的空窗裡','小潔——但她 12:30 就先離開了','老師——但他 12:40 才回來發現','是印章自己不見的'], ans:0 },
-  solved:'真相大白！不是小潔也不是老師——是阿凱一個章都沒集到、不甘心，趁 12:30～12:40 沒人看的空窗把印章拿走。他坦白道歉、把印章放回，老師反而在他作業上蓋了一個大大的好棒章！你靠排時間線抓到了空窗裡的真相！',
-};
-const STEPCASE_TROPHY={ id:'trophy', mode:'stepcase', title:'消失的冠軍獎盃', scene:'tp-hero',
-  hook:'午休鐘一響，走廊炸開了！榮譽櫃裡那座亮到反光的拔河冠軍獎盃不見了，只剩空空的底座、櫃門半開。是誰趁午休沒人的時候把獎盃帶走了？',
-  gate:{ intro:'先確認你有看懂案情！把對的詞拖進空格。',
-    parts:['午休時，走廊',{blank:'榮譽櫃'},'裡那座拔河',{blank:'冠軍獎盃'},'不見了，只剩空底座！'],
-    bank:['榮譽櫃','冠軍獎盃','掃具櫃','躲避球','便當盒'] },
-  scenes:[
-    {key:'case', name:'榮譽櫃', img:'tp-case', desc:'走廊上擺獎盃獎牌的玻璃櫃。', spots:[
-      {id:'shine', label:'擦亮的玻璃櫃', x:55,y:37, key:true, who:'張老師', act:'關櫃就離開', time:'12:10', clue:'張老師 12:10 把獎盃放回櫃子、關好門去午休，那時獎盃還在。'},
-      {id:'bottle', label:'掉漆的水壺', x:58,y:82, key:false, clue:'櫃子前的地上有個掉漆的粉紅水壺。'},
-    ]},
-    {key:'class', name:'教室', img:'tp-class', desc:'午休時安靜的教室。', spots:[
-      {id:'kai', label:'阿凱推歪的座位', x:46,y:65, key:true, who:'阿凱', act:'走到獎盃櫃旁', time:'12:15', clue:'有人看到：阿凱 12:15 一個人走到走廊的榮譽櫃旁。'},
-      {id:'glass', label:'地上的眼鏡', x:68,y:88, key:false, clue:'窗邊地上有一副掉落的眼鏡。'},
-    ]},
-    {key:'yard', name:'操場午餐區', img:'tp-yard', desc:'午休最熱鬧的吃飯地方。', spots:[
-      {id:'ting', label:'問班長小婷', x:38,y:71, key:true, who:'小婷', act:'回來發現沒了', time:'12:20', clue:'小婷 12:20 從操場回走廊拿水壺，發現櫃門開著、獎盃不見了！'},
-      {id:'paper', label:'皺皺的紙', x:80,y:83, key:false, clue:'垃圾桶旁有張揉皺的空白影印紙。'},
-    ]},
-  ],
-  eventScram:[2,0,1],
-  solveFill:{ parts:['真相是：只有',{blank:'阿凱'},'在',{blank:'12:15'},'走到獎盃櫃旁，正好卡在沒人看的空窗——獎盃是他帶走的！'],
-    bank:['阿凱','12:15','張老師','小婷','12:10','12:20'] },
-  solveQ:{ q:'把時間排好後——是誰趁「沒人看榮譽櫃」的空窗把獎盃帶走的？',
-    opts:['阿凱——他 12:15 走到獎盃櫃旁，正好卡在沒人看的空窗裡','張老師——但他 12:10 關好櫃子就走了','小婷——但她 12:20 才回來發現','是獎盃自己掉的'], ans:0 },
-  solved:'真相大白！是阿凱那組沒選上代表隊、心裡不甘心，趁 12:10～12:20 沒人看的空窗把獎盃抱走。他紅著眼眶坦白、把獎盃完好放回，老師也答應下次讓他再試一次。你靠排時間線抓到了藏在空窗裡的真相！',
-};
-const STEPCASE_ROSTER={ id:'s2-w02-case4', mode:'stepcase', title:'圖書館漫畫失蹤案', scene:'lb-hero',
-  hook:'圖書館一開門，全校最紅的整套《小偵探阿光》12 集竟然一本不剩！書架空出長長一排縫。這套漫畫中午明明還在架上，是誰、在什麼時候把整套帶走的？',
-  gate:{ intro:'先確認你有看懂案情！把對的詞拖進空格。',
-    parts:['圖書館最紅的整套',{blank:'小偵探阿光'},'漫畫，中午從',{blank:'漫畫架'},'上整套不見了，一本不剩！'],
-    bank:['小偵探阿光','漫畫架','故事書','櫃台','字典'] },
-  scenes:[
-    {key:'desk', name:'借閱櫃台', img:'lb-desk', desc:'進圖書館借書、還書的地方。', spots:[
-      {id:'chen', label:'問陳老師', x:47,y:47, key:true, who:'陳老師', act:'清點發現空了', time:'12:50', clue:'陳老師 12:50 來清點，發現那排漫畫全空了、一本不剩。'},
-      {id:'box', label:'還書箱', x:78,y:58, key:false, clue:'還書箱裡有三本隔壁班早上還的故事書。'},
-    ]},
-    {key:'shelf', name:'漫畫架', img:'lb-shelf', desc:'放整套漫畫的矮書架。', spots:[
-      {id:'jie', label:'問小婕', x:24,y:52, key:true, who:'小婕', act:'上架數過才走', time:'12:30', clue:'小婕 12:30 把整套上架、數過 12 集都在，才去吃午餐。'},
-      {id:'kai', label:'阿凱', x:83,y:72, key:true, who:'阿凱', act:'待在漫畫架旁', time:'12:40', clue:'有人看到：阿凱 12:40 一個人待在漫畫書架旁。'},
-    ]},
-    {key:'nook', name:'閱讀角', img:'lb-nook', desc:'靠窗的懶骨頭閱讀角落。', spots:[
-      {id:'bottle', label:'忘了拿的東西', x:83,y:55, key:false, clue:'沙發上有人忘了拿走藍色水壺和眼鏡。'},
-    ]},
-  ],
-  eventScram:[2,0,1],
-  solveFill:{ parts:['真相是：只有',{blank:'阿凱'},'在',{blank:'12:40'},'待在漫畫架旁，正好卡在沒人看的空窗——漫畫是他拿走的！'],
-    bank:['阿凱','12:40','小婕','陳老師','12:30','12:50'] },
-  solveQ:{ q:'把時間排好後——是誰趁「沒人看漫畫架」的空窗把整套帶走的？',
-    opts:['阿凱——他 12:40 待在漫畫架旁，正好卡在沒人看的空窗裡','小婕——但她 12:30 數過 12 集才離開','陳老師——但他 12:50 才來清點','是漫畫自己消失的'], ans:0 },
-  solved:'真相大白！是阿凱每次都借不到這套漫畫、太想一次看完，趁 12:30～12:50 沒人看的空窗把整套帶走。他紅著臉坦白，把 12 集完整還回、還幫忙重新上架。你靠排時間線抓到了空窗裡的真相！',
-};
-const STEPCASE_CASHBOX={ id:'s2-w02-case5-boss', mode:'stepcase', title:'園遊會錢箱失蹤案', scene:'cb-hero',
-  hook:'園遊會最熱鬧的下午，小美的手工攤大排長龍、錢箱越裝越滿。收攤鐘一響，那一整箱辛苦賺來的錢竟然不見了！是誰趁大家沒注意的時候把它帶走的？',
-  gate:{ intro:'先確認你有看懂案情！把對的詞拖進空格。',
-    parts:['園遊會收攤時，',{blank:'小美'},'攤位上的',{blank:'錢箱'},'突然不見了！要找出是誰帶走的。'],
-    bank:['小美','錢箱','阿凱','手工書籤','套圈圈'] },
-  scenes:[
-    {key:'stall', name:'手工攤位', img:'cb-stall', desc:'小美大排長龍的手工攤。', spots:[
-      {id:'corner', label:'空空的桌角', x:72,y:46, key:true, who:'陳老師', act:'收攤發現沒了', time:'3:10', clue:'陳老師 3:10 來幫忙收攤，一看——錢箱不見了！'},
-      {id:'mark', label:'手工書籤', x:34,y:48, key:false, clue:'桌上還有一疊沒賣完的手工書籤。'},
-    ]},
-    {key:'alley', name:'攤位後走道', img:'cb-alley', desc:'攤位背面半遮住的小走道。', spots:[
-      {id:'kai', label:'桌子後的身影', x:52,y:66, key:true, who:'阿凱', act:'走到攤位後', time:'3:05', clue:'有人看到：阿凱 3:05 一個人走到小美攤位的後面。'},
-      {id:'ring', label:'套圈圈遊戲', x:52,y:37, key:false, clue:'隔壁套圈圈遊戲排了長長的隊伍。'},
-    ]},
-    {key:'change', name:'換零錢服務台', img:'cb-change', desc:'園遊會換零錢的服務台。', spots:[
-      {id:'mei', label:'問小美', x:67,y:51, key:true, who:'小美', act:'離攤換零錢', time:'3:00', clue:'小美 3:00 把錢箱留在攤位桌上，跑去服務台換零錢。'},
-    ]},
-  ],
-  eventScram:[2,0,1],
-  solveFill:{ parts:['真相是：只有',{blank:'阿凱'},'在',{blank:'3:05'},'走到攤位後面，正好卡在沒人看的空窗——錢箱是他拿走的！'],
-    bank:['阿凱','3:05','小美','陳老師','3:00','3:10'] },
-  solveQ:{ q:'把時間排好後——是誰趁「沒人看攤位」的空窗把錢箱拿走的？',
-    opts:['阿凱——他 3:05 走到攤位後面，正好卡在沒人看的空窗裡','小美——但她 3:00 就先離攤去換零錢了','陳老師——但他 3:10 才來收攤發現','是錢箱自己掉的'], ans:0 },
-  solved:'真相大白！是隔壁攤的阿凱一整天沒客人、不甘心，趁 3:00～3:10 沒人看的空窗把錢箱抱走藏起來。他真心說對不起、把錢箱原封不動還給小美，一毛沒少。你靠排時間線抓到了空窗裡的真相！',
-};
-if(typeof CASES!=='undefined' && Array.isArray(CASES) && CASES.length>=5){
-  CASES[0]=STEPCASE_STAMP; CASES[1]=STEPCASE_TROPHY; CASES[3]=STEPCASE_ROSTER; CASES[4]=STEPCASE_CASHBOX;
-}
-function allClues(c){ const out=[]; c.scenes.forEach(z=>z.spots.forEach(sp=>out.push({id:sp.id,label:sp.label,clue:sp.clue,key:!!sp.key}))); return out; }
+const LEN={
+  short:{id:'short',g:'•',    n:'很短', s:'一句話',      c:'var(--len-short)'},
+  mid:  {id:'mid',  g:'••',  n:'中等', s:'幾句話',      c:'var(--len-mid)'},
+  long: {id:'long', g:'•••', n:'詳細', s:'一段話',      c:'var(--len-long)'},
+  limit:{id:'limit',g:'#',    n:'限字', s:'不超過 N 字', c:'var(--len-limit)'} };
+const LEN_ORDER=['short','mid','long','limit'];
+const PEOPLE={
+  keeper :{id:'keeper', name:'老陳',   role:'糊塗管理員', img:'s2w03-keeper.png'},
+  visitor:{id:'visitor',name:'小葉',   role:'神秘訪客',   img:'s2w03-visitor.png'},
+  baker  :{id:'baker',  name:'阿福',   role:'點心師傅',   img:'s2w03-baker.png'},
+  cleaner:{id:'cleaner',name:'秀琴',   role:'打掃阿姨',   img:'s2w03-cleaner.png'},
+  chair  :{id:'chair',  name:'林主席', role:'慶典主席',   img:'s2w03-chair.png'} };
+/* 不在場證明：固定案發時間 8:40–8:55，把每個人對到他當時「說自己在的地點」；辦公室（林主席）沒人能證明 = 破綻 */
+const CRIME_WINDOW='8:40–8:55';
+const SLOTS=[
+  {place:'廚房',  who:'baker',   vouch:'三個廚工都在，能作證',        claim:'那時候我在廚房做蛋糕。'},
+  {place:'走廊',  who:'cleaner', vouch:'她就在走廊補衛生紙、還看到紅影子', claim:'那時候我在走廊補衛生紙。'},
+  {place:'後台',  who:'visitor', vouch:'秀琴看得到她在後台',          claim:'那時候我在後台拍照。'},
+  {place:'辦公室',who:'chair',   vouch:'沒有人看到、總機也查無紀錄',    claim:'那時候我在辦公室打電話。', gap:true} ];
+/* 連連看：物證/破綻 ↔ 說明（3 正解＋干擾） */
+const LINKS=[
+  {l:'沾糖霜的白手套',        r:'從後台架上借走的，不是師傅本人戴的'},
+  {l:'櫃門沒有被撬開',        r:'兇手手上本來就有備份鑰匙'},
+  {l:'8:40–8:55 的空白時段',  r:'只有林主席說不出自己在哪裡'} ];
+const LINK_DISTRACT=['皇冠被拿去賣掉換錢','慶典要取消了','是外面的小偷翻窗進來的'];
+function allClues(c){ const out=[]; (c.scenes||[]).forEach(z=>z.spots.forEach(sp=>out.push({id:sp.id,label:sp.label,clue:sp.clue,key:!!sp.key}))); return out; }
 function collectedClues(c,found){ return allClues(c).filter(x=>found.has(x.id)); }
 function stepIntro(c){ const s=el('div','screen');
   s.appendChild(el('h1','serif','案件 '+(S.caseIdx+1)+'　'+c.title));
   const sc=el('div','scene');sc.appendChild(pic(c.scene));s.appendChild(sc);
   const f=el('div','paper');f.innerHTML='<h3>📩 案情</h3><div class="body">'+c.hook+'</div>';s.appendChild(f);
   s.appendChild(awenRow('','這案跟「時間」有關！去現場找線索，一起排出真相。'));
-  const b=el('button','btn','開始查案　▶');b.onclick=()=>{S.ckFound=[];S.ckScene=0;S.sub=(c.gate?'gate':'explore');save();render();};s.appendChild(b);
+  const b=el('button','btn','開始查案　▶');b.onclick=()=>{S.ckFound=[];S.ckScene=0;delete ivState[c.id];delete w1State[c.id];delete recapState[c.id];S.sub=(c.gate?'gate':firstStep(c));save();render();};s.appendChild(b);
   stage.appendChild(s); }
 /* 進解謎前的拖拉填空確認關：沒看案情就答不出來 */
 function stepGate(c){ const s=el('div','screen'); s.appendChild(el('h1','serif','📖 看懂案情了嗎？'));
@@ -1101,9 +1265,40 @@ function stepGate(c){ const s=el('div','screen'); s.appendChild(el('h1','serif',
   dnd(wrap,(chip,slot)=>{ if(!slot.classList.contains('gblank'))return false;
     if(chip.dataset.word!==slot.dataset.ans){ Sfx.pop(); hint.textContent='🔎 這個不太對～再回想一下案情！'; return false; }
     slot.classList.add('filled'); slot.textContent=chip.dataset.word; chip.classList.add('placed'); Sfx.tick(); hint.textContent=''; filled++;
-    if(filled>=need){ Sfx.win(); setTimeout(()=>{ const b=el('button','btn green','看懂了！進現場查案 ▶'); b.onclick=()=>{Sfx.tick();S.sub='explore';save();render();}; s.appendChild(b); try{b.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){} },300); }
+    if(filled>=need){ Sfx.win(); setTimeout(()=>{ const goExp=!!(c.scenes&&c.scenes.length); const b=el('button','btn green',goExp?'看懂了！進現場查案 ▶':'看懂了！開始問話 ▶'); b.onclick=()=>{Sfx.tick();S.sub=firstStep(c);save();render();}; s.appendChild(b); try{b.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){} },300); }
     return true; });
   stage.appendChild(s); }
+/* 放大鏡近照：實體物件用生成近照圖；時間/文字用程式畫，保證跟題目對得上 */
+function closeUpEl(cu){ if(cu.img){ const w=el('div','cuwrap cuimg'); w.appendChild(pic(cu.img)); return w; }
+  const w=el('div','cuwrap cudraw');
+  if(cu.draw==='clock') w.appendChild(svgClock(cu.hour||9));
+  else if(cu.draw==='tag'){ const d=el('div','cutag'); [...(cu.text||'')].forEach(ch=>d.appendChild(el('div','tg',ch))); w.appendChild(d); }
+  else if(cu.draw==='log'){ const d=el('div','culog'); d.appendChild(el('div','loghd','🕵 大廳看守紀錄'));
+    [['8:00–8:40','老陳在大廳看守'],['8:40–8:55','—　沒有人看守'],['8:55–9:00','老陳回來，發現皇冠不見']].forEach(([t,wname])=>{ const r=el('div','lr'+(/沒有人/.test(wname)?' gap':'')); r.appendChild(el('span',null,t)); r.appendChild(el('span',null,wname)); d.appendChild(r); }); w.appendChild(d); }
+  return w; }
+function svgClock(hour){ const ns='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(ns,'svg'); svg.setAttribute('viewBox','0 0 100 100'); svg.setAttribute('class','cuclock');
+  const mk=(tag,at)=>{ const e=document.createElementNS(ns,tag); for(const k in at)e.setAttribute(k,at[k]); return e; };
+  svg.appendChild(mk('circle',{cx:50,cy:50,r:46,fill:'#f3ead2',stroke:'#8a6a3a','stroke-width':4}));
+  for(let i=0;i<12;i++){ const a=i*30*Math.PI/180; svg.appendChild(mk('line',{x1:50+Math.sin(a)*40,y1:50-Math.cos(a)*40,x2:50+Math.sin(a)*44,y2:50-Math.cos(a)*44,stroke:'#8a6a3a','stroke-width':2})); }
+  const ha=(hour%12)*30*Math.PI/180;
+  svg.appendChild(mk('line',{x1:50,y1:50,x2:50+Math.sin(ha)*24,y2:50-Math.cos(ha)*24,stroke:'#2a2a2a','stroke-width':5,'stroke-linecap':'round'}));
+  svg.appendChild(mk('line',{x1:50,y1:50,x2:50,y2:14,stroke:'#2a2a2a','stroke-width':3,'stroke-linecap':'round'}));
+  svg.appendChild(mk('circle',{cx:50,cy:50,r:3.5,fill:'#2a2a2a'}));
+  return svg; }
+/* 觀察線索：答完觀察題、讀完線索後，接一道單格拖拉確認（每條線索都留記憶點）。key = 章/熱點id */
+const OBS_DQ={
+ 'ch1/case':{parts:['櫃門',{blank:'沒被撬'},'，是用鑰匙打開的。'], bank:['沒被撬','被撬爛','被砸破']},
+ 'ch1/clock':{parts:['牆上的鐘停在',{blank:'九點'},'。'], bank:['九點','七點','十二點']},
+ 'ch1/floor':{parts:['地板上有一點白白的',{blank:'粉末'},'。'], bank:['粉末','水','碎玻璃']},
+ 'ch2/box':{parts:['鑰匙箱開著，',{blank:'備份鑰匙'},'不見了。'], bank:['備份鑰匙','皇冠','照片']},
+ 'ch2/coat':{parts:['深藍外套口袋裡，藏著一支',{blank:'錄音筆'},'。'], bank:['錄音筆','鑰匙','照片']},
+ 'ch3/tag':{parts:['祈福牌上只寫著四個字：',{blank:'修好就還'},'。'], bank:['修好就還','完璧歸趙','借一下下']},
+ 'ch3/glove':{parts:['地上掉著一隻',{blank:'白手套'},'。'], bank:['白手套','圍巾','帽子']},
+ 'ch3/door':{parts:['門縫下露出一角',{blank:'紅色'},'的布。'], bank:['紅色','藍色','綠色']},
+ 'ch4/clock':{parts:[{blank:'8:40–8:55'},' 之間，大廳沒有人看守。'], bank:['8:40–8:55','8:00–8:15','9:00–9:15']},
+ 'ch4/office':{parts:['走廊底的辦公室門',{blank:'關著'},'，裡面黑黑的。'], bank:['關著','開著','貼封條']},
+};
 function stepExplore(c){ S.ckFound=S.ckFound||[]; if(typeof S.ckScene!=='number')S.ckScene=0;
   const found=new Set(S.ckFound); const total=c.scenes.reduce((a,z)=>a+z.spots.length,0); const z=c.scenes[S.ckScene];
   const s=el('div','screen'); s.appendChild(el('h1','serif','🔎 蒐證：'+c.title));
@@ -1120,19 +1315,36 @@ function stepExplore(c){ S.ckFound=S.ckFound||[]; if(typeof S.ckScene!=='number'
   function drawTray(){ trayIn.innerHTML=''; const cs=collectedClues(c,found); if(!cs.length){trayIn.appendChild(el('span','traytip','（還沒有線索，去畫面上點點看…）'));return;} cs.forEach(cl=>{const card=el('div','factcard shown');card.textContent=cl.clue;trayIn.appendChild(card);}); }
   drawTray();
   const contWrap=el('div','col');
-  const lockNote=el('div','locknote'); const cont=el('button','btn green','線索都找到了！開始整理 ▶');
-  cont.onclick=()=>{ Sfx.tick(); S.sub='sift'; save(); render(); };
-  function refreshLock(){ const left=total-found.size; if(left<=0){lockNote.style.display='none';cont.style.display='';} else {lockNote.textContent='🔒 每個場景的線索都找出來，才能開始整理！（還差 '+left+' 條）';lockNote.style.display='';cont.style.display='none';} }
+  const lockNote=el('div','locknote'); const cont=el('button','btn green','現場查完了！去問關係人 ▶');
+  cont.onclick=()=>{ Sfx.tick(); S.sub=(c.w1?'w1':'interview'); save(); render(); };
+  function refreshLock(){ const left=total-found.size; if(left<=0){lockNote.style.display='none';cont.style.display='';} else {lockNote.textContent='🔒 每個場景的線索都找出來，才能去問關係人！（還差 '+left+' 條）';lockNote.style.display='';cont.style.display='none';} }
+  let obsEl=null;
+  function closeObs(){ if(obsEl){try{obsEl.remove();}catch(e){} obsEl=null;} }
+  function doFind(sp,hs){ if(found.has(sp.id))return; found.add(sp.id); S.ckFound=[...found]; save(); Sfx.ding();
+    const rip=el('span','findrip'); hs.appendChild(rip); setTimeout(()=>{try{rip.remove();}catch(e){}},600);
+    hs.classList.add('done'); const mk=el('span','foundmark','✓'); hs.appendChild(mk);
+    reveal.style.display=''; reveal.innerHTML='<b>📓 '+sp.label+'</b>　'+sp.clue; try{reveal.scrollIntoView({behavior:'smooth',block:'nearest'});}catch(e){}
+    if(sp.kw)addKeyword(sp.kw.id,sp.kw.text);
+    fc(); drawTray(); refreshLock();
+    if(found.size>=total){ Sfx.win(); toast('✅ 現場都查過了！接下來去問關係人'); try{cont.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){} } }
+  function openObs(sp,hs){ closeObs(); if(!sp.obs){ doFind(sp,hs); return; }
+    const p=el('div','obspanel'); if(sp.obs.cu)p.appendChild(closeUpEl(sp.obs.cu)); p.appendChild(el('div','obsq','🔍 '+sp.obs.q));
+    const ob=el('div','obsopts');
+    sp.obs.opts.forEach((t,i)=>{ const b=el('button','obsopt',t);
+      b.onclick=(e)=>{ e.stopPropagation();
+        if(i===sp.obs.a){ b.classList.add('right'); [...ob.children].forEach(x=>x.disabled=true); Sfx.ding();
+          const dq=OBS_DQ[c.id+'/'+sp.id];
+          setTimeout(()=>{ if(dq){ ob.style.display='none'; const cl=el('div','obsclue'); cl.innerHTML='<b>📓 '+sp.label+'</b>　'+sp.clue; p.appendChild(cl);
+              dragQuiz(p, dq, ()=>{ closeObs(); doFind(sp,hs); }); try{p.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){} }
+            else { closeObs(); doFind(sp,hs); } },420); }
+        else { b.classList.remove('wrong'); void b.offsetWidth; b.classList.add('wrong'); b.disabled=true; Sfx.pop(); S.misses=(S.misses||0)+1; save(); toast('👀 再看仔細一點…'); } };
+      ob.appendChild(b); });
+    p.appendChild(ob); reveal.style.display='none'; scene.after(p); obsEl=p;
+    try{p.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){} }
   z.spots.forEach(sp=>{ const done=found.has(sp.id);
     const hs=el('div','findzone'+(done?' done':'')); hs.style.left=sp.x+'%'; hs.style.top=sp.y+'%';
     if(done)hs.innerHTML='<span class="foundmark">✓</span>';
-    hs.onclick=()=>{ if(found.has(sp.id))return; found.add(sp.id); S.ckFound=[...found]; save(); Sfx.ding();
-      const rip=el('span','findrip'); hs.appendChild(rip); setTimeout(()=>{try{rip.remove();}catch(e){}},600);
-      hs.classList.add('done'); const mk=el('span','foundmark','✓'); hs.appendChild(mk);
-      reveal.style.display=''; reveal.innerHTML='<b>📓 '+sp.label+'</b>　'+sp.clue; try{reveal.scrollIntoView({behavior:'smooth',block:'nearest'});}catch(e){}
-      fc(); drawTray(); refreshLock();
-      if(found.size>=total){ Sfx.win(); toast('✅ 全部線索到手！接下來篩選重要的'); try{cont.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){} }
-    };
+    hs.onclick=(e)=>{ e.stopPropagation(); if(found.has(sp.id))return; openObs(sp,hs); };
     scene.appendChild(hs); });
   contWrap.appendChild(lockNote);contWrap.appendChild(cont);s.appendChild(contWrap);refreshLock();
   stage.appendChild(s); }
@@ -1152,90 +1364,184 @@ function stepSift(c){ const s=el('div','screen'); s.appendChild(el('h1','serif',
     if(placed>=need){ Sfx.ding(); setTimeout(()=>{ const b=el('button','btn green','重點抓好了！交給阿問整理 ▶'); b.onclick=()=>{Sfx.tick();S.sub='organize';save();render();}; s.appendChild(b); try{b.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){} },260); }
     return true; });
   stage.appendChild(s); }
-/* ===== 案件整理台：找重點(篩選已完成)→列清單→做表格→寫步驟→真相（沿用教學的會動卡片） ===== */
-const ORG_SCATTER=[{fx:.20,fy:.30},{fx:.50,fy:.24},{fx:.78,fy:.32},{fx:.30,fy:.64},{fx:.62,fy:.68},{fx:.46,fy:.46}];
-const ORG_SKILLS=[['keypoints','重點'],['list','清單'],['table','表格'],['steps','步驟']];
-const ORG_CAPS=['','✨ 重點抓好了！按「清單」把它們一條一條排到左邊。','📋 清單排好了！按「表格」把「時間・主角・動作」分成欄。','🔀 分好欄了！按「步驟」照時間，把順序上下排好。','⏱️ 順序都排好了！看清楚這條時間線——換你來推理真相！'];
-function caseEvents(c){ const evs=[]; c.scenes.forEach(z=>z.spots.forEach(sp=>{ if(sp.time)evs.push({who:sp.who,act:sp.act,time:sp.time}); })); evs.sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0); return evs; }
-let orgEls=null, orgStep=1;
-function stepOrganize(c){ clearStage(); orgStep=1; const evs=caseEvents(c); const s=el('div','screen demo');
-  s.appendChild(el('h1','serif','🤖 阿問幫你整理線索'));
-  const cap=el('div','democap');s.appendChild(cap);
-  const content=el('div','democontent full');s.appendChild(content);
-  const space=el('div','wordspace');content.appendChild(space);
-  const cstage=el('div','cluestage');space.appendChild(cstage);
-  const head=el('div','tblhead');head.innerHTML='<span class="th th-num"></span><span class="th th-time">時間</span><span class="th th-who">主角</span><span class="th th-act">動作</span>';cstage.appendChild(head);
-  const cards=evs.map((k,idx)=>{ const cc=el('div','cluecard lit');cc.dataset.k=idx;
-    cc.innerHTML='<span class="cc-num"></span><span class="cc-time">'+k.time+'</span><span class="cc-who">'+k.who+'</span><span class="cc-act">'+k.act+'</span>';
-    cstage.appendChild(cc); return cc; });
-  const truth=el('div','truthpanel');truth.innerHTML='<div class="tp-hd">🎯 真相</div><div class="tp-body">'+(c.orgTruth||'')+'</div>';cstage.appendChild(truth);
-  const bar=el('div','skillbar');
-  ORG_SKILLS.forEach(([k,name],i)=>{ const b=el('button','skillbtn f-'+k);b.style.setProperty('--fc',FORMATS[k].color);
-    b.innerHTML='<span class="ski">'+fmtIcon(k)+'</span><span class="skn">'+name+'</span>';
-    b.onclick=()=>{ if(orgStep!==i||b.disabled)return; Sfx.resume(); b.classList.add('firing');
-      if(orgEls&&orgEls.space){orgEls.space.classList.remove('hit');void orgEls.space.offsetWidth;orgEls.space.classList.add('hit');setTimeout(()=>{orgEls&&orgEls.space&&orgEls.space.classList.remove('hit');},360);}
-      [...bar.children].forEach(x=>x.disabled=true); Sfx.ding();
-      setTimeout(()=>{ b.classList.remove('firing'); applyOrg(orgStep+1); },620);
-    };
-    bar.appendChild(b); });
-  s.appendChild(bar);
-  const go=el('button','btn green','找出真相！ ▶');go.onclick=()=>{Sfx.win();S.sub='deduce';save();render();};go.style.display='none';s.appendChild(go);
-  orgEls={cap,space,cstage,head,cards,truth,bar,go,c,events:evs};
+/* ===== S2-W03 審問關係人（說簡潔／說詳細）＋W01 三要素複習＋W02 時間軸＋真相重組 ===== */
+function personCard(p){ const d=el('div','pcard'); const av=el('div','av'); av.appendChild(pic(p.img)); d.appendChild(av); d.appendChild(el('div','nm',p.name)); return d; }
+function firstStep(c){ if(c.scenes&&c.scenes.length)return 'explore'; if(c.w1)return 'w1'; return 'interview'; }
+
+/* --- W01 三要素複習（第2章）：把問題組清楚，關係人才肯開口 --- */
+const w1State={};
+function stepW1(c){ const w=c.w1; if(!w){ S.sub='interview'; save(); return render(); }
+  const st=(w1State[c.id]=w1State[c.id]||{i:0});
+  const s=el('div','screen'); s.appendChild(el('h1','serif','🗣 先把問題問清楚（複習：三要素）'));
+  s.appendChild(awenRow('happy', w.intro));
+  const card=el('div','w1card');
+  w.steps.forEach((step,si)=>{ const done=si<st.i, cur=si===st.i;
+    const q=el('div','w1q'); q.appendChild(el('div','w1lbl '+step.cls, step.lbl));
+    const opts=el('div','w1opts');
+    (done?[step.opts.find(o=>o.ok)]:(cur?step.opts:[])).forEach(o=>{ const b=el('div','w1opt'+(done?' sel':''), o.t);
+      if(cur){ b.onclick=()=>{ if(o.ok){ Sfx.tick(); st.i++; if(st.i>=w.steps.length){ setTimeout(()=>{ S.sub='interview'; save(); render(); },300); } else render(); }
+        else { Sfx.pop(); b.classList.remove('wrong'); void b.offsetWidth; b.classList.add('wrong'); } }; }
+      opts.appendChild(b); });
+    q.appendChild(opts); card.appendChild(q); });
+  s.appendChild(card);
+  if(st.i>=w.steps.length) s.appendChild(awenRow('happy','問題組清楚了！她願意開口了。'));
   stage.appendChild(s);
-  applyOrg(1);
 }
-function applyOrg(n){ orgStep=n; const D=orgEls; if(!D)return; const c=D.c;
-  const W=D.space.clientWidth||1000, H=D.space.clientHeight||560;
-  D.cap.innerHTML='<span class="who">阿問</span><span class="t">'+(ORG_CAPS[n]||'')+'</span>';
-  D.cstage.className='cluestage s-'+['wall','key','list','table','step'][n]+(n===1?' notrans':'');
-  const rowH=Math.min(66,Math.max(42,H*0.13)), blockH=D.events.length*rowH, listTop=Math.max(rowH*1.1,H/2-blockH/2), listX=Math.max(20,W*0.06);
-  D.cards.forEach((cc,idx)=>{ const disp=c.eventScram.indexOf(idx), sorted=idx, slot=(n>=4)?sorted:disp;
-    if(n<=1){ cc.style.transitionDelay='0ms'; cc.style.setProperty('--tx',((ORG_SCATTER[idx]||{fx:.5}).fx*W).toFixed(0)+'px'); cc.style.setProperty('--ty',((ORG_SCATTER[idx]||{fy:.5}).fy*H).toFixed(0)+'px'); }
-    else { cc.style.transitionDelay=(slot*70)+'ms'; cc.style.setProperty('--tx',listX+'px'); cc.style.setProperty('--ty',(listTop+slot*rowH).toFixed(0)+'px'); }
-    cc.querySelector('.cc-num').textContent=(n>=2)?String(slot+1):''; cc.classList.toggle('lit',n>=1);
-  });
-  D.head.style.setProperty('--tx',listX+'px'); D.head.style.setProperty('--ty',(listTop-rowH*0.95).toFixed(0)+'px'); D.head.style.opacity=(n>=3)?'1':'0';
-  [...D.bar.children].forEach((b,i)=>{ b.style.display=(i>n)?'none':''; b.classList.toggle('done',i<n); b.classList.toggle('active',i===n); b.disabled=(i!==n); let chk=b.querySelector('.skchk'); if(i<n){ if(!chk){chk=el('span','skchk','✓');b.appendChild(chk);} } else if(chk){chk.remove();} });
-  D.go.style.display=(n>=4)?'':'none';
-  if(n===1){ void D.cstage.offsetWidth; D.cstage.classList.remove('notrans'); }
-  if(n>=4) setTimeout(()=>{try{D.go.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}},300);
+
+/* --- 審問：關係人先給錯長度的話，你請他「說簡潔／說詳細」，只有對的一邊吐出關鍵字 --- */
+const ivState={};
+const recapState={};
+/* --- 整理證詞：最後證人講完長長的真相，玩家自己抓成三個重點，才記得住 --- */
+function stepRecap(c){ const rc=c.recap; if(!rc){ S.sub='solved'; return render(); }
+  const st=(recapState[c.id]=recapState[c.id]||{i:0});
+  const who=PEOPLE[c.who]; const s=el('div','screen');
+  s.appendChild(el('h1','serif','📝 整理'+(who?who.name:'')+'的話'));
+  s.appendChild(awenRow('happy', rc.intro));
+  const done=st.i>=rc.qs.length;
+  rc.qs.forEach((q,qi)=>{ if(qi>st.i)return; const card=el('div','paper'); card.style.marginBottom='10px';
+    card.appendChild(el('div','body',(qi+1)+'. '+q.q));
+    if(qi<st.i){ card.appendChild(el('div','recapans','✔ '+q.opts[q.a])); s.appendChild(card); return; }
+    const note=el('div','lockmsg'); let wrongN=0; const opts=[];
+    shuffle(q.opts.map((t,i)=>({t,i}))).forEach(o=>{ const b=el('button','opt',o.t); opts.push(b);
+      b.onclick=()=>{ if(o.i===q.a){ b.classList.add('right'); opts.forEach(x=>x.disabled=true); Sfx.ding(); st.i++; setTimeout(()=>{ if(S.phase==='case'&&S.sub==='recap')render(); },520); }
+        else { b.classList.add('wrong'); Sfx.pop(); S.misses=(S.misses||0)+1; save(); lockChoices(opts,++wrongN,note); } };
+      card.appendChild(b); });
+    card.appendChild(note); s.appendChild(card); });
+  if(done){ s.appendChild(awenRow('happy','整理好了！誰、怎麼拿、為什麼——你都抓到了。最後一步：把一路查到的所有線索，拼成完整的真相！'));
+    const b=el('button','btn green','去拼出完整真相 ▶'); b.onclick=()=>{ Sfx.win(); S.sub='solved'; save(); render(); }; s.appendChild(b); }
+  stage.appendChild(s);
 }
-function stepDeduce(c){ const s=el('div','screen'); s.appendChild(el('h1','serif','🧩 結案推理'));
-  const evs=caseEvents(c);
-  if(evs.length){ const rec=el('div','answerbox good');rec.style.padding='10px 14px';
-    rec.appendChild(el('div','ansmalllbl','🗂 你排好的時間線——空窗那段誰在場？'));
-    const strip=el('div','tlstrip'); evs.forEach((e,i)=>{ if(i)strip.appendChild(el('span','tlarrow','→')); const it=el('span','tlitem'); it.innerHTML='<b>'+e.time+'</b> '+e.who+e.act; strip.appendChild(it); });
-    rec.appendChild(strip);s.appendChild(rec); }
-  const fill=c.solveFill;
-  if(fill){ s.appendChild(awenRow('happy','看清楚時間線，把真相拖出來破案！'));
-    const wrap=el('div','practice');wrap.style.setProperty('--pc',FORMATS.steps.color);
-    const sent=el('div','gsent');const blanks=[];
-    fill.parts.forEach(p=>{ if(typeof p==='string'){sent.appendChild(el('span','gtext',p));} else {const slot=el('span','gblank slot');slot.dataset.ans=p.blank;sent.appendChild(slot);blanks.push(slot);} });
-    wrap.appendChild(sent);
-    const tray=el('div','dtray');shuffle(fill.bank).forEach(w=>{const chip=el('div','chip',w);chip.dataset.word=w;tray.appendChild(chip);});wrap.appendChild(tray);
-    const hint=el('div','ptip');s.appendChild(wrap);s.appendChild(hint);
-    let filled=0;const need=blanks.length;
-    dnd(wrap,(chip,slot)=>{ if(!slot.classList.contains('gblank'))return false;
-      if(chip.dataset.word!==slot.dataset.ans){ Sfx.pop(); hint.textContent='🔎 再看看時間線——空窗那段誰在場？'; return false; }
-      slot.classList.add('filled');slot.textContent=chip.dataset.word;chip.classList.add('placed');Sfx.tick();hint.textContent='';filled++;
-      if(filled>=need){ Sfx.win();confetti(); setTimeout(()=>{S.sub='solved';save();render();},1000); }
-      return true; });
-    stage.appendChild(s); return; }
-  const q=c.solveQ;const card=el('div','paper');card.innerHTML='<div class="body" style="text-align:center;font-weight:900">'+q.q+'</div>';s.appendChild(card);
-  const note=el('div','lockmsg');let wrongN=0;const opts=[];
-  shuffle(q.opts.map((t,i)=>({t,i}))).forEach(o=>{const b=el('button','opt',o.t);opts.push(b);b.onclick=()=>{
-    if(o.i===q.ans){b.classList.add('right');Sfx.win();confetti();opts.forEach(x=>x.disabled=true);setTimeout(()=>{S.sub='solved';save();render();},900);}
-    else{b.classList.add('wrong');Sfx.pop();wrongN++;lockChoices(opts,wrongN,note);}
-  };s.appendChild(b);});
-  s.appendChild(note);stage.appendChild(s); }
+/* 審問：讀完「開場白」和「揭曉」各接一道拖拉確認題（每段話都要有記憶點） */
+const IV_DQ={
+ ch1:{ open:{parts:['老陳說他一早',{blank:'六點'},'就到，還把展示櫃的',{blank:'玻璃'},'擦得發亮。'], bank:['六點','玻璃','九點','地板']},
+   reveal:{parts:['而且',{blank:'備份鑰匙'},'不見了——會用鑰匙的，是有',{blank:'權限'},'的人。'], bank:['備份鑰匙','權限','榔頭','客人']} },
+ ch2:{ open:{parts:['小葉一開始只說自己',{blank:'路過'},'，這樣的回答太',{blank:'短'},'，什麼都問不出來。'], bank:['路過','短','詳細','偷拍']},
+   reveal:{parts:['照片裡有個',{blank:'紅色影子'},'，抱著東西往',{blank:'祈福亭'},'去。'], bank:['紅色影子','祈福亭','管理員','廚房']} },
+ ch3:{ open:{parts:['阿福說他整晚都在',{blank:'廚房'},'做蛋糕，手套平常放在後台',{blank:'架子上'},'。'], bank:['廚房','架子上','大廳','口袋']},
+   reveal:{parts:['有三個',{blank:'廚工'},'幫他作證——手套是被',{blank:'別人'},'借走戴的。'], bank:['廚工','別人','阿福','老師']} },
+ ch4:{ open:{parts:['秀琴一開始只說看到一個',{blank:'影子'},'，這回答太',{blank:'短'},'，看不出幾點、往哪去。'], bank:['影子','短','詳細','聲音']},
+   reveal:{parts:['紅影子往',{blank:'大廳'},'去，只有',{blank:'辦公室'},'那邊安靜得可疑。'], bank:['大廳','辦公室','廚房','後台']} },
+ ch5:{ open:{parts:['林主席一開始只承認',{blank:'拿走皇冠'},'，卻沒說',{blank:'為什麼'},'。'], bank:['拿走皇冠','為什麼','偷去賣','幾點']},
+   reveal:{parts:['她怕明天寶石',{blank:'摔碎'},'，才想在',{blank:'天亮前'},'偷偷修好放回。'], bank:['摔碎','天亮前','賣掉','中午']} },
+};
+function stepInterview(c){ const iv=c.interview; const who=PEOPLE[iv.who]||PEOPLE[c.who];
+  const st=(ivState[c.id]=ivState[c.id]||{diag:null,picked:null,openDone:false,revealDone:false}); const dqs=IV_DQ[c.id]||{};
+  const diagAns = iv.need==='concise' ? 'toolong' : 'tooshort';
+  const s=el('div','screen'); s.appendChild(el('h1','serif','🎙 審問・'+(who?who.name:'關係人')));
+  // 人物站在案發場景裡受審
+  const st2=el('div','ivstage'); st2.appendChild(pic(c.scene,'ivbg'));
+  if(who){ const ch=el('div','ivchar'); ch.appendChild(pic(who.img)); st2.appendChild(ch); st2.appendChild(el('div','ivtag',who.name+'・'+who.role)); }
+  s.appendChild(st2);
+  const say=el('div','ivsay'); say.innerHTML='<span class="who">'+(who?who.name:'')+'</span>'+(st.picked?iv[st.picked]:iv.open);
+  s.appendChild(say);
+  // (A) 讀完他一開始說的話 → 拖拉確認，再開始診斷
+  if(!st.picked && !st.openDone && dqs.open){ dragQuiz(s, dqs.open, ()=>{ st.openDone=true; save(); render(); }); stage.appendChild(s); return; }
+  const good = st.picked && st.picked===iv.need;
+  if(good){
+    const ans=el('div','ivans good'); ans.textContent='✔ '+iv.reveal; s.appendChild(ans);
+    // (B) 讀完揭曉那句話 → 拖拉確認，再記下關鍵字
+    if(!st.revealDone && dqs.reveal){ dragQuiz(s, dqs.reveal, ()=>{ st.revealDone=true; save(); render(); }); stage.appendChild(s); return; }
+    const b=el('button','btn green','記下關鍵字，繼續 ▶');
+    b.onclick=()=>{ (iv.kws||[]).forEach(k=>addKeyword(k.id,k.text)); Sfx.win(); S.sub=(c.board==='timeline')?'board':(c.recap?'recap':'solved'); save(); render(); };
+    s.appendChild(b);
+  } else if(!st.diag){
+    // 第一步・診斷：先讀他的話，判斷是太長還是太短
+    s.appendChild(el('div','ivdiaglbl','🕵 先判斷：他這段話，問題出在哪？'));
+    const d=el('div','ivdiag');
+    const mkd=(kind,tt,ss)=>{ const b=el('button','ivdiagb'); b.innerHTML='<div class="dt">'+tt+'</div><div class="ds">'+ss+'</div>';
+      b.onclick=()=>{ if(kind===diagAns){ st.diag=kind; Sfx.ding(); render(); }
+        else { b.classList.remove('wrong'); void b.offsetWidth; b.classList.add('wrong'); Sfx.pop(); S.misses=(S.misses||0)+1; save(); toast('再讀一次他說的話——是講太多、還是太少？'); } };
+      return b; };
+    d.appendChild(mkd('toolong','話太多','一堆話，重點被埋住了'));
+    d.appendChild(mkd('tooshort','話太少','太簡短，少了關鍵細節'));
+    s.appendChild(d);
+  } else {
+    // 第二步・修正：診斷對了，請他換對的長度重講
+    if(st.picked){ const ans=el('div','ivans bad'); ans.textContent='咦？這樣反而更'+(st.picked==='concise'?'講不清楚了……':'囉唆了……')+' 換一種再試。'; s.appendChild(ans); }
+    s.appendChild(el('div','ivdiaglbl','✔ 你發現他'+(st.diag==='toolong'?'話太多、重點被埋。那要請他怎麼說？':'話太少、缺了細節。那要請他怎麼說？')));
+    const btns=el('div','ivbtns');
+    const mk=(kind,ic,tt,ss,col)=>{ const b=el('button','ivbtn'); b.style.setProperty('--c',col);
+      b.innerHTML='<div class="ib">'+ic+'</div><div class="it">'+tt+'</div><div class="is">'+ss+'</div>';
+      b.onclick=()=>{ st.picked=kind; if(kind===iv.need){Sfx.ding();} else {Sfx.pop(); S.misses=(S.misses||0)+1; save();} render(); }; return b; };
+    btns.appendChild(mk('concise','•','說簡潔一點','一句話講重點','var(--len-short)'));
+    btns.appendChild(mk('detail','•••','說詳細一點','補齊細節','var(--len-long)'));
+    s.appendChild(btns);
+  }
+  stage.appendChild(s);
+}
+
+/* --- W02 複習：對不在場證明（步驟/格式）——固定案發時間，每個人對到他說的地點，露出「沒人能證明」的破綻 --- */
+function boardTimeline(c){ S.board=S.board||{}; const s=el('div','screen'); s.appendChild(el('h1','serif','🗂 對不在場證明（複習：格式・步驟）'));
+  s.appendChild(awenRow('happy','皇冠就是在 '+CRIME_WINDOW+' 之間不見的。案發的「同一個時間」，這四個人各自說自己在哪？先聽他們怎麼說——其中一位，就是慶典主席林主席。'));
+  // 供詞卡：介紹當晚四個人（含還沒正式登場的林主席）＋各自「案發時」的說法
+  const al=el('div','alibis');
+  SLOTS.forEach(sl=>{ const p=PEOPLE[sl.who]; const card=el('div','alibi');
+    const av=el('div','alav'); av.appendChild(pic(p.img)); card.appendChild(av);
+    const rt=el('div','altxt'); rt.appendChild(el('div','alname',p.name+'（'+p.role+'）')); rt.appendChild(el('div','alclaim','「'+(sl.claim||'')+'」')); card.appendChild(rt);
+    al.appendChild(card); });
+  s.appendChild(al);
+  s.appendChild(el('div','cwin','🕘 案發時間 '+CRIME_WINDOW+'（皇冠不見的那一刻）　·　把每個人拖到他說自己在的「地點」'));
+  const wrap=el('div','col'); const tl=el('div','tl');
+  SLOTS.forEach(sl=>{ const done=!!S.board[sl.place]; const slot=el('div','slot tlslot'+(done?' filled':'')+(done&&sl.gap?' gap':''));
+    slot.dataset.want=sl.who; slot.dataset.place=sl.place; slot.appendChild(el('div','tt',sl.place));
+    if(done){ slot.appendChild(personCard(PEOPLE[sl.who])); slot.appendChild(el('div','tlnote',sl.gap?'⚠ 沒有人能證明':('✓ '+sl.vouch))); }
+    else slot.appendChild(el('div','tlnote','（誰說自己在這裡？）'));
+    tl.appendChild(slot); });
+  wrap.appendChild(tl);
+  const remaining=SLOTS.filter(sl=>!S.board[sl.place]); const pool=el('div','pool');
+  shuffle(remaining).forEach(sl=>{ const chip=el('div','chip pcardchip'); chip.dataset.person=sl.who; chip.appendChild(personCard(PEOPLE[sl.who])); pool.appendChild(chip); });
+  wrap.appendChild(pool); const hint=el('div','ptip'); wrap.appendChild(hint); s.appendChild(wrap);
+  if(remaining.length===0){ const gap=SLOTS.find(x=>x.gap);
+    s.appendChild(awenRow('happy','看到了嗎？同樣是 '+CRIME_WINDOW+'，其他三個人都有人能作證，只有「'+gap.place+'」沒有人能證明——那正是'+PEOPLE[gap.who].name+'說自己待的地方。'));
+    const b=el('button','btn green','記下關鍵字，繼續 ▶'); b.onclick=()=>{ addKeyword('k_window',CRIME_WINDOW); addKeyword('k_chair','林主席'); Sfx.win(); S.sub='solved'; save(); render(); }; s.appendChild(b); }
+  stage.appendChild(s);
+  if(remaining.length) dnd(wrap,(chip,slot)=>{ if(!slot.classList.contains('tlslot'))return false;
+    if(chip.dataset.person!==slot.dataset.want){ Sfx.pop(); hint.textContent='🔎 他說的不是這個地方——再看看上面他自己的供詞。'; return false; }
+    S.board[slot.dataset.place]=chip.dataset.person; Sfx.tick(); save(); render(); return true; });
+}
+
+/* --- 全案結尾：真相重組（把左欄關鍵字拖進空格；含干擾字） --- */
+const TRUTH={ parts:[
+  '那一夜，慶典皇冠從展示櫃消失了。',{br:1},
+  '櫃門',{b:'沒被撬'},'，是有人用',{b:'備份鑰匙'},'打開的——會用鑰匙的，是有權限的人。',{br:1},
+  '對過不在場證明才發現：',{b:'8:40–8:55'},' 這段，只有一個人說不出自己在哪——',{b:'林主席'},'。',
+  '秀琴看到的',{b:'紅色影子'},'，是她的深紅套裝；她戴上',{b:'白手套'},'怕留指紋，手套才沾了',{b:'糖霜'},'。',{br:1},
+  '可是，她不是小偷。',{br:1},
+  '她發現皇冠的寶石',{b:'爪座鬆了'},'，怕明天摔碎，想',{b:'天亮前修好放回'},'。',
+  '她把「',{b:'修好就還'},'」寫在祈福牌上——她一直在說她會還，只是那句話',{b:'太短'},'了，短到我們差點錯怪了一個好人。'
+] };
+function renderTruth(){ clearStage(); const s=el('div','screen'); s.appendChild(el('h1','serif','🧩 把真相拼出來'));
+  s.appendChild(awenRow('happy','嗶——所有關鍵字都收集到了！把關鍵字拖進下面的空格，親手把真相組出來。（有幾個是騙人的干擾字，別放進去喔！）'));
+  const wrap=el('div','trwrap'); const text=el('div','trtext'); const blanks=[];
+  TRUTH.parts.forEach(p=>{ if(typeof p==='string'){ text.appendChild(document.createTextNode(p)); }
+    else if(p.br){ text.appendChild(el('br')); }
+    else { const sl=el('span','trblank slot'); sl.dataset.ans=p.b; blanks.push(sl); text.appendChild(sl); } });
+  wrap.appendChild(text);
+  wrap.appendChild(el('div','trbanklbl','👇 把關鍵字拖進空格'));
+  const used=blanks.map(b=>b.dataset.ans);
+  const distract=(S.keywords||[]).map(k=>k.text).filter(t=>used.indexOf(t)<0);
+  const bank=el('div','trbank');
+  shuffle(used.concat(distract)).forEach(t=>{ const chip=el('div','chip'); chip.dataset.word=t; chip.textContent=t; bank.appendChild(chip); });
+  wrap.appendChild(bank);
+  const hint=el('div','ptip'); wrap.appendChild(hint); s.appendChild(wrap);
+  let filled=0; const need=blanks.length;
+  dnd(wrap,(chip,slot)=>{ if(!slot.classList.contains('trblank'))return false;
+    if(chip.dataset.word!==slot.dataset.ans){ Sfx.pop(); hint.textContent='🔎 這個字放這裡不對——再看看前後在講什麼。'; return false; }
+    slot.classList.add('filled'); slot.textContent=chip.dataset.word; chip.classList.add('placed'); Sfx.tick(); hint.textContent=''; filled++;
+    if(filled>=need){ Sfx.win(); confetti(); setTimeout(()=>{ S.phase='done'; save(); render(); },1100); }
+    return true; });
+  stage.appendChild(s);
+}
 function scrCase(){const c=CASES[S.caseIdx];if(!c){S.phase='quiz';S.quizIdx=0;save();return render();}
   if(c.mode==='stepcase'){
+    const hasScene=!!(c.scenes&&c.scenes.length);
     if(S.sub==='gate')return stepGate(c);
-    if(S.sub==='explore')return stepExplore(c);
-    if(S.sub==='sift')return stepSift(c);
-    if(S.sub==='organize')return stepOrganize(c);
-    if(S.sub==='deduce')return stepDeduce(c);
-    if(S.sub==='solved')return caseSolved(c);
+    if(S.sub==='explore')return hasScene?stepExplore(c):(c.w1?stepW1(c):stepInterview(c));
+    if(S.sub==='w1')return stepW1(c);
+    if(S.sub==='interview')return stepInterview(c);
+    if(S.sub==='recap')return stepRecap(c);
+    if(S.sub==='board')return boardTimeline(c);
+    if(S.sub==='solved'){ S.endq=S.endq||{}; if(ENDQ[c.id]&&!S.endq[c.id])return stepEndQuiz(c); return caseSolved(c); }
     return stepIntro(c);
   }
   if(S.sub==='intro')return caseIntro(c);
@@ -1279,7 +1585,7 @@ const DISTRACT=[ // 無關觀察：會變成「線索卡」但不是這件案子
  {s:'看桌上',f:'桌上有一支鉛筆',x:50,y:9},
  {s:'看窗簾',f:'窗簾是藍色的',x:14,y:50},
 ];
-/* ========== S2-W02 格式控制核心：觀察線索 → 選對格式 → 阿問「好版 vs 亂版」對比 ========== */
+/* ========== S2-W03 格式控制核心：觀察線索 → 選對格式 → 阿問「好版 vs 亂版」對比 ========== */
 const FORMATS={
   list:{name:'清單',color:'#3fc6dd',desc:'很多東西，一個一個看'},
   table:{name:'表格',color:'#b07dff',desc:'兩個以上，比一比'},
@@ -1467,8 +1773,44 @@ function revealCompare(s,wrap,g){[...wrap.querySelectorAll('.opt')].forEach(b=>b
   const p=el('div','paper');p.innerHTML='<h3>為什麼？</h3><div class="body" style="margin-bottom:8px">好的那句三格全亮：請你當<span class="hl role">'+g.role+'</span>，<span class="hl bg">'+g.bg+'</span>，<span class="hl prob">'+g.prob+'</span>？</div><div class="body" style="color:#5a4a30">另一句只有<span class="hl prob">問題</span>一格，少了角色和背景——阿問就查不到線索了。同一件事，問清楚才有用！</div>';s.appendChild(p);
   const b=el('button','btn','學會了！繼續　▶');b.onclick=()=>{S.compared=true;advanceLayer(CASES[S.caseIdx]);};s.appendChild(b);}
 
+/* 每章故事做完：拖拉式重點問答——把這一章查到的關鍵字拖進空格，答對才進破案結果 */
+const ENDQ={
+ ch1:{ intro:'先把這一章查到的重點拖出來，才算真的破案 👇',
+   parts:['老陳話太多，我請他',{blank:'說簡潔'},'一點，才問出：櫃門是用',{blank:'鑰匙'},'打開的，備份鑰匙不見了。'],
+   bank:['說簡潔','鑰匙','說詳細','被撬開'] },
+ ch2:{ intro:'先把這一章查到的重點拖出來，才算真的破案 👇',
+   parts:['小葉話太少，我請她',{blank:'說詳細'},'一點，她才說出照片裡有個',{blank:'紅色影子'},'抱著東西離開。'],
+   bank:['說詳細','紅色影子','說簡潔','點心師傅'] },
+ ch3:{ intro:'先把這一章查到的重點拖出來，才算真的破案 👇',
+   parts:['阿福落落長喊冤，我請他',{blank:'說簡潔'},'一點，重點是：糖霜是',{blank:'架子上'},'沾到的，手套被別人借走了。'],
+   bank:['說簡潔','架子上','說詳細','廚房裡'] },
+ ch4:{ intro:'先把這一章查到的重點拖出來，才算真的破案 👇',
+   parts:['對一對四個人的',{blank:'不在場證明'},'發現：皇冠是',{blank:'8:40–8:55'},'不見的，只有一個人說不出在哪。'],
+   bank:['不在場證明','8:40–8:55','一句話','8:00–8:15'] },
+ ch5:{ intro:'先把這一章查到的重點拖出來，才算真的破案 👇',
+   parts:['請林主席',{blank:'說詳細'},'一點，才知道她不是小偷——她發現寶石',{blank:'爪座鬆了'},'，想天亮前修好放回。'],
+   bank:['說詳細','爪座鬆了','說簡潔','偷去賣掉'] },
+};
+function stepEndQuiz(c){ const q=ENDQ[c.id]; S.endq=S.endq||{};
+  if(!q){ S.endq[c.id]=true; return render(); }
+  const s=el('div','screen'); s.appendChild(el('h1','serif','🧩 這一章，你查到了什麼？'));
+  s.appendChild(awenRow('happy',q.intro));
+  const wrap=el('div','practice');wrap.style.setProperty('--pc',FORMATS.keypoints.color);
+  const sent=el('div','gsent');const blanks=[];
+  q.parts.forEach(p=>{ if(typeof p==='string'){sent.appendChild(el('span','gtext',p));} else {const slot=el('span','gblank slot');slot.dataset.ans=p.blank;sent.appendChild(slot);blanks.push(slot);} });
+  wrap.appendChild(sent);
+  const tray=el('div','dtray');shuffle(q.bank.slice()).forEach(w=>{const chip=el('div','chip',w);chip.dataset.word=w;tray.appendChild(chip);});wrap.appendChild(tray);
+  const hint=el('div','ptip');s.appendChild(wrap);s.appendChild(hint);
+  let filled=0;const need=blanks.length;
+  dnd(wrap,(chip,slot)=>{ if(!slot.classList.contains('gblank'))return false;
+    if(chip.dataset.word!==slot.dataset.ans){ Sfx.pop(); hint.textContent='🔎 再想想這一章的重點～'; return false; }
+    slot.classList.add('filled'); slot.textContent=chip.dataset.word; chip.classList.add('placed'); Sfx.tick(); hint.textContent=''; filled++;
+    if(filled>=need){ Sfx.win(); confetti(); S.endq[c.id]=true; save();
+      setTimeout(()=>{ const b=el('button','btn green','答對了！看破案結果 ▶'); b.onclick=()=>{Sfx.tick();render();}; s.appendChild(b); try{b.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){} },300); }
+    return true; });
+  stage.appendChild(s); }
 function caseSolved(c){ S.solved=S.solved||[]; const fresh=S.solved.indexOf(c.id)<0;
-  if(fresh){ S.solved.push(c.id); S.coins=(S.coins||0)+COIN_PER_CASE; Account.creditCoins('s2w02_case_'+c.id,COIN_PER_CASE,'S2-W02 破案：'+c.title); }
+  if(fresh){ S.solved.push(c.id); S.coins=(S.coins||0)+COIN_PER_CASE; Account.creditCoins('s2w03_case_'+c.id,COIN_PER_CASE,'S2-W03 破案：'+c.title); }
   save();renderTop();
   const s=el('div','screen');confetti();Sfx.win();
   s.appendChild(el('h1','serif','🎉 破案！'));
@@ -1476,8 +1818,9 @@ function caseSolved(c){ S.solved=S.solved||[]; const fresh=S.solved.indexOf(c.id
   s.appendChild(awenRow('happy',c.solved));
   const cl=el('div');cl.style.cssText='font-weight:900;color:var(--gold);font-size:21px;text-align:center';cl.textContent=(fresh?'＋'+COIN_PER_CASE+' 金幣 已存入錢包！':'（本案金幣已領取）')+(c.mode==='stepcase'?'':'　·　放大鏡碎片 '+S.shards);s.appendChild(cl);
   const allDone=(S.solved||[]).length>=CASES.length;
-  const b=el('button','btn',allDone?'回偵探社結案　▶':'回地圖繼續探索　▶');
-  b.onclick=()=>{ S.phase='world'; save(); transition('破案！',allDone?'全部破完了！回 ★ 偵探社結案報告！':'回到地圖，還有案子等你！',1500,render); }; // 回大地圖
+  const b=el('button','btn',allDone?'把真相拼出來　▶':'回地圖繼續探索　▶');
+  b.onclick=()=>{ if(allDone){ S.phase='quiz'; save(); transition('最後一步','把一路查到的線索，拼成完整的真相！',1500,render); } // 最後證人→直接進真相重組，不用走回偵探社
+    else { S.phase='world'; save(); transition('破案！','回到地圖，還有案子等你！',1500,render); } };
   s.appendChild(b);stage.appendChild(s);}
 
 /* ===== 案件之間：城鎮地圖行走 ＋ 壞蛋戰（問阿問→找弱點→點擊攻擊／問阿問→怎麼躲→點擊閃避）===== */
@@ -1497,8 +1840,8 @@ const MONSTERS=[
 ];
 // 四格式技能鏈：重點(顯形)→清單(列部位)→表格(分類歸位)→步驟(排順序=正常身)→弱點武器
 const MB_SKILLS=[
- {k:'keypoints', nm:'重點', ic:'🎯', tip:'先用「重點」看穿文字，讓牠現出真身！'},
- {k:'steps',     nm:'步驟', ic:'🔢', tip:'牠的身體上下顛倒了！用「步驟」把牠排回正確順序！'},
+ {k:'keypoints', nm:'很短', ic:'•', tip:'先叫牠「一句話講重點」，把落落長的廢話壓掉，露出真身！'},
+ {k:'steps',     nm:'排長度', ic:'•••', tip:'牠的段落全亂了！用「排好長度」把牠整理回正確的樣子！'},
 ];
 const MB_HPTIER=[100,65,40];  // step 0/1(重點)/2(步驟)；之後武器終結
 const HEARTS_MAX=3;
@@ -1522,7 +1865,7 @@ function drawTravel(){ if(!tv){ S.phase=S.owMode?'world':'start'; save(); return
   else if(tv.stage==='battle'){ mbRenderBattle(s); }
   else if(tv.stage==='done'){ confetti();
     s.appendChild(el('h1','serif','💥 打倒'+mon.name+'！'));
-    s.appendChild(awenRow('happy','漂亮！你用「重點→清單→表格→步驟」拆穿了牠，再用弱點「'+mon.weapon.name+'」一擊必殺！繼續探索吧！'));
+    s.appendChild(awenRow('happy','漂亮！你用「抓重點、排長度」把牠一團亂的文字拆穿，再用弱點「'+mon.weapon.name+'」一擊必殺！繼續探索吧！'));
     const b=el('button','btn','繼續探索　▶');b.onclick=()=>{ if(tv&&tv.fromWorld){tv=null;S.phase='world';save();render();} else {tv.beaten=true;tv.stage='walk';drawTravel();} };s.appendChild(b);
   }
   stage.appendChild(s);
@@ -1536,7 +1879,7 @@ let mb=null, mbRAF=0, mbLast=0;
 function mbStop(){ if(mbRAF){cancelAnimationFrame(mbRAF);mbRAF=0;} mb=null; }
 function mbPop(txt,bad){ const st=mb&&mb.els?mb.els.st:$('.mbstage'); if(!st)return; const p=el('div','mbpop '+(bad?'bad':'good'),txt); st.appendChild(p); setTimeout(()=>{try{p.remove();}catch(e){}},1000); }
 // 建立戰鬥場景一次，啟動即時迴圈
-function mbRenderBattle(s){ const mon=tv.mon;
+function mbRenderBattle(s){ const mon=tv.mon; s.classList.add('mbscreen'); // 戰鬥畫面用更緊的間距，確保按鈕不用捲動
   s.appendChild(el('div','muted','⚔️ 遇到怪物：'+mon.name+'！'+(mon.atk&&mon.atk.desc||'')+' 靠近點技能拆解牠！血被扣完就要重來！'));
   const wrap=el('div','mbwrap'); const arena=el('div','mbarena'); const st=el('div','mbstage'); st.style.setProperty('--mt',mon.mt);
   const bg=el('div','mbBg'); bg.appendChild(pic('det-alley')); st.appendChild(bg); st.appendChild(el('div','mbGround'));
@@ -1702,12 +2045,12 @@ function buildWorld(){ const W=40,H=30; const map=[]; for(let y=0;y<H;y++)map.pu
     [[-1,0],[1,0],[0,-1],[0,1],[0,0],[1,1],[-1,1]].forEach(([dx,dy])=>{const x=cx+dx,y=cy+dy;if(map[y]&&map[y][x]===0)map[y][x]=3;});});
   [[24,17],[16,18],[34,10],[6,18],[24,7],[12,12]].forEach(([x,y])=>{if(map[y]&&map[y][x]===0)map[y][x]=5;}); // 花
   const events=[
-   {id:'agency',           tx:19,ty:15, caseIdx:-1, label:'偵探社', roof:'#8a5a2c'},
-   {id:'case-list-eraser', tx:5, ty:15, caseIdx:0,  label:'不見的印章（清單）', roof:'#3fc6dd'},
-   {id:'trophy',           tx:20,ty:4,  caseIdx:1,  label:'獎盃失蹤案（表格）', roof:'#b07dff'},
-   {id:'order',            tx:30,ty:22, caseIdx:2,  label:'冠軍餅乾疑雲（步驟）', roof:'#ff9f43'},
-   {id:'s2-w02-case4',     tx:10,ty:8,  caseIdx:3,  label:'圖書館失蹤名冊（重點）', roof:'#ff8fbb'},
-   {id:'s2-w02-case5-boss',tx:20,ty:26, caseIdx:4,  label:'園遊會錢箱（大案）', roof:'#ffce47'},
+   {id:'agency', tx:19,ty:15, caseIdx:-1, label:'偵探社', roof:'#8a5a2c'},
+   {id:'ch1',    tx:5, ty:15, caseIdx:0,  label:'落落長的報案（要簡潔）', roof:'#38bdf8'},
+   {id:'ch2',    tx:20,ty:4,  caseIdx:1,  label:'閃躲的記者（要詳細）', roof:'#fb923c'},
+   {id:'ch3',    tx:30,ty:22, caseIdx:2,  label:'四字祈福牌', roof:'#f472b6'},
+   {id:'ch4',    tx:10,ty:8,  caseIdx:3,  label:'對不上的說法（不在場證明）', roof:'#a78bfa'},
+   {id:'ch5',    tx:20,ty:26, caseIdx:4,  label:'最後一問', roof:'#ffce47'},
   ];
   events.forEach(e=>{ if(map[e.ty][e.tx]!==1)map[e.ty][e.tx]=1; }); // 事件點踩得到
   return {W,H,map,events,start:{tx:19,ty:15}};
@@ -1731,13 +2074,17 @@ function owArrive(){ const h=ow.hero; S.owHero={tx:h.tx,ty:h.ty}; owSaveThrottle
   owHintEl && owUpdateHint(); }
 let _owSaveT=0; function owSaveThrottle(){ if(_owSaveT)return; _owSaveT=setTimeout(()=>{_owSaveT=0;save();},1200); }
 function nearestEvent(){ const h=ow.hero; let best=null,bd=99; ow.events.forEach(ev=>{ const d=Math.abs(ev.tx-h.tx)+Math.abs(ev.ty-h.ty); if(d<=1&&d<bd){bd=d;best=ev;} }); return best; }
+/* 連貫懸案：一定要照第 1→5 章的順序破，才不會把劇情打亂。下一個該破的章＝最小未破的 caseIdx */
+function nextCaseIdx(){ for(let i=0;i<CASES.length;i++){ if((S.solved||[]).indexOf(CASES[i].id)<0)return i; } return -1; }
 function owInteract(){ const ev=nearestEvent(); if(!ev){ toast('走到地圖上的 ❗ 旁邊，按 🔍 調查！'); return; }
-  if(ev.caseIdx<0){ // 偵探社
-    if((S.solved||[]).length>=CASES.length){ owStop(); S.phase='quiz'; S.quizIdx=0; save(); transition('全部破案！','回偵探社結案報告…',1500,render); }
-    else { toast('還有 '+(CASES.length-(S.solved||[]).length)+' 件案子沒破，去地圖上找 ❗！'); } return; }
-  if((S.solved||[]).indexOf(CASES[ev.caseIdx].id)>=0){ toast('這件案子已經破了 ✓'); return; }
-  owStop(); S.caseIdx=ev.caseIdx; S.layerIdx=0; S.sub='intro'; S.compared=false; S.phase='case'; save();
-  transition('抵達現場！','案件：'+CASES[ev.caseIdx].title,1300,render); }
+  const nx=nextCaseIdx();
+  if(ev.caseIdx<0){ // 偵探社（★）：全破才開放結案考
+    if(nx<0){ owStop(); S.phase='quiz'; S.quizIdx=0; save(); transition('全部破案！','回偵探社結案報告…',1500,render); }
+    else { toast('還有 '+(CASES.length-(S.solved||[]).length)+' 章沒破，先去查 ❗！'); } return; }
+  if((S.solved||[]).indexOf(CASES[ev.caseIdx].id)>=0){ toast('這一章已經破了 ✓'); return; }
+  if(ev.caseIdx!==nx){ toast('🔒 這是連貫的案子，要照順序破——先去查「第 '+(nx+1)+' 章：'+CASES[nx].title+'」'); return; }
+  owStop(); S.caseIdx=ev.caseIdx; S.layerIdx=0; S.round=0; S.sub='intro'; S.compared=false; S.phase='case'; save();
+  transition('抵達現場！','第 '+(ev.caseIdx+1)+' 章：'+CASES[ev.caseIdx].title,1300,render); }
 function startEncounter(){ owStop(); const mon=MONSTERS[Math.floor(Math.random()*MONSTERS.length)];
   tv=mbInit(mon,true); tv.stage='battle'; S.phase='battle'; save(); render(); }
 /* ---- 繪圖 ---- */
@@ -1751,17 +2098,22 @@ function owDrawTile(g,t,sx,sy,gx,gy){ const T=TILE;
     g.fillStyle='#6b4a24';g.fillRect(cx-3,cy,6,T/2-2); g.fillStyle='#2e6b34';g.beginPath();g.arc(cx,cy-2,12,0,7);g.fill(); g.fillStyle='#3c8544';g.beginPath();g.arc(cx-4,cy-5,7,0,7);g.arc(cx+5,cy-3,6,0,7);g.fill(); }
   else if(t===5){ g.fillStyle=['#ff7ab0','#ffd75e','#b07dff'][(gx+gy)%3]; [[10,12],[20,18],[14,22]].forEach(([ox,oy])=>{g.beginPath();g.arc(sx+ox,sy+oy,3,0,7);g.fill();}); g.fillStyle='#ffe27a';[[10,12],[20,18],[14,22]].forEach(([ox,oy])=>{g.beginPath();g.arc(sx+ox,sy+oy,1.3,0,7);g.fill();}); }
 }
-function owDrawEvent(g,ev,sx,sy){ const T=TILE; const done=(S.solved||[]).indexOf(ev.caseIdx>=0?CASES[ev.caseIdx].id:'__')>=0;
-  // 房子畫在事件磚上方
+function owDrawEvent(g,ev,sx,sy){ const T=TILE; const nx=nextCaseIdx();
+  const done=ev.caseIdx>=0 && (S.solved||[]).indexOf(CASES[ev.caseIdx].id)>=0;
+  const locked=(ev.caseIdx>=0 && !done && ev.caseIdx!==nx) || (ev.caseIdx<0 && nx>=0); // 還沒輪到＝上鎖
+  // 房子畫在事件磚上方（上鎖的變暗）
   const bx=sx-T*0.5, by=sy-T*1.35, bw=T*2, bh=T*1.3;
+  g.save(); if(locked)g.globalAlpha=0.5;
   g.fillStyle='rgba(0,0,0,.2)';g.beginPath();g.ellipse(sx+T/2,sy+T-3,T*0.8,5,0,0,7);g.fill();
-  g.fillStyle='#f0e4cf';g.fillRect(bx,by+bh*0.42,bw,bh*0.62); // 牆
-  g.fillStyle=ev.roof;g.beginPath();g.moveTo(bx-4,by+bh*0.5);g.lineTo(bx+bw/2,by-2);g.lineTo(bx+bw+4,by+bh*0.5);g.closePath();g.fill(); // 屋頂
+  g.fillStyle=locked?'#c8c0b0':'#f0e4cf';g.fillRect(bx,by+bh*0.42,bw,bh*0.62); // 牆
+  g.fillStyle=locked?'#8a8577':ev.roof;g.beginPath();g.moveTo(bx-4,by+bh*0.5);g.lineTo(bx+bw/2,by-2);g.lineTo(bx+bw+4,by+bh*0.5);g.closePath();g.fill(); // 屋頂
   g.fillStyle='#7a4a24';g.fillRect(sx+T/2-6,by+bh*0.6,12,bh*0.42); // 門
+  g.restore();
   // 標記
   const my=by-14+Math.sin(now()/300)*3;
   g.font='900 20px sans-serif';g.textAlign='center';g.textBaseline='middle';
   if(done){ g.fillStyle='#2bd17e';g.beginPath();g.arc(sx+T/2,my,12,0,7);g.fill();g.fillStyle='#03271a';g.fillText('✓',sx+T/2,my+1); }
+  else if(locked){ g.fillStyle='#6b7280';g.beginPath();g.arc(sx+T/2,my,12,0,7);g.fill();g.font='900 15px sans-serif';g.fillStyle='#e8eef5';g.fillText('🔒',sx+T/2,my+1); }
   else if(ev.caseIdx<0){ g.fillStyle='#ffd75e';g.beginPath();g.arc(sx+T/2,my,12,0,7);g.fill();g.fillStyle='#3a2405';g.fillText('★',sx+T/2,my+1); }
   else { g.fillStyle='#ff5d6c';g.beginPath();g.arc(sx+T/2,my,12,0,7);g.fill();g.fillStyle='#fff';g.fillText('!',sx+T/2,my+1); }
   g.textBaseline='alphabetic'; }
@@ -1779,7 +2131,13 @@ function owDraw(){ const g=ow.ctx; const {cam,map,W,H}=ow; const vw=ow.canvas.wi
   ow.events.forEach(ev=>{ if(ev.tx*TILE-cam.x>-TILE*2&&ev.tx*TILE-cam.x<vw+TILE)owDrawEvent(g,ev,ev.tx*TILE-cam.x,ev.ty*TILE-cam.y); });
   owDrawHero(g,ow.hero.px-cam.x,ow.hero.py-cam.y); }
 let owHintEl=null;
-function owUpdateHint(){ if(!owHintEl)return; const ev=nearestEvent(); if(ev&&!(ev.caseIdx>=0&&(S.solved||[]).indexOf(CASES[ev.caseIdx].id)>=0)){ owHintEl.textContent=(ev.caseIdx<0?'★ '+ev.label:'❗ '+ev.label)+'　按 🔍 調查'; owHintEl.style.display='block'; } else owHintEl.style.display='none'; }
+function owUpdateHint(){ if(!owHintEl)return; const ev=nearestEvent(); const nx=nextCaseIdx();
+  let txt=null;
+  if(ev){ if(ev.caseIdx<0){ if(nx<0)txt='★ '+ev.label+'　按 🔍 結案'; }
+    else if((S.solved||[]).indexOf(CASES[ev.caseIdx].id)>=0){ /* 已破，不提示 */ }
+    else if(ev.caseIdx===nx){ txt='❗ '+ev.label+'　按 🔍 調查'; }
+    else { txt='🔒 '+ev.label+'　要先破前面的章'; } }
+  if(txt){ owHintEl.textContent=txt; owHintEl.style.display='block'; } else owHintEl.style.display='none'; }
 function owStep(t){ if(S.phase!=='world'){owRAF=0;return;} const dt=Math.min(50,t-(owLast||t));owLast=t; owUpdate(dt); owDraw(); owRAF=requestAnimationFrame(owStep); }
 function owStop(){ if(owRAF){cancelAnimationFrame(owRAF);owRAF=0;} }
 function scrWorld(){ if(!ow)initWorld(); const s=el('div','screen world');
@@ -1802,16 +2160,19 @@ function scrWorld(){ if(!ow)initWorld(); const s=el('div','screen world');
 function owClearInput(){ owKeys.up=owKeys.down=owKeys.left=owKeys.right=0; if(ow)ow.dpad=null; }
 // 鍵盤（只在大地圖時才吃方向鍵；其他畫面不設鍵，避免殘留按鍵讓角色自己走）
 window.addEventListener('keydown',e=>{ const k=e.key.toLowerCase();
+  // 方向鍵／空白鍵一律不讓瀏覽器捲動畫面（正在打字的欄位除外）——戰鬥中按 ↑↓ 不會再跟著滾
+  const tg=(e.target&&e.target.tagName||'').toLowerCase();
+  const typing=(tg==='input'||tg==='textarea'||(e.target&&e.target.isContentEditable));
+  if(!typing && ['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
   if(mb && tv && tv.stage==='battle'){ // 即時怪物戰：←→移動、↑/空白跳、1-4放格式、5弱點
-    if(['arrowleft','a'].includes(k)){mb.keys.left=1;e.preventDefault();}
-    else if(['arrowright','d'].includes(k)){mb.keys.right=1;e.preventDefault();}
-    else if(['arrowup','w',' '].includes(k)){mbJump();e.preventDefault();}
+    if(['arrowleft','a'].includes(k)){mb.keys.left=1;}
+    else if(['arrowright','d'].includes(k)){mb.keys.right=1;}
+    else if(['arrowup','w',' '].includes(k)){mbJump();}
     else if(['1','2'].includes(k)){mbCast(parseInt(k,10)-1);}
     else if(['3','4','5'].includes(k)){mbWeapon();}
     return; }
   if(S.phase!=='world')return;
-  if(['arrowup','w'].includes(k))owKeys.up=1; else if(['arrowdown','s'].includes(k))owKeys.down=1; else if(['arrowleft','a'].includes(k))owKeys.left=1; else if(['arrowright','d'].includes(k))owKeys.right=1; else if([' ','enter'].includes(k))owInteract();
-  if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault(); });
+  if(['arrowup','w'].includes(k))owKeys.up=1; else if(['arrowdown','s'].includes(k))owKeys.down=1; else if(['arrowleft','a'].includes(k))owKeys.left=1; else if(['arrowright','d'].includes(k))owKeys.right=1; else if([' ','enter'].includes(k))owInteract(); });
 window.addEventListener('keyup',e=>{ const k=e.key.toLowerCase();
   if(mb && tv && tv.stage==='battle'){ if(['arrowleft','a'].includes(k))mb.keys.left=0; else if(['arrowright','d'].includes(k))mb.keys.right=0; return; }
   if(['arrowup','w'].includes(k))owKeys.up=0; else if(['arrowdown','s'].includes(k))owKeys.down=0; else if(['arrowleft','a'].includes(k))owKeys.left=0; else if(['arrowright','d'].includes(k))owKeys.right=0; });
@@ -1830,40 +2191,32 @@ function scrQuiz(){const q=QUIZ[S.quizIdx];if(!q){S.phase='done';save();return r
 function scrDone(){const s=el('div','screen');
   s.appendChild(el('h1','serif','🎉 恭喜破案！你是名偵探！'));
   const bw=el('div');bw.style.cssText='display:flex;justify-content:center';bw.appendChild(pic('det-victory','victoryimg'));s.appendChild(bw);
-  s.appendChild(awenRow('happy','太強了！你學會「問對格式」——同樣一堆資料，換個格式就清楚多了：📋清單一條條列、▦表格分類比一比、🔢步驟照順序排、🎯重點只抓關鍵。以後問我記得說「你想要哪一種」！'));
-  const total=COIN_PER_CASE*CASES.length;
+  s.appendChild(awenRow('happy','太強了！你學會「問對長度」——同一個問題，換一個長度，我給你的答案就完全不同：要重點就「很短」一句話、要補齊細節就「詳細」一段、有硬限制就「限字」。問對長度，才拿得到能用的線索！'));
+  s.appendChild(awenRow('happy','真相拼齊了：是林主席拿走皇冠——她發現寶石鬆了、怕在台上摔碎，想偷偷送修，卻用錯了方法。皇冠回來了，慶典照常舉行！'));
+  const total=COIN_PER_CASE*CASES.length+COIN_PER_CASE;   // 5 章 60 ＋ 破案大獎 60 ＝ 360
   const coinLine=el('div');coinLine.style.cssText='font-weight:900;color:var(--gold);font-size:24px;text-align:center';coinLine.textContent='🪙 本關共獲得 '+total+' 金幣 已存入錢包！';s.appendChild(coinLine);
+  // 偵探評級：看全程失誤（觀察答錯＋審問診斷錯）
+  const m=S.misses||0; let rk,cls,desc,bonus;
+  if(m<=2){ rk='🏆 神探'; cls='ace'; desc='幾乎零失誤——你觀察得又快又準，每條線索都看仔細了！'; bonus=20; }
+  else if(m<=6){ rk='🔎 見習偵探'; cls='mid'; desc='不錯！再更仔細一點、少猜幾次，就是神探了。'; bonus=0; }
+  else { rk='📖 再加油'; cls='low'; desc='有幾條線索看得太快囉——下次放慢、盯著畫面看清楚再答。'; bonus=0; }
+  const rt=el('div','rating'); rt.innerHTML='<div class="rk '+cls+'">'+rk+'</div><div class="rd">本次失誤 '+m+' 次　·　'+desc+(bonus?'<br>🏅 神探獎勵 +'+bonus+' 金幣！':'')+'</div>';
+  s.appendChild(rt);
+  if(bonus&&!S._aceGiven){ S._aceGiven=true; S.coins=(S.coins||0)+bonus; Account.creditCoins('s2w03_ace',bonus,'S2-W03 神探評級獎勵'); }
   const wall=el('div','wall');(S.solved||[]).forEach(id=>{const c=CASES.find(x=>x.id===id);if(!c)return;const p=el('div','poster');const th=el('div','th');th.appendChild(pic(c.scene));p.appendChild(th);p.appendChild(el('div','cap','✔ '+c.title));wall.appendChild(p);});s.appendChild(wall);
   const row=el('div');row.style.cssText='display:flex;gap:12px;flex-wrap:wrap;justify-content:center';
-  const ta=el('button','btn blue','我是小偵探教官 · 去教一位同學');ta.onclick=()=>{ta.textContent='已成為教官 ✓（+TA 12 金幣）';ta.disabled=true;Account.creditCoins('s2w02_ta',12,'S2-W02 小老師 TA');S.coins=(S.coins||0)+12;S.ta=true;save();renderTop();};
+  const ta=el('button','btn blue','我是小偵探教官 · 去教一位同學');ta.onclick=()=>{ta.textContent='已成為教官 ✓（+TA 12 金幣）';ta.disabled=true;Account.creditCoins('s2w03_ta',12,'S2-W03 小老師 TA');S.coins=(S.coins||0)+12;S.ta=true;save();renderTop();};
   const nbb=el('button','btn','📖 翻開偵探筆記本');nbb.style.fontSize='16px';nbb.onclick=openNB;
   row.appendChild(ta);row.appendChild(nbb);s.appendChild(row);
-  if(!S._delivered){S._delivered=true;S.done=true;save();renderTop();confetti();Sfx.win();}
+  if(!S._delivered){S._delivered=true;S.done=true;S.coins=(S.coins||0)+COIN_PER_CASE;Account.creditCoins('s2w03_solve',COIN_PER_CASE,'S2-W03 破案大獎：消失的慶典皇冠');save();renderTop();confetti();Sfx.win();}
   stage.appendChild(s);}
 
 /* ---------- 啟動 ---------- */
 function renderAcct(){const a=$('#acct');const on=navigator.onLine;
   if(Account.ready){a.innerHTML='<span class="d ok"></span> 已綁定：'+(Account.name||'已登入')+(on?'':'　·　<span class="offtag">離線辦案</span>');}
   else{a.innerHTML='<span class="d warn"></span> 訪客模式'+(on?'':'　·　<span class="offtag">離線辦案</span>')+'　<a href="/login" style="color:#8fd0ff">登入</a>';}}
-/* ---- 測試用「跳過」鈕：僅 localhost 或網址帶 ?test 時出現，學生上線看不到 ---- */
-function isTestMode(){ try{ return /[?&]test/.test(location.search)||['localhost','127.0.0.1'].indexOf(location.hostname)>=0; }catch(e){ return false; } }
-function devSkip(){ Sfx.tick();
-  if(S.phase==='start'){ if((S.storyStep||0)<STORY.length-1){S.storyStep=(S.storyStep||0)+1;}else{S.phase='tutorial';S.storyStep=0;} save();render(); return; }
-  if(S.phase==='tutorial'){ Sfx.win();S.owMode=true;S.phase='world';save();render(); return; }
-  if(S.phase==='case'&&CASES[S.caseIdx]&&CASES[S.caseIdx].mode==='stepcase'){
-    const order=['intro','explore','sift','format','timeline','deduce','solved'];const cur=Math.max(0,order.indexOf(S.sub||'intro'));
-    if(cur<order.length-1){ S.sub=order[cur+1]; S.ckFound=CASES[S.caseIdx].scenes.flatMap(z=>z.spots.map(s=>s.id)); save();render(); return; }
-  }
-  skipStage(); }
-function mountDevSkip(){ if(!isTestMode()||document.getElementById('devskip'))return;
-  const b=document.createElement('button');b.id='devskip';b.textContent='跳過 ⏭';b.title='測試用：前進到下一步／下一關';
-  b.style.cssText='position:fixed;top:56px;right:8px;z-index:60;background:#b0431f;color:#fff;border:2px solid #ffce47;border-radius:12px;font-weight:900;font-size:13px;padding:8px 12px;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(0,0,0,.5);opacity:.92;';
-  b.onclick=()=>{try{devSkip();}catch(e){console.error(e);}};document.body.appendChild(b);
-  const mb=document.createElement('button');mb.id='devmb';mb.textContent='🐉 怪物戰';mb.title='測試用：直接進怪物戰(每點換一隻)';
-  mb.style.cssText='position:fixed;top:98px;right:8px;z-index:60;background:#5b2f8a;color:#fff;border:2px solid #ffce47;border-radius:12px;font-weight:900;font-size:13px;padding:8px 12px;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(0,0,0,.5);opacity:.92;';
-  mb.onclick=()=>{try{ const i=(window.__mbI=((window.__mbI==null?-1:window.__mbI)+1)%MONSTERS.length); S.phase='battle';tv=mbInit(MONSTERS[i],true);tv.stage='battle';save();render(); }catch(e){console.error(e);}};document.body.appendChild(mb); }
 function boot(){$('#bgimg').style.backgroundImage="url('assets/det-bg.png')";$('#brandlens').appendChild(pic('det-magnifier'));
-  Account.init();renderTop();render();renderAcct();mountDevSkip();
+  Account.init();renderTop();render();renderAcct();
   window.addEventListener('online',renderAcct);window.addEventListener('offline',renderAcct);
   (async()=>{if(!Account.ready)return;const cloud=await Account.load();if(cloud&&cloud.v===VERSION&&cloud.phase){if(progressScore(cloud)>progressScore(S)){S=cloud;S.notebook=S.notebook||{};save();render();}else{Account.save(S);}}else{Account.save(S);}renderAcct();renderTop();})();}
 boot();

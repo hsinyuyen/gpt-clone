@@ -23,20 +23,62 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Session storage for current login (survives refresh, clears on tab close)
-// Use localStorage for persistence across tabs
+/**
+ * 登入只在「這個瀏覽器工作階段」有效：關掉瀏覽器再打開就要重新登入。
+ *
+ * - 真正的來源是 sessionStorage（關閉分頁／瀏覽器就會被清掉）
+ * - localStorage 只留一份「鏡像」，因為 public/games/*.html、public/courses/*.html
+ *   那些單檔小遊戲是直接讀 localStorage['@session/currentUser'] 來綁金幣的
+ * - 開啟時如果 sessionStorage 沒有人（＝新的瀏覽器工作階段），就把鏡像一起清掉 → 回到登入畫面
+ *
+ * 共用電腦的教室情境下，這樣下一個學生不會直接接收上一個學生的帳號。
+ */
+const SESSION_KEY = "@session/currentUser";
+
 const getSessionUser = (): User | null => {
   if (typeof window === "undefined") return null;
-  const stored = localStorage.getItem("@session/currentUser");
-  return stored ? JSON.parse(stored) : null;
+  try {
+    const live = sessionStorage.getItem(SESSION_KEY);
+    if (live) {
+      // 同一個工作階段：順便把鏡像補回去（給遊戲讀）
+      localStorage.setItem(SESSION_KEY, live);
+      return JSON.parse(live);
+    }
+  } catch (e) {
+    /* sessionStorage 被停用時就當作沒登入 */
+  }
+  // 新的瀏覽器工作階段 → 不記住上次的登入
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch (e) {}
+  return null;
+};
+
+/** 登出／換人時把這台瀏覽器上的遊戲存檔一起清掉，共用電腦不留痕跡 */
+const clearLocalGameSaves = () => {
+  try {
+    // 涵蓋現有三種命名：game:xxx / xxx_progress / xxx-progress-vN（新課程），以及繪本草稿
+    const kill = Object.keys(localStorage).filter(
+      (k) => k.startsWith("game:") || /[-_]progress/.test(k) || k.startsWith("l1:draw-progress")
+    );
+    kill.forEach((k) => localStorage.removeItem(k));
+  } catch (e) {}
 };
 
 const setSessionUser = (user: User | null) => {
   if (typeof window === "undefined") return;
-  if (user) {
-    localStorage.setItem("@session/currentUser", JSON.stringify(user));
-  } else {
-    localStorage.removeItem("@session/currentUser");
+  try {
+    if (user) {
+      const json = JSON.stringify(user);
+      sessionStorage.setItem(SESSION_KEY, json);
+      localStorage.setItem(SESSION_KEY, json); // 鏡像：給單檔遊戲讀
+    } else {
+      sessionStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem(SESSION_KEY);
+      clearLocalGameSaves();
+    }
+  } catch (e) {
+    console.error("Failed to persist session:", e);
   }
 };
 
