@@ -12,7 +12,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
-  const { fontSize, setFontSize, zhuyinMode, setZhuyinMode } = useZhuyin();
+  const { fontSize, setFontSize } = useZhuyin(); // 注音開關在聊天室頂列，這裡不再重複
   const { user, logout } = useAuth();
   const { memory } = useMemory();
   const { conversations, currentConversation, createNewConversation, selectConversation, deleteConversation } = useConversation();
@@ -73,14 +73,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
 
   const storyConvs = conversations.filter((c) => c.title?.startsWith("故事："));
 
+  // 精簡到只剩「這裡才有」的入口，把垂直空間讓給 SESSIONS：
+  // - STORY_GALLERY → 移到上面 AI 助理那一列
+  // - ZHUYIN_MODE / AVATAR_SHOP → 聊天室頂列已經有了
+  // - LEADERBOARD → 只跟卡牌有關，移到 /cards
   const menuItems = [
-    { id: "stories", label: "STORY_GALLERY", shortcut: "", action: () => setIsStoryGalleryOpen(!isStoryGalleryOpen), badge: storyConvs.length || undefined, active: isStoryGalleryOpen },
     { id: "memory", label: "MEMORY_BANK", shortcut: "Ctrl+M", action: () => setIsMemoryPanelOpen(true), badge: memory?.topicSummaries.length },
-    { id: "zhuyin", label: `ZHUYIN_MODE [${zhuyinMode ? "ON" : "OFF"}]`, shortcut: "Ctrl+Z", action: () => setZhuyinMode(!zhuyinMode), active: zhuyinMode },
-    { id: "shop", label: "AVATAR_SHOP", shortcut: "Ctrl+S", action: () => window.location.href = "/shop", dataTutorial: "sidebar-shop" },
     { id: "cards", label: "CARD_BATTLE", shortcut: "Ctrl+B", action: () => window.location.href = "/cards" },
     { id: "worksheets", label: "WORKSHEETS", shortcut: "", action: () => window.location.href = "/worksheets" },
-    { id: "leaderboard", label: "LEADERBOARD", shortcut: "", action: () => window.location.href = "/leaderboard" },
     ...(isAdmin ? [{ id: "admin", label: "ADMIN_PANEL", shortcut: "Ctrl+A", action: () => window.location.href = "/admin" }] : []),
   ];
 
@@ -117,25 +117,46 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
 
         {/* User Info */}
         {user && (
-          <div className="p-3 border-b border-[var(--terminal-green)]">
+          <div className="flex-shrink-0 p-3 border-b border-[var(--terminal-green)]">
             <div className="text-[10px] text-[var(--terminal-green-dim)]">CURRENT_USER:</div>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-[var(--terminal-cyan)] glow-text-cyan text-sm">
                 ◉ {user.displayName || user.username}
               </span>
             </div>
-            {user.avatar?.name && (
-              <div className="text-[10px] text-[var(--terminal-amber)] mt-1">
-                AI_ASSISTANT: {user.avatar.name}
-              </div>
-            )}
+            {/* AI 助理 ＋ 故事館（故事都是 AI 助理陪著寫的，放在一起最好找） */}
+            <div className="flex items-center justify-between gap-2 mt-1">
+              <span className="text-[10px] text-[var(--terminal-amber)] truncate">
+                AI_ASSISTANT: {user.avatar?.name || "--"}
+              </span>
+              <button
+                onClick={() => setIsStoryGalleryOpen(!isStoryGalleryOpen)}
+                title="故事館"
+                className={`flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 text-[10px] border transition-colors ${
+                  isStoryGalleryOpen
+                    ? "bg-[var(--terminal-amber)] text-[var(--terminal-bg)] border-[var(--terminal-amber)]"
+                    : "border-[var(--terminal-amber)]/50 text-[var(--terminal-amber)] hover:bg-[var(--terminal-amber)] hover:text-[var(--terminal-bg)]"
+                }`}
+              >
+                <span>[STORIES]</span>
+                {storyConvs.length > 0 && (
+                  <span className={`px-1 ${
+                    isStoryGalleryOpen
+                      ? "bg-[var(--terminal-bg)] text-[var(--terminal-amber)]"
+                      : "bg-[var(--terminal-amber)] text-[var(--terminal-bg)]"
+                  }`}>
+                    {storyConvs.length}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         )}
 
         {/* Commander Announcement */}
         {announcement && (
           <div
-            className={`p-2 border-b transition-all ${
+            className={`flex-shrink-0 p-2 border-b transition-all ${
               isNewAnnouncement
                 ? "border-yellow-400 bg-yellow-400/10 animate-pulse"
                 : "border-[var(--terminal-green)] bg-[var(--terminal-green)]/5"
@@ -168,7 +189,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
         )}
 
         {/* Commands */}
-        <div className="p-2 border-b border-[var(--terminal-green)]">
+        <div className="flex-shrink-0 p-2 border-b border-[var(--terminal-green)]">
           <div className="text-[10px] text-[var(--terminal-green-dim)] px-2 mb-2">
             ═══ COMMANDS ═══
           </div>
@@ -202,8 +223,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
           ))}
         </div>
 
-        {/* Session List */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Session List — min-h-0 是必要的：flex 子項預設 min-height:auto 不會縮，
+            會把下面的 DISPLAY / STATUS / LOGOUT 擠出畫面外 */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <button
             onClick={() => setShowSessions(!showSessions)}
             className="w-full text-left px-4 py-2 text-[10px] text-[var(--terminal-green-dim)] hover:bg-[var(--terminal-green)]/10 flex items-center justify-between"
@@ -264,18 +286,20 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
           )}
         </div>
 
-        {/* Story Gallery Panel (inline, opens when STORY_GALLERY command is active) */}
+        {/* Story Gallery：開啟時跟 SESSIONS 平分剩餘高度（都 flex-1 + min-h-0），
+            這樣不論螢幕多矮，下面的 LOGOUT 都不會被擠出畫面 */}
         {isStoryGalleryOpen && (
-          <div className="border-t border-[var(--terminal-amber)] bg-[var(--terminal-bg)]">
-            <div className="px-4 py-2 text-[10px] text-[var(--terminal-amber)]">
-              ═══ STORY_GALLERY ═══
+          <div className="flex-1 min-h-0 flex flex-col border-t border-[var(--terminal-amber)] bg-[var(--terminal-bg)]">
+            <div className="flex-shrink-0 px-4 py-2 text-[10px] text-[var(--terminal-amber)] flex items-center justify-between">
+              <span>═══ STORY_GALLERY ═══</span>
+              <button onClick={() => setIsStoryGalleryOpen(false)} className="px-1 hover:text-[var(--terminal-red)]" title="收起">✕</button>
             </div>
             {storyConvs.length === 0 ? (
               <div className="text-[10px] text-[var(--terminal-green-dim)] px-4 py-4 text-center">
                 還沒有故事，快去創作吧！
               </div>
             ) : (
-              <div className="px-2 pb-2 space-y-1 max-h-48 overflow-y-auto">
+              <div className="flex-1 min-h-0 px-2 pb-2 space-y-1 overflow-y-auto">
                 {storyConvs.map((conv) => {
                   // Extract first panel image for thumbnail
                   const panelMsg = conv.messages.find((m) => m.content?.startsWith("[STORY_PANEL]"));
@@ -325,42 +349,38 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
           </div>
         )}
 
-        {/* Font Size Control */}
-        <div className="p-2 border-t border-[var(--terminal-green)]">
-          <div className="text-[10px] text-[var(--terminal-green-dim)] mb-2 px-2">
-            ═══ DISPLAY ═══
+        {/* Footer：字級 ＋ 狀態 ＋ 登出，壓成兩列，確保 LOGOUT 永遠看得到 */}
+        <div className="flex-shrink-0 border-t border-[var(--terminal-green)]">
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <span className="text-[10px] text-[var(--terminal-green-dim)]">DISPLAY</span>
+            <div className="flex gap-1 flex-1">
+              {(["small", "medium", "large"] as const).map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setFontSize(size)}
+                  className={`flex-1 py-0.5 text-[10px] uppercase transition-colors ${
+                    fontSize === size
+                      ? "bg-[var(--terminal-green)] text-[var(--terminal-bg)]"
+                      : "border border-[var(--terminal-green)] text-[var(--terminal-green)] hover:bg-[var(--terminal-green)] hover:text-[var(--terminal-bg)]"
+                  }`}
+                >
+                  {size === "small" ? "S" : size === "medium" ? "M" : "L"}
+                </button>
+              ))}
+            </div>
+            <span className="text-[10px] text-[var(--terminal-green-dim)]" title="記憶區塊數">
+              ● MEM {memory?.topicSummaries.length || 0}
+            </span>
           </div>
-          <div className="flex gap-1 px-2">
-            {(["small", "medium", "large"] as const).map((size) => (
-              <button
-                key={size}
-                onClick={() => setFontSize(size)}
-                className={`flex-1 py-1 text-[10px] uppercase transition-colors ${
-                  fontSize === size
-                    ? "bg-[var(--terminal-green)] text-[var(--terminal-bg)]"
-                    : "border border-[var(--terminal-green)] text-[var(--terminal-green)] hover:bg-[var(--terminal-green)] hover:text-[var(--terminal-bg)]"
-                }`}
-              >
-                {size === "small" ? "S" : size === "medium" ? "M" : "L"}
-              </button>
-            ))}
-          </div>
-        </div>
 
-        {/* System Status */}
-        <div className="p-2 border-t border-[var(--terminal-green)] text-[10px] text-[var(--terminal-green-dim)]">
-          <div>SYS_STATUS: ONLINE</div>
-          <div>MEM_BLOCKS: {memory?.topicSummaries.length || 0}</div>
-          <div>UPTIME: {new Date().toLocaleTimeString("zh-TW")}</div>
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            className="w-full terminal-btn text-xs rounded-none border-x-0 border-b-0 hover:bg-[var(--terminal-red)] hover:border-[var(--terminal-red)]"
+          >
+            {'>'} LOGOUT_SESSION
+          </button>
         </div>
-
-        {/* Logout */}
-        <button
-          onClick={handleLogout}
-          className="m-2 terminal-btn text-xs hover:bg-[var(--terminal-red)] hover:border-[var(--terminal-red)]"
-        >
-          {'>'} LOGOUT_SESSION
-        </button>
       </div>
 
       <MemoryPanel
