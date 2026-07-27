@@ -6,8 +6,14 @@ import {
   getAllProgressForStudent,
   getStudentClassId,
   getGameProgress,
+  getLessonCompletions,
 } from "@/lib/firestore";
 import { Worksheet, StudentWorksheetProgress } from "@/types/Worksheet";
+import {
+  LessonCompletionMap,
+  lessonKeys,
+  isLockedByDerived,
+} from "@/types/LessonCompletion";
 
 export default function WorksheetBrowsePage() {
   const { user, isLoading } = useAuth();
@@ -15,6 +21,7 @@ export default function WorksheetBrowsePage() {
   const [worksheets, setWorksheets] = useState<Worksheet[]>([]);
   const [progressMap, setProgressMap] = useState<Record<string, StudentWorksheetProgress>>({});
   const [gameProgress, setGameProgress] = useState<Record<string, any> | null>(null);
+  const [completions, setCompletions] = useState<LessonCompletionMap>({});
   const [loading, setLoading] = useState(true);
   const [semesters, setSemesters] = useState<string[]>([]);
   const [activeSemester, setActiveSemester] = useState<string | null>(null);
@@ -32,16 +39,18 @@ export default function WorksheetBrowsePage() {
       return;
     }
 
-    const [ws, allProgress, gp] = await Promise.all([
+    const [ws, allProgress, gp, comp] = await Promise.all([
       getPublishedWorksheetsForClass(cid),
       getAllProgressForStudent(user.id),
       getGameProgress(user.id),
+      getLessonCompletions(user.id),
     ]);
 
     const pMap: Record<string, StudentWorksheetProgress> = {};
     allProgress.forEach((p) => { pMap[p.worksheetId] = p; });
     setProgressMap(pMap);
     setGameProgress(gp);
+    setCompletions(comp);
 
     const sorted = ws.sort((a, b) => {
       if (a.semester !== b.semester) return a.semester.localeCompare(b.semester);
@@ -78,6 +87,17 @@ export default function WorksheetBrowsePage() {
     if (!progress || progress.completedTaskCount === 0) return "not_started";
     if (progress.completedTaskCount >= ws.tasks.length) return "completed";
     return "in_progress";
+  };
+
+  // 完成後鎖死：遊戲型不能再玩，一般學習單進去只看得到成果展示
+  const isLocked = (ws: Worksheet) => {
+    if (ws.externalGameUrl) {
+      if (!ws.gameKey) return false;
+      return isLockedByDerived(completions, lessonKeys.game(ws.gameKey), !!gameState(ws)?.done);
+    }
+    const p = progressMap[ws.id];
+    const allDone = ws.tasks.length > 0 && (p?.completedTaskCount || 0) >= ws.tasks.length;
+    return isLockedByDerived(completions, lessonKeys.worksheet(ws.id), allDone);
   };
 
   const getCoinsInfo = (ws: Worksheet) => {
@@ -188,16 +208,25 @@ export default function WorksheetBrowsePage() {
               const completedCount = progress?.completedTaskCount || 0;
               const isGame = !!ws.externalGameUrl;
               const ratio = getRatio(ws);
+              const locked = isLocked(ws);
+              // 遊戲型完成後就地鎖死（沒有詳細頁可去）；一般學習單仍可進入，由詳細頁顯示成果展示
+              const clickDisabled = locked && isGame;
 
               return (
                 <button
                   key={ws.id}
-                  onClick={() =>
-                    isGame
-                      ? (window.location.href = ws.externalGameUrl as string)
-                      : router.push(`/worksheets/${ws.id}`)
-                  }
-                  className="w-full text-left border border-[var(--terminal-primary-dim)] p-4 hover:border-[var(--terminal-primary)] transition-colors block"
+                  disabled={clickDisabled}
+                  onClick={() => {
+                    if (clickDisabled) return;
+                    if (isGame) window.location.href = ws.externalGameUrl as string;
+                    else router.push(`/worksheets/${ws.id}`);
+                  }}
+                  className={`w-full text-left border p-4 transition-colors block ${
+                    locked
+                      ? "border-green-700 bg-green-900/10" +
+                        (clickDisabled ? " cursor-not-allowed" : " hover:border-green-500")
+                      : "border-[var(--terminal-primary-dim)] hover:border-[var(--terminal-primary)]"
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -218,11 +247,15 @@ export default function WorksheetBrowsePage() {
                       <h2 className="font-bold truncate">{ws.title}</h2>
                       <div className="text-xs text-[var(--terminal-primary-dim)] mt-1">
                         {isGame ? (
-                          status === "completed"
-                            ? "▶ 已完成 · 可再玩一次"
+                          locked
+                            ? "🔒 已完成 · 不能再玩了"
+                            : status === "completed"
+                            ? "▶ 已完成"
                             : status === "in_progress"
                             ? "▶ 繼續闖關（自動接續上次進度）"
                             : "▶ 滑鼠大冒險 · 點我開始"
+                        ) : locked ? (
+                          "🔒 已完成 · 點我看成果"
                         ) : (
                           <>
                             {ws.tasks.length} 個任務

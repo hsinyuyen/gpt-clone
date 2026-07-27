@@ -7,9 +7,13 @@ import {
   getAllProgressForStudent,
   getCoinState,
   CoinState,
+  getLessonCompletions,
+  allowLessonRedo,
+  revokeLessonRedo,
 } from "@/lib/firestore";
 import { User } from "@/types/User";
 import { AuditLogEntry, StudentWorksheetProgress } from "@/types/Worksheet";
+import { LessonCompletionMap, LessonKey, lessonKeys } from "@/types/LessonCompletion";
 
 const ADMIN_USERNAMES = ["admin", "teacher", "老師"];
 
@@ -24,6 +28,8 @@ export default function StudentHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [semesters, setSemesters] = useState<string[]>([]);
   const [activeSemester, setActiveSemester] = useState<string | null>(null);
+  const [completions, setCompletions] = useState<LessonCompletionMap>({});
+  const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const isAdmin = user && ADMIN_USERNAMES.includes(user.username.toLowerCase());
 
@@ -31,15 +37,17 @@ export default function StudentHistoryPage() {
     if (!id || typeof id !== "string") return;
     setLoading(true);
 
-    const [studentData, coins, auditLogs, progress] = await Promise.all([
+    const [studentData, coins, auditLogs, progress, comp] = await Promise.all([
       getUser(id),
       getCoinState(id),
       getAuditLogs({ studentId: id, limitCount: 500 }),
       getAllProgressForStudent(id),
+      getLessonCompletions(id),
     ]);
 
     setStudent(studentData);
     setCoinState(coins);
+    setCompletions(comp);
 
     const awarded = auditLogs.filter((l) => l.action === "award_coins");
     setLogs(awarded);
@@ -55,6 +63,45 @@ export default function StudentHistoryPage() {
     if (!isLoading && !user) { router.replace("/login"); return; }
     if (user && isAdmin && id) loadData();
   }, [user, isLoading, isAdmin, id, router, loadData]);
+
+  // ── 完成即鎖：老師可以針對單一課程開放重做 ──
+  const toggleRedo = async (key: LessonKey, currentlyAllowed: boolean) => {
+    if (!user || typeof id !== "string") return;
+    setBusyKey(key);
+    try {
+      if (currentlyAllowed) await revokeLessonRedo(id, key);
+      else await allowLessonRedo(id, key, user.id, user.displayName || user.username);
+      setCompletions((prev) => ({
+        ...prev,
+        [key]: {
+          ...(prev[key] || { completed: false, completedAt: "" }),
+          redoAllowed: !currentlyAllowed,
+          redoAllowedByName: currentlyAllowed ? null : user.displayName || user.username,
+        },
+      }));
+    } catch (e) {
+      alert("設定失敗，請再試一次");
+    }
+    setBusyKey(null);
+  };
+
+  // 可解鎖的課程清單：學習單（學生有進度的）＋ 繪本四堂 ＋ AI 助理腳本
+  const redoRows: { key: LessonKey; label: string }[] = [
+    ...allProgress
+      .slice()
+      .sort((a, b) =>
+        a.semester !== b.semester ? b.semester.localeCompare(a.semester) : b.week - a.week
+      )
+      .map((p) => ({
+        key: lessonKeys.worksheet(p.worksheetId),
+        label: `學習單 ${p.semester} W${String(p.week).padStart(2, "0")}`,
+      })),
+    { key: lessonKeys.picturebook("l1"), label: "AI 繪本 第 1 堂 · 認識你的主角" },
+    { key: lessonKeys.picturebook("l2"), label: "AI 繪本 第 2 堂 · 你的故事" },
+    { key: lessonKeys.picturebook("l3"), label: "AI 繪本 第 3 堂 · 挑出最棒的畫面" },
+    { key: lessonKeys.picturebook("l4"), label: "AI 繪本 第 4 堂 · 你的書＋發表" },
+    { key: lessonKeys.script("create-avatar"), label: "腳本 · 建立 AI 助理" },
+  ];
 
   const filtered = activeSemester
     ? logs.filter((l) => l.semester === activeSemester)
@@ -160,6 +207,54 @@ export default function StudentHistoryPage() {
             </div>
           </div>
         )}
+
+        {/* 課程重做開放 */}
+        <div className="mb-6">
+          <h2 className="font-bold mb-1">開放重做</h2>
+          <p className="text-xs text-[var(--terminal-primary-dim)] mb-3">
+            完成的課程預設鎖定在成果展示。按「開放重做」後，這位學生可以重做該堂課一次；
+            他重新完成後會自動鎖回去。
+          </p>
+          <div className="space-y-2">
+            {redoRows.map((row) => {
+              const entry = completions[row.key];
+              const allowed = !!entry?.redoAllowed;
+              const done = !!entry?.completed;
+              return (
+                <div
+                  key={row.key}
+                  className={`flex items-center justify-between border p-3 gap-3 ${
+                    allowed ? "border-yellow-600 bg-yellow-900/10" : "border-[var(--terminal-primary-dim)]"
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm truncate">{row.label}</div>
+                    <div className="text-xs text-[var(--terminal-primary-dim)]">
+                      {allowed
+                        ? `已開放重做${entry?.redoAllowedByName ? `（${entry.redoAllowedByName}）` : ""}`
+                        : done
+                        ? `已完成 · 鎖定中${entry?.completedAt ? ` · ${entry.completedAt.slice(0, 10)}` : ""}`
+                        : "尚無完成紀錄"}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => toggleRedo(row.key, allowed)}
+                    disabled={busyKey === row.key}
+                    className={`shrink-0 px-3 py-1.5 text-xs border transition-colors ${
+                      busyKey === row.key
+                        ? "opacity-50 cursor-wait border-[var(--terminal-primary-dim)]"
+                        : allowed
+                        ? "border-yellow-500 text-yellow-400 hover:bg-yellow-500/10"
+                        : "border-[var(--terminal-primary-dim)] hover:border-[var(--terminal-primary)]"
+                    }`}
+                  >
+                    {busyKey === row.key ? "處理中…" : allowed ? "收回" : "開放重做"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Semester filter */}
         {semesters.length > 0 && (
