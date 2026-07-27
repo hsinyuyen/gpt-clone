@@ -6,6 +6,7 @@
 <title>第 2 堂 · 你的故事｜AI 繪本工作坊</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="/courses/lesson-lock.js"></script>
 <script src="/courses/zhuyin.js"></script>
 <style>
   :root{
@@ -224,6 +225,19 @@
     <div class="footwrap">
       <button class="btn" id="saveStory">存進我的帳號 ✓</button>
       <span class="savemsg" id="saveMsg"></span>
+    </div>
+  </div>
+
+  <!-- 已完成 → 鎖定在成果展示，不讓學生重做（老師開放重做時才會跳過這關）-->
+  <div class="panel" id="plocked">
+    <h1>你已經完成這堂課了！</h1>
+    <p class="lead">這是你上次編好的故事。</p>
+    <div id="lockedTitle" style="font-family:'Noto Serif TC',serif;font-size:24px;font-weight:900;margin:14px 0;"></div>
+    <div id="lockedStory" class="note" style="white-space:pre-wrap"></div>
+    <div id="lockedMeta" class="lead" style="margin-top:12px;font-size:14px"></div>
+    <p class="lead">完成的課不能重做囉。如果真的需要再做一次，請老師幫你開放。</p>
+    <div class="footwrap">
+      <a class="btn ghost" href="/courses/ai-picturebook.html">← 回工作坊</a>
     </div>
   </div>
 
@@ -620,6 +634,8 @@ $('#saveStory').onclick=async()=>{
       pages, madeAt:new Date().toISOString() });
     clearProgress();
     clearTimeout(_progT); try{ await Account.saveProgress(null); }catch(e){} // 完成了，清掉雲端的半成品進度
+    // 存檔成功＝這堂課完成 → 記進完成表，下次進來就是成果展示
+    if(window.LessonLock){ try{ await LessonLock.markComplete('picturebook:l2',{type:'text',label:title}); }catch(e){} }
     $('#finalTitle').textContent='《'+title+'》';
     b.textContent='已存好 ✓'; go('p4');
   }catch(e){ b.disabled=false; b.textContent=old; msg.className='savemsg warn'; msg.textContent='存檔沒成功，再按一次。'; }
@@ -686,6 +702,29 @@ function applyLowGradeCopy(){
     h.innerHTML='上一堂 <b>'+esc(state.char.name)+'</b> 是用「'+(sug==='low'?'低年級':'高年級')+'」做的，建議選一樣的。';
   }
   renderHero(); go('pg');
+})();
+
+// ── 完成即鎖：已經編好故事就直接進成果展示，不讓學生重做 ──
+// 判定以「繪本主文件有沒有存 story」為準，這樣這功能上線前就完成的舊學生也會被正確鎖住。
+(function(){
+  if(!window.LessonLock) return;
+  Promise.all([LessonLock.load(), LessonLock.picturebook()]).then(function(res){
+    var map=res[0]||{}, pb=res[1];
+    var hasStory=!!(pb && (pb.story || pb.storyTitle));
+    if(!LessonLock.isLocked(map,'picturebook:l2',hasStory)) return;
+
+    var title=(pb&&(pb.storyTitle||(pb.story&&pb.story.title)))||'';
+    $('#lockedTitle').textContent=title?('《'+title+'》'):'';
+    var slots=(pb&&pb.story&&pb.story.slots)||[];
+    $('#lockedStory').textContent=slots.map(function(s){
+      return (s.label?(s.label+'：'):'')+(s.text||'');
+    }).join('\n');
+    var when=(map['picturebook:l2']&&map['picturebook:l2'].completedAt)||(pb&&pb.storyUpdatedAt)||'';
+    $('#lockedMeta').textContent=when?('完成於 '+String(when).slice(0,10)):'';
+
+    clearProgress();   // 清掉續作暫存，免得又被拉回填格流程
+    go('plocked');
+  }).catch(function(){ /* 讀不到就照常上課，不要把人擋在外面 */ });
 })();
 </script>
 </body>

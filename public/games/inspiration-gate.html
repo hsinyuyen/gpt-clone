@@ -120,6 +120,9 @@
   .btn:active{transform:translateY(1px) scale(.98);} .btn.ghost{background:none;color:var(--muted);box-shadow:none;border:2px solid rgba(255,255,255,.2);}
   .flash{position:absolute;inset:0;z-index:38;background:#fff;opacity:0;pointer-events:none;}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="/courses/lesson-lock.js"></script>
 </head>
 <body>
 <div class="topbar"><a class="back" href="/">← 返回</a><span style="font-weight:900;font-size:14px;color:var(--muted)">靈感召喚門</span></div>
@@ -364,6 +367,10 @@ function loop(){ G._raf=requestAnimationFrame(loop); step(); if(G.state==='playi
 
 /* ===== 開門 / 揭曉 ===== */
 function doWin(){ if(G.won)return; G.won=true; G.state='win'; hideCombo(); if(G.audio){try{G.audio.pause();}catch(e){}}
+  // 正課通關 → 記錄完成，之後這堂課就鎖在成果展示
+  if(LESSON_KEY && window.LessonLock){
+    try{ LessonLock.markComplete(LESSON_KEY,{type:'score',score:G.maxCombo,label:'最高連擊 '+G.maxCombo}); }catch(e){}
+  }
   for(let i=0;i<90;i++){ const a=Math.random()*6.28,s=2+Math.random()*8; G.particles.push({x:W/2,y:judgeY(),vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1.5,color:Math.random()<.5?'#ffd75e':'#fff'}); }
   G.shock.push({x:W/2,y:judgeY(),r:20,life:2,color:'#ffd75e'});
   const fl=$('#flash'); fl.style.transition='none'; fl.style.opacity='.95'; requestAnimationFrame(()=>{fl.style.transition='opacity .9s';fl.style.opacity='0';}); Audio2.win();
@@ -453,6 +460,15 @@ try{ const r=sessionStorage.getItem('ig:reveal'); if(r){ CUSTOM_REVEAL=JSON.pars
 const REVEAL_IMG=(CUSTOM_REVEAL&&CUSTOM_REVEAL.img)||'/courses/assets/pb-l4.png';
 // 返回目的地（嵌入繪本課程時回課程頁）
 const BACK=new URLSearchParams(location.search).get('back')||'/'; const inCourse=/courses/.test(BACK);
+// 這款遊戲同時被 L1 流程（幫主角取名前的過場）和 L4 正課使用，
+// 只有帶 lesson 參數、且不是 L1 過場時，通關才算「完成一堂課」。
+const LESSON_KEY=(!CUSTOM_REVEAL && new URLSearchParams(location.search).get('lesson')) || null;
+// 已完成就不讓再玩一次，直接回課程列表（那邊的卡片會顯示成果展示）
+if(LESSON_KEY && window.LessonLock){
+  LessonLock.load().then(function(map){
+    if(LessonLock.isLocked(map,LESSON_KEY)) location.replace(BACK);
+  }).catch(function(){});
+}
 (function(){ const b=$('.back'); if(b){ b.setAttribute('href',BACK); b.textContent=CUSTOM_REVEAL?'← 回去續作':(inCourse?'← 課程':'← 返回'); }
   const home=$('#win a.ghost'); if(home){ home.setAttribute('href',BACK); home.textContent=CUSTOM_REVEAL?'繼續（幫牠取名）→':(inCourse?'回課程':'回首頁'); } })();
 

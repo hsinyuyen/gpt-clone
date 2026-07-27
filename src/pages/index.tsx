@@ -10,6 +10,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConversation } from "@/contexts/ConversationContext";
 import { ActiveScript } from "@/types/Script";
 import ActivityOverlay from "@/components/ActivityOverlay";
+import { LessonCompletionMap, lessonKeys } from "@/types/LessonCompletion";
+import {
+  getLessonCompletions,
+  markLessonCompleted,
+  migrateLocalCompletedScripts,
+} from "@/lib/firestore";
 
 export default function Home() {
   const [isComponentVisible, setIsComponentVisible] = useState(false);
@@ -25,6 +31,8 @@ export default function Home() {
     }
   });
   const [showCompletionToast, setShowCompletionToast] = useState(false);
+  // 完成狀態的正本改存 Firestore（跟著帳號走），localStorage 只留作舊資料來源
+  const [completions, setCompletions] = useState<LessonCompletionMap>({});
   const { trackEvent } = useAnalytics();
   const { user, isLoading } = useAuth();
   const { currentConversation, createNewConversation, selectConversation } = useConversation();
@@ -37,6 +45,27 @@ export default function Home() {
       router.replace("/login");
     }
   }, [user, isLoading, router]);
+
+  // 載入 Firestore 的完成狀態，並把舊的 localStorage 紀錄搬上去（只搬一次，不覆蓋既有）
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const existing = await getLessonCompletions(user.id);
+        const local = Array.from(completedScripts);
+        const merged = local.length
+          ? await migrateLocalCompletedScripts(user.id, local, existing)
+          : existing;
+        if (!cancelled) setCompletions(merged);
+      } catch (e) {
+        console.error("讀取課程完成狀態失敗", e);
+      }
+    })();
+    return () => { cancelled = true; };
+    // completedScripts 只在遷移時當一次性輸入，不需要進依賴陣列
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // 已移除「新生一定要先做 AVATAR」的強制引導：不再自動跳教學把新生導去 create-avatar。
   // create-avatar 仍在右側腳本庫可自由選用，只是不再強迫先做頭像才能用其他功能。
@@ -121,6 +150,28 @@ export default function Home() {
         try { localStorage.setItem("completedScripts", JSON.stringify(Array.from(next))); } catch {}
         return next;
       });
+
+      // 正本寫進 Firestore，並保留成品供「已完成」畫面展示
+      if (user) {
+        const key = lessonKeys.script(activeScript);
+        const artifact =
+          wasAvatarScript && user.avatar?.imageUrl
+            ? { type: "image" as const, imageUrl: user.avatar.imageUrl, label: user.avatar.name }
+            : undefined;
+        markLessonCompleted(user.id, key, artifact)
+          .then(() =>
+            setCompletions((prev) => ({
+              ...prev,
+              [key]: {
+                completed: true,
+                completedAt: new Date().toISOString(),
+                redoAllowed: false,
+                ...(artifact ? { artifact } : {}),
+              },
+            }))
+          )
+          .catch((e) => console.error("寫入課程完成狀態失敗", e));
+      }
     }
     // Close script
     setActiveScript(null);
@@ -213,6 +264,7 @@ export default function Home() {
           onStartScript={handleStartScript}
           onStopScript={handleStopScript}
           completedScripts={completedScripts}
+          completions={completions}
         />
         {activeScript && isScriptPanelOpen && (
           <div className="absolute inset-0 bg-black/60 z-30 flex items-center justify-center cursor-not-allowed">

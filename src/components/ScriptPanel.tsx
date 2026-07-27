@@ -5,6 +5,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCoin } from "@/contexts/CoinContext";
 import SpriteAnimator from "./SpriteAnimator";
 import { uploadAvatarFrames } from "@/lib/firestore";
+import {
+  LessonCompletionMap,
+  lessonKeys,
+  isLessonLocked,
+} from "@/types/LessonCompletion";
+
+// 故事創作維持「首次免費、之後付金幣重做」的既有設計，不套用完成即鎖死的規則。
+const REDO_EXEMPT_SCRIPTS = new Set(["story-helper"]);
 
 interface ScriptPanelProps {
   isOpen: boolean;
@@ -12,6 +20,7 @@ interface ScriptPanelProps {
   onStartScript: (scriptId: string) => void;
   onStopScript: () => void;
   completedScripts?: Set<string>;
+  completions?: LessonCompletionMap;
 }
 
 const ScriptPanel: React.FC<ScriptPanelProps> = ({
@@ -20,18 +29,31 @@ const ScriptPanel: React.FC<ScriptPanelProps> = ({
   onStartScript,
   onStopScript,
   completedScripts = new Set(),
+  completions = {},
 }) => {
   const [scripts] = useState<Script[]>(getDisplayScripts());
   const { user, updateUser } = useAuth();
   const { spendCoins, canAfford, COIN_VALUES } = useCoin();
   const [fps, setFps] = useState(8);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [showcase, setShowcase] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  // 完成且老師沒開放重做 → 鎖住（故事創作除外）
+  const isLocked = (scriptId: string) =>
+    !REDO_EXEMPT_SCRIPTS.has(scriptId) &&
+    isLessonLocked(completions, lessonKeys.script(scriptId));
 
   const handleScriptClick = (scriptId: string) => {
     const script = scripts.find(s => s.id === scriptId);
     if (!script?.isAvailable) return;
+
+    // 已完成 → 不重跑流程，改開成果展示
+    if (isLocked(scriptId) && activeScript !== scriptId) {
+      setShowcase(scriptId);
+      return;
+    }
 
     // External page (game / worksheet) — just navigate there
     if (script.externalUrl) {
@@ -134,7 +156,7 @@ const ScriptPanel: React.FC<ScriptPanelProps> = ({
   const hasAnimation = (avatar?.frames && avatar.frames.length > 1) || avatar?.spriteSheetUrl || (avatar?.frameCount && avatar.frameCount > 1);
 
   return (
-    <div className="h-full flex flex-col bg-[var(--terminal-bg)] border-l border-[var(--terminal-primary-dim)]">
+    <div className="relative h-full flex flex-col bg-[var(--terminal-bg)] border-l border-[var(--terminal-primary-dim)]">
       {/* Header */}
       <div className="p-3 border-b border-[var(--terminal-primary-dim)]">
         <pre className="text-[var(--terminal-primary)] glow-text text-[10px] leading-tight text-center">
@@ -228,7 +250,10 @@ const ScriptPanel: React.FC<ScriptPanelProps> = ({
 
         {scripts.map((script) => {
           const isActive = activeScript === script.id;
-          const isCompleted = completedScripts.has(script.id);
+          const locked = isLocked(script.id);
+          const isCompleted =
+            completedScripts.has(script.id) ||
+            !!completions[lessonKeys.script(script.id)]?.completed;
           // 如果用戶已經有 avatar，隱藏 create-avatar 選項
           const isHidden = script.id === "create-avatar" && avatar?.imageUrl;
           // Story helper: costs coins after first use
@@ -280,7 +305,7 @@ const ScriptPanel: React.FC<ScriptPanelProps> = ({
                     )}
                     {isCompleted && !isActive && (
                       <span className="text-[8px] text-green-900 bg-green-400 px-1">
-                        已完成
+                        {locked ? "🔒 已完成" : "已完成"}
                       </span>
                     )}
                     {needsCoin && (
@@ -295,7 +320,7 @@ const ScriptPanel: React.FC<ScriptPanelProps> = ({
                     )}
                   </div>
                   <div className="text-[var(--terminal-primary-dim)] text-xs mt-1">
-                    {script.description}
+                    {locked ? "已完成，不能重做了 · 點我看看你的成品" : script.description}
                   </div>
                 </div>
               </div>
@@ -303,6 +328,61 @@ const ScriptPanel: React.FC<ScriptPanelProps> = ({
           );
         })}
       </div>
+
+      {/* 成果展示（已完成的腳本點進來只看得到這個，不會重跑流程）*/}
+      {showcase && (() => {
+        const script = scripts.find((s) => s.id === showcase);
+        const entry = completions[lessonKeys.script(showcase)];
+        const art = entry?.artifact;
+        const img = art?.imageUrl || (showcase === "create-avatar" ? avatar?.imageUrl : undefined);
+        return (
+          <div className="absolute inset-0 z-40 bg-[var(--terminal-bg)]/95 flex flex-col p-4 overflow-y-auto">
+            <div className="text-green-400 text-xs mb-1">{'>'} 這堂課你已經完成了</div>
+            <div className="text-[var(--terminal-primary)] text-sm font-bold mb-3">
+              {script?.name}
+            </div>
+            {img && (
+              <div className="border-2 border-green-500/60 p-1 self-center bg-white">
+                <img src={img} alt={art?.label || script?.name} className="w-40 h-40 object-contain" />
+              </div>
+            )}
+            {art?.label && (
+              <div className="text-center text-[var(--terminal-primary)] text-sm mt-2 glow-text">
+                {art.label}
+              </div>
+            )}
+            {art?.type === "text" && art.text && (
+              <div className="text-[var(--terminal-primary)]/90 text-xs mt-3 whitespace-pre-wrap border border-[var(--terminal-primary-dim)] p-3">
+                {art.text}
+              </div>
+            )}
+            {art?.type === "score" && typeof art.score === "number" && (
+              <div className="text-center text-yellow-400 text-lg font-bold mt-3">
+                {art.score} 分
+              </div>
+            )}
+            {!img && !art && (
+              <div className="text-[var(--terminal-primary-dim)] text-xs">
+                這堂課的成品沒有存下來，但完成紀錄還在。想重做要請老師開放。
+              </div>
+            )}
+            {entry?.completedAt && (
+              <div className="text-[var(--terminal-primary-dim)] text-[10px] mt-3 text-center">
+                完成於 {entry.completedAt.slice(0, 10)}
+              </div>
+            )}
+            <div className="text-[var(--terminal-primary-dim)] text-[10px] mt-1 text-center">
+              想再做一次要請老師開放重做
+            </div>
+            <button
+              onClick={() => setShowcase(null)}
+              className="mt-4 w-full terminal-btn text-xs py-2"
+            >
+              [X] 關閉
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Active Script Info */}
       {activeScript && (
