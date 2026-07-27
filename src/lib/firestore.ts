@@ -26,6 +26,13 @@ import {
   TaskProgress,
   AuditLogEntry,
 } from "@/types/Worksheet";
+import {
+  LessonKey,
+  LessonArtifact,
+  LessonCompletion,
+  LessonCompletionMap,
+  lessonKeys,
+} from "@/types/LessonCompletion";
 
 // ============ Users ============
 
@@ -684,6 +691,113 @@ export async function getGameProgress(
 ): Promise<Record<string, any> | null> {
   const snap = await getDoc(doc(db, "gameProgress", userId));
   return snap.exists() ? (snap.data() as Record<string, any>) : null;
+}
+
+// ============ Lesson Completion（完成後鎖定 → 成果展示）============
+// 存在 users/{uid}/progress/lessons，一個文件裝所有課程的完成狀態。
+// 規則 users/{userId}/{sub=**} 已涵蓋此路徑。
+
+export async function getLessonCompletions(
+  userId: string
+): Promise<LessonCompletionMap> {
+  const snap = await getDoc(doc(db, "users", userId, "progress", "lessons"));
+  return snap.exists() ? (snap.data() as LessonCompletionMap) : {};
+}
+
+export function onLessonCompletionsChange(
+  userId: string,
+  cb: (map: LessonCompletionMap) => void
+): () => void {
+  return onSnapshot(doc(db, "users", userId, "progress", "lessons"), (snap) => {
+    cb(snap.exists() ? (snap.data() as LessonCompletionMap) : {});
+  });
+}
+
+/** 標記完成。重新完成時會把老師開放的 redoAllowed 收回，避免一直可以重做。 */
+export async function markLessonCompleted(
+  userId: string,
+  key: LessonKey,
+  artifact?: LessonArtifact
+): Promise<void> {
+  const entry: LessonCompletion = {
+    completed: true,
+    completedAt: new Date().toISOString(),
+    redoAllowed: false,
+    redoAllowedBy: null,
+    redoAllowedByName: null,
+    redoAllowedAt: null,
+  };
+  if (artifact) {
+    // Firestore 不接受 undefined，逐欄剔除
+    const a: Record<string, any> = { ...artifact };
+    Object.keys(a).forEach((k) => a[k] === undefined && delete a[k]);
+    entry.artifact = a as LessonArtifact;
+  }
+  await setDoc(
+    doc(db, "users", userId, "progress", "lessons"),
+    { [key]: entry },
+    { merge: true }
+  );
+}
+
+/** 老師開放重做一次 */
+export async function allowLessonRedo(
+  userId: string,
+  key: LessonKey,
+  teacherId: string,
+  teacherName: string
+): Promise<void> {
+  await setDoc(
+    doc(db, "users", userId, "progress", "lessons"),
+    {
+      [key]: {
+        redoAllowed: true,
+        redoAllowedBy: teacherId,
+        redoAllowedByName: teacherName,
+        redoAllowedAt: new Date().toISOString(),
+      },
+    },
+    { merge: true }
+  );
+}
+
+/** 老師收回重做權限（誤按時用） */
+export async function revokeLessonRedo(
+  userId: string,
+  key: LessonKey
+): Promise<void> {
+  await setDoc(
+    doc(db, "users", userId, "progress", "lessons"),
+    { [key]: { redoAllowed: false } },
+    { merge: true }
+  );
+}
+
+/**
+ * 一次性遷移：把舊的 localStorage completedScripts 寫進 Firestore。
+ * 只補寫 Firestore 還沒有的 key，不會覆蓋既有紀錄。
+ */
+export async function migrateLocalCompletedScripts(
+  userId: string,
+  scriptIds: string[],
+  existing: LessonCompletionMap
+): Promise<LessonCompletionMap> {
+  const missing = scriptIds.filter((id) => !existing[lessonKeys.script(id)]);
+  if (missing.length === 0) return existing;
+
+  const patch: LessonCompletionMap = {};
+  const now = new Date().toISOString();
+  for (const id of missing) {
+    patch[lessonKeys.script(id)] = {
+      completed: true,
+      completedAt: now,
+      redoAllowed: false,
+    };
+  }
+  await setDoc(doc(db, "users", userId, "progress", "lessons"), patch, {
+    merge: true,
+  });
+  return { ...existing, ...patch };
 }
 
 // ============ Student Worksheet Progress ============

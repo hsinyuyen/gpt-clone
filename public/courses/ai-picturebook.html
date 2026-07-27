@@ -48,6 +48,12 @@
     background:linear-gradient(180deg,var(--accent2),var(--accent));box-shadow:0 6px 16px rgba(232,112,58,.3);}
   .lesson .go:active{transform:translateY(1px);}
   .lesson .go.soon{background:none;color:var(--lock);border:2px solid var(--line);box-shadow:none;cursor:not-allowed;}
+  /* 已完成 → 鎖定 + 成品展示 */
+  .lesson.done{border-color:#3fae6a;}
+  .lesson .done-badge{position:absolute;top:10px;right:10px;background:#3fae6a;color:#fff;font-weight:900;font-size:12px;padding:4px 10px;border-radius:999px;box-shadow:0 3px 8px rgba(0,0,0,.2);}
+  .lesson .pic.art{background-color:#fff;background-size:contain;}
+  .lesson .go.locked{background:none;color:#2f8a52;border:2px solid #3fae6a;box-shadow:none;cursor:default;}
+  .lesson .redo-note{margin-top:8px;color:var(--muted);font-size:12.5px;text-align:center;}
   footer{margin-top:50px;padding-top:22px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;text-align:center;}
 </style>
 </head>
@@ -78,30 +84,74 @@
   <footer>AI 繪本示範課 · 4 堂　—　好玩優先，做完帶走一本自己的書。</footer>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="/courses/lesson-lock.js"></script>
 <script>
   const AST='/courses/assets/';
   document.getElementById('heropic').style.backgroundImage="url('"+AST+"pb-intro.png')";
   const LESSONS=[
-    {no:'第 1 堂', c:'var(--l1)', img:'pb-l1', title:'認識你的主角', doo:'選元素 → 親手畫主角 → AI 依「元素＋手繪」算出 → 挑一張定裝。', url:'/courses/l1-character.html', ready:true},
-    {no:'第 2 堂', c:'var(--l2)', img:'pb-l2', title:'你的故事', doo:'系統給故事草稿，你來改結局、加一段、換地點，變成你的故事。', ready:false},
-    {no:'第 3 堂', c:'var(--l3)', img:'pb-l3', title:'挑出最棒的畫面', doo:'每一頁 AI 都生好幾張，你像小導演挑一張最喜歡的。', ready:false},
-    {no:'第 4 堂', c:'var(--l4)', img:'pb-l4', title:'你的書＋發表', doo:'用音樂施魔法喚醒你的繪本——敲對節奏、撐住魔力，讓它現身、開一場小發表會！', url:'/games/inspiration-gate.html?back=/courses/ai-picturebook.html', ready:true},
+    {no:'第 1 堂', c:'var(--l1)', img:'pb-l1', key:'picturebook:l1', title:'認識你的主角', doo:'選元素 → 親手畫主角 → AI 依「元素＋手繪」算出 → 挑一張定裝。', url:'/courses/l1-character.html', ready:true},
+    {no:'第 2 堂', c:'var(--l2)', img:'pb-l2', key:'picturebook:l2', title:'你的故事', doo:'系統給故事草稿，你來改結局、加一段、換地點，變成你的故事。', ready:false},
+    {no:'第 3 堂', c:'var(--l3)', img:'pb-l3', key:'picturebook:l3', title:'挑出最棒的畫面', doo:'每一頁 AI 都生好幾張，你像小導演挑一張最喜歡的。', ready:false},
+    {no:'第 4 堂', c:'var(--l4)', img:'pb-l4', key:'picturebook:l4', title:'你的書＋發表', doo:'用音樂施魔法喚醒你的繪本——敲對節奏、撐住魔力，讓它現身、開一場小發表會！', url:'/games/inspiration-gate.html?back=/courses/ai-picturebook.html&lesson=picturebook:l4', ready:true},
   ];
   const wrap=document.getElementById('lessons');
-  LESSONS.forEach(L=>{
-    const el=document.createElement('div'); el.className='lesson'; el.style.setProperty('--c',L.c);
-    el.innerHTML=
-      '<div class="pic" style="background-image:url(\''+AST+L.img+'.png\')">'+
-        '<span class="no">'+L.no+'</span>'+
-        (L.ready?'':'<div class="lock">即將推出</div>')+
-      '</div>'+
-      '<div class="body"><h3>'+L.title+'</h3><p class="do">'+L.doo+'</p>'+
-        (L.ready
-          ? '<a class="go" href="'+L.url+'">開始上課</a>'
-          : '<button class="go soon" disabled>即將推出</button>')+
-      '</div>';
-    wrap.appendChild(el);
-  });
+
+  // 先用「未完成」畫一次，避免等 Firestore 時畫面空白；資料回來再套上鎖定樣式。
+  function render(state){
+    state=state||{};
+    wrap.innerHTML='';
+    LESSONS.forEach(L=>{
+      const s=state[L.key]||{};
+      const locked=!!s.locked;
+      const el=document.createElement('div');
+      el.className='lesson'+(locked?' done':'');
+      el.style.setProperty('--c',L.c);
+      // 有成品圖就拿成品當縮圖，讓學生一眼看到自己做的東西
+      const pic=locked&&s.image
+        ? '<div class="pic art" style="background-image:url(\''+s.image+'\')">'
+        : '<div class="pic" style="background-image:url(\''+AST+L.img+'.png\')">';
+      el.innerHTML=
+        pic+
+          '<span class="no">'+L.no+'</span>'+
+          (locked?'<span class="done-badge">✓ 已完成</span>':'')+
+          (L.ready?'':'<div class="lock">即將推出</div>')+
+        '</div>'+
+        '<div class="body"><h3>'+L.title+'</h3>'+
+          '<p class="do">'+(locked&&s.label?('你的成品：<strong>'+s.label+'</strong>'):L.doo)+'</p>'+
+          (!L.ready
+            ? '<button class="go soon" disabled>即將推出</button>'
+            : locked
+              ? '<button class="go locked" disabled>✓ 已完成</button>'+
+                '<div class="redo-note">這堂課完成了，不能重做囉。想再做一次要請老師開放。</div>'
+              : '<a class="go" href="'+L.url+'">開始上課</a>')+
+        '</div>';
+      wrap.appendChild(el);
+    });
+  }
+  render({});
+
+  // 讀完成狀態：L1 以「繪本主文件有沒有存圖」為準（舊資料沒有 lessons 紀錄也算完成），
+  // 其餘以 lessons 文件為準。
+  Promise.all([LessonLock.load(), LessonLock.picturebook()]).then(([map, pb])=>{
+    const state={};
+    const l1HasArt=!!(pb&&pb.imageData);
+    if(LessonLock.isLocked(map,'picturebook:l1',l1HasArt)){
+      state['picturebook:l1']={
+        locked:true,
+        image:(pb&&pb.imageData)||null,
+        label:(pb&&pb.character&&pb.character.name)||null,
+      };
+    }
+    ['picturebook:l2','picturebook:l3','picturebook:l4'].forEach(k=>{
+      if(LessonLock.isLocked(map,k)){
+        const a=(map[k]||{}).artifact||{};
+        state[k]={locked:true, image:a.imageUrl||null, label:a.label||null};
+      }
+    });
+    render(state);
+  }).catch(()=>{ /* 讀不到就維持全部可上課，不要把人擋在外面 */ });
 </script>
 </body>
 </html>
