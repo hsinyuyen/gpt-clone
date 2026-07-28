@@ -101,6 +101,9 @@ export default function StudentHistoryPage() {
     { key: lessonKeys.picturebook("l3"), label: "AI 繪本 第 3 堂 · 挑出最棒的畫面" },
     { key: lessonKeys.picturebook("l4"), label: "AI 繪本 第 4 堂 · 你的書＋發表" },
     { key: lessonKeys.script("create-avatar"), label: "腳本 · 建立 AI 助理" },
+    // ⚠️ 遊戲型課程接了完成鎖定就一定要在這裡有對應入口，否則學生破關即永久鎖死、
+    //    老師沒有任何 UI 可放行（Firestore 規則已禁止刪除，救不回來）。
+    { key: lessonKeys.game("p1uw04"), label: "P1U W04 · 突破軍團防線" },
   ];
 
   const filtered = activeSemester
