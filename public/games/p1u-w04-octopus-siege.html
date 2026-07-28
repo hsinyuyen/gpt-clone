@@ -326,7 +326,11 @@ function drawKeypad(){ if(!TOUCH) return; const G=keypadGeo();
   for(const b of G.list) gKeyCap(b.k, b.x+G.s/2, b.y+G.s/2, G.s*0.92, !!held[b.k]); }
 /* ---------- 狀態（存檔續玩） ---------- */
 const VERSION=2; // v2＝節奏拍 QTE 版（v1 彈幕版已封存成 -v1-bullet.html）
-function defaultState(){ return { v:VERSION, phase:'cover', wave:0, waveMax:0, coins:0, done:false, pct:0, quizOK:false }; }
+function defaultState(){ return { v:VERSION, phase:'cover', wave:0, waveMax:0, coins:0, done:false, pct:0, quizOK:false,
+  mats:0, matsGranted:{},           // 採集到的晶石總數；matsGranted 是每段的冪等旗標，回關重玩不會重刷
+  wLv:{heavy:0,magic:0,hp:0},       // 強化台的武器等級
+  item:null, drill:false,           // 這一場備戰選的道具、是否已在大探索關取得破甲鑽頭
+  raidDone:false }; }
 // 只有一個難度：整體很寬鬆（圈慢、判定窗大、按錯不扣血、連續沒跟上會自動再放慢）
 let S=defaultState();
 /* 速度拉桿：即時調整一般拍與絕招縮圈速度（高=快=難）。獨立存檔、不進 S */
@@ -407,7 +411,7 @@ function buildBeats(cfg){
   return out; }
 /* ---------- 相位切換 ---------- */
 let st={}; // 每個相位的暫存
-function goPhase(p,extra){ S.phase=p; st={}; clearInput(); if(p==='wave') initWave(extra!=null?extra:S.wave); else if(p==='cover') initCover(); else if(p==='tut') initTut(); else if(p==='story') initStory(extra); else if(p==='quiz') initQuiz(extra); else if(p==='swim') initSwim(extra); else if(p==='deliver') initDeliver(); }
+function goPhase(p,extra){ S.phase=p; st={}; clearInput(); if(p==='wave') initWave(extra!=null?extra:S.wave); else if(p==='cover') initCover(); else if(p==='tut') initTut(); else if(p==='story') initStory(extra); else if(p==='quiz') initQuiz(extra); else if(p==='swim') initSwim(extra); else if(p==='forge') initForge(extra); else if(p==='prep') initPrep(extra); else if(p==='deliver') initDeliver(); }
 
 /* ================= COVER（Hook：先鋒章魚衝過來了！） ================= */
 function initCover(){ st.t0=now(); st.subs=[]; for(let i=0;i<6;i++) st.subs.push({x:Math.random()*W, y:-40-Math.random()*H, s:26+Math.random()*20, spd:0.4+Math.random()*0.6, ang:Math.random()}); }
@@ -521,8 +525,27 @@ const ST_STORY={ update(evs){ for(const e of evs){ if(e.t==='down'&&inBtn(e,stor
       b, Math.min(22,W*0.045), '#eafaff');
   } };
 /* 每段劇情後的檢核：泡泡理解題（同 W02）——三顆漂浮泡泡，點錯 → 鎖 2+N 秒、重新洗牌換位置 */
-function initQuiz(a){ const o=pageArg(a); st.set=o.set||'recap'; st.pages=pageSet(st.set);
-  st.si=clamp(o.i||0,0,st.pages.length-1); st.done=0; makeQBubbles(); }
+/* 快問小考：題目在執行期依「玩家剛剛實際做了什麼」組出來，正解不是背出來的而是做出來的。
+   這同時滿足 CLAUDE.md 鐵則 6（主觀選擇必須接客觀驗證），而且不佔靜態題庫的篇幅。 */
+const NUMW=['零','一','二','三','四','五'], NUMZ=['ㄌㄧㄥˊ','ㄧ','ㄦˋ','ㄙㄢ','ㄙˋ','ㄨˇ'];
+function numOpt(n){ n=clamp(n|0,0,5); return P(NUMW[n]+'顆', NUMZ[n]+' ㄎㄜ'); }
+function makeQuickQuiz(spec){
+  if(spec.kind==='mats'){
+    const got=clamp(spec.got|0,0,3);
+    const wrong=[0,1,2,3].filter(v=>v!==got); shuffle(wrong);
+    return { q:P('你剛剛撿到幾顆晶石？','ㄋㄧˇ ㄍㄤ ㄍㄤ ㄐㄧㄢˇ ㄉㄠˋ ㄐㄧˇ ㄎㄜ ㄐㄧㄥ ㄕˊ'),
+             opts:[ numOpt(got), numOpt(wrong[0]), numOpt(wrong[1]) ], a:0 }; }
+  if(spec.kind==='forge'){
+    const all=UPGRADES.map(u=>u.name), i=clamp(spec.pick|0,0,all.length-1);
+    const wrong=all.filter((_,k)=>k!==i);
+    return { q:P('你剛剛換了什麼？','ㄋㄧˇ ㄍㄤ ㄍㄤ ㄏㄨㄢˋ ㄌㄜ˙ ㄕㄜˊ ㄇㄜ˙'),
+             opts:[ all[i], wrong[0], wrong[1] ], a:0 }; }
+  return { q:P('準備好了嗎？','ㄓㄨㄣˇ ㄅㄟˋ ㄏㄠˇ ㄌㄜ˙ ㄇㄚ˙'),
+           opts:[ P('好了','ㄏㄠˇ ㄌㄜ˙'), P('還沒','ㄏㄞˊ ㄇㄟˊ'), P('不知道','ㄅㄨˋ ㄓ ㄉㄠˋ') ], a:0 }; }
+function initQuiz(a){ const o=pageArg(a); st.done=0;
+  if(o.quick){ st.set='quick'; st.next=o.next||{p:'wave'}; st.pages=[{ quiz:makeQuickQuiz(o.quick) }]; st.si=0; makeQBubbles(); return; }
+  st.set=o.set||'recap'; st.pages=pageSet(st.set);
+  st.si=clamp(o.i||0,0,st.pages.length-1); makeQBubbles(); }
 function reviewBtn(){ const w=Math.min(140,W*0.30), h=34; return {x:12, y:12, w, h}; } // 放寬一點，「再看一次」四個字＋注音才不會被縮到太小
 function makeQBubbles(){ const cur=st.pages[st.si].quiz;
   st.q={ question:cur.q, opts:shuffle(cur.opts.map((t,i)=>({t, ok:i===cur.a}))), wrongN:0, lockUntil:0, finished:0, bubbles:[] };
@@ -550,6 +573,7 @@ const ST_QUIZ={ update(evs){
     floatBubbles(q);
     // 答對 → 這一段過了
     if(q.finished){ if(now()>=q.finished){
+      if(st.set==='quick'){ const n=st.next||{p:'wave'}; goPhase(n.p, n.x); return; } // 快問 → 回到指定的下一段
       if(st.set==='inter'){ afterInterlude(st.si); return; }                        // 幕間 → 游去下一隻
       if(st.si>=st.pages.length-1){                                                 // 這一組的最後一段
         st.done=now()+1100;
@@ -559,7 +583,8 @@ const ST_QUIZ={ update(evs){
     } return; }
     const locked=now()<q.lockUntil;
     for(const e of evs){ if(e.t!=='down'||e.btn!==0) continue;
-      if(inBtn(e,reviewBtn())){ Sfx.tick(); goPhase('story',{set:st.set,i:st.si}); return; } // 回去再看一次剛剛那段
+      // 回去再看一次剛剛那段（快問沒有對應的劇情頁，不提供這個按鈕）
+      if(st.set!=='quick' && inBtn(e,reviewBtn())){ Sfx.tick(); goPhase('story',{set:st.set,i:st.si}); return; }
       let hit=-1; for(let i=0;i<q.bubbles.length;i++){ const b=q.bubbles[i]; if(dist(e.x,e.y,b.x,b.y)<=b.r+16){ hit=i; break; } }
       if(hit<0){ ripple(e.x,e.y); continue; }
       if(locked){ ripple(e.x,e.y,'#ff9b6b'); continue; }
@@ -569,7 +594,9 @@ const ST_QUIZ={ update(evs){
       return; } },
   draw(){ seaBg(); drawCover('seabed',0.4); const cx=W/2, q=st.q; if(!q) return;
     ctx.save(); ctx.fillStyle='rgba(3,17,31,.5)'; ctx.fillRect(0,0,W,H); ctx.restore();
-    drawRuby(P('考考你：剛剛那一段說了什麼？','ㄎㄠˇ ㄎㄠˇ ㄋㄧˇ ㄍㄤ ㄍㄤ ㄋㄚˋ ㄧˊ ㄉㄨㄢˋ ㄕㄨㄛ ㄌㄜ˙ ㄕㄜˊ ㄇㄜ˙'), cx, H*0.13, Math.min(24,W*0.044,H*0.034), '#ffce7a');
+    drawRuby(st.set==='quick'
+      ? P('考考你：剛剛你做了什麼？','ㄎㄠˇ ㄎㄠˇ ㄋㄧˇ ㄍㄤ ㄍㄤ ㄋㄧˇ ㄗㄨㄛˋ ㄌㄜ˙ ㄕㄜˊ ㄇㄜ˙')
+      : P('考考你：剛剛那一段說了什麼？','ㄎㄠˇ ㄎㄠˇ ㄋㄧˇ ㄍㄤ ㄍㄤ ㄋㄚˋ ㄧˊ ㄉㄨㄢˋ ㄕㄨㄛ ㄌㄜ˙ ㄕㄜˊ ㄇㄜ˙'), cx, H*0.13, Math.min(24,W*0.044,H*0.034), '#ffce7a');
     drawRuby(q.question, cx, H*0.27, Math.min(32,W*0.052,H*0.045), '#fff');
     const remain=Math.max(0,Math.ceil((q.lockUntil-now())/1000)), locked=remain>0;
     for(const b of q.bubbles){ const p=pulse(); ctx.save();
@@ -586,8 +613,10 @@ const ST_QUIZ={ update(evs){
       drawRuby(P('答案就在剛剛的故事裡喔！','ㄉㄚˊ ㄢˋ ㄐㄧㄡˋ ㄗㄞˋ ㄍㄤ ㄍㄤ ㄉㄜ˙ ㄍㄨˋ ㄕˋ ㄌㄧˇ ㄡ˙'), cx, H*0.94, Math.min(18,W*0.033,H*0.025), '#ff9b6b'); }
     for(let i=0;i<st.pages.length;i++){ ctx.fillStyle=i<st.si?'#7cffb0':i===st.si?'#ffce47':'#3a5872'; ctx.beginPath(); ctx.arc(cx-(st.pages.length-1)*13+i*26, H*0.375, 6,0,7); ctx.fill(); }
     // 再看一次：答不出來可以回去看剛剛那一段（不是跳過，還是要答對才會過）
-    const rb=reviewBtn(); ctx.save(); rr(rb.x,rb.y,rb.w,rb.h,rb.h/2); ctx.fillStyle='rgba(4,18,32,.78)'; ctx.fill(); ctx.strokeStyle='#7cd0ff'; ctx.lineWidth=1.5; ctx.stroke(); ctx.restore();
-    btnLabel(P('再看一次','ㄗㄞˋ ㄎㄢˋ ㄧˊ ㄘˋ'), rb, 13, '#bfe6ff');
+    // 快問題目問的是「你剛剛做了什麼」，沒有可回看的劇情頁，就不畫這顆按鈕
+    if(st.set!=='quick'){
+      const rb=reviewBtn(); ctx.save(); rr(rb.x,rb.y,rb.w,rb.h,rb.h/2); ctx.fillStyle='rgba(4,18,32,.78)'; ctx.fill(); ctx.strokeStyle='#7cd0ff'; ctx.lineWidth=1.5; ctx.stroke(); ctx.restore();
+      btnLabel(P('再看一次','ㄗㄞˋ ㄎㄢˋ ㄧˊ ㄘˋ'), rb, 13, '#bfe6ff'); }
     drawFx();
     if(st.done){ ctx.save(); ctx.fillStyle='rgba(3,17,31,.5)'; ctx.fillRect(0,0,W,H); ctx.restore(); drawRuby(P('全部答對！出發守衛寶石！','ㄑㄩㄢˊ ㄅㄨˋ ㄉㄚˊ ㄉㄨㄟˋ ㄔㄨ ㄈㄚ ㄕㄡˇ ㄨㄟˋ ㄅㄠˇ ㄕˊ'), cx, H*0.5, Math.min(32,W*0.06), '#7cffb0'); } } };
 
@@ -741,10 +770,117 @@ const ST_TUT={ update(evs){
     if(st.tdone){ ctx.save(); ctx.fillStyle='rgba(3,17,31,.45)'; ctx.fillRect(0,0,W,H); ctx.restore();
       drawRuby(P('學會了！先鋒來了！','ㄒㄩㄝˊ ㄏㄨㄟˋ ㄌㄜ˙ ㄒㄧㄢ ㄈㄥ ㄌㄞˊ ㄌㄜ˙'), W/2, H*0.44, Math.min(34,W*0.07), '#7cffb0'); } } };
 
+/* ================= FORGE：強化台（採集→強化循環的後半） =================
+   規則：2 顆晶石換 1 級。材料不夠不會卡住（A 層：不卡死）——自動補足並說「這次算你的」，
+   但不給餘額結轉，所以認真採集還是有意義。選完立刻在下一場戰鬥看得到差別。 */
+const FORGE_COST=2;
+const UPGRADES=[
+ { k:'heavy', max:2, name:P('更用力','ㄍㄥˋ ㄩㄥˋ ㄌㄧˋ'),      desc:P('「用力打」更痛','ㄩㄥˋ ㄌㄧˋ ㄉㄚˇ ㄍㄥˋ ㄊㄥˋ'),  col:'#3f8bff' },
+ { k:'magic', max:2, name:P('魔法變強','ㄇㄛˊ ㄈㄚˇ ㄅㄧㄢˋ ㄑㄧㄤˊ'), desc:P('放魔法更痛','ㄈㄤˋ ㄇㄛˊ ㄈㄚˇ ㄍㄥˋ ㄊㄥˋ'), col:'#2bd17e' },
+ { k:'hp',    max:3, name:P('多一格血','ㄉㄨㄛ ㄧˋ ㄍㄜˊ ㄒㄧㄝˇ'), desc:P('比較耐打','ㄅㄧˇ ㄐㄧㄠˋ ㄋㄞˋ ㄉㄚˇ'),      col:'#ff6b8a' },
+];
+// 強化等級 → 實際效果。每次進戰鬥前套用一次，不直接改 MOVES（避免重複疊加）。
+function heavyDmg(){ return 2+(S.wLv.heavy||0); }
+function magicDmg(){ return 2+(S.wLv.magic||0); }
+function playerHp(){ return PLAYER_HP+(S.wLv.hp||0); }
+function initForge(target){
+  st.target=clamp(target==null?S.wave:target,0,N_BOSS-1);
+  st.picked=null; st.t0=now(); st.topped=false;
+  if(S.mats<FORGE_COST){ S.mats=FORGE_COST; st.topped=true; persist(); } }   // 不卡死
+function forgeCards(){ const n=UPGRADES.length, cw=Math.min(230,(W-60)/n-14), ch=Math.min(210,H*0.32);
+  const gap=Math.min(24,W*0.03), tot=n*cw+(n-1)*gap, x0=W/2-tot/2, y=H*0.44;
+  return UPGRADES.map((u,i)=>({ x:x0+i*(cw+gap), y, w:cw, h:ch, u, i })); }
+const ST_FORGE={ update(evs){
+    if(st.picked!=null){ if(now()>=st.doneAt) goPhase('prep', st.target); return; }
+    for(const e of evs){ if(e.t!=='down'||e.btn!==0) continue;
+      for(const c of forgeCards()){
+        if(!inBtn(e,c)) continue;
+        const u=c.u; if((S.wLv[u.k]||0)>=u.max){ Sfx.bad(); popText(c.x+c.w/2,c.y-10,'這個已經滿級了','#ff9b6b',1.1); return; }
+        S.wLv[u.k]=(S.wLv[u.k]||0)+1; S.mats=Math.max(0,S.mats-FORGE_COST);
+        S.coins=Math.min(TOTAL_COINS,S.coins+COIN_FORGE);
+        Account.creditCoins(COINKEY+'_forge'+st.target, COIN_FORGE, 'P1U-W04 強化'+(st.target+1));
+        persist(); Sfx.win(); burst(c.x+c.w/2,c.y+c.h/2,u.col,24); confetti&&confetti(c.x+c.w/2,c.y+c.h/2);
+        st.picked=c.i; st.doneAt=now()+1200; return; } } },
+  draw(){ seaBg(); drawCover('seabed',0.35);
+    ctx.save(); ctx.fillStyle='rgba(3,17,31,.55)'; ctx.fillRect(0,0,W,H); ctx.restore();
+    const cx=W/2;
+    drawRuby(P('強化台','ㄑㄧㄤˊ ㄏㄨㄚˋ ㄊㄞˊ'), cx, H*0.13, Math.min(30,W*0.055), '#ffce7a');
+    drawRuby(st.topped?P('材料不夠，這次算你的！','ㄘㄞˊ ㄌㄧㄠˋ ㄅㄨˊ ㄍㄡˋ ㄓㄜˋ ㄘˋ ㄙㄨㄢˋ ㄋㄧˇ ㄉㄜ˙')
+                     :P('用晶石換一個變強','ㄩㄥˋ ㄐㄧㄥ ㄕˊ ㄏㄨㄢˋ ㄧˊ ㄍㄜ˙ ㄅㄧㄢˋ ㄑㄧㄤˊ'),
+      cx, H*0.215, Math.min(20,W*0.038), st.topped?'#ffce7a':'#bfe6ff');
+    // 晶石存量
+    drawRuby(P('晶石 '+S.mats+' 顆','ㄐㄧㄥ ㄕˊ ㄎㄜ'), cx, H*0.30, Math.min(22,W*0.04), '#7cffb0');
+    for(const c of forgeCards()){ const u=c.u, lv=S.wLv[u.k]||0, full=lv>=u.max, sel=st.picked===c.i;
+      ctx.save(); ctx.globalAlpha=full&&!sel?0.45:1;
+      rr(c.x,c.y,c.w,c.h,18); ctx.fillStyle=sel?'rgba(124,255,176,.22)':'rgba(8,26,44,.88)'; ctx.fill();
+      ctx.strokeStyle=sel?'#7cffb0':u.col; ctx.lineWidth=sel?4:2.5; ctx.stroke(); ctx.restore();
+      drawRuby(u.name, c.x+c.w/2, c.y+c.h*0.26, rubyFit(u.name,c.w-24,Math.min(24,c.w*0.16)), '#fff');
+      drawRuby(u.desc, c.x+c.w/2, c.y+c.h*0.50, rubyFit(u.desc,c.w-24,Math.min(16,c.w*0.11)), '#bfe6ff');
+      // 等級點：看得見自己變多強
+      const dr=Math.min(9,c.w*0.05), dg=dr*2.6, x0=c.x+c.w/2-(u.max-1)*dg/2;
+      for(let k=0;k<u.max;k++){ ctx.beginPath(); ctx.arc(x0+k*dg, c.y+c.h*0.76, dr, 0,7);
+        ctx.fillStyle=k<lv?u.col:'rgba(255,255,255,.20)'; ctx.fill(); } }
+    drawFx();
+    if(st.picked!=null) drawRuby(P('變強了！','ㄅㄧㄢˋ ㄑㄧㄤˊ ㄌㄜ˙'), cx, H*0.86, Math.min(30,W*0.055), '#7cffb0'); } };
+
+/* ================= PREP：戰前備戰 =================
+   主觀選擇（挑一個道具）→ 客觀驗證（把對症的那顆泡泡點進弱點框）。
+   選對這隻 boss 明顯好打，選錯只是多花幾拍，不會過不了（護欄：額外拍數 ≤ 三成）。 */
+const ITEMS={
+ fin:   { name:P('快鰭','ㄎㄨㄞˋ ㄑㄧˊ'),     hint:P('揮刀很快，要跟得上','ㄏㄨㄟ ㄉㄠ ㄏㄣˇ ㄎㄨㄞˋ ㄧㄠˋ ㄍㄣ ㄉㄜ˙ ㄕㄤˋ'), col:'#5bc0ff' },
+ shade: { name:P('墨鏡','ㄇㄛˋ ㄐㄧㄥˋ'),     hint:P('牠會放很亮的光','ㄊㄚ ㄏㄨㄟˋ ㄈㄤˋ ㄏㄣˇ ㄌㄧㄤˋ ㄉㄜ˙ ㄍㄨㄤ'), col:'#e8a13c' },
+ anchor:{ name:P('重錨','ㄓㄨㄥˋ ㄇㄠˊ'),     hint:P('牠會把你吸走','ㄊㄚ ㄏㄨㄟˋ ㄅㄚˇ ㄋㄧˇ ㄒㄧ ㄗㄡˇ'),        col:'#2fb6c0' },
+ drill: { name:P('破甲鑽頭','ㄆㄛˋ ㄐㄧㄚˇ ㄗㄨㄢˋ ㄊㄡˊ'), hint:P('牠有很硬的殼','ㄊㄚ ㄧㄡˇ ㄏㄣˇ ㄧㄥˋ ㄉㄜ˙ ㄎㄜˊ'), col:'#ffb347' },
+};
+const ITEM_KEYS=['fin','shade','anchor','drill'];
+function initPrep(target){
+  st.target=clamp(target==null?S.wave:target,0,N_BOSS-1);
+  const cfg=BOSSES[st.target];
+  // 三個選項＝對症的那個 ＋ 兩個不對症的
+  const wrong=ITEM_KEYS.filter(k=>k!==cfg.item); shuffle(wrong);
+  st.opts=shuffle([{k:cfg.item,ok:true},{k:wrong[0],ok:false},{k:wrong[1],ok:false}]);
+  st.wrongN=0; st.lockUntil=0; st.picked=null; st.t0=now(); layoutPrep(); }
+function layoutPrep(){ const n=st.opts.length, R=Math.max(14, Math.min(96, W*0.13, H*0.12, (W-40)/(n*2.6)));
+  const gap=Math.max(R*2.3+16, Math.min(W*0.28,250));
+  st.opts.forEach((o,i)=>{ o.x=clamp(W/2+(i-(n-1)/2)*gap, R+10, W-R-10); o.y=H*0.60; o.r=R; }); }
+const ST_PREP={ update(evs){
+    if(st.picked!=null){ if(now()>=st.doneAt){ S.item=st.opts[st.picked].k; persist(); goPhase('wave', st.target); } return; }
+    const locked=now()<st.lockUntil;
+    for(const e of evs){ if(e.t!=='down'||e.btn!==0) continue;
+      let hit=-1; for(let i=0;i<st.opts.length;i++){ const o=st.opts[i]; if(dist(e.x,e.y,o.x,o.y)<=o.r+16){ hit=i; break; } }
+      if(hit<0){ ripple(e.x,e.y); continue; }
+      if(locked){ ripple(e.x,e.y,'#ff9b6b'); continue; }
+      const o=st.opts[hit];
+      if(o.ok){ st.picked=hit; st.doneAt=now()+1200; Sfx.win(); burst(o.x,o.y,'#7cffb0',26); popText(o.x,o.y-26,'就是這個！','#7cffb0',1.3); }
+      else { Sfx.bad(); st.wrongN++; st.lockUntil=now()+(2000+(st.wrongN-1)*1000); shake(6,180);
+        burst(o.x,o.y,'#ff8a3c',12); popText(o.x,o.y-26,'這個對牠沒用～','#ff9b6b',1.15);
+        shuffle(st.opts); layoutPrep(); }                       // 點錯就換位置，防硬 A
+      return; } },
+  draw(){ const cfg=BOSSES[st.target]; seaBg(); drawCover('seabed',0.35);
+    ctx.save(); ctx.fillStyle='rgba(3,17,31,.58)'; ctx.fillRect(0,0,W,H); ctx.restore();
+    const cx=W/2;
+    drawRuby(P('出發前，帶一個','ㄔㄨ ㄈㄚ ㄑㄧㄢˊ ㄉㄞˋ ㄧˊ ㄍㄜ˙'), cx, H*0.12, Math.min(28,W*0.05), '#ffce7a');
+    // 這隻的弱點提示（選對的依據，不是猜的）
+    if(!drawSprite(cfg.sprite, cx, H*0.30, Math.min(W,H)*0.20)) vOcto(cx, H*0.30, Math.min(W,H)*0.075, cfg.tint, 0, true);
+    drawRuby(cfg.name, cx, H*0.40, Math.min(24,W*0.042), '#ffd0d5');
+    drawRuby(ITEMS[cfg.item].hint, cx, H*0.455, Math.min(19,W*0.034), '#bfe6ff');
+    const remain=Math.max(0,Math.ceil((st.lockUntil-now())/1000)), locked=remain>0;
+    for(const o of st.opts){ const it=ITEMS[o.k], p=pulse(); ctx.save();
+      const gr=ctx.createRadialGradient(o.x-o.r*0.32,o.y-o.r*0.32,2,o.x,o.y,o.r);
+      gr.addColorStop(0,'rgba(238,252,255,.99)'); gr.addColorStop(0.7,'rgba(152,216,255,.92)'); gr.addColorStop(1,'rgba(108,180,250,.72)');
+      ctx.globalAlpha=locked?0.55:1; ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(o.x,o.y,o.r+(locked?0:p*2),0,7); ctx.fill();
+      ctx.strokeStyle=it.col; ctx.lineWidth=3; ctx.stroke(); ctx.restore();
+      drawRuby(it.name, o.x, o.y, rubyFit(it.name, o.r*1.7, Math.min(20,o.r*0.34)), '#0b2740'); }
+    if(locked) drawRuby(P('等一下下…','ㄉㄥˇ ㄧˊ ㄒㄧㄚˋ ㄒㄧㄚˋ')+'', cx, H*0.79, Math.min(20,W*0.036), '#ff9b6b');
+    drawFx();
+    if(st.picked!=null) drawRuby(P('帶著它出發！','ㄉㄞˋ ㄓㄜ˙ ㄊㄚ ㄔㄨ ㄈㄚ'), cx, H*0.86, Math.min(28,W*0.05), '#7cffb0'); } };
+
 /* ================= WAVE：一波一隻章魚，把牠的血打完 ================= */
 function initWave(n){ n=clamp(n,0,N_BOSS-1); S.wave=n; const cfg=BOSSES[n];
   st.tut=false; st.cfg=cfg; st.mode='intro'; st.dead=false; st.busy=false; st.cleared=null;
-  st.hp=cfg.hp; st.ghost=cfg.hp; st.php=PLAYER_HP; st.combo=0; st.miss=0; st.flash=null; st.lockUntil=0; st.lastSpot=-1;
+  // 強化台的等級在這裡套用：多一格血、用力打／魔法更痛。每場開打時算一次，不累積疊加。
+  MOVES.heavy.dmg=heavyDmg(); MOVES.magic.dmg=magicDmg();
+  st.hp=cfg.hp; st.ghost=cfg.hp; st.php=playerHp(); st.combo=0; st.miss=0; st.flash=null; st.lockUntil=0; st.lastSpot=-1;
   st.beats=buildBeats(cfg); st.bi=0; st.beat=null; st.ringMs=cfg.ringMs; st.nextAt=0;
   st.ult=null; st.ultDone=(cfg.ultAt||[]).map(()=>0);
   st.boss=makeBoss(cfg); }
@@ -754,7 +890,7 @@ function battleLost(){ st.busy=true; st.dead=true; st.beat=null; st.combo=0; sha
 const KO_MS=3000;
 function roundClear(){ st.busy=true; st.beat=null; st.ult=null; st.combo=0;
   shake(14,420); Sfx.win(); burst(st.boss.x,st.boss.y,'#ffe27a',34); ripple(st.boss.x,st.boss.y,'#ffe27a');
-  const newly=(S.wave+1)>S.waveMax; if(newly){ S.waveMax=S.wave+1; S.coins=Math.min(TOTAL_COINS,S.coins+COIN_WAVE); Account.creditCoins(COINKEY+'_wave'+(S.wave+1),COIN_WAVE,'P1U-W03 第'+(S.wave+1)+'波'); }
+  const newly=(S.wave+1)>S.waveMax; if(newly){ S.waveMax=S.wave+1; S.coins=Math.min(TOTAL_COINS,S.coins+COIN_WAVE); Account.creditCoins(COINKEY+'_wave'+(S.wave+1),COIN_WAVE,'P1U-W04 第'+(S.wave+1)+'隻'); }
   persist();
   st.ko={ t0:now(), bubbles:[], burst:0 };
   for(let i=0;i<14;i++) st.ko.bubbles.push({ x:st.boss.x+(Math.random()*2-1)*st.boss.sz*0.3, y:st.boss.y, r:5+Math.random()*13, spd:0.5+Math.random()*1.2, ph:Math.random()*7 });
@@ -853,7 +989,7 @@ function initSwim(target){
   st.wld={ w:W*2.1, h:H*1.5 };
   st.d={ x:W*0.14, y:st.wld.h*0.5, r:Math.min(W,H)*0.032, dir:1 };
   st.goal={ x:st.wld.w-W*0.16, y:st.wld.h*0.5, r:Math.min(W,H)*0.085, sprite:cfg.sprite, tint:cfg.tint };
-  // 沿路三顆金幣，撿到有小獎勵（讓移動段不只是走過場）
+  // 沿路三顆貝殼晶石（採集→強化循環的材料來源）。撿到就入帳，回強化台換武器升級。
   st.gems=[0,1,2].map(i=>({ x:st.wld.w*(0.32+i*0.19), y:st.wld.h*(0.28+((i%2)?0.44:0)), r:Math.min(W,H)*0.028, got:false, ph:Math.random()*7 }));
   st.deco=[]; for(let i=0;i<34;i++) st.deco.push({ x:Math.random()*st.wld.w, y:Math.random()*st.wld.h, s:0.5+Math.random(), t:i%3, ph:Math.random()*7 });
   st.cam={x:0,y:0}; st.lastT=0; st.arrived=0; st.got=0; st.t0=now();
@@ -861,9 +997,16 @@ function initSwim(target){
 function swimCam(){ const c=st.cam, d=st.d;
   c.x=clamp(d.x-W/2, 0, Math.max(0,st.wld.w-W));
   c.y=clamp(d.y-H/2, 0, Math.max(0,st.wld.h-H)); }
+/* 採集入帳。冪等：同一段重玩不會重刷材料（重整、回關、連敗重來都算同一段）。 */
+function grantMat(seg,n){
+  const k='seg'+seg;
+  if(S.matsGranted[k]) return false;
+  S.matsGranted[k]=true; S.mats+=n; persist(); return true; }
 const ST_SWIM={ update(evs){
     const d=st.d, t=now(), dt=Math.min(60, st.lastT?t-st.lastT:16); st.lastT=t;
-    if(st.arrived){ if(t>=st.arrived) goPhase('wave', st.target); return; }
+    // 抵達 → 先考一題快問（正解＝你剛剛實際撿到幾顆），再進強化台
+    if(st.arrived){ if(t>=st.arrived){ grantMat(st.target, st.got);
+      goPhase('quiz',{ quick:{ kind:'mats', got:st.got }, next:{p:'forge',x:st.target} }); } return; }
     let vx=(held.D?1:0)-(held.A?1:0), vy=(held.S?1:0)-(held.W?1:0);
     if(vx||vy){ const m=Math.hypot(vx,vy), sp=SWIM_SPEED*(Math.min(W,H)/860)*dt/1000;
       d.x+=vx/m*sp; d.y+=vy/m*sp; if(vx) d.dir=vx<0?-1:1; }
@@ -1040,7 +1183,7 @@ function checkUlt(){ const cfg=st.cfg; if(st.tut||st.ult||!cfg.ultAt||!cfg.ultSe
 /* ================= DELIVER：通關動畫（章魚撤退→寶石升起發光→獎盃）＋ 通關畫面 ================= */
 function initDeliver(){ st.t0=now(); st.raised=false; st.ta=false; st.cam=0; st.spark=0;
   st.flee=[]; for(let i=0;i<7;i++) st.flee.push({ x:W*(0.12+Math.random()*0.76), y:H*(0.28+Math.random()*0.34), s:32+Math.random()*40, spd:0.8+Math.random()*1.3, k:['octoBlade','octoLantern','octoSucker','octoArmor'][i%4] });
-  if(!S.done){ S.done=true; S.coins=Math.min(TOTAL_COINS,S.coins+COIN_DONE); Account.creditCoins(COINKEY+'_done',COIN_DONE,'P1U-W03 擊退前哨'); for(let i=1;i<=N_BOSS;i++) Account.creditCoins(COINKEY+'_wave'+i,COIN_WAVE,'P1U-W03 第'+i+'波'); persist(); }
+  if(!S.done){ S.done=true; S.coins=Math.min(TOTAL_COINS,S.coins+COIN_DONE); Account.creditCoins(COINKEY+'_done',COIN_DONE,'P1U-W04 突破防線'); for(let i=1;i<=N_BOSS;i++) Account.creditCoins(COINKEY+'_wave'+i,COIN_WAVE,'P1U-W04 第'+i+'波'); persist(); }
   Sfx.win(); confetti(); }
 function dvT(){ return (now()-st.t0)/1000; } // 通關動畫秒數
 function taBtn(){ const w=Math.min(300,W*0.7), h=Math.min(56,H*0.086); return {x:W/2-w/2, y:H*0.62, w, h}; }
@@ -1058,7 +1201,7 @@ const ST_DELIVER={ update(evs){ st.cam=Math.min(1,st.cam+0.006); const T=dvT();
     if(T>1.4 && now()-st.spark>260){ st.spark=now(); const gap=Math.min(70,W*0.12); burst(W/2-2*gap+Math.floor(Math.random()*5)*gap, H*0.46, '#ffe27a', 6); } // 寶石閃光
     if(T<2.4) return;                                                    // 動畫播完才開放按鈕
     for(const e of evs){ if(e.t==='down'){
-      if(inBtn(e,taBtn())&&!st.ta){ st.ta=true; Sfx.ding(); Account.creditCoins(COINKEY+'_ta',20,'P1U-W03 小老師'); S.coins=Math.min(TOTAL_COINS,S.coins+20); persist(); popText(W/2,H*0.5,'去教一位同學：左手按鍵、右手滑鼠！','#7cffb0',1.1); }
+      if(inBtn(e,taBtn())&&!st.ta){ st.ta=true; Sfx.ding(); Account.creditCoins(COINKEY+'_ta',20,'P1U-W04 小老師'); S.coins=Math.min(TOTAL_COINS,S.coins+20); persist(); popText(W/2,H*0.5,'去教一位同學：左手按鍵、右手滑鼠！','#7cffb0',1.1); }
       else if(inBtn(e,raiseBtn())){ st.raised=true; Sfx.ding(); popText(W/2,H*0.5,'舉手告訴老師你守住了！','#ffe27a',1.1); }
       else if(inBtn(e,homeBtn())){ Sfx.tick(); goPhase('cover'); return; } } } },
   draw(){ const T=dvT(), cx=W/2, gap=Math.min(70,W*0.12), gr=Math.min(28,W*0.05); seaBg(); drawCover('seabed',0.45);
@@ -1087,7 +1230,7 @@ const ST_DELIVER={ update(evs){ st.cam=Math.min(1,st.cam+0.006); const T=dvT();
     drawFx(); } };
 
 /* ================= 主迴圈 ================= */
-const DISPATCH={ cover:ST_COVER, story:ST_STORY, quiz:ST_QUIZ, tut:ST_TUT, swim:ST_SWIM, wave:ST_WAVE, deliver:ST_DELIVER };
+const DISPATCH={ cover:ST_COVER, story:ST_STORY, quiz:ST_QUIZ, tut:ST_TUT, swim:ST_SWIM, forge:ST_FORGE, prep:ST_PREP, wave:ST_WAVE, deliver:ST_DELIVER };
 let bootT=0;
 // 所有圖都有向量 fallback，不需等素材載入 → 直接開跑，避免載入閘門卡住
 function frame1(){
