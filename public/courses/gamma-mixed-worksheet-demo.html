@@ -1,0 +1,2584 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S3 W01｜GAMMA答題版 MVP</title>
+  <style>
+    :root {
+      --bg: #07110f;
+      --panel: #0d1c18;
+      --panel-2: #122823;
+      --line: #2f665b;
+      --line-soft: rgba(98, 211, 181, 0.28);
+      --text: #e4fff7;
+      --muted: #90c8ba;
+      --accent: #62d3b5;
+      --coin-bg: rgba(245, 247, 250, 0.12);
+      --coin-border: rgba(245, 247, 250, 0.56);
+      --coin-text: #f8fafc;
+      --paper: #f7fbff;
+      --paper-text: #10231f;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Noto Sans TC", "Microsoft JhengHei", Arial, sans-serif;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    button,
+    textarea,
+    input {
+      font: inherit;
+    }
+
+    .shell {
+      width: min(1500px, calc(100% - 20px));
+      height: 100vh;
+      min-height: 0;
+      margin: 0 auto;
+      padding: 6px 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      flex: 0 0 auto;
+      min-height: 28px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) clamp(500px, 29vw, 560px);
+      gap: 8px;
+      align-items: center;
+      padding: 4px 8px;
+      border: 1px solid var(--line-soft);
+      background: rgba(13, 28, 24, 0.94);
+    }
+
+    .brand {
+      min-width: 0;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: nowrap;
+    }
+
+    .brand h1 {
+      margin: 0;
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+
+    .brand span {
+      min-width: 0;
+      color: var(--muted);
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .prototype-label {
+      justify-self: end;
+      border: 1px solid var(--line-soft);
+      padding: 2px 7px;
+      background: rgba(98, 211, 181, 0.08);
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .topbar-actions {
+      justify-self: end;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .home-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 24px;
+      padding: 3px 9px;
+      border: 1px solid var(--accent);
+      background: rgba(98, 211, 181, 0.18);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 800;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .home-link:hover {
+      background: var(--accent);
+      color: var(--bg);
+    }
+
+    .workspace {
+      flex: 1;
+      min-height: 0;
+      margin-top: 6px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) clamp(500px, 29vw, 560px);
+      gap: 8px;
+    }
+
+    .gamma-pane,
+    .lab-pane {
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+      border: 1px solid var(--line-soft);
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .pane-head {
+      flex: 0 0 auto;
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 5px 9px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .pane-head strong {
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .pane-head span {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .gamma-frame-wrap {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      background: var(--paper);
+    }
+
+    .gamma-frame {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: var(--paper);
+    }
+
+    .lab-body {
+      flex: 1;
+      min-height: 0;
+      padding: clamp(6px, 1vh, 8px);
+      display: grid;
+      grid-template-rows: auto auto auto minmax(96px, 1fr) auto auto auto auto;
+      gap: clamp(5px, .8vh, 7px);
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-gutter: stable;
+    }
+
+    .lab-body > * {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .tool-switcher {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+    }
+
+    .tool-mode-btn {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      background: rgba(98, 211, 181, 0.07);
+      color: var(--muted);
+      padding: 4px 5px;
+      cursor: pointer;
+      font-size: 14px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tool-mode-btn:hover,
+    .tool-mode-btn.active {
+      border-color: var(--accent);
+      background: rgba(98, 211, 181, 0.18);
+      color: var(--text);
+    }
+
+    .locator {
+      flex: 0 0 auto;
+      border: 1px solid var(--line-soft);
+      background: rgba(98, 211, 181, 0.07);
+      padding: 7px;
+    }
+
+    .locator-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 5px;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .locator-title span {
+      color: var(--accent);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .question-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+    }
+
+    .tab-btn {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      background: rgba(7, 17, 15, 0.42);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 15px;
+      padding: 3px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .tab-btn:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    .tab-btn.active {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #031310;
+      font-weight: 700;
+    }
+
+    .tab-btn.done {
+      border-color: rgba(255, 211, 92, 0.88);
+      color: #ffe684;
+      background: rgba(255, 211, 92, 0.1);
+      box-shadow: 0 0 14px rgba(255, 211, 92, 0.18);
+    }
+
+    .tab-btn.active.done {
+      color: #031310;
+      background: linear-gradient(90deg, #ffd35c, #65f4d8);
+      box-shadow: 0 0 18px rgba(255, 211, 92, 0.28);
+    }
+
+    .tab-btn.done::after {
+      content: "★";
+      display: inline-block;
+      color: #ffd35c;
+      font-size: 12px;
+      line-height: 1;
+      text-shadow: 0 0 8px rgba(255, 211, 92, 0.78);
+    }
+
+    .question-card {
+      flex: 0 0 auto;
+      border: 1px solid var(--line-soft);
+      background: var(--panel-2);
+      padding: 7px 8px;
+    }
+
+    .question-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .question-meta span {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .coins {
+      color: var(--coin-text);
+      background: var(--coin-bg);
+      border: 1px solid var(--coin-border);
+      padding: 2px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+      text-shadow: none;
+      letter-spacing: 0;
+    }
+
+    .question-card h2 {
+      margin: 0 0 4px;
+      color: #65f4d8;
+      font-size: 18px;
+      line-height: 1.25;
+      text-shadow:
+        0 0 10px rgba(101, 244, 216, 0.58),
+        0 0 22px rgba(101, 244, 216, 0.22);
+    }
+
+    .question-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.42;
+    }
+
+    .page-hint {
+      margin-top: 5px;
+      color: var(--accent);
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+
+    .answer-input {
+      min-height: clamp(96px, 24vh, 270px);
+      height: 100%;
+      max-width: 100%;
+      width: 100%;
+      resize: none;
+      overflow-x: hidden;
+      overflow-y: auto;
+      border: 1px solid var(--line);
+      background: rgba(7, 17, 15, 0.72);
+      color: var(--text);
+      padding: 10px;
+      outline: none;
+      line-height: 1.55;
+      font-size: 17px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .answer-input[hidden],
+    .attachment-panel[hidden] {
+      display: none;
+    }
+
+    .answer-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(98, 211, 181, 0.16);
+    }
+
+    .attachment-panel {
+      flex: 0 0 auto;
+      min-height: 0;
+      border: 1px solid var(--line-soft);
+      background: rgba(7, 17, 15, 0.42);
+      padding: 7px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .attachment-panel.drag-over {
+      border-color: var(--accent);
+      background: rgba(98, 211, 181, 0.11);
+    }
+
+    .attachment-panel.upload-success {
+      border-color: rgba(56, 255, 140, 0.92);
+      background: rgba(56, 255, 140, 0.11);
+      box-shadow: 0 0 0 3px rgba(56, 255, 140, 0.12), 0 0 22px rgba(56, 255, 140, 0.22);
+    }
+
+    .attachment-head {
+      display: flex;
+      align-items: stretch;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .attachment-title {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .attachment-title strong {
+      color: var(--text);
+      font-size: 15px;
+      white-space: nowrap;
+    }
+
+    .attachment-title span,
+    .upload-note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .file-upload-btn,
+    .attachment-remove {
+      border: 1px solid var(--line);
+      background: rgba(98, 211, 181, 0.08);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .file-upload-btn {
+      min-height: 54px;
+      min-width: min(230px, 52%);
+      padding: 8px 12px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: 8px;
+      white-space: normal;
+      text-align: left;
+      border-color: rgba(255, 211, 92, 0.72);
+      background:
+        linear-gradient(135deg, rgba(255, 211, 92, 0.2), rgba(98, 211, 181, 0.14)),
+        rgba(7, 17, 15, 0.82);
+      box-shadow: 0 0 18px rgba(255, 211, 92, 0.12);
+    }
+
+    .upload-plus {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 211, 92, 0.82);
+      background: rgba(255, 211, 92, 0.16);
+      color: #ffe684;
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1;
+      box-shadow: 0 0 16px rgba(255, 211, 92, 0.24);
+    }
+
+    .upload-copy {
+      min-width: 0;
+      display: grid;
+      gap: 1px;
+    }
+
+    .upload-copy strong,
+    .upload-copy small {
+      overflow-wrap: anywhere;
+    }
+
+    .upload-copy strong {
+      color: #fff8d7;
+      font-size: 15px;
+      line-height: 1.2;
+    }
+
+    .upload-copy small {
+      color: #9ee9ff;
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    .file-upload-btn:hover,
+    .attachment-remove:hover {
+      border-color: var(--accent);
+      background: rgba(98, 211, 181, 0.16);
+    }
+
+    .attachment-list {
+      display: grid;
+      gap: 5px;
+      max-height: clamp(52px, 14vh, 138px);
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .attachment-empty {
+      border: 1px dashed var(--line);
+      color: var(--muted);
+      padding: 7px;
+      font-size: 13px;
+      text-align: center;
+      background: rgba(98, 211, 181, 0.04);
+    }
+
+    .attachment-item {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 7px;
+      align-items: start;
+      border: 1px solid rgba(98, 211, 181, 0.22);
+      background: rgba(13, 28, 24, 0.74);
+      padding: 6px;
+    }
+
+    .type-chip {
+      min-width: 36px;
+      border: 1px solid var(--line);
+      color: var(--accent);
+      background: rgba(98, 211, 181, 0.08);
+      padding: 2px 4px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .attachment-main {
+      min-width: 0;
+      display: grid;
+      gap: 4px;
+    }
+
+    .attachment-name {
+      color: var(--text);
+      font-size: 14px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .attachment-meta {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .attachment-preview {
+      max-width: 100%;
+      max-height: 54px;
+      border: 1px solid rgba(98, 211, 181, 0.22);
+      background: #06100e;
+    }
+
+    .attachment-preview.audio {
+      width: 100%;
+      height: 30px;
+    }
+
+    .attachment-remove {
+      width: 26px;
+      height: 24px;
+      padding: 0;
+      line-height: 1;
+    }
+
+    .field-row {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 6px;
+    }
+
+    .tool-btn {
+      min-height: 30px;
+      border: 1px solid var(--line);
+      background: rgba(98, 211, 181, 0.09);
+      color: var(--text);
+      padding: 6px 8px;
+      cursor: pointer;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    .tool-btn:hover {
+      border-color: var(--accent);
+      background: rgba(98, 211, 181, 0.16);
+    }
+
+    .review-action {
+      min-height: 56px;
+      border: 2px solid rgba(255, 211, 92, 0.95);
+      background:
+        linear-gradient(90deg, #ffd35c, #65f4d8 52%, #4dc9ff),
+        #ffd35c;
+      color: #04100e;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 0;
+      box-shadow:
+        0 0 0 3px rgba(255, 211, 92, 0.12),
+        0 0 24px rgba(255, 211, 92, 0.38),
+        0 0 32px rgba(77, 201, 255, 0.22);
+    }
+
+    .review-action:hover {
+      border-color: #fff8d7;
+      background:
+        linear-gradient(90deg, #ffe684, #78ffe5 52%, #70d8ff),
+        #ffe684;
+      box-shadow:
+        0 0 0 4px rgba(255, 211, 92, 0.16),
+        0 0 30px rgba(255, 211, 92, 0.48),
+        0 0 42px rgba(77, 201, 255, 0.32);
+    }
+
+    .review-action.is-complete,
+    .review-action.is-complete:hover,
+    .review-action:disabled {
+      border-color: rgba(255, 211, 92, 0.36);
+      background: rgba(255, 211, 92, 0.08);
+      color: #ffe684;
+      cursor: default;
+      box-shadow: none;
+      text-shadow: 0 0 10px rgba(255, 211, 92, 0.52);
+    }
+
+    .ai-box {
+      flex: 0 0 auto;
+      min-height: 38px;
+      border: 1px dashed var(--line);
+      padding: 7px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.35;
+      background: rgba(7, 17, 15, 0.38);
+      overflow: auto;
+    }
+
+    .answer-status {
+      flex: 0 0 auto;
+      display: grid;
+      gap: 4px;
+      border: 1px solid var(--line-soft);
+      background: rgba(7, 17, 15, 0.38);
+      padding: 7px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.3;
+    }
+
+    .meter {
+      height: 5px;
+      background: rgba(98, 211, 181, 0.12);
+      overflow: hidden;
+    }
+
+    .meter-fill {
+      height: 100%;
+      width: 0;
+      background: var(--accent);
+      transition: width 180ms ease;
+    }
+
+    .completion-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(0, 244, 255, 0.22), transparent 28%),
+        radial-gradient(circle at 82% 14%, rgba(255, 77, 216, 0.2), transparent 26%),
+        rgba(3, 7, 18, 0.88);
+    }
+
+    .completion-overlay[hidden] {
+      display: none;
+    }
+
+    .cyber-confetti {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .question-confetti {
+      position: fixed;
+      inset: 0;
+      z-index: 1001;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      top: -24px;
+      width: 8px;
+      height: 20px;
+      background: var(--piece-color, #65f4d8);
+      box-shadow: 0 0 16px var(--piece-color, #65f4d8);
+      transform: translateY(-20px) rotate(0deg);
+      animation: cyberFall var(--fall-time, 1.8s) linear forwards;
+    }
+
+    .completion-modal {
+      position: relative;
+      width: min(560px, 100%);
+      border: 2px solid rgba(101, 244, 216, 0.86);
+      background:
+        linear-gradient(180deg, rgba(16, 24, 48, 0.98), rgba(5, 12, 24, 0.98)),
+        #06100e;
+      padding: clamp(22px, 4vw, 34px);
+      color: #f8ffff;
+      text-align: center;
+      box-shadow:
+        0 0 0 4px rgba(255, 77, 216, 0.18),
+        0 0 42px rgba(101, 244, 216, 0.36),
+        inset 0 0 26px rgba(67, 121, 255, 0.22);
+      animation: modalPop 360ms ease-out;
+    }
+
+    .completion-modal::before {
+      content: "";
+      position: absolute;
+      inset: 10px;
+      border: 1px solid rgba(255, 211, 92, 0.38);
+      pointer-events: none;
+    }
+
+    .completion-modal h2 {
+      margin: 0 0 10px;
+      color: #65f4d8;
+      font-size: clamp(26px, 5vw, 44px);
+      line-height: 1.1;
+      text-shadow:
+        0 0 8px rgba(101, 244, 216, 0.82),
+        0 0 24px rgba(255, 77, 216, 0.5);
+    }
+
+    .completion-modal p {
+      margin: 0 auto 18px;
+      max-width: 15em;
+      color: #fff8d7;
+      font-size: clamp(18px, 3.2vw, 26px);
+      font-weight: 800;
+      line-height: 1.35;
+      text-shadow:
+        0 0 9px rgba(255, 211, 92, 0.72),
+        0 0 22px rgba(0, 244, 255, 0.4);
+    }
+
+    .completion-close {
+      min-height: 44px;
+      border: 1px solid rgba(255, 211, 92, 0.88);
+      background: linear-gradient(90deg, #ffd35c, #65f4d8);
+      color: #04100e;
+      padding: 10px 18px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 900;
+      box-shadow: 0 0 20px rgba(255, 211, 92, 0.28);
+    }
+
+    @keyframes cyberFall {
+      0% {
+        opacity: 0;
+        transform: translate3d(0, -24px, 0) rotate(0deg);
+      }
+      12% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: translate3d(var(--fall-drift, 36px), 112vh, 0) rotate(var(--fall-rotate, 420deg));
+      }
+    }
+
+    @keyframes modalPop {
+      0% {
+        opacity: 0;
+        transform: scale(0.88) translateY(18px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .confetti-piece,
+      .completion-modal {
+        animation: none;
+      }
+    }
+
+    @media (max-height: 760px) and (min-width: 981px) {
+      .shell {
+        padding: 4px 0;
+      }
+
+      .topbar,
+      .pane-head {
+        min-height: 24px;
+        padding: 3px 7px;
+      }
+
+      .lab-body {
+        padding: 6px;
+        gap: 4px;
+      }
+
+      .question-card,
+      .attachment-panel,
+      .answer-status {
+        padding: 5px 6px;
+      }
+
+      .page-hint,
+      .upload-note,
+      .answer-status {
+        font-size: 12px;
+        line-height: 1.25;
+      }
+
+      .answer-input {
+        min-height: 88px;
+        padding: 7px;
+        font-size: 15px;
+      }
+
+      .attachment-list {
+        max-height: 72px;
+      }
+
+      .tool-btn,
+      .tool-mode-btn,
+      .tab-btn {
+        min-height: 26px;
+        padding: 3px 5px;
+      }
+
+      .review-action {
+        min-height: 44px;
+        font-size: 15px;
+      }
+
+      .file-upload-btn {
+        min-height: 42px;
+        padding: 6px 9px;
+      }
+
+      .upload-plus {
+        width: 26px;
+        height: 26px;
+        font-size: 18px;
+      }
+
+      .upload-copy small {
+        font-size: 12px;
+      }
+
+      .ai-box {
+        min-height: 32px;
+        padding: 5px 6px;
+      }
+    }
+
+    @media (max-height: 660px) and (min-width: 981px) {
+      .brand h1,
+      .question-card h2 {
+        font-size: 15px;
+      }
+
+      .brand span,
+      .pane-head strong,
+      .locator-title,
+      .answer-input {
+        font-size: 13px;
+      }
+
+      .tool-btn {
+        font-size: 12px;
+      }
+
+      .review-action {
+        min-height: 38px;
+        font-size: 13px;
+      }
+
+      .question-card p,
+      .page-hint,
+      .attachment-title span,
+      .upload-note,
+      .attachment-meta,
+      .ai-box,
+      .answer-status {
+        font-size: 12px;
+      }
+
+      .lab-body {
+        grid-template-rows: auto auto auto minmax(72px, 1fr) auto auto auto auto;
+        gap: 3px;
+      }
+
+      .answer-input {
+        min-height: 72px;
+        line-height: 1.35;
+      }
+
+      .attachment-list {
+        max-height: 52px;
+      }
+
+      .file-upload-btn {
+        min-height: 34px;
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .upload-plus,
+      .upload-copy small {
+        display: none;
+      }
+    }
+
+    @media (max-width: 1100px) {
+      .topbar,
+      .workspace {
+        grid-template-columns: minmax(0, 1fr) clamp(420px, 36vw, 500px);
+      }
+    }
+
+    @media (max-width: 980px) {
+      html,
+      body {
+        height: auto;
+        overflow: auto;
+      }
+
+      .shell {
+        height: auto;
+        min-height: 100vh;
+      }
+
+      .topbar,
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .prototype-label,
+      .topbar-actions {
+        justify-self: start;
+      }
+
+      .gamma-frame-wrap {
+        height: 58vh;
+        min-height: 420px;
+        flex: none;
+      }
+
+      .lab-pane {
+        min-height: 650px;
+      }
+
+      .lab-body {
+        overflow-y: visible;
+        overflow-x: hidden;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .shell {
+        width: min(100% - 16px, 1500px);
+        padding-top: 8px;
+      }
+
+      .topbar,
+      .pane-head,
+      .question-meta {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .brand span,
+      .prototype-label,
+      .topbar-actions {
+        white-space: normal;
+      }
+
+      .pane-head span {
+        text-align: left;
+      }
+
+      .attachment-head {
+        flex-direction: column;
+      }
+
+      .file-upload-btn {
+        width: 100%;
+      }
+
+      .tool-switcher {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <h1>S3 W01｜GAMMA答題版 MVP</h1>
+        <span>先看任務，再用對工具｜四題生成結果回填測試</span>
+      </div>
+      <div class="topbar-actions">
+        <a class="home-link" href="/">HOME</a>
+        <div class="prototype-label">MVP TEST</div>
+      </div>
+    </header>
+
+    <section class="workspace" aria-label="GAMMA 與 Lab Terminal 雙欄工作區">
+      <div class="gamma-pane">
+        <div class="pane-head">
+          <strong>GAMMA</strong>
+          <span id="gammaStatus">GAMMA 題目區：請從左側複製任務提示詞</span>
+        </div>
+        <div class="gamma-frame-wrap">
+          <iframe
+            class="gamma-frame"
+            src="https://gamma.app/embed/S3-W01-hixa52whtzl6aas"
+            data-src="https://gamma.app/docs/S3-W01-hixa52whtzl6aas"
+            title="Copy of Copy of S3 W01｜工具選擇與初次使用"
+            allow="fullscreen"
+          ></iframe>
+        </div>
+      </div>
+
+      <aside class="lab-pane" aria-label="Lab Terminal 回答面板">
+        <div class="pane-head">
+          <strong>Lab Terminal</strong>
+          <span id="activeTitle">任務 1</span>
+        </div>
+
+        <div class="lab-body">
+          <div class="tool-switcher" id="toolSwitcher" aria-label="Lab 工具切換"></div>
+
+          <div class="locator">
+            <div class="locator-title">
+              <div>目前任務</div>
+              <span id="doneCount">0/4 已填</span>
+            </div>
+            <div class="question-tabs" id="questionTabs"></div>
+          </div>
+
+          <section class="question-card">
+            <div class="question-meta">
+              <span id="questionCode">任務 1</span>
+              <span class="coins" id="questionCoins">60 金幣</span>
+            </div>
+            <h2 id="questionTitle"></h2>
+            <p id="questionPrompt"></p>
+            <div class="page-hint" id="gammaHint">請看左側 GAMMA 題目。</div>
+          </section>
+
+          <textarea class="answer-input" id="answerInput" wrap="soft" placeholder="請在這裡輸入答案"></textarea>
+
+          <div class="attachment-panel" id="attachmentPanel">
+            <div class="attachment-head">
+              <div class="attachment-title">
+                <strong>附件</strong>
+                <span id="attachmentCount">0 個檔案</span>
+              </div>
+              <button class="file-upload-btn" id="attachBtn" type="button">
+                <span class="upload-plus" aria-hidden="true">+</span>
+                <span class="upload-copy">
+                  <strong>加入作品檔案</strong>
+                  <small>找不到？先看下載或桌面，也可以直接拖進來。</small>
+                </span>
+              </button>
+              <input
+                id="fileInput"
+                type="file"
+                multiple
+                hidden
+                accept="image/png,image/jpeg,image/webp,video/mp4,audio/mpeg,audio/mp3,audio/wav,audio/mp4,application/pdf,text/plain,.zip,.sb3"
+              />
+            </div>
+            <div class="upload-note" id="uploadNote">把你生成好的作品放進來，系統會自動保存。</div>
+            <div class="attachment-list" id="attachmentList"></div>
+          </div>
+
+          <div class="field-row">
+            <button class="tool-btn review-action" id="checkBtn" type="button">送 AI 審核</button>
+          </div>
+
+          <div class="ai-box" id="aiBox">AI 回饋會顯示在這裡。</div>
+
+          <div class="answer-status">
+            <div id="saveState">尚未儲存</div>
+            <div class="meter" aria-hidden="true">
+              <div class="meter-fill" id="meterFill"></div>
+            </div>
+            <div id="wordState">目前 0 字。系統會自動保存。</div>
+          </div>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <div class="completion-overlay" id="completionOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="completionTitle">
+    <div class="cyber-confetti" id="cyberConfetti" aria-hidden="true"></div>
+    <div class="completion-modal">
+      <h2 id="completionTitle">任務完成</h2>
+      <p>請舉手告訴老師，你已經完成四個工具任務。</p>
+      <button class="completion-close" id="completionCloseBtn" type="button">我知道了</button>
+    </div>
+  </div>
+  <div class="question-confetti" id="questionConfetti" aria-hidden="true"></div>
+
+  <script>
+    const gammaFrame = document.querySelector(".gamma-frame");
+    const gammaStatus = document.getElementById("gammaStatus");
+    const queryParams = new URLSearchParams(window.location.search);
+    const integrationConfig = window.S3W01_MVP_CONFIG || {};
+    const STORAGE_VERSION = "v21-reset-progress-20260728";
+    const INTEGRATION_SOURCE = "s3-w01-gamma-mvp";
+    const DEMO_ONLY = queryParams.get("demoOnly") !== "0" && integrationConfig.demoOnly !== false;
+    const WORKSHEET_ID = "S3W01";
+    const LAB_MEDIA_ACCESS_KEY = "lab-terminal:s3w01-media-access";
+    const FIRESTORE_SYNC_DEBOUNCE_MS = 900;
+    const FIRESTORE_LOAD_TIMEOUT_MS = 2200;
+    const FIRESTORE_SAVE_TIMEOUT_MS = 5000;
+    const LEGACY_LOCAL_PROGRESS_RESET_KEY = "s3-w01-gamma-mvp:legacy-reset:v21-reset-progress-20260728";
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78",
+      authDomain: "gpt-clone-68b9f.firebaseapp.com",
+      projectId: "gpt-clone-68b9f",
+      storageBucket: "gpt-clone-68b9f.firebasestorage.app",
+      messagingSenderId: "436942056069",
+      appId: "1:436942056069:web:8762675dfff7b7e92017ec",
+      measurementId: "G-842KZYGN8Q"
+    };
+
+    function grantLabMediaAccess() {
+      try {
+        localStorage.setItem(LAB_MEDIA_ACCESS_KEY, JSON.stringify({
+          worksheetId: WORKSHEET_ID,
+          status: "open",
+          grantedAt: new Date().toISOString(),
+          source: INTEGRATION_SOURCE
+        }));
+      } catch {
+        // Local storage can be unavailable in restricted browser modes.
+      }
+    }
+
+    function revokeLabMediaAccess() {
+      try {
+        localStorage.removeItem(LAB_MEDIA_ACCESS_KEY);
+      } catch {
+        // Local storage can be unavailable in restricted browser modes.
+      }
+    }
+
+    grantLabMediaAccess();
+
+    function toGammaEmbedUrl(url) {
+      if (!url) return "";
+      if (url.includes("/embed/")) return url;
+      const match = url.match(/gamma\.app\/(?:docs|public)\/([^/?#]+)/);
+      if (match) return "https://gamma.app/embed/" + match[1];
+      return url.replace("/docs/", "/embed/");
+    }
+
+    function toolEndpoint(toolId, defaultPath) {
+      const endpointKey = toolId === "terminal" ? "textEndpoint" : toolId + "Endpoint";
+      const direct = queryParams.get(endpointKey) || queryParams.get("endpoint." + toolId) || integrationConfig[endpointKey];
+      if (direct) return direct;
+      const apiBase = queryParams.get("apiBase") || integrationConfig.apiBase;
+      if (!apiBase) return defaultPath;
+      const toolPath = toolId === "terminal" ? "text" : toolId;
+      return apiBase.replace(/\/$/, "") + "/" + toolPath;
+    }
+
+    function emitIntegrationEvent(type, detail) {
+      const payload = {
+        source: INTEGRATION_SOURCE,
+        type,
+        detail: detail || {},
+        at: new Date().toISOString()
+      };
+      window.dispatchEvent(new CustomEvent(INTEGRATION_SOURCE + ":" + type, { detail: payload.detail }));
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(payload, "*");
+      }
+    }
+
+    const gammaFromQuery = queryParams.get("gamma") || gammaFrame.dataset.src || integrationConfig.gammaUrl;
+    const gammaEmbedUrl = toGammaEmbedUrl(gammaFromQuery || "");
+
+    if (gammaEmbedUrl) {
+      gammaFrame.src = gammaEmbedUrl;
+      gammaStatus.textContent = "正式 GAMMA 已載入";
+    }
+
+    const toolModes = [
+      {
+        id: "terminal",
+        label: "Terminal",
+        endpoint: toolEndpoint("terminal", "/api/lab-tools/text"),
+        outputKind: "text",
+        note: "已切到 Lab Terminal：適合整理文字、改寫、列重點。"
+      },
+      {
+        id: "image",
+        label: "Image",
+        endpoint: toolEndpoint("image", "/api/lab-tools/image"),
+        outputKind: "image",
+        note: "已切到 Lab Image：適合產生角色、場景、貼紙或作品封面。"
+      },
+      {
+        id: "music",
+        label: "Music",
+        endpoint: toolEndpoint("music", "/api/lab-tools/music"),
+        outputKind: "audio",
+        note: "已切到 Lab Music：適合產生背景音樂、音效或情緒聲音。"
+      },
+      {
+        id: "video",
+        label: "Video",
+        endpoint: toolEndpoint("video", "/api/lab-tools/video"),
+        outputKind: "video",
+        note: "已切到 Lab Video：適合產生短動畫、角色動作或展示影片。"
+      }
+    ];
+
+    const questions = [
+      {
+        id: "q1",
+        code: "第 1 題",
+        coins: 60,
+        toolId: "terminal",
+        expectedKind: "text",
+        title: "AI 工具使用提醒",
+        prompt: "對照 GAMMA 第 1 張：AI 工具使用提醒。",
+        placeholder: "請貼上你整理出的 3 點提醒...",
+        toolPrompt: `請把下面內容整理成 3 點提醒，對象是小四學生。每一點要短、清楚、容易懂。請只輸出 3 個條列。
+
+內容：
+使用 AI 工具前要先看清楚任務，不要亂輸入無關內容。
+如果不知道怎麼寫提示詞，可以先找出任務中的關鍵字。
+生成結果後要自己檢查，不能直接交出去。
+如果結果不符合需求，要修改提示詞再試一次。
+生成的關鍵詞很重要請善用你的複製貼上快捷鍵。`,
+        demoText: "1. 使用 AI 工具前，先看清楚任務要做什麼。\n2. 不知道怎麼寫提示詞時，先找出題目關鍵字。\n3. 生成結果後要自己檢查，不符合就修改再試。",
+        hint: "這題要產出文字，所以使用 Lab Terminal。答案要有 3 點，不是只寫工具名稱。",
+        check: "審核重點：是否有 3 點文字提醒、內容是否跟 AI 工具使用有關。"
+      },
+      {
+        id: "q2",
+        code: "第 2 題",
+        coins: 60,
+        toolId: "image",
+        expectedKind: "image",
+        title: "小狗玩球圖片",
+        prompt: "對照 GAMMA 第 2 張：小狗玩球圖片。",
+        placeholder: "請附上圖片，或簡短描述你產生的小狗玩球圖片...",
+        toolPrompt: "一張可愛插畫風圖片：一隻小狗在綠色草地上開心玩紅色球。畫面明亮、乾淨、可愛，適合小四學生的學習單。請讓小狗和球都很清楚，不要出現文字。",
+        demoText: "已使用 Lab Image 產生一張小狗在綠色草地上開心玩紅色球的可愛圖片。",
+        hint: "這題要產出圖片，所以使用 Lab Image。建議把圖片作品加入附件。",
+        check: "審核重點：是否有圖片附件或圖片結果說明，並看得出小狗、球和玩球動作。"
+      },
+      {
+        id: "q3",
+        code: "第 3 題",
+        coins: 60,
+        toolId: "music",
+        expectedKind: "audio",
+        title: "咖啡廳爵士樂",
+        prompt: "對照 GAMMA 第 3 張：咖啡廳爵士樂。",
+        placeholder: "請附上音訊，或簡短描述你產生的咖啡廳爵士樂...",
+        toolPrompt: "請生成一段 30 秒的咖啡廳爵士樂。風格溫暖、放鬆、輕快，有鋼琴、低音提琴和輕柔鼓刷。適合下午在咖啡廳閱讀或聊天時播放。不要太吵，不要恐怖，不要有人聲。",
+        demoText: "已使用 Lab Music 產生 30 秒、溫暖放鬆、沒有歌聲的咖啡廳爵士樂。",
+        hint: "這題要產出音樂，所以使用 Lab Music。建議把音樂作品加入附件，或用示範成果。",
+        check: "審核重點：是否有音訊附件或音樂結果說明，並符合咖啡廳、爵士、放鬆、溫暖、30 秒或無人聲。"
+      },
+      {
+        id: "q4",
+        code: "第 4 題",
+        coins: 70,
+        toolId: "video",
+        expectedKind: "video",
+        title: "滑雪短影片",
+        prompt: "對照 GAMMA 第 4 張：滑雪短影片。",
+        placeholder: "請附上影片，或簡短描述你產生的滑雪短影片...",
+        toolPrompt: "請生成一段 5 秒滑雪影片：一位滑雪者穿著藍色外套，在白色雪地山坡上往下滑，滑雪時有雪花飛起來。白天陽光、畫面清楚、動作流暢、有速度感。不要出現文字。",
+        demoText: "已使用 Lab Video 產生 5 秒滑雪者在白色雪地山坡上往下滑的短影片。",
+        hint: "這題要產出影片，所以使用 Lab Video。建議回填 MP4 或用示範成果。",
+        check: "審核重點：是否有影片附件或影片結果說明，並看得出滑雪、雪地、滑雪者、往下滑或 5 秒。"
+      }
+    ];
+
+    let activeIndex = 0;
+    let activeTool = "terminal";
+    let hasRenderedQuestion = false;
+    let autoSaveTimer = null;
+    let autoAdvanceTimer = null;
+    let completionShown = false;
+    let firestoreDb = null;
+    let firestoreReady = false;
+    let firestoreSaveTimer = null;
+    let firestoreSaveInFlight = false;
+    let firestoreQueuedReason = "";
+
+    const toolSwitcher = document.getElementById("toolSwitcher");
+    const tabs = document.getElementById("questionTabs");
+    const activeTitle = document.getElementById("activeTitle");
+    const doneCount = document.getElementById("doneCount");
+    const questionCode = document.getElementById("questionCode");
+    const questionCoins = document.getElementById("questionCoins");
+    const questionTitle = document.getElementById("questionTitle");
+    const questionPrompt = document.getElementById("questionPrompt");
+    const gammaHint = document.getElementById("gammaHint");
+    const answerInput = document.getElementById("answerInput");
+    const aiBox = document.getElementById("aiBox");
+    const saveState = document.getElementById("saveState");
+    const wordState = document.getElementById("wordState");
+    const meterFill = document.getElementById("meterFill");
+    const attachmentPanel = document.getElementById("attachmentPanel");
+    const attachBtn = document.getElementById("attachBtn");
+    const fileInput = document.getElementById("fileInput");
+    const uploadNote = document.getElementById("uploadNote");
+    const attachmentCount = document.getElementById("attachmentCount");
+    const attachmentList = document.getElementById("attachmentList");
+    const checkBtn = document.getElementById("checkBtn");
+    const completionOverlay = document.getElementById("completionOverlay");
+    const cyberConfetti = document.getElementById("cyberConfetti");
+    const questionConfetti = document.getElementById("questionConfetti");
+    const completionCloseBtn = document.getElementById("completionCloseBtn");
+    const attachmentState = new Map();
+
+    function getSessionUser() {
+      try {
+        const raw = localStorage.getItem("@session/currentUser");
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function localDraftOwnerId() {
+      const user = getSessionUser();
+      return String(user?.id || "anon");
+    }
+
+    function localStoragePrefix() {
+      return "s3-w01-gamma-mvp:" + STORAGE_VERSION + ":" + localDraftOwnerId() + ":";
+    }
+
+    function attachmentStateKey(id) {
+      return localDraftOwnerId() + ":" + id;
+    }
+
+    function purgeLegacyLocalProgressOnce() {
+      try {
+        if (localStorage.getItem(LEGACY_LOCAL_PROGRESS_RESET_KEY) === "yes") return;
+        const currentPrefix = localStoragePrefix();
+        const keys = [];
+        for (let index = 0; index < localStorage.length; index += 1) {
+          const key = localStorage.key(index);
+          if (
+            key &&
+            key.startsWith("s3-w01-gamma-mvp:") &&
+            key !== LEGACY_LOCAL_PROGRESS_RESET_KEY &&
+            !key.startsWith(currentPrefix)
+          ) {
+            keys.push(key);
+          }
+        }
+        keys.forEach((key) => localStorage.removeItem(key));
+        localStorage.setItem(LEGACY_LOCAL_PROGRESS_RESET_KEY, "yes");
+      } catch {
+        // Local storage can be unavailable in restricted browser modes.
+      }
+
+      try {
+        const currentPrefix = localStoragePrefix();
+        const keys = [];
+        for (let index = 0; index < sessionStorage.length; index += 1) {
+          const key = sessionStorage.key(index);
+          if (key && key.startsWith("s3-w01-gamma-mvp:") && !key.startsWith(currentPrefix)) {
+            keys.push(key);
+          }
+        }
+        keys.forEach((key) => sessionStorage.removeItem(key));
+      } catch {
+        // Session storage can be unavailable in restricted browser modes.
+      }
+    }
+
+    function draftMetaStorageKey() {
+      return localStoragePrefix() + "draft-meta";
+    }
+
+    function markLocalDraftUpdated(reason) {
+      try {
+        localStorage.setItem(draftMetaStorageKey(), JSON.stringify({
+          updatedAt: new Date().toISOString(),
+          reason: reason || "autosave"
+        }));
+      } catch {
+        // Local storage can be unavailable in restricted browser modes.
+      }
+    }
+
+    function readLocalDraftUpdatedAt() {
+      try {
+        const raw = localStorage.getItem(draftMetaStorageKey());
+        const parsed = raw ? JSON.parse(raw) : null;
+        return parsed?.updatedAt || "";
+      } catch {
+        return "";
+      }
+    }
+
+    function hasLocalDraftData() {
+      return questions.some((q) => (
+        savedValue(q.id).trim().length > 0 ||
+        savedAttachmentMeta(q.id).length > 0 ||
+        !!loadReview(q.id)
+      ));
+    }
+
+    function initFirestore() {
+      const user = getSessionUser();
+      if (!user?.id || !window.firebase) return false;
+      try {
+        const firebaseApp = window.firebase;
+        if (!firebaseApp.apps.length) firebaseApp.initializeApp(FIREBASE_CONFIG);
+        firestoreDb = firebaseApp.firestore();
+        firestoreReady = true;
+        return true;
+      } catch (error) {
+        console.warn("[S3W01] Firestore init failed", error);
+        firestoreReady = false;
+        return false;
+      }
+    }
+
+    function firestoreProgressRef() {
+      const user = getSessionUser();
+      if (!user?.id) return null;
+      if (!firestoreReady && !initFirestore()) return null;
+      return firestoreDb
+        .collection("studentProgress")
+        .doc(String(user.id))
+        .collection("worksheets")
+        .doc(WORKSHEET_ID);
+    }
+
+    function safeFirestoreUrl(url) {
+      const value = typeof url === "string" ? url : "";
+      if (/^(data|blob):/i.test(value)) return "";
+      return value.length > 2000 ? "" : value;
+    }
+
+    function sanitizeReviewForFirestore(review) {
+      if (!review) return null;
+      try {
+        return JSON.parse(JSON.stringify(review));
+      } catch {
+        return null;
+      }
+    }
+
+    function sanitizeAttachmentForFirestore(file) {
+      return {
+        id: String(file?.id || ""),
+        name: String(file?.name || ""),
+        type: String(file?.type || ""),
+        size: Number.isFinite(Number(file?.size)) ? Number(file.size) : 0,
+        kind: String(file?.kind || "file"),
+        storagePath: String(file?.storagePath || ""),
+        downloadUrl: safeFirestoreUrl(file?.downloadUrl),
+        source: String(file?.source || "upload"),
+        toolId: String(file?.toolId || ""),
+        pendingUpload: file?.pendingUpload !== false
+      };
+    }
+
+    function buildFirestoreState() {
+      const state = exportState();
+      return {
+        ...state,
+        questions: state.questions.map((q) => ({
+          ...q,
+          text: String(q.text || ""),
+          attachments: (Array.isArray(q.attachments) ? q.attachments : []).map(sanitizeAttachmentForFirestore),
+          review: sanitizeReviewForFirestore(q.review)
+        }))
+      };
+    }
+
+    function buildFirestoreDraft(reason) {
+      const user = getSessionUser();
+      const now = new Date().toISOString();
+      const state = buildFirestoreState();
+      return {
+        studentId: String(user?.id || ""),
+        studentName: String(user?.displayName || user?.username || user?.studentId || ""),
+        worksheetId: WORKSHEET_ID,
+        courseId: state.courseId,
+        semester: "S3",
+        week: 1,
+        classId: String(user?.classId || integrationConfig.classId || "S3W01-MVP"),
+        lastUpdatedAt: now,
+        mvpDraft: {
+          ...state,
+          reason: reason || "autosave",
+          savedAt: now,
+          source: INTEGRATION_SOURCE
+        }
+      };
+    }
+
+    function withTimeout(promise, timeoutMs, message) {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error(message || "Firestore timeout")), timeoutMs);
+        })
+      ]);
+    }
+
+    function hydrateAttachmentFromFirestore(file) {
+      if (!file) return null;
+      return {
+        id: String(file.id || ("restored_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8))),
+        name: String(file.name || "saved-file"),
+        type: String(file.type || ""),
+        size: Number.isFinite(Number(file.size)) ? Number(file.size) : 0,
+        kind: String(file.kind || "file"),
+        storagePath: String(file.storagePath || ""),
+        downloadUrl: safeFirestoreUrl(file.downloadUrl),
+        source: String(file.source || "firestore"),
+        toolId: String(file.toolId || ""),
+        pendingUpload: file.pendingUpload !== false
+      };
+    }
+
+    function restoreFirestoreDraft(draft) {
+      const byId = new Map((draft.questions || []).map((item) => [item.id, item]));
+      questions.forEach((q) => {
+        const saved = byId.get(q.id);
+        if (!saved) return;
+        localStorage.setItem(storageKey(q.id), q.expectedKind === "text" ? String(saved.text || "") : "");
+        const attachments = (Array.isArray(saved.attachments) ? saved.attachments : [])
+          .map(hydrateAttachmentFromFirestore)
+          .filter(Boolean);
+        localStorage.setItem(fileStorageKey(q.id), JSON.stringify(attachments));
+        if (saved.review) {
+          localStorage.setItem(reviewStorageKey(q.id), JSON.stringify(saved.review));
+        } else {
+          localStorage.removeItem(reviewStorageKey(q.id));
+        }
+        attachmentState.delete(attachmentStateKey(q.id));
+      });
+      try {
+        localStorage.setItem(draftMetaStorageKey(), JSON.stringify({
+          updatedAt: draft.savedAt || draft.exportedAt || new Date().toISOString(),
+          reason: "firestore-load"
+        }));
+      } catch {
+        // Local storage can be unavailable in restricted browser modes.
+      }
+    }
+
+    async function saveFirestoreDraft(reason) {
+      clearTimeout(firestoreSaveTimer);
+      const ref = firestoreProgressRef();
+      if (!ref) return false;
+      if (firestoreSaveInFlight) {
+        firestoreQueuedReason = reason || firestoreQueuedReason || "queued autosave";
+        return false;
+      }
+      firestoreSaveInFlight = true;
+      try {
+        await withTimeout(
+          ref.set(buildFirestoreDraft(reason), { merge: true }),
+          FIRESTORE_SAVE_TIMEOUT_MS,
+          "Firestore save timeout"
+        );
+        saveState.textContent = "已存到 Firestore：" + (reason || "自動儲存") + "。";
+        emitIntegrationEvent("firestoreSave", {
+          worksheetId: WORKSHEET_ID,
+          reason: reason || "autosave",
+          state: exportState()
+        });
+        return true;
+      } catch (error) {
+        console.warn("[S3W01] Firestore save failed", error);
+        saveState.textContent = "Firestore 暫時無法存檔，已保留在本機。";
+        return false;
+      } finally {
+        firestoreSaveInFlight = false;
+        if (firestoreQueuedReason) {
+          const queuedReason = firestoreQueuedReason;
+          firestoreQueuedReason = "";
+          queueFirestoreSave(queuedReason);
+        }
+      }
+    }
+
+    function queueFirestoreSave(reason) {
+      clearTimeout(firestoreSaveTimer);
+      firestoreSaveTimer = setTimeout(() => {
+        saveFirestoreDraft(reason);
+      }, FIRESTORE_SYNC_DEBOUNCE_MS);
+    }
+
+    async function loadFirestoreDraft() {
+      const ref = firestoreProgressRef();
+      if (!ref) {
+        saveState.textContent = "尚未登入，這次先使用本機暫存。";
+        return null;
+      }
+      try {
+        const snap = await withTimeout(
+          ref.get(),
+          FIRESTORE_LOAD_TIMEOUT_MS,
+          "Firestore load timeout"
+        );
+        const draft = snap.exists ? snap.data()?.mvpDraft : null;
+        if (!draft || !Array.isArray(draft.questions)) return null;
+        if (draft.version !== STORAGE_VERSION) {
+          saveState.textContent = "已清除舊版進度，這次從空白測試開始。";
+          queueFirestoreSave("重置舊版進度");
+          return null;
+        }
+
+        const firestoreUpdatedAt = Date.parse(draft.savedAt || draft.exportedAt || "");
+        const localUpdatedAt = Date.parse(readLocalDraftUpdatedAt() || "");
+        if (hasLocalDraftData() && localUpdatedAt && firestoreUpdatedAt && localUpdatedAt > firestoreUpdatedAt) {
+          saveState.textContent = "已保留較新的本機暫存，稍後同步 Firestore。";
+          queueFirestoreSave("同步較新的本機暫存");
+          return null;
+        }
+
+        restoreFirestoreDraft(draft);
+        saveState.textContent = "已從 Firestore 載入上次進度。";
+        return {
+          activeIndex: Number.isFinite(Number(draft.activeIndex)) ? Number(draft.activeIndex) : 0
+        };
+      } catch (error) {
+        console.warn("[S3W01] Firestore load failed", error);
+        saveState.textContent = "Firestore 載入失敗，這次先使用本機暫存。";
+        return null;
+      }
+    }
+
+    function storageKey(id) {
+      return localStoragePrefix() + id;
+    }
+
+    function fileStorageKey(id) {
+      return storageKey(id) + ":files";
+    }
+
+    function reviewStorageKey(id) {
+      return storageKey(id) + ":review";
+    }
+
+    function savedValue(id) {
+      return localStorage.getItem(storageKey(id)) || "";
+    }
+
+    function savedAttachmentMeta(id) {
+      try {
+        const raw = localStorage.getItem(fileStorageKey(id));
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveReview(id, review) {
+      localStorage.setItem(reviewStorageKey(id), JSON.stringify(review));
+      markLocalDraftUpdated("AI 審核");
+      queueFirestoreSave("AI 審核");
+    }
+
+    function loadReview(id) {
+      try {
+        return JSON.parse(localStorage.getItem(reviewStorageKey(id)) || "null");
+      } catch {
+        return null;
+      }
+    }
+
+    function loadAttachments(id) {
+      const key = attachmentStateKey(id);
+      if (!attachmentState.has(key)) {
+        attachmentState.set(key, savedAttachmentMeta(id));
+      }
+      return attachmentState.get(key) || [];
+    }
+
+    function persistAttachments(id) {
+      const files = loadAttachments(id).map((file) => ({
+        id: file.id,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        kind: file.kind,
+        storagePath: file.storagePath,
+        downloadUrl: file.downloadUrl || "",
+        source: file.source || "upload",
+        toolId: file.toolId || "",
+        pendingUpload: true
+      }));
+      localStorage.setItem(fileStorageKey(id), JSON.stringify(files));
+    }
+
+    function completionStorageKey() {
+      return localStoragePrefix() + "completion-shown";
+    }
+
+    try {
+      completionShown = sessionStorage.getItem(completionStorageKey()) === "yes";
+    } catch {
+      completionShown = false;
+    }
+
+    function persistCurrentQuestion(reason) {
+      const q = questions[activeIndex];
+      if (!q) return;
+      clearTimeout(autoSaveTimer);
+      localStorage.setItem(storageKey(q.id), q.expectedKind === "text" ? answerInput.value : "");
+      persistAttachments(q.id);
+      markLocalDraftUpdated(reason || "autosave");
+      const files = loadAttachments(q.id);
+      const label = reason || "目前內容";
+      saveState.textContent = q.code + " 已自動儲存：" + label + (files.length ? "，已加入 " + files.length + " 個檔案。" : "。");
+      emitIntegrationEvent("save", {
+        questionId: q.id,
+        automatic: true,
+        reason: label,
+        state: exportState()
+      });
+      queueFirestoreSave(label);
+    }
+
+    function scheduleAutoSave(reason) {
+      const q = questions[activeIndex];
+      if (!q) return;
+      clearTimeout(autoSaveTimer);
+      saveState.textContent = q.code + " 正在自動儲存...";
+      autoSaveTimer = setTimeout(() => {
+        persistCurrentQuestion(reason);
+        renderTabs();
+        updateDoneCount();
+      }, 450);
+    }
+
+    function classifyFile(file) {
+      const type = (file.type || "").toLowerCase();
+      const name = (file.name || "").toLowerCase();
+      if (type.startsWith("image/") || /\.(png|jpe?g|webp)$/.test(name)) return "image";
+      if (type.startsWith("video/") || /\.(mp4|webm|mov)$/.test(name)) return "video";
+      if (type.startsWith("audio/") || /\.(mp3|wav|m4a)$/.test(name)) return "audio";
+      return "file";
+    }
+
+    function typeChip(file) {
+      const type = (file.type || "").toLowerCase();
+      const name = (file.name || "").toLowerCase();
+      if (type.includes("png") || name.endsWith(".png")) return "PNG";
+      if (type.includes("jpeg") || type.includes("jpg") || /\.(jpe?g)$/.test(name)) return "JPG";
+      if (type.includes("webp") || name.endsWith(".webp")) return "WEBP";
+      if (type.includes("mp4") || name.endsWith(".mp4")) return "MP4";
+      if (type.includes("mpeg") || name.endsWith(".mp3")) return "MP3";
+      if (type.includes("wav") || name.endsWith(".wav")) return "WAV";
+      if (type.includes("pdf") || name.endsWith(".pdf")) return "PDF";
+      if (name.endsWith(".sb3")) return "SB3";
+      if (name.endsWith(".zip")) return "ZIP";
+      return file.kind === "image" ? "IMG" : file.kind === "video" ? "VID" : file.kind === "audio" ? "AUD" : "FILE";
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes) return "0 B";
+      const units = ["B", "KB", "MB", "GB"];
+      let value = bytes;
+      let unit = 0;
+      while (value >= 1024 && unit < units.length - 1) {
+        value /= 1024;
+        unit += 1;
+      }
+      return value.toFixed(value >= 10 || unit === 0 ? 0 : 1) + " " + units[unit];
+    }
+
+    function expectedFileKind(q) {
+      if (q.expectedKind === "audio") return "audio";
+      if (q.expectedKind === "image") return "image";
+      if (q.expectedKind === "video") return "video";
+      return "";
+    }
+
+    function acceptForQuestion(q) {
+      if (q.expectedKind === "image") return "image/png,image/jpeg,image/webp";
+      if (q.expectedKind === "audio") return "audio/mpeg,audio/mp3,audio/wav,audio/mp4,.mp3,.wav,.m4a";
+      if (q.expectedKind === "video") return "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov";
+      return "";
+    }
+
+    function uploadInstruction(q) {
+      if (q.expectedKind === "image") return "請加入圖片檔。成功後會出現明顯提示。";
+      if (q.expectedKind === "audio") return "請加入音樂或音訊檔。成功後可以直接播放確認。";
+      if (q.expectedKind === "video") return "請加入影片檔。成功後可以直接播放確認。";
+      return "";
+    }
+
+    function buildDemoImageDataUrl() {
+      const svg = [
+        '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">',
+        '<rect width="960" height="540" fill="#dff7ff"/>',
+        '<rect y="330" width="960" height="210" fill="#8bdc74"/>',
+        '<circle cx="770" cy="108" r="58" fill="#ffd966"/>',
+        '<path d="M0 354c140-62 290-56 442-14 122 34 266 50 518-8v208H0z" fill="#70c95d"/>',
+        '<ellipse cx="458" cy="402" rx="174" ry="44" fill="#55ad4d" opacity=".36"/>',
+        '<circle cx="646" cy="356" r="58" fill="#f24842" stroke="#111827" stroke-width="10"/>',
+        '<circle cx="623" cy="335" r="18" fill="#ff8a7b"/>',
+        '<ellipse cx="365" cy="333" rx="126" ry="76" fill="#f6c37b" stroke="#111827" stroke-width="9"/>',
+        '<circle cx="252" cy="285" r="72" fill="#f7d097" stroke="#111827" stroke-width="9"/>',
+        '<path d="M209 233c-34-37-76-28-86 12-9 36 21 68 69 57z" fill="#8b5a2b" stroke="#111827" stroke-width="8"/>',
+        '<path d="M304 230c21-46 68-50 88-15 18 32-3 73-54 75z" fill="#8b5a2b" stroke="#111827" stroke-width="8"/>',
+        '<circle cx="227" cy="282" r="9" fill="#111827"/>',
+        '<circle cx="279" cy="282" r="9" fill="#111827"/>',
+        '<ellipse cx="252" cy="314" rx="25" ry="17" fill="#111827"/>',
+        '<path d="M249 331c28 22 60 12 71-8" fill="none" stroke="#111827" stroke-width="8" stroke-linecap="round"/>',
+        '<path d="M257 331c-19 26-49 22-61 0" fill="none" stroke="#111827" stroke-width="8" stroke-linecap="round"/>',
+        '<path d="M270 403l-24 68M436 399l43 66M329 399l-9 72M482 376l86 42" stroke="#111827" stroke-width="16" stroke-linecap="round"/>',
+        '<path d="M512 301c48-53 91-63 125-40" fill="none" stroke="#111827" stroke-width="18" stroke-linecap="round"/>',
+        '<path d="M510 302c48-53 91-63 125-40" fill="none" stroke="#f6c37b" stroke-width="10" stroke-linecap="round"/>',
+        '<path d="M128 440c80 18 158 18 236 0M706 433c76 18 139 12 193-18" fill="none" stroke="#358a3a" stroke-width="10" stroke-linecap="round" opacity=".65"/>',
+        '</svg>'
+      ].join("");
+      return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    }
+
+    function flashUploadSuccess(message) {
+      attachmentPanel.classList.add("upload-success");
+      uploadNote.textContent = message;
+      setTimeout(() => {
+        attachmentPanel.classList.remove("upload-success");
+        const q = questions[activeIndex];
+        if (q && q.expectedKind !== "text") uploadNote.textContent = uploadInstruction(q);
+      }, 2400);
+    }
+
+    function addGeneratedAttachment(q, result) {
+      const current = loadAttachments(q.id);
+      const file = {
+        id: "generated_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8),
+        name: result.name,
+        type: result.type,
+        size: result.size || 0,
+        kind: result.kind,
+        objectUrl: result.objectUrl || "",
+        downloadUrl: result.downloadUrl || result.objectUrl || "",
+        storagePath: "demo://lab-tool-output/" + q.id + "/" + result.name,
+        pendingUpload: true,
+        source: "lab-tool",
+        toolId: q.toolId
+      };
+      attachmentState.set(attachmentStateKey(q.id), current.concat(file));
+      persistAttachments(q.id);
+      renderAttachments();
+      renderTabs();
+      updateDoneCount();
+      updateWordState();
+      emitIntegrationEvent("attachment:add", {
+        questionId: q.id,
+        file
+      });
+      flashUploadSuccess("作品已成功加入，可以按「送 AI 審核」。");
+    }
+
+    function applyDemoResult(q, reason) {
+      if (q.expectedKind === "text") {
+        answerInput.value = q.demoText;
+      } else if (q.expectedKind === "image") {
+        addGeneratedAttachment(q, {
+          name: "s3-w01-dog-playing-ball.png",
+          type: "image/png",
+          kind: "image",
+          size: 420000,
+          objectUrl: buildDemoImageDataUrl()
+        });
+      } else if (q.expectedKind === "audio") {
+        addGeneratedAttachment(q, {
+          name: "s3-w01-cafe-jazz.mp3",
+          type: "audio/mpeg",
+          kind: "audio",
+          size: 1800000
+        });
+      } else if (q.expectedKind === "video") {
+        addGeneratedAttachment(q, {
+          name: "s3-w01-skiing-video.mp4",
+          type: "video/mp4",
+          kind: "video",
+          size: 4200000
+        });
+      }
+      aiBox.textContent = reason || "已使用示範成果。";
+      persistCurrentQuestion("回填生成成果");
+      renderTabs();
+      updateDoneCount();
+      updateWordState();
+      emitIntegrationEvent("demoResult", {
+        questionId: q.id,
+        expectedKind: q.expectedKind,
+        text: answerInput.value,
+        attachments: loadAttachments(q.id)
+      });
+    }
+
+    function attachmentKindExists(q, kind) {
+      return loadAttachments(q.id).some((file) => file.kind === kind);
+    }
+
+    function textMentionsResult(text, words) {
+      const value = text.toLowerCase();
+      return words.some((word) => value.includes(word.toLowerCase()));
+    }
+
+    function countMentions(text, words) {
+      const value = text.toLowerCase();
+      return words.reduce((sum, word) => sum + (value.includes(word.toLowerCase()) ? 1 : 0), 0);
+    }
+
+    function textHasThreePoints(text) {
+      const lines = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+      if (lines.length >= 3) return true;
+      return /1[\.、]/.test(text) && /2[\.、]/.test(text) && /3[\.、]/.test(text);
+    }
+
+    async function reviewCurrentAnswer() {
+      const q = questions[activeIndex];
+      const reviewedIndex = activeIndex;
+      const wasDone = isDone(q.id);
+      if (checkBtn.disabled && !wasDone) return;
+      checkBtn.disabled = true;
+      checkBtn.textContent = "AI 審核中...";
+      aiBox.textContent = "AI 正在審核這一題，請稍等。";
+      await new Promise((resolve) => setTimeout(resolve, 420));
+      persistCurrentQuestion("送出審核前的答案");
+      const text = answerInput.value.trim();
+      const missing = [];
+
+      if (q.expectedKind === "text") {
+        if (!textHasThreePoints(text)) missing.push("第 1 題需要 3 點文字提醒。");
+        if (!textMentionsResult(text, ["AI", "任務", "提示詞", "檢查", "生成"])) missing.push("提醒內容要跟 AI 工具使用有關。");
+      }
+
+      if (q.expectedKind === "image") {
+        const imageKeywords = countMentions(text, ["小狗", "狗", "球", "玩", "草地", "可愛"]);
+        const ok = attachmentKindExists(q, "image") || (textMentionsResult(text, ["圖片", "image"]) && imageKeywords >= 2);
+        if (!ok) missing.push("第 2 題需要圖片附件，或明確描述小狗玩球圖片。");
+      }
+
+      if (q.expectedKind === "audio") {
+        const audioKeywords = countMentions(text, ["咖啡廳", "爵士", "放鬆", "溫暖", "30 秒", "無人聲", "音樂", "音訊", "mp3", "wav"]);
+        const ok = attachmentKindExists(q, "audio") || audioKeywords >= 2;
+        if (!ok) missing.push("第 3 題需要音訊附件，或明確描述咖啡廳爵士樂。");
+      }
+
+      if (q.expectedKind === "video") {
+        const videoKeywords = countMentions(text, ["滑雪", "雪地", "滑雪者", "往下滑", "5 秒", "影片", "mp4", "山坡"]);
+        const ok = attachmentKindExists(q, "video") || videoKeywords >= 2;
+        if (!ok) missing.push("第 4 題需要影片附件，或明確描述滑雪短影片。");
+      }
+
+      if (!text && loadAttachments(q.id).length === 0) {
+        missing.push("答案與附件不能同時空白。");
+      }
+
+      const passed = missing.length === 0;
+      const review = {
+        passed,
+        score: passed ? 3 : Math.max(0, 3 - missing.length),
+        feedback: passed ? q.check + " AI 審核示範：通過。" : q.check + " AI 審核示範：需要修改。",
+        missing,
+        suggestions: passed ? ["可以送出給老師查看。"] : ["先補齊缺少的產出類型，再重新審核。"],
+        reviewedAt: new Date().toISOString()
+      };
+      saveReview(q.id, review);
+      aiBox.textContent = passed
+        ? review.feedback + " " + review.suggestions[0]
+        : review.feedback + " 缺少：" + missing.join(" ");
+      saveState.textContent = passed ? q.code + " AI 審核通過，已自動儲存。" : q.code + " AI 審核未通過，已自動儲存目前答案。";
+      renderTabs();
+      updateDoneCount();
+      updateReviewActionState(q);
+      activeTitle.textContent = questionLabel(q);
+      questionCode.textContent = questionLabel(q);
+      emitIntegrationEvent("review", {
+        questionId: q.id,
+        code: q.code,
+        passed,
+        review
+      });
+      if (passed) {
+        if (!wasDone) showQuestionCelebration(34);
+        scheduleNextQuestionAfterPass(reviewedIndex);
+      }
+    }
+
+    function applyApiResult(q, data) {
+      if (data.text) {
+        answerInput.value = data.text;
+        persistCurrentQuestion("回填生成文字");
+        return true;
+      }
+      if (data.imageUrl) {
+        addGeneratedAttachment(q, {
+          name: "lab-image-result.png",
+          type: "image/png",
+          kind: "image",
+          size: data.imageUrl.length,
+          objectUrl: data.imageUrl,
+          downloadUrl: data.downloadUrl || data.imageUrl
+        });
+        persistCurrentQuestion("回填生成圖片");
+        return true;
+      }
+      if (data.audioUrl) {
+        addGeneratedAttachment(q, {
+          name: "lab-music-result.mp3",
+          type: "audio/mpeg",
+          kind: "audio",
+          size: data.audioUrl.length,
+          objectUrl: data.audioUrl,
+          downloadUrl: data.downloadUrl || data.audioUrl
+        });
+        persistCurrentQuestion("回填生成音樂");
+        return true;
+      }
+      if (data.videoUrl) {
+        addGeneratedAttachment(q, {
+          name: "lab-video-result.mp4",
+          type: "video/mp4",
+          kind: "video",
+          size: String(data.videoUrl).length,
+          objectUrl: data.videoUrl,
+          downloadUrl: data.videoUrl
+        });
+        persistCurrentQuestion("回填生成影片");
+        return true;
+      }
+      return false;
+    }
+
+    async function runToolOrDemo() {
+      const q = questions[activeIndex];
+      const tool = toolModes.find((item) => item.id === q.toolId);
+      if (!tool) return;
+
+      aiBox.textContent = "正在使用 " + tool.label + "。如果生成暫時不能用，會先放入示範成果。";
+
+      if (!DEMO_ONLY && window.location.protocol !== "file:") {
+        try {
+          const payload = {
+            task: q.title,
+            prompt: q.toolPrompt,
+            worksheetId: WORKSHEET_ID,
+            duration: q.expectedKind === "video" ? 5 : undefined,
+            durationMs: q.expectedKind === "audio" ? 30000 : undefined
+          };
+          const response = await fetch(tool.endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          const data = await response.json();
+          if (response.ok && applyApiResult(q, data)) {
+            aiBox.textContent = "已從 " + tool.label + " 回填成果。";
+            renderTabs();
+            updateDoneCount();
+            updateWordState();
+            emitIntegrationEvent("apiResult", {
+              questionId: q.id,
+              endpoint: tool.endpoint,
+              data
+            });
+            return;
+          }
+        } catch {
+          // Fall through to demo result.
+        }
+      }
+
+      applyDemoResult(q, "目前使用示範成果完成 MVP 測試。");
+    }
+
+    function isDone(id) {
+      return !!loadReview(id)?.passed;
+    }
+
+    function questionLabel(q) {
+      return q.code + (isDone(q.id) ? " ★" : "");
+    }
+
+    function updateReviewActionState(q) {
+      const done = isDone(q.id);
+      checkBtn.textContent = done ? "任務完成" : "送 AI 審核";
+      checkBtn.disabled = done;
+      checkBtn.classList.toggle("is-complete", done);
+      checkBtn.setAttribute("aria-disabled", done ? "true" : "false");
+    }
+
+    function scheduleNextQuestionAfterPass(fromIndex) {
+      clearTimeout(autoAdvanceTimer);
+      if (fromIndex >= questions.length - 1) return;
+      if (questions.every((q) => isDone(q.id))) return;
+      const nextIndex = fromIndex + 1;
+      const nextQuestion = questions[nextIndex];
+      saveState.textContent = questions[fromIndex].code + " 任務完成，準備前往 " + nextQuestion.code + "。";
+      autoAdvanceTimer = setTimeout(() => {
+        if (activeIndex === fromIndex && isDone(questions[fromIndex].id)) {
+          switchQuestion(nextIndex);
+        }
+      }, 1200);
+    }
+
+    function hasDraft(id) {
+      return savedValue(id).trim().length >= 12 || savedAttachmentMeta(id).length > 0;
+    }
+
+    function exportState() {
+      return {
+        courseId: "S3-W01",
+        version: STORAGE_VERSION,
+        activeIndex,
+        activeQuestionId: questions[activeIndex]?.id || "",
+        questions: questions.map((q) => ({
+          id: q.id,
+          code: q.code,
+          title: q.title,
+          toolId: q.toolId,
+          expectedKind: q.expectedKind,
+          text: savedValue(q.id),
+          attachments: savedAttachmentMeta(q.id),
+          review: loadReview(q.id),
+          done: isDone(q.id),
+          hasDraft: hasDraft(q.id)
+        })),
+        completedCount: questions.filter((q) => isDone(q.id)).length,
+        exportedAt: new Date().toISOString()
+      };
+    }
+
+    function renderAttachments() {
+      const q = questions[activeIndex];
+      const files = loadAttachments(q.id);
+      attachmentCount.textContent = files.length + " 個檔案";
+      attachmentList.innerHTML = "";
+
+      if (files.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "attachment-empty";
+        empty.textContent = uploadInstruction(q);
+        attachmentList.appendChild(empty);
+        return;
+      }
+
+      files.forEach((file) => {
+        const item = document.createElement("div");
+        item.className = "attachment-item";
+
+        const chip = document.createElement("div");
+        chip.className = "type-chip";
+        chip.textContent = typeChip(file);
+
+        const main = document.createElement("div");
+        main.className = "attachment-main";
+
+        const name = document.createElement("div");
+        name.className = "attachment-name";
+        name.textContent = file.name;
+
+        const meta = document.createElement("div");
+        meta.className = "attachment-meta";
+        meta.textContent = formatBytes(file.size) + " · " + (file.source === "lab-tool" ? "Lab 工具回填" : "學生上傳");
+
+        main.appendChild(name);
+        main.appendChild(meta);
+
+        if (file.objectUrl && file.kind === "image") {
+          const img = document.createElement("img");
+          img.className = "attachment-preview";
+          img.src = file.objectUrl;
+          img.alt = file.name;
+          main.appendChild(img);
+        }
+
+        if (file.objectUrl && file.kind === "video") {
+          const video = document.createElement("video");
+          video.className = "attachment-preview";
+          video.src = file.objectUrl;
+          video.controls = true;
+          main.appendChild(video);
+        }
+
+        if (file.objectUrl && file.kind === "audio") {
+          const audio = document.createElement("audio");
+          audio.className = "attachment-preview audio";
+          audio.src = file.objectUrl;
+          audio.controls = true;
+          main.appendChild(audio);
+        }
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "attachment-remove";
+        remove.textContent = "X";
+        remove.setAttribute("aria-label", "移除 " + file.name);
+        remove.addEventListener("click", () => removeAttachment(file.id));
+
+        item.appendChild(chip);
+        item.appendChild(main);
+        item.appendChild(remove);
+        attachmentList.appendChild(item);
+      });
+    }
+
+    function addFiles(fileList) {
+      const q = questions[activeIndex];
+      if (!q || q.expectedKind === "text") {
+        aiBox.textContent = "這一題只需要填文字，不需要上傳檔案。";
+        return;
+      }
+      const current = loadAttachments(q.id);
+      const expectedKind = expectedFileKind(q);
+      const allIncoming = Array.from(fileList || []).map((file) => {
+        const kind = classifyFile(file);
+        const canPreview = kind === "image" || kind === "video" || kind === "audio";
+        return {
+          id: "file_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8),
+          name: file.name,
+          type: file.type || "application/octet-stream",
+          size: file.size,
+          kind,
+          objectUrl: canPreview ? URL.createObjectURL(file) : "",
+          storagePath: "demo://pending-upload/" + q.id + "/" + file.name,
+          downloadUrl: "",
+          source: "upload",
+          toolId: "",
+          pendingUpload: true
+        };
+      });
+      const incoming = allIncoming.filter((file) => file.kind === expectedKind);
+
+      if (incoming.length === 0) {
+        aiBox.textContent = "檔案類型不符合這一題，請依照題目加入正確的作品檔案。";
+        return;
+      }
+
+      attachmentState.set(attachmentStateKey(q.id), current.concat(incoming));
+      renderAttachments();
+      renderTabs();
+      updateDoneCount();
+      updateWordState();
+      persistCurrentQuestion("加入 " + incoming.length + " 個檔案");
+      flashUploadSuccess("已成功加入 " + incoming.length + " 個作品檔案，可以按「送 AI 審核」。");
+      aiBox.textContent = "檔案已成功加入：" + incoming.map((file) => file.name).join("、");
+      emitIntegrationEvent("attachment:upload", {
+        questionId: q.id,
+        files: incoming
+      });
+    }
+
+    function removeAttachment(fileId) {
+      const q = questions[activeIndex];
+      const next = loadAttachments(q.id).filter((file) => {
+        if (file.id === fileId && file.objectUrl) URL.revokeObjectURL(file.objectUrl);
+        return file.id !== fileId;
+      });
+      attachmentState.set(attachmentStateKey(q.id), next);
+      renderAttachments();
+      renderTabs();
+      updateDoneCount();
+      updateWordState();
+      persistCurrentQuestion("移除檔案");
+      emitIntegrationEvent("attachment:remove", {
+        questionId: q.id,
+        fileId
+      });
+    }
+
+    function updateDoneCount() {
+      const done = questions.filter((q) => isDone(q.id)).length;
+      doneCount.textContent = done + "/" + questions.length + " 已通過";
+      meterFill.style.width = String((done / questions.length) * 100) + "%";
+      if (done === questions.length) {
+        revokeLabMediaAccess();
+        maybeShowCompletion();
+      } else {
+        grantLabMediaAccess();
+      }
+    }
+
+    function maybeShowCompletion() {
+      if (completionShown || !questions.every((q) => isDone(q.id))) return;
+      completionShown = true;
+      try {
+        sessionStorage.setItem(completionStorageKey(), "yes");
+      } catch {
+        // Session storage can be unavailable in restricted browser modes.
+      }
+      showCompletionCelebration();
+      emitIntegrationEvent("complete", {
+        state: exportState()
+      });
+      queueFirestoreSave("全部完成");
+    }
+
+    function showQuestionCelebration(count) {
+      questionConfetti.innerHTML = "";
+      const colors = ["#65f4d8", "#4dc9ff", "#ff4dd8", "#ffd35c", "#a78bfa", "#38ff8c"];
+      for (let index = 0; index < count; index += 1) {
+        const piece = document.createElement("span");
+        piece.className = "confetti-piece";
+        piece.style.left = Math.random() * 100 + "%";
+        piece.style.setProperty("--piece-color", colors[index % colors.length]);
+        piece.style.setProperty("--fall-time", 1.1 + Math.random() * 0.9 + "s");
+        piece.style.setProperty("--fall-drift", (Math.random() * 160 - 80) + "px");
+        piece.style.setProperty("--fall-rotate", (Math.random() * 540 - 270) + "deg");
+        piece.style.animationDelay = Math.random() * 0.24 + "s";
+        questionConfetti.appendChild(piece);
+      }
+      setTimeout(() => {
+        questionConfetti.innerHTML = "";
+      }, 2400);
+    }
+
+    function showCompletionCelebration() {
+      completionOverlay.hidden = false;
+      cyberConfetti.innerHTML = "";
+      const colors = ["#65f4d8", "#4dc9ff", "#ff4dd8", "#ffd35c", "#a78bfa", "#38ff8c"];
+      for (let index = 0; index < 92; index += 1) {
+        const piece = document.createElement("span");
+        piece.className = "confetti-piece";
+        piece.style.left = Math.random() * 100 + "%";
+        piece.style.setProperty("--piece-color", colors[index % colors.length]);
+        piece.style.setProperty("--fall-time", 1.4 + Math.random() * 1.1 + "s");
+        piece.style.setProperty("--fall-drift", (Math.random() * 220 - 110) + "px");
+        piece.style.setProperty("--fall-rotate", (Math.random() * 720 - 360) + "deg");
+        piece.style.animationDelay = Math.random() * 0.45 + "s";
+        cyberConfetti.appendChild(piece);
+      }
+      setTimeout(() => {
+        cyberConfetti.innerHTML = "";
+      }, 3200);
+    }
+
+    function renderToolModes() {
+      toolSwitcher.innerHTML = "";
+      toolModes.forEach((tool) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "tool-mode-btn" + (activeTool === tool.id ? " active" : "");
+        button.textContent = tool.label;
+        button.setAttribute("aria-label", "切換到 Lab " + tool.label);
+        button.title = "回主頁並切換到 Lab " + tool.label;
+        button.addEventListener("click", () => {
+          const homeMode = tool.id === "terminal" ? "text" : tool.id;
+          if (tool.id !== "terminal" && !questions.every((item) => isDone(item.id))) {
+            grantLabMediaAccess();
+          }
+          emitIntegrationEvent("toolHome", {
+            selectedToolId: tool.id,
+            homeMode
+          });
+          window.location.href = "/?labTool=" + encodeURIComponent(homeMode);
+          return;
+          activeTool = tool.id;
+          renderToolModes();
+          const q = questions[activeIndex];
+          aiBox.textContent = tool.note + (tool.id === q.toolId ? " 這是本題建議工具。" : " 注意：這不是本題建議工具。");
+          emitIntegrationEvent("toolChange", {
+            questionId: q.id,
+            selectedToolId: tool.id,
+            recommendedToolId: q.toolId,
+            matched: tool.id === q.toolId
+          });
+        });
+        toolSwitcher.appendChild(button);
+      });
+    }
+
+    function renderTabs() {
+      tabs.innerHTML = "";
+      questions.forEach((q, index) => {
+        const done = isDone(q.id);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "tab-btn" + (index === activeIndex ? " active" : "") + (done ? " done" : "");
+        button.textContent = String(index + 1);
+        button.setAttribute("aria-label", q.code + (done ? " 已完成" : ""));
+        button.addEventListener("click", () => switchQuestion(index));
+        tabs.appendChild(button);
+      });
+    }
+
+    function updateWordState() {
+      const q = questions[activeIndex];
+      if (q && q.expectedKind !== "text") {
+        const files = loadAttachments(q.id);
+        wordState.textContent = "目前已加入 " + files.length + " 個作品檔案。系統會自動保存。";
+        return;
+      }
+      const text = answerInput.value.trim();
+      wordState.textContent = "目前 " + text.length + " 字。系統會自動保存。";
+    }
+
+    function updateSaveStateForQuestion(q) {
+      const review = loadReview(q.id);
+      if (review?.passed) {
+        saveState.textContent = q.code + " AI 審核通過，已自動儲存。";
+        updateReviewActionState(q);
+        return;
+      }
+      const text = answerInput.value.trim();
+      const files = loadAttachments(q.id);
+      if (text || files.length) {
+        saveState.textContent = q.code + " 已有自動儲存的內容。";
+      } else {
+        saveState.textContent = q.code + " 尚未回填";
+      }
+      updateReviewActionState(q);
+    }
+
+    function switchQuestion(index) {
+      clearTimeout(autoAdvanceTimer);
+      if (hasRenderedQuestion) persistCurrentQuestion("切換任務前保存");
+      activeIndex = Math.max(0, Math.min(index, questions.length - 1));
+      const q = questions[activeIndex];
+      activeTool = q.toolId;
+      activeTitle.textContent = questionLabel(q);
+      questionCode.textContent = questionLabel(q);
+      questionCoins.textContent = q.coins + " 金幣";
+      questionTitle.textContent = q.title;
+      questionPrompt.textContent = q.prompt;
+      gammaHint.textContent = "請看左側 GAMMA 題目。";
+      answerInput.placeholder = q.placeholder;
+      answerInput.value = savedValue(q.id);
+      const needsTextAnswer = q.expectedKind === "text";
+      answerInput.hidden = !needsTextAnswer;
+      answerInput.disabled = !needsTextAnswer;
+      attachmentPanel.hidden = needsTextAnswer;
+      fileInput.accept = acceptForQuestion(q);
+      uploadNote.textContent = needsTextAnswer ? "" : uploadInstruction(q);
+      renderAttachments();
+      const tool = toolModes.find((item) => item.id === q.toolId);
+      aiBox.textContent = "本題建議工具：" + (tool ? "Lab " + tool.label : "Lab Terminal") + "。AI 回饋會顯示在這裡。";
+      renderToolModes();
+      renderTabs();
+      updateDoneCount();
+      updateWordState();
+      updateSaveStateForQuestion(q);
+      emitIntegrationEvent("questionChange", {
+        questionId: q.id,
+        index: activeIndex,
+        toolId: q.toolId
+      });
+      queueFirestoreSave("切換任務");
+      hasRenderedQuestion = true;
+    }
+
+    window.S3W01_MVP = {
+      version: STORAGE_VERSION,
+      questions,
+      toolModes,
+      exportState,
+      switchQuestion,
+      reviewCurrentAnswer,
+      runToolOrDemo
+    };
+
+    answerInput.addEventListener("input", () => {
+      renderTabs();
+      updateDoneCount();
+      updateWordState();
+      scheduleAutoSave("輸入文字");
+    });
+
+    attachBtn.addEventListener("click", () => {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener("change", () => {
+      addFiles(fileInput.files);
+      fileInput.value = "";
+    });
+
+    attachmentPanel.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      attachmentPanel.classList.add("drag-over");
+    });
+
+    attachmentPanel.addEventListener("dragleave", () => {
+      attachmentPanel.classList.remove("drag-over");
+    });
+
+    attachmentPanel.addEventListener("drop", (event) => {
+      event.preventDefault();
+      attachmentPanel.classList.remove("drag-over");
+      addFiles(event.dataTransfer.files);
+    });
+
+    checkBtn.addEventListener("click", () => {
+      reviewCurrentAnswer();
+    });
+
+    completionCloseBtn.addEventListener("click", () => {
+      completionOverlay.hidden = true;
+    });
+
+    async function bootS3W01Mvp() {
+      purgeLegacyLocalProgressOnce();
+      renderToolModes();
+      const draft = await loadFirestoreDraft();
+      switchQuestion(draft?.activeIndex || 0);
+      document.documentElement.dataset.s3w01Mvp = "ready";
+      emitIntegrationEvent("ready", {
+        state: exportState()
+      });
+    }
+
+    bootS3W01Mvp();
+  </script>
+</body>
+</html>

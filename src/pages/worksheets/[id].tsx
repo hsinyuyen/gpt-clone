@@ -183,12 +183,20 @@ export default function WorksheetViewPage() {
       <div className="max-w-3xl mx-auto p-4">
         {/* Header */}
         <div className="mb-6">
-          <button
-            onClick={() => router.push("/worksheets")}
-            className="text-sm text-[var(--terminal-primary-dim)] hover:text-[var(--terminal-primary)] mb-2 block"
-          >
-            ← 返回學習單列表
-          </button>
+          <div className="flex items-center gap-3 mb-2">
+            <button
+              onClick={() => router.push("/")}
+              className="text-sm text-[var(--terminal-highlight)] hover:text-[var(--terminal-primary)]"
+            >
+              HOME
+            </button>
+            <button
+              onClick={() => router.push("/worksheets")}
+              className="text-sm text-[var(--terminal-primary-dim)] hover:text-[var(--terminal-primary)]"
+            >
+              ← 返回學習單列表
+            </button>
+          </div>
           <h1 className="text-xl font-bold">{worksheet.title}</h1>
           <div className="text-sm text-[var(--terminal-primary-dim)] mt-1">
             {worksheet.semester} W{String(worksheet.week).padStart(2, "0")} ·
@@ -275,6 +283,12 @@ export default function WorksheetViewPage() {
                   className="text-xs text-[var(--terminal-primary-dim)] hover:text-[var(--terminal-primary)] shrink-0"
                 >
                   ← 返回
+                </button>
+                <button
+                  onClick={() => router.push("/")}
+                  className="text-xs text-[var(--terminal-highlight)] hover:text-[var(--terminal-primary)] shrink-0"
+                >
+                  HOME
                 </button>
                 <span className="text-xs text-[var(--terminal-primary)] truncate">
                   {worksheet.title}

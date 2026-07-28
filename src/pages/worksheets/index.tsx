@@ -15,6 +15,46 @@ import {
   isLockedByDerived,
 } from "@/types/LessonCompletion";
 
+const S3W01_MVP_URL = "/courses/gamma-mixed-worksheet-demo.html?back=/worksheets";
+
+interface S3W01MvpCardProps {
+  onOpen: () => void;
+}
+
+function S3W01MvpCard({ onOpen }: S3W01MvpCardProps) {
+  return (
+    <button
+      onClick={onOpen}
+      className="w-full text-left border-2 border-[var(--terminal-highlight)] bg-[var(--terminal-primary)]/10 p-4 hover:bg-[var(--terminal-primary)]/20 transition-colors block"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-lg">◆</span>
+            <span className="text-xs text-[var(--terminal-highlight)] font-bold">
+              S3W01 MVP TEST
+            </span>
+            <span className="text-[10px] px-1.5 py-0.5 border border-[var(--terminal-highlight)] text-[var(--terminal-highlight)]">
+              本機測試
+            </span>
+          </div>
+          <h2 className="font-bold truncate">S3 W01｜工具選擇與初次使用</h2>
+          <div className="text-xs text-[var(--terminal-primary-dim)] mt-1">
+            從主頁進入學習單後，再回 Lab Terminal 主頁測試圖片、影片、音樂生成。
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="text-[var(--terminal-highlight)] font-bold text-sm">OPEN</div>
+          <div className="text-xs text-[var(--terminal-primary-dim)]">固定入口</div>
+        </div>
+      </div>
+      <div className="mt-3 h-1.5 bg-[var(--terminal-primary-dim)]/20 overflow-hidden">
+        <div className="h-full bg-[var(--terminal-highlight)]" style={{ width: "15%" }} />
+      </div>
+    </button>
+  );
+}
+
 export default function WorksheetBrowsePage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
@@ -140,10 +180,13 @@ export default function WorksheetBrowsePage() {
 
   if (!classId) {
     return (
-      <div className="min-h-screen bg-[var(--terminal-bg)] flex items-center justify-center text-[var(--terminal-primary-dim)] p-4 text-center">
-        <div>
+      <div className="min-h-screen bg-[var(--terminal-bg)] flex items-center justify-center text-[var(--terminal-primary-dim)] p-4">
+        <div className="w-full max-w-2xl text-center">
           <p className="text-lg mb-2">尚未加入班級</p>
           <p className="text-sm">請聯絡老師將你加入班級</p>
+          <div className="mt-6 text-left">
+            <S3W01MvpCard onOpen={() => { window.location.href = S3W01_MVP_URL; }} />
+          </div>
           <button
             onClick={() => router.push("/")}
             className="mt-4 px-4 py-2 border border-[var(--terminal-primary-dim)] hover:bg-[var(--terminal-primary)]/10"
@@ -174,6 +217,10 @@ export default function WorksheetBrowsePage() {
           >
             學習歷程
           </button>
+        </div>
+
+        <div className="mb-4">
+          <S3W01MvpCard onOpen={() => { window.location.href = S3W01_MVP_URL; }} />
         </div>
 
         {/* Semester tabs */}

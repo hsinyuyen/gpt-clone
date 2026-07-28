@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "worksheetKind": "gamma_answer",
+  "title": "S3 W01｜工具選擇與初次使用",
+  "semester": "S3",
+  "week": 1,
+  "gammaUrl": "",
+  "toolTabs": [
+    {
+      "id": "terminal",
+      "label": "Lab Terminal",
+      "endpoint": "/api/lab-tools/text",
+      "outputKind": "text"
+    },
+    {
+      "id": "image",
+      "label": "Lab Image",
+      "endpoint": "/api/lab-tools/image",
+      "outputKind": "image"
+    },
+    {
+      "id": "music",
+      "label": "Lab Music",
+      "endpoint": "/api/lab-tools/music",
+      "outputKind": "audio"
+    },
+    {
+      "id": "video",
+      "label": "Lab Video",
+      "endpoint": "/api/lab-tools/video",
+      "outputKind": "video"
+    }
+  ],
+  "questions": [
+    {
+      "questionId": "q1",
+      "taskId": "S3-W01-A-Q1",
+      "label": "第 1 題",
+      "coins": 60,
+      "requiredTools": ["terminal"],
+      "prompt": "請把題目中的 AI 工具使用規則整理成 3 點文字提醒，讓同學上課前快速看懂。",
+      "answerType": "text",
+      "expectedOutputKind": "text",
+      "allowedAttachments": ["text/plain"],
+      "review": {
+        "mode": "ai",
+        "rubric": [
+          "有 3 點文字提醒",
+          "內容跟 AI 工具使用有關",
+          "每一點短且清楚"
+        ],
+        "passCriteria": "至少符合 2 項，且不得空白或完全離題"
+      },
+      "skillTags": ["task-reading", "text-tool"],
+      "unlocksQuizTags": ["s3-tool-map"]
+    },
+    {
+      "questionId": "q2",
+      "taskId": "S3-W01-A-Q2",
+      "label": "第 2 題",
+      "coins": 60,
+      "requiredTools": ["image"],
+      "prompt": "請產生一張「本週開始使用 AI 工具」的班級公告封面圖，風格要藍白、科技感、乾淨清楚。",
+      "answerType": "text_with_attachments",
+      "expectedOutputKind": "image",
+      "allowedAttachments": ["image/png", "image/jpeg", "image/webp"],
+      "review": {
+        "mode": "ai",
+        "rubric": [
+          "有圖片結果或圖片附件",
+          "符合藍白科技感",
+          "適合班級公告或學習單開頭"
+        ],
+        "passCriteria": "至少符合 2 項，且產出類型不得錯誤"
+      },
+      "skillTags": ["task-reading", "image-tool"],
+      "unlocksQuizTags": ["s3-tool-map"]
+    },
+    {
+      "questionId": "q3",
+      "taskId": "S3-W01-A-Q3",
+      "label": "第 3 題",
+      "coins": 60,
+      "requiredTools": ["music"],
+      "prompt": "請產生一段約 30 秒的作品展示開場音樂，風格要明亮、有節奏、不恐怖、不要太吵。",
+      "answerType": "text_with_attachments",
+      "expectedOutputKind": "audio",
+      "allowedAttachments": ["audio/mpeg", "audio/mp3", "audio/wav", "audio/mp4"],
+      "review": {
+        "mode": "ai",
+        "rubric": [
+          "有音訊結果或音訊附件",
+          "符合 30 秒開場音樂需求",
+          "風格明亮、有節奏、不恐怖"
+        ],
+        "passCriteria": "至少符合 2 項，且產出類型不得錯誤"
+      },
+      "skillTags": ["task-reading", "music-tool"],
+      "unlocksQuizTags": ["s3-tool-map"]
+    },
+    {
+      "questionId": "q4",
+      "taskId": "S3-W01-A-Q4",
+      "label": "第 4 題",
+      "coins": 70,
+      "requiredTools": ["video"],
+      "prompt": "請產生一段 5 秒動態畫面，讓 AI 工具圖示發光、放大，看起來像簡報正在開始。",
+      "answerType": "text_with_attachments",
+      "expectedOutputKind": "video",
+      "allowedAttachments": ["video/mp4", "video/webm", "video/quicktime"],
+      "review": {
+        "mode": "ai",
+        "rubric": [
+          "有影片結果或影片附件",
+          "符合 5 秒簡報開場需求",
+          "畫面有發光、放大或動態效果"
+        ],
+        "passCriteria": "至少符合 2 項，且產出類型不得錯誤"
+      },
+      "skillTags": ["task-reading", "video-tool"],
+      "unlocksQuizTags": ["s3-tool-map"]
+    }
+  ]
+}

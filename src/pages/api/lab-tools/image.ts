@@ -1,4 +1,77 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import {
+  findCachedLabToolResult,
+  findRandomCachedLabToolResult,
+  isLabToolApiCoolingDown,
+  isRecoverableLabToolApiError,
+  readLabToolCacheLimit,
+  saveLabToolResult,
+  startLabToolApiCooldown,
+} from "@/server/labToolCache";
+
+const IMAGE_CACHE_LIMIT = readLabToolCacheLimit("LAB_IMAGE_CACHE_LIMIT", 10);
+const GOOGLE_GENERATIVE_LANGUAGE_BASE =
+  "https://generativelanguage.googleapis.com/v1beta";
+const NANO_BANANA_PROVIDER = "nano-banana";
+
+const getNanoBananaApiKey = () => process.env.NANO_BANANA_API_KEY;
+
+const getImageExtension = (mimeType: string) => {
+  if (mimeType.includes("jpeg")) return "jpg";
+  if (mimeType.includes("webp")) return "webp";
+  return "png";
+};
+
+const readResponseJson = async (response: Response) => {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+};
+
+async function generateNanoBananaImageBuffer(prompt: string, apiKey: string) {
+  const model =
+    process.env.LAB_NANO_BANANA_IMAGE_MODEL || "gemini-2.5-flash-image";
+  const response = await fetch(
+    `${GOOGLE_GENERATIVE_LANGUAGE_BASE}/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseModalities: ["TEXT", "IMAGE"],
+          imageConfig: {
+            aspectRatio: "1:1",
+          },
+        },
+      }),
+    }
+  );
+
+  const data = await readResponseJson(response);
+  if (!response.ok) {
+    console.error("lab-tools/image Nano Banana error:", data);
+    throw new Error(
+      data.error?.message || `Nano Banana image error (${response.status})`
+    );
+  }
+
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  const imagePart = parts.find(
+    (part: any) => part.inlineData?.data || part.inline_data?.data
+  );
+  const inlineData = imagePart?.inlineData || imagePart?.inline_data;
+  if (!inlineData?.data) {
+    throw new Error("Nano Banana did not return image data");
+  }
+
+  return {
+    buffer: Buffer.from(inlineData.data, "base64"),
+    mimeType: inlineData.mimeType || inlineData.mime_type || "image/png",
+  };
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -8,77 +81,124 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  if (!process.env.OPENAI_API_KEY) {
-    return res.status(500).json({ error: "OPENAI_API_KEY not configured" });
+  const { prompt, task, worksheetId } = req.body as {
+    prompt?: string;
+    task?: string;
+    worksheetId?: string;
+  };
+
+  const safePrompt = prompt?.trim();
+  if (!safePrompt) {
+    return res.status(400).json({ error: "Prompt is required" });
   }
 
-  const { prompt, task } = req.body as { prompt?: string; task?: string };
+  const cached = await findCachedLabToolResult(
+    worksheetId || "S3W01",
+    "image",
+    safePrompt,
+    IMAGE_CACHE_LIMIT
+  );
+  if (cached) {
+    return res.status(200).json({
+      success: true,
+      kind: "image",
+      cached: true,
+      similarityScore: cached.score,
+      imageUrl: cached.assetUrl,
+      downloadUrl: cached.assetUrl,
+      fileName: cached.fileName,
+      cacheCount: cached.cacheCount,
+      cacheLimit: cached.cacheLimit,
+      cacheMatchCount: cached.matchCount,
+    });
+  }
 
-  if (!prompt) {
-    return res.status(400).json({ error: "Prompt is required" });
+  if (isLabToolApiCoolingDown(NANO_BANANA_PROVIDER)) {
+    const fallback = await findRandomCachedLabToolResult(
+      worksheetId || "S3W01",
+      "image",
+      IMAGE_CACHE_LIMIT
+    );
+    if (fallback) {
+      return res.status(200).json({
+        success: true,
+        kind: "image",
+        cached: true,
+        fallback: true,
+        fallbackReason: "api-cooldown",
+        imageUrl: fallback.assetUrl,
+        downloadUrl: fallback.assetUrl,
+        fileName: fallback.fileName,
+        cacheCount: fallback.cacheCount,
+        cacheLimit: fallback.cacheLimit,
+        provider: "local-cache",
+      });
+    }
+  }
+
+  const apiKey = getNanoBananaApiKey();
+  if (!apiKey) {
+    return res.status(500).json({ error: "NANO_BANANA_API_KEY not configured" });
   }
 
   const imagePrompt = `Create a child-friendly game UI illustration for an elementary AI lesson.
 Task: ${task || "Lab Image task"}
-Student prompt: ${prompt}
+Student prompt: ${safePrompt}
 Style: bold modern flat vector sticker, vibrant colors, thick black outline, clean background.
 No text, no letters, no watermark.`;
 
   try {
-    const response = await fetch("https://api.openai.com/v1/images/generations", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: process.env.LAB_IMAGE_MODEL || "dall-e-3",
-        prompt: imagePrompt,
-        n: 1,
-        size: "1024x1024",
-        quality: "standard",
-        style: "vivid",
-      }),
+    const generated = await generateNanoBananaImageBuffer(imagePrompt, apiKey);
+    const mimeType = generated.mimeType.startsWith("image/")
+      ? generated.mimeType
+      : "image/png";
+
+    const saved = await saveLabToolResult({
+      worksheetId,
+      kind: "image",
+      prompt: safePrompt,
+      buffer: generated.buffer,
+      mimeType,
+      extension: getImageExtension(mimeType),
+      limit: IMAGE_CACHE_LIMIT,
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("lab-tools/image OpenAI error:", data);
-      return res.status(response.status).json({
-        error: data.error?.message || "圖片生成失敗",
-      });
-    }
-
-    const b64 = data.data?.[0]?.b64_json;
-    if (b64) {
-      return res.status(200).json({
-        success: true,
-        kind: "image",
-        imageUrl: `data:image/png;base64,${b64}`,
-      });
-    }
-
-    const imageUrl = data.data?.[0]?.url;
-    if (!imageUrl) {
-      return res.status(500).json({ error: "No image returned" });
-    }
-
-    const imageResponse = await fetch(imageUrl);
-    if (!imageResponse.ok) {
-      return res.status(500).json({ error: "Failed to download image" });
-    }
-
-    const imageBuffer = await imageResponse.arrayBuffer();
-    const base64Image = Buffer.from(imageBuffer).toString("base64");
 
     return res.status(200).json({
       success: true,
       kind: "image",
-      imageUrl: `data:image/png;base64,${base64Image}`,
+      cached: false,
+      imageUrl: saved.assetUrl,
+      downloadUrl: saved.assetUrl,
+      fileName: saved.fileName,
+      provider: "nano-banana",
     });
   } catch (error: any) {
     console.error("lab-tools/image error:", error);
-    return res.status(500).json({ error: error.message || "圖片生成失敗" });
+    if (isRecoverableLabToolApiError(error)) {
+      startLabToolApiCooldown(NANO_BANANA_PROVIDER);
+      const fallback = await findRandomCachedLabToolResult(
+        worksheetId || "S3W01",
+        "image",
+        IMAGE_CACHE_LIMIT
+      );
+      if (fallback) {
+        return res.status(200).json({
+          success: true,
+          kind: "image",
+          cached: true,
+          fallback: true,
+          fallbackReason: "api-error",
+          imageUrl: fallback.assetUrl,
+          downloadUrl: fallback.assetUrl,
+          fileName: fallback.fileName,
+          cacheCount: fallback.cacheCount,
+          cacheLimit: fallback.cacheLimit,
+          provider: "local-cache",
+        });
+      }
+    }
+    return res
+      .status(500)
+      .json({ error: error.message || "Nano Banana image generation failed" });
   }
 }

@@ -10,7 +10,7 @@ import {
 interface ConversationContextType {
   conversations: Conversation[];
   currentConversation: Conversation | null;
-  createNewConversation: () => Conversation;
+  createNewConversation: (initialMessages?: ConversationMessage[]) => Conversation;
   selectConversation: (id: string) => void;
   updateConversationMessages: (messages: ConversationMessage[]) => void;
   deleteConversation: (id: string) => void;
@@ -52,15 +52,19 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
     }
   }, [user]);
 
-  const createNewConversation = useCallback((): Conversation => {
+  const createNewConversation = useCallback((initialMessages: ConversationMessage[] = []): Conversation => {
     if (!user) throw new Error("User not logged in");
 
     const now = new Date().toISOString();
+    const firstUserMessage = initialMessages.find((message) => message.role === "user");
     const newConversation: Conversation = {
       id: `conv_${Date.now()}`,
       userId: user.id,
-      title: `對話 ${conversations.length + 1}`,
-      messages: [],
+      title: firstUserMessage
+        ? firstUserMessage.content.slice(0, 30) +
+          (firstUserMessage.content.length > 30 ? "..." : "")
+        : `對話 ${conversations.length + 1}`,
+      messages: initialMessages,
       createdAt: now,
       updatedAt: now,
       isActive: true,

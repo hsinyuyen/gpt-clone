@@ -44,7 +44,7 @@ export default async function handler(
       messages,
     });
 
-    const text = completion.data.choices[0].message?.content?.trim();
+    const text = completion.data.choices[0]?.message?.content?.trim();
 
     if (!text) {
       return res.status(500).json({ error: "No text generated" });
