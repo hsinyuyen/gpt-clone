@@ -883,7 +883,8 @@ function enterPhase2(){ const ph=st.cfg.ph2; if(!ph||st.ph2) return; st.ph2=true
   if(ph.kind==='glare') st.glareUntil=now()+(ph.dimMs||2500)*(S.item==='shade'?0.4:1);
   // 判定圈縮小；選對「硬殼盾」就不縮（備戰選擇的客觀後果）
   if(ph.kind==='shrink') st.radK=(S.item==='shield')?1:(ph.radK||0.78);
-  if(ph.tip) popText(W/2,H*0.36, ph.tip.map?ph.tip.map(c=>c.t||c.c||'').join(''):'', '#ffce7a',1.3);
+  // popText 吃純文字，所以把注音陣列攤成漢字（P() 的元素是 {c:漢字, z:注音}）
+  if(ph.tip) popText(W/2,H*0.36, ph.tip.map(p=>p.c).join(''), '#ffce7a',1.3);
   st.ph2Banner=now()+1600; }
 function drawFlash(){ if(!st.flash||now()>=st.flash.until) return; ctx.save(); ctx.globalAlpha=(st.flash.until-now())/360*0.32; ctx.fillStyle=st.flash.col; ctx.fillRect(0,0,W,H); ctx.restore(); }
 
@@ -1116,7 +1117,9 @@ const ST_PREP={ update(evs){
       const hasIcon=it.sprite && drawSprite(it.sprite, o.x, o.y-o.r*0.12, o.r*1.35);
       drawRuby(it.name, o.x, hasIcon?(o.y+o.r*0.62):o.y,
         rubyFit(it.name, o.r*1.9, Math.min(20,o.r*0.34)), hasIcon?'#eaf6ff':'#0b2740'); }
-    if(locked) drawRuby(P('等一下下…','ㄉㄥˇ ㄧˊ ㄒㄧㄚˋ ㄒㄧㄚˋ')+'', cx, H*0.79, Math.min(20,W*0.036), '#ff9b6b');
+    // ⚠️ P() 回傳的是注音陣列，千萬不要 +'' 轉成字串——drawRuby 會把每個字元當物件取屬性，
+    //    整行就會變成一排 undefined（實際試玩踩到過）。
+    if(locked) drawRuby(P('等一下下… '+remain,'ㄉㄥˇ ㄧˊ ㄒㄧㄚˋ ㄒㄧㄚˋ'), cx, H*0.79, Math.min(20,W*0.036), '#ff9b6b');
     drawFx();
     if(st.picked!=null) drawRuby(P('帶著它出發！','ㄉㄞˋ ㄓㄜ˙ ㄊㄚ ㄔㄨ ㄈㄚ'), cx, H*0.86, Math.min(28,W*0.05), '#7cffb0'); } };
 
