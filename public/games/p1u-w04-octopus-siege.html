@@ -456,6 +456,22 @@ function itemProc(msg){                       // 道具生效時的可見回饋
   if(msg) popText(W/2,H*0.40,msg,'#7cffb0',1.2); }
 // 判定窗：快鰭會加寬（拳擊章魚出拳很快，帶對了才跟得上）
 function winNow(){ return st.cfg.win + (st.winBonus||0); }
+/* 道具拍打中了 → 把第二階段的招式效果解掉。這是道具唯一生效的時機。
+   打不中也不會過不了（A 層），只是要一直忍受那個效果到打完。 */
+function useItemNow(){
+  const k=S.item, it=ITEMS[k]; if(!it) return;
+  st.itemDone=true; st.itemFlash=now()+1400;
+  const say=(m)=>popText(W/2,H*0.40,m,'#7cffb0',1.35);
+  if(k==='fin'){    st.winBonus=0.08;                     say('快鰭閃開了！'); }
+  if(k==='shade'){  st.glareUntil=0;                      say('墨鏡擋住強光！'); }
+  if(k==='anchor'){ st.driftK=0;                          say('重錨定住了！'); }
+  if(k==='shield'){ st.radK=1;                            say('硬殼盾擋住毒刺！'); }
+  if(k==='water'){  st.cfg={...st.cfg, gap:st.baseGap};   say('水彈澆熄炸彈！'); }
+  if(k==='lure'){   // 引開一顆頭：把剩下還沒打的擋拍抽掉一半
+    const rest=st.beats.slice(st.bi), keep=[]; let drop=0;
+    for(const m of rest){ if(MOVES[m].dmg===0 && drop<Math.ceil(rest.filter(x=>MOVES[x].dmg===0).length/2)){ drop++; continue; } keep.push(m); }
+    st.beats=st.beats.slice(0,st.bi).concat(keep);        say('誘餌引開一顆頭！'); }
+  Sfx.win(); confetti&&confetti(W/2,H*0.45); }
 /* ---------- 相位切換 ---------- */
 let st={}; // 每個相位的暫存
 function goPhase(p,extra){ S.phase=p; st={}; clearInput(); if(p==='wave') initWave(extra!=null?extra:S.wave); else if(p==='cover') initCover(); else if(p==='tut') initTut(); else if(p==='story') initStory(extra); else if(p==='quiz') initQuiz(extra); else if(p==='swim') initSwim(extra); else if(p==='forge') initForge(extra); else if(p==='prep') initPrep(extra); else if(p==='raid') initRaid(extra); else if(p==='minion') initMinion(extra); else if(p==='deliver') initDeliver(); }
@@ -741,7 +757,11 @@ function uiTop(){
   return hudBottom() + 10 + moveCardH() + Math.min(14,H*0.02);
 }
 function hudBottom(){ const hh=Math.min(22,H*0.028); return hh*2+21; } // 王血條＋「第 N 關」那行字的下緣
-function drawMoveCard(mvKey,topY){ const mv=MOVES[mvKey]; if(!mv) return; const on=!!keyHeld(mv.key);
+function drawMoveCard(mvKey,topY){ const mv0=MOVES[mvKey]; if(!mv0) return;
+  // 道具拍：把招式名字換成「用○○○」，並改用道具的顏色，讓小孩知道這一拍不一樣
+  const itemBeat=!!(st.beat&&st.beat.item&&S.item&&ITEMS[S.item]&&ITEMS[S.item].useLbl);
+  const mv=itemBeat?{...mv0,label:ITEMS[S.item].useLbl,col:ITEMS[S.item].col}:mv0;
+  const on=!!keyHeld(mv.key);
   const ks=Math.min(56,W*0.055,H*0.072), ms=Math.min(32,W*0.032,H*0.042);
   const fs=Math.min(34,W*0.036,H*0.045), pf=Math.min(20,fs*0.62), plus=Math.min(26,fs*0.78);
   const preW=rubyWidth(HOLD_LBL,pf), labW=rubyWidth(mv.label,fs);
@@ -766,12 +786,16 @@ function spawnBeat(){ if(!st.tut && st.bi>=st.beats.length){ roundClear(); retur
      是親手打不動」），之後才排破甲拍。殼破了就回到正常譜面。 */
   if(!st.tut && st.shell && st.shell.state!=='broken'){
     mv = st.shell.taunt>0 ? (st.cfg.moves.filter(m=>MOVES[m].dmg>0)[0]||'atk') : 'smash'; }
+  // 道具拍：第二階段開始後的下一拍，換成「把道具拿出來用」
+  let isItemBeat=false;
+  if(!st.tut && st.itemPending && S.item && ITEMS[S.item] && ITEMS[S.item].useMv){
+    mv=ITEMS[S.item].useMv; isItemBeat=true; st.itemPending=false; }
   const sp=beatSpots(); let i=Math.floor(Math.random()*sp.length); if(i===st.lastSpot) i=(i+1)%sp.length; st.lastSpot=i;
   const pad=targetRad()*2.2;
   // 上緣要讓開 HUD：圈本身、圈左右的鍵帽／滑鼠圖示都不能被指令列蓋住。
   // 1.35 倍是因為 drawBeat 會在圈的上方再畫「現在！」的底板。
   const topSafe=Math.min(H*0.62, uiTop()+targetRad()*1.35);
-  st.beat={ mv, x:clamp(sp[i].x,pad,W-pad), y:clamp(sp[i].y,topSafe,H-pad), t0:now(), dur:st.ringMs/spd(), resolved:false };
+  st.beat={ mv, item:isItemBeat, x:clamp(sp[i].x,pad,W-pad), y:clamp(sp[i].y,topSafe,H-pad), t0:now(), dur:st.ringMs/spd(), resolved:false };
   Sfx.cue(); }
 function beatP(){ const b=st.beat; return b?(now()-b.t0)/b.dur:0; }
 function beatInWin(){ const b=st.beat; if(!b) return false; const p=beatP(); return p>=1-winNow() && p<=1+LATE; }
@@ -814,6 +838,8 @@ function beatHit(perfect){ const b=st.beat, mv=MOVES[b.mv]; b.resolved=true;
   burst(b.x,b.y,mv.col,perfect?28:16); ripple(b.x,b.y,mv.col);
   if(st.tut){ Sfx.win(); popText(b.x,b.y-targetRad()-26,'做到了！','#7cffb0',1.3); st.beat=null; tutPass(); return; }
   st.combo++; st.miss=0;
+  // 道具拍：不扣王血，改成把第二階段的招式效果解掉
+  if(b.item){ useItemNow(); st.beat=null; st.nextAt=now()+st.cfg.gap; return; }
   // 破甲拍：不扣王血，改成把殼裂掉一格（帶鑽頭一次裂兩格）
   if(mv.kind==='burst'){ shellCrack(); st.beat=null; st.bi++;
     st.nextAt=now()+st.cfg.gap; return; }
@@ -830,6 +856,9 @@ function beatMiss(){ const b=st.beat;
   // 破甲拍沒點滿：不扣血、不倒退已裂格數，只是再來一次（A 層：不卡死／不倒退／不羞辱）
   if(b && MOVES[b.mv] && MOVES[b.mv].kind==='burst'){
     st.beat=null; st.nextAt=now()+600; popText(W/2,H*0.30,'再快一點點！','#ffb347',1.15); return; }
+  // 道具拍沒做出來：不扣血，但招式效果會一直跟著你。再排一次，隨時還能補救。
+  if(b && b.item){ st.itemPending=true; st.beat=null; st.nextAt=now()+700;
+    popText(W/2,H*0.30,'道具還沒用出來！','#ffb347',1.2); return; }
   st.combo=0; st.php-=1; shake(14,320); Sfx.bad(); st.flash={col:'#ff5d6c',until:now()+320};
   popText(b.x,b.y-targetRad()-26,'沒跟上！','#ff9b6b',1.2);
   st.miss=(st.miss||0)+1;
@@ -890,22 +919,21 @@ function drawShell(){ const sh=st.shell; if(!sh||!st.boss) return; const B=st.bo
 /* 階段二：血剩一半（或殼破）換花樣。四隻各一種，沿用既有欄位不新增引擎概念。 */
 function enterPhase2(){ const ph=st.cfg.ph2; if(!ph||st.ph2) return; st.ph2=true;
   Sfx.cue(); shake(14,420); st.flash={col:ph.kind==='glare'?'#fff3c4':'#ff2b3b',until:now()+420};
-  /* 第二階段的花樣，以及「帶對道具就能抵銷」的客觀後果。
-     hasItem() ＝ 帶的正好是這一隻的剋星。 */
-  const got=hasItem();
-  if(ph.kind==='rage'){                                  // 暴走：出拍變快；水彈能澆熄
-    if(got&&st.cfg.item==='water'){ itemProc('水彈澆熄了炸彈！'); }
-    else st.cfg={...st.cfg, gap:Math.round(st.cfg.gap*(ph.gapK||0.8))}; }
-  if(ph.kind==='glare'){                                 // 強光：畫面變白；墨鏡大幅縮短
-    st.glareUntil=now()+(ph.dimMs||2500)*(got?0.4:1);
-    if(got) itemProc('墨鏡擋住強光！'); }
-  if(ph.kind==='shrink'){                                // 判定圈縮小；硬殼盾完全不縮
-    st.radK=got?1:(ph.radK||0.78);
-    if(got) itemProc('硬殼盾擋住毒刺！'); }
-  if(ph.kind==='drag'){                                  // 判定圈被吸著跑；重錨定住
-    st.driftK=got?0:(ph.drift||0.055);
-    if(got) itemProc('重錨定住了！'); }
-  if(ph.kind==='twin' && got && st.cfg.item==='fin') itemProc('快鰭跟得上！');
+  /* 第二階段一律先吃到「完整」的招式效果——道具不會自己生效。
+     要等下一拍的「道具拍」真的做出來，才會把效果解除（見 useItemNow）。
+     為什麼這樣改：備戰的泡泡配對必須點對才過得去，玩家永遠帶著正確道具，
+     所以「帶對／帶錯」根本不會發生，差異等於白做。改成「有沒有在對的時機用出來」，
+     才是玩家真的能決定、也真的看得到的事——跟鐵甲章魚的破甲拍是同一個模式。 */
+  const ph2gap=Math.round(st.cfg.gap*(ph.gapK||0.8));
+  if(ph.kind==='rage')   st.cfg={...st.cfg, gap:ph2gap};
+  if(ph.kind==='glare')  st.glareUntil=now()+(ph.dimMs||2500);
+  if(ph.kind==='shrink') st.radK=(ph.radK||0.78);
+  if(ph.kind==='drag')   st.driftK=(ph.drift||0.055);
+  if(ph.kind==='twin')   st.blockHeavy=true;
+  // 排一次道具拍：下一拍換成「把道具拿出來用」
+  const it=S.item&&ITEMS[S.item];
+  if(it&&it.useMv&&hasItem()){ st.itemPending=true; st.itemDone=false;
+    popText(W/2,H*0.46,'快用'+it.name.map(p=>p.c).join('')+'！','#ffce7a',1.35); }
   // popText 吃純文字，所以把注音陣列攤成漢字（P() 的元素是 {c:漢字, z:注音}）
   if(ph.tip) popText(W/2,H*0.36, ph.tip.map(p=>p.c).join(''), '#ffce7a',1.3);
   st.ph2Banner=now()+1600; }
@@ -1090,12 +1118,20 @@ const ST_FORGE={ update(evs){
    主觀選擇（挑一個道具）→ 客觀驗證（把對症的那顆泡泡點進弱點框）。
    選對這隻 boss 明顯好打，選錯只是多花幾拍，不會過不了（護欄：額外拍數 ≤ 三成）。 */
 const ITEMS={
- fin:   { name:P('快鰭','ㄎㄨㄞˋ ㄑㄧˊ'),     hint:P('出拳很快，要跟得上','ㄔㄨ ㄑㄩㄢˊ ㄏㄣˇ ㄎㄨㄞˋ ㄧㄠˋ ㄍㄣ ㄉㄜ˙ ㄕㄤˋ'), col:'#5bc0ff' },
- shade: { name:P('墨鏡','ㄇㄛˋ ㄐㄧㄥˋ'),     hint:P('牠會放很亮的光','ㄊㄚ ㄏㄨㄟˋ ㄈㄤˋ ㄏㄣˇ ㄌㄧㄤˋ ㄉㄜ˙ ㄍㄨㄤ'), col:'#e8a13c' },
- anchor:{ name:P('重錨','ㄓㄨㄥˋ ㄇㄠˊ'),     hint:P('牠會把你吸走','ㄊㄚ ㄏㄨㄟˋ ㄅㄚˇ ㄋㄧˇ ㄒㄧ ㄗㄡˇ'),        col:'#2fb6c0' },
- shield:{ name:P('硬殼盾','ㄧㄥˋ ㄎㄜˊ ㄉㄨㄣˋ'), hint:P('牠的刺很毒','ㄊㄚ ㄉㄜ˙ ㄘˋ ㄏㄣˇ ㄉㄨˊ'),        col:'#7fb03a' },
- lure:  { name:P('小誘餌','ㄒㄧㄠˇ ㄧㄡˋ ㄦˇ'),   hint:P('牠有兩顆頭','ㄊㄚ ㄧㄡˇ ㄌㄧㄤˇ ㄎㄜ ㄊㄡˊ'),      col:'#9a6cd0' },
- water: { name:P('水彈','ㄕㄨㄟˇ ㄉㄢˋ'),         hint:P('牠會亂丟炸彈','ㄊㄚ ㄏㄨㄟˋ ㄌㄨㄢˋ ㄉㄧㄡ ㄓㄚˋ ㄉㄢˋ'), col:'#e2603c' },
+ // useMv＝這個道具「拿出來用」時要做的動作，沿用已經學過的四招，不另外教新鍵位。
+ // useLbl＝那一拍指令列上顯示的字（會蓋掉招式原本的名字）。
+ fin:   { name:P('快鰭','ㄎㄨㄞˋ ㄑㄧˊ'),     hint:P('出拳很快，要跟得上','ㄔㄨ ㄑㄩㄢˊ ㄏㄣˇ ㄎㄨㄞˋ ㄧㄠˋ ㄍㄣ ㄉㄜ˙ ㄕㄤˋ'), col:'#5bc0ff',
+          useMv:'block', useLbl:P('用快鰭閃開','ㄩㄥˋ ㄎㄨㄞˋ ㄑㄧˊ ㄕㄢˇ ㄎㄞ') },
+ shade: { name:P('墨鏡','ㄇㄛˋ ㄐㄧㄥˋ'),     hint:P('牠會放很亮的光','ㄊㄚ ㄏㄨㄟˋ ㄈㄤˋ ㄏㄣˇ ㄌㄧㄤˋ ㄉㄜ˙ ㄍㄨㄤ'), col:'#e8a13c',
+          useMv:'block', useLbl:P('戴上墨鏡','ㄉㄞˋ ㄕㄤˋ ㄇㄛˋ ㄐㄧㄥˋ') },
+ anchor:{ name:P('重錨','ㄓㄨㄥˋ ㄇㄠˊ'),     hint:P('牠會把你吸走','ㄊㄚ ㄏㄨㄟˋ ㄅㄚˇ ㄋㄧˇ ㄒㄧ ㄗㄡˇ'),        col:'#2fb6c0',
+          useMv:'heavy', useLbl:P('放下重錨','ㄈㄤˋ ㄒㄧㄚˋ ㄓㄨㄥˋ ㄇㄠˊ') },
+ shield:{ name:P('硬殼盾','ㄧㄥˋ ㄎㄜˊ ㄉㄨㄣˋ'), hint:P('牠的刺很毒','ㄊㄚ ㄉㄜ˙ ㄘˋ ㄏㄣˇ ㄉㄨˊ'),        col:'#7fb03a',
+          useMv:'block', useLbl:P('舉起硬殼盾','ㄐㄩˇ ㄑㄧˇ ㄧㄥˋ ㄎㄜˊ ㄉㄨㄣˋ') },
+ lure:  { name:P('小誘餌','ㄒㄧㄠˇ ㄧㄡˋ ㄦˇ'),   hint:P('牠有兩顆頭','ㄊㄚ ㄧㄡˇ ㄌㄧㄤˇ ㄎㄜ ㄊㄡˊ'),      col:'#9a6cd0',
+          useMv:'atk',   useLbl:P('丟出小誘餌','ㄉㄧㄡ ㄔㄨ ㄒㄧㄠˇ ㄧㄡˋ ㄦˇ') },
+ water: { name:P('水彈','ㄕㄨㄟˇ ㄉㄢˋ'),         hint:P('牠會亂丟炸彈','ㄊㄚ ㄏㄨㄟˋ ㄌㄨㄢˋ ㄉㄧㄡ ㄓㄚˋ ㄉㄢˋ'), col:'#e2603c',
+          useMv:'magic', useLbl:P('丟出水彈','ㄉㄧㄡ ㄔㄨ ㄕㄨㄟˇ ㄉㄢˋ') },
  drill: { name:P('破甲鑽頭','ㄆㄛˋ ㄐㄧㄚˇ ㄗㄨㄢˋ ㄊㄡˊ'), hint:P('牠有很硬的殼','ㄊㄚ ㄧㄡˇ ㄏㄣˇ ㄧㄥˋ ㄉㄜ˙ ㄎㄜˊ'), col:'#ffb347', sprite:'itemDrill' },
 };
 const ITEM_KEYS=['fin','shade','anchor','shield','lure','water','drill'];
@@ -1154,13 +1190,10 @@ function initWave(n){ n=clamp(n,0,N_BOSS-1); S.wave=n; const cfg=BOSSES[n];
   st.hp=cfg.hp; st.ghost=cfg.hp; st.php=playerHp(); st.combo=0; st.miss=0; st.flash=null; st.lockUntil=0; st.lastSpot=-1;
   /* ── 備戰道具的實際效果（開打時就套用，整場有效）──
      每一隻的 cfg.item 就是牠的剋星。帶對了才有下面這些好處，帶錯只是比較費工，不會過不了。 */
-  st.winBonus=0; st.driftK=0; st.itemFlash=0;
-  let blockRate=0.42;
-  if(S.item===cfg.item){
-    if(cfg.item==='fin')   st.winBonus=0.08;   // 快鰭：判定窗放寬，跟得上連續出拳
-    if(cfg.item==='lure')  blockRate=0.24;     // 小誘餌：引開一顆頭，要擋的拍變少
-  }
-  st.beats=buildBeats(cfg, blockRate); st.bi=0; st.beat=null; st.ringMs=cfg.ringMs; st.nextAt=0;
+  // 道具的好處不在這裡給——要等第二階段的「道具拍」真的打中（見 useItemNow）
+  st.winBonus=0; st.driftK=0; st.itemFlash=0; st.itemPending=false; st.itemDone=false;
+  st.baseGap=cfg.gap;                       // 記住原始出拍間隔，水彈要還原回這個值
+  st.beats=buildBeats(cfg); st.bi=0; st.beat=null; st.ringMs=cfg.ringMs; st.nextAt=0;
   st.ult=null; st.ultDone=(cfg.ultAt||[]).map(()=>0);
   st.ph2=false; st.ph2Banner=0; st.glareUntil=0; st.radK=1;
   st.boss=makeBoss(cfg); initShell(cfg); }
