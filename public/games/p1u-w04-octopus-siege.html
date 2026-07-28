@@ -367,6 +367,27 @@ const SKEY=(function(){ // 存檔鍵綁使用者：共用電腦時下一位學�
        var u=r?JSON.parse(r):null; return base+':'+((u&&u.id)||'anon'); }catch(e){ return base+':anon'; } })();
 function persist(){ S.pct=overallPct(); try{ localStorage.setItem(SKEY, JSON.stringify(S)); }catch(e){} Account.save(S); }
 function loadLocal(){ try{ const r=localStorage.getItem(SKEY); if(r){ const o=JSON.parse(r); if(o&&o.v===VERSION) return o; } }catch(e){} return null; }
+/* 雲端／本機哪一份比較「遠」。
+   ⚠️ 不能只比 waveMax 然後整包覆蓋——W04 的存檔多了材料、強化等級、鑽頭、
+   大探索關旗標，整包覆蓋會把本機剛撿到的東西吃掉。
+   先比打到第幾隻，平手再比強化總等級，再平手比材料。 */
+function progressScore(s){ if(!s) return -1;
+  const lv=(s.wLv?((s.wLv.heavy||0)+(s.wLv.magic||0)+(s.wLv.hp||0)):0);
+  return (s.done?1:0)*1e6 + (s.waveMax||0)*1e3 + lv*10 + Math.min(9,s.mats||0); }
+/* 可增不可減的欄位一律取兩邊較大值，避免任何一邊的進度被抹掉 */
+function mergeProgress(dst,other){ if(!dst||!other) return dst;
+  dst.waveMax=Math.max(dst.waveMax||0, other.waveMax||0);
+  dst.coins  =Math.max(dst.coins||0,   other.coins||0);
+  dst.mats   =Math.max(dst.mats||0,    other.mats||0);
+  dst.done   =!!(dst.done||other.done);
+  dst.drill  =!!(dst.drill||other.drill);
+  dst.raidDone=!!(dst.raidDone||other.raidDone);
+  dst.quizOK =!!(dst.quizOK||other.quizOK);
+  dst.wLv=dst.wLv||{heavy:0,magic:0,hp:0}; const ol=other.wLv||{};
+  ['heavy','magic','hp'].forEach(k=>{ dst.wLv[k]=Math.max(dst.wLv[k]||0, ol[k]||0); });
+  // 材料入帳的冪等旗標要聯集，否則同一段會被重複給材料
+  dst.matsGranted=Object.assign({}, other.matsGranted||{}, dst.matsGranted||{});
+  return dst; }
 
 /* ---------- 關卡設定：節奏拍 QTE（打法以 W02 為基礎）＋ 左手按鍵要同時成立 ----------
    每一拍 ＝ 章魚身上出現一個縮圈 ＋ 一道指令：「按住某個鍵」＋「做某個滑鼠動作」。
@@ -1642,7 +1663,12 @@ function boot(){ bootT=now();
   goPhase('cover'); // 一律從封面進（選難度 → 看劇情 → 關卡），不直接跳回存檔的相位，否則會略過劇情
   requestAnimationFrame(frame); // 立刻啟動主迴圈，不被雲端載入卡住
   // 背景載入雲端進度：較遠者才覆蓋；只吃進度數字，不動玩家當下所在的相位
-  (async()=>{ try{ const cloud=await Account.load(); if(cloud && (cloud.waveMax||0)>(S.waveMax||0)){ const ph=S.phase; S=cloud; S.phase=DISPATCH[ph]?ph:'cover'; } }catch(e){} })(); }
+  (async()=>{ try{ const cloud=await Account.load(); if(!cloud) return;
+    const ph=S.phase;
+    if(progressScore(cloud)>progressScore(S)){ S=cloud; S.phase=DISPATCH[ph]?ph:'cover'; }
+    mergeProgress(S, cloud);           // 不論誰贏，可增不可減的欄位一律取兩邊較大值
+    persist();
+  }catch(e){} })(); }
 boot();
 
 /* 速度拉桿：老師即時調整一般拍與絕招縮圈速度（高=快=難） */
