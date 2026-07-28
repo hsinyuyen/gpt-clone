@@ -75,6 +75,14 @@ export default function CardsPage() {
             >
               ⚔️ 對戰
             </button>
+            {/* 排行榜只跟卡牌對戰有關，從側邊欄移到這裡 */}
+            <button
+              onClick={() => router.push('/leaderboard')}
+              className="px-3 py-1 text-sm border-2 rounded font-bold transition-colors hover:bg-amber-400 hover:text-black"
+              style={{ borderColor: '#fbbf24', color: '#fbbf24' }}
+            >
+              🏆 排行榜
+            </button>
           </div>
         </div>
       </div>

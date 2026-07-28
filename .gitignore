@@ -41,3 +41,4 @@ next-env.d.ts
 # stray Windows reserved-name file + Claude Code worktree artifacts
 nul
 .claude/worktrees/
+.env*

@@ -308,6 +308,7 @@
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="/courses/lesson-lock.js"></script>
 </head>
 <body>
 <div class="topbar">
@@ -323,6 +324,17 @@
     <div class="s" data-k="2"><span class="n">2</span>畫主角</div>
     <div class="s" data-k="3"><span class="n">3</span>AI 定裝</div>
     <div class="s" data-k="4"><span class="n">4</span>角色卡</div>
+  </div>
+
+  <!-- 已完成 → 鎖定在成果展示，不讓學生重做（老師開放重做時才會跳過這關）-->
+  <div class="panel" id="plocked" style="text-align:center">
+    <h1>你已經完成這堂課了！</h1>
+    <p class="hint">這是你上次做好的主角，牠會一直陪你上後面的課。</p>
+    <div id="lockedArt" style="margin:18px auto;max-width:320px"></div>
+    <div id="lockedName" style="font-size:22px;font-weight:900;margin-bottom:6px"></div>
+    <div id="lockedMeta" class="hint" style="margin-bottom:18px"></div>
+    <p class="hint">完成的課不能重做囉。如果真的需要再做一次，請老師幫你開放。</p>
+    <a class="btn" href="/courses/ai-picturebook.html" style="display:inline-block;margin-top:14px">← 回到課程列表</a>
   </div>
 
   <!-- 難度選擇：先選年級 -->
@@ -870,7 +882,7 @@ let STAGES=[], stageIdx=0;
 const STAGE_MIN_SEC=0, PROG_KEY='l1:draw-progress';
 let stageSec=0, stageTimer=null, nextStageStartSec=0;
 function fmtMMSS(s){ s=Math.max(0,Math.ceil(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
-function progUid(){ try{ const u=JSON.parse(localStorage.getItem('@session/currentUser')||'null'); return (u&&u.id)?u.id:'anon'; }catch(e){ return 'anon'; } }
+function progUid(){ try{ const u=JSON.parse((sessionStorage.getItem('@session/currentUser')||localStorage.getItem('@session/currentUser'))||'null'); return (u&&u.id)?u.id:'anon'; }catch(e){ return 'anon'; } }
 function saveProgress(){ if(!$('#p2').classList.contains('on'))return;
   try{ localStorage.setItem(PROG_KEY, JSON.stringify({ v:1, uid:progUid(), grade:state.grade, species:state.species, color:state.color,
     feature:state.feature, accessory:state.accessory, desc:descText(), stageIdx, stageSec, canvas:pad.toDataURL('image/png') })); }catch(e){} }
@@ -1015,7 +1027,7 @@ $('#restart2').onclick=()=>{ clearProgress(); location.reload(); };
 // ── 存到帳號（users/{uid}/picturebook/main；縮成 640² JPEG 直接存文件）──
 const FB={apiKey:"AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78",authDomain:"gpt-clone-68b9f.firebaseapp.com",projectId:"gpt-clone-68b9f",storageBucket:"gpt-clone-68b9f.firebasestorage.app",messagingSenderId:"436942056069",appId:"1:436942056069:web:8762675dfff7b7e92017ec"};
 const Account=(()=>{ let uid=null,uname='',db=null,ready=false;
-  const su=()=>{ try{ const r=localStorage.getItem('@session/currentUser'); return r?JSON.parse(r):null; }catch(e){ return null; } };
+  const su=()=>{ try{ const r=(sessionStorage.getItem('@session/currentUser')||localStorage.getItem('@session/currentUser')); return r?JSON.parse(r):null; }catch(e){ return null; } };
   function init(){ const u=su(); if(u&&u.id){ uid=u.id; uname=u.displayName||u.username||''; }
     if(uid&&window.firebase){ try{ if(!firebase.apps.length)firebase.initializeApp(FB); db=firebase.firestore(); ready=true; }catch(e){} } }
   async function saveCharacter(payload){ if(!ready)throw new Error('not-ready');
@@ -1036,6 +1048,10 @@ $('#saveAcct').onclick=async()=>{ if(!chosen)return; const btn=$('#saveAcct'), m
     await Account.saveCharacter({ imageData:thumb,
       character:{ name:state.name, like:state.like, skill:state.cskill },
       elements:{ grade:state.grade, species:state.species, color:state.color, feature:state.feature, accessory:state.accessory, custom:(state.grade==='high'&&$('#custom'))?$('#custom').value.trim():'' } });
+    // 存檔成功＝這堂課完成 → 記進完成表，下次進來就是成果展示
+    if(window.LessonLock){
+      try{ await LessonLock.markComplete('picturebook:l1',{type:'image',label:state.name||''}); }catch(e){}
+    }
     btn.textContent='已存到我的帳號 ✓'; msg.className='savemsg ok'; msg.textContent=(state.name||'你的主角')+' 已經存進你的帳號了！之後每一堂課都會用牠。';
   }catch(e){ btn.disabled=false; btn.textContent=old; msg.className='savemsg warn'; msg.textContent='存檔沒成功，再按一次，或先「下載主角圖」。'; } };
 $('#regen').onclick=()=>{ if(regenLeft<=0){ $('#err').textContent='再算次數用完囉，就用現在這張當定裝吧。'; $('#err').classList.add('on'); return; }
@@ -1134,6 +1150,29 @@ function showDesignFail(v){ $('#teacher').style.display='flex'; $('#tState').cla
     const rb=document.createElement('div'); rb.className='resumebar'; rb.textContent='歡迎回來！已經幫你接回剛剛畫到的地方，繼續畫吧～';
     const p2=$('#p2'); p2.insertBefore(rb,p2.firstChild); setTimeout(()=>{ if(rb.parentNode)rb.remove(); },6000);
     return; }
+})();
+
+// ── 完成即鎖：已經做過這堂課就直接進成果展示，不讓學生重做 ──
+// 判定以「繪本主文件有沒有存圖」為準，這樣在這功能上線前就完成的舊學生也會被正確鎖住。
+// 老師在後台開放重做（redoAllowed）時才會放行。
+(function(){
+  if(!window.LessonLock) return;
+  Promise.all([LessonLock.load(), LessonLock.picturebook()]).then(function(res){
+    var map=res[0]||{}, pb=res[1];
+    var hasArt=!!(pb&&pb.imageData);
+    if(!LessonLock.isLocked(map,'picturebook:l1',hasArt)) return;
+
+    if(hasArt){
+      $('#lockedArt').innerHTML='<img src="'+pb.imageData+'" alt="你的主角" '+
+        'style="width:100%;border-radius:18px;border:3px solid #3fae6a;background:#fff">';
+    }
+    $('#lockedName').textContent=(pb&&pb.character&&pb.character.name)||'';
+    var when=(map['picturebook:l1']&&map['picturebook:l1'].completedAt)||(pb&&pb.updatedAt)||'';
+    $('#lockedMeta').textContent=when?('完成於 '+String(when).slice(0,10)):'';
+
+    clearProgress();   // 清掉續作暫存，免得下次又被拉回畫圖流程
+    go('plocked');
+  }).catch(function(){ /* 讀不到就照常上課，不要把人擋在外面 */ });
 })();
 </script>
 </body>

@@ -11,6 +11,7 @@ import {
 } from "@/lib/firestore";
 import { User } from "@/types/User";
 
+import NumberField from "@/components/admin/NumberField";
 const ADMIN_USERNAMES = ["admin", "teacher", "老師"];
 const QUICK_AMOUNTS = [1, 3, 5, 10, 20, 50];
 
@@ -197,11 +198,11 @@ export default function ClassroomCoinPage() {
         {/* Custom amount + reason */}
         <div className="flex gap-2">
           <div className="w-24">
-            <input
-              type="number"
+            <NumberField
               value={amount}
-              onChange={(e) => setAmount(Math.max(1, parseInt(e.target.value) || 1))}
+              onChange={setAmount}
               min={1}
+              max={9999}
               className="w-full bg-[var(--terminal-bg)] border border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] px-3 py-2.5 text-base text-center focus:border-[var(--terminal-primary)] outline-none"
             />
           </div>
