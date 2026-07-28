@@ -85,7 +85,8 @@ loadSprite('octoSucker','assets/w4-oct-sucker.png'); loadSprite('octoArmor','ass
 loadSprite('octoSpike','assets/w4-oct-spike.png'); loadSprite('octoTwin','assets/w4-oct-twin.png'); loadSprite('octoBomb','assets/w4-oct-bomb.png');
 loadSprite('octoArmorBroken','assets/w4-oct-armor-broken.png'); // 殼被鑽破後換這張（裂盔＋露弱點）
 loadSprite('itemDrill','assets/w4-item-drill.png');
-loadSprite('minion','assets/w4-minion.png');   // 大探索關的基地守衛             // 破甲鑽頭
+loadSprite('minion','assets/w4-minion.png');
+['boxer','lantern','sucker','spike','twin','bomb','armor'].forEach(k=>loadSprite('ult'+k[0].toUpperCase()+k.slice(1),'assets/w4-ult-'+k+'.png')); // 每隻的絕招圖   // 大探索關的基地守衛             // 破甲鑽頭
 loadSprite('octoKing','assets/w4-oct-king.png');     // 結尾現身的章魚王（引 W05）
 loadSprite('base','assets/w4-base.jpg');             // 軍團基地背景
 // W04 劇情圖：前情提要 3 張、今天說明 2 張、幕間 4 張
@@ -398,37 +399,37 @@ const MOVES={
    ⚠️ 這一整區都是 B 層（可調難度）；A 層的「不卡死/不倒退/不羞辱」寫在別處，不要動。
    ph2＝血剩一半後的第二階段，每隻換一種花樣（見各筆 ph2.kind）。 */
 const BOSSES=[
- { key:'b1', title:P('第一隻·拳擊章魚','ㄉㄧˋ ㄧ ㄓ ㄑㄩㄢˊ ㄐㄧˊ ㄓㄤ ㄩˊ'), name:P('拳擊章魚','ㄑㄩㄢˊ ㄐㄧˊ ㄓㄤ ㄩˊ'), sprite:'octoBoxer', tint:'#d05a7a', sizeK:1.15,
+ { key:'b1', title:P('第一隻·拳擊章魚','ㄉㄧˋ ㄧ ㄓ ㄑㄩㄢˊ ㄐㄧˊ ㄓㄤ ㄩˊ'), name:P('拳擊章魚','ㄑㄩㄢˊ ㄐㄧˊ ㄓㄤ ㄩˊ'), sprite:'octoBoxer', ultArt:'ultBoxer', tint:'#d05a7a', sizeK:1.15,
    hp:14, moves:['atk','block'],                 ringMs:3600, gap:1050, win:0.62,
    ultAt:[0.5], ultSeq:['W','D','click'],
    item:'fin',   ph2:{ kind:'twin',  blockRate:0.70, tip:P('牠改成連打兩拳了！','ㄊㄚ ㄍㄞˇ ㄔㄥˊ ㄌㄧㄢˊ ㄉㄚˇ ㄌㄧㄤˇ ㄑㄩㄢˊ ㄌㄜ˙') } },
 
- { key:'b2', title:P('第二隻·燈籠章魚','ㄉㄧˋ ㄦˋ ㄓ ㄉㄥ ㄌㄨㄥˊ ㄓㄤ ㄩˊ'), name:P('燈籠章魚','ㄉㄥ ㄌㄨㄥˊ ㄓㄤ ㄩˊ'), sprite:'octoLantern', tint:'#e8a13c', sizeK:1.22,
+ { key:'b2', title:P('第二隻·燈籠章魚','ㄉㄧˋ ㄦˋ ㄓ ㄉㄥ ㄌㄨㄥˊ ㄓㄤ ㄩˊ'), name:P('燈籠章魚','ㄉㄥ ㄌㄨㄥˊ ㄓㄤ ㄩˊ'), sprite:'octoLantern', ultArt:'ultLantern', tint:'#e8a13c', sizeK:1.22,
    hp:18, moves:['atk','block','heavy'],         ringMs:3500, gap:1000, win:0.60,
    ultAt:[0.55], ultSeq:['W','D','S','right'],
    item:'shade', ph2:{ kind:'glare', dimMs:2500,  tip:P('好亮！瞇著眼睛也要打。','ㄏㄠˇ ㄌㄧㄤˋ ㄇㄧˇ ㄓㄜ˙ ㄧㄢˇ ㄐㄧㄥ ㄧㄝˇ ㄧㄠˋ ㄉㄚˇ') } },
 
- { key:'b3', title:P('第三隻·吸盤章魚','ㄉㄧˋ ㄙㄢ ㄓ ㄒㄧ ㄆㄢˊ ㄓㄤ ㄩˊ'), name:P('吸盤章魚','ㄒㄧ ㄆㄢˊ ㄓㄤ ㄩˊ'), sprite:'octoSucker', tint:'#2fb6c0', sizeK:1.28,
+ { key:'b3', title:P('第三隻·吸盤章魚','ㄉㄧˋ ㄙㄢ ㄓ ㄒㄧ ㄆㄢˊ ㄓㄤ ㄩˊ'), name:P('吸盤章魚','ㄒㄧ ㄆㄢˊ ㄓㄤ ㄩˊ'), sprite:'octoSucker', ultArt:'ultSucker', tint:'#2fb6c0', sizeK:1.28,
    hp:22, moves:['atk','block','heavy','magic'], ringMs:3400, gap:980,  win:0.58,
    ultAt:[0.6,0.3], ultSeq:['W','D','S','A','scroll'],
    item:'anchor',ph2:{ kind:'drag',  drift:0.055, tip:P('圈圈被吸走了，追上去！','ㄑㄩㄢ ㄑㄩㄢ ㄅㄟˋ ㄒㄧ ㄗㄡˇ ㄌㄜ˙ ㄓㄨㄟ ㄕㄤˋ ㄑㄩˋ') } },
 
- { key:'b4', title:P('第四隻·毒刺章魚','ㄉㄧˋ ㄙˋ ㄓ ㄉㄨˊ ㄘˋ ㄓㄤ ㄩˊ'), name:P('毒刺章魚','ㄉㄨˊ ㄘˋ ㄓㄤ ㄩˊ'), sprite:'octoSpike', tint:'#7fb03a', sizeK:1.30,
+ { key:'b4', title:P('第四隻·毒刺章魚','ㄉㄧˋ ㄙˋ ㄓ ㄉㄨˊ ㄘˋ ㄓㄤ ㄩˊ'), name:P('毒刺章魚','ㄉㄨˊ ㄘˋ ㄓㄤ ㄩˊ'), sprite:'octoSpike', ultArt:'ultSpike', tint:'#7fb03a', sizeK:1.30,
    hp:24, moves:['atk','block','heavy','magic'], ringMs:3350, gap:960,  win:0.57,
    ultAt:[0.6,0.3], ultSeq:['W','D','S','right','click'],
    item:'shield',ph2:{ kind:'shrink', radK:0.78, tip:P('圈圈變小了，瞄準一點！','ㄑㄩㄢ ㄑㄩㄢ ㄅㄧㄢˋ ㄒㄧㄠˇ ㄌㄜ˙ ㄇㄧㄠˊ ㄓㄨㄣˇ ㄧˋ ㄉㄧㄢˇ') } },
 
- { key:'b5', title:P('第五隻·雙頭章魚','ㄉㄧˋ ㄨˇ ㄓ ㄕㄨㄤ ㄊㄡˊ ㄓㄤ ㄩˊ'), name:P('雙頭章魚','ㄕㄨㄤ ㄊㄡˊ ㄓㄤ ㄩˊ'), sprite:'octoTwin', tint:'#9a6cd0', sizeK:1.32,
+ { key:'b5', title:P('第五隻·雙頭章魚','ㄉㄧˋ ㄨˇ ㄓ ㄕㄨㄤ ㄊㄡˊ ㄓㄤ ㄩˊ'), name:P('雙頭章魚','ㄕㄨㄤ ㄊㄡˊ ㄓㄤ ㄩˊ'), sprite:'octoTwin', ultArt:'ultTwin', tint:'#9a6cd0', sizeK:1.32,
    hp:27, moves:['atk','block','heavy','magic'], ringMs:3300, gap:950,  win:0.56,
    ultAt:[0.62,0.32], ultSeq:['W','D','S','A','click'],
    item:'lure',  ph2:{ kind:'twin', blockRate:0.78, tip:P('兩顆頭一起打過來！','ㄌㄧㄤˇ ㄎㄜ ㄊㄡˊ ㄧˋ ㄑㄧˇ ㄉㄚˇ ㄍㄨㄛˋ ㄌㄞˊ') } },
 
- { key:'b6', title:P('第六隻·炸彈章魚','ㄉㄧˋ ㄌㄧㄡˋ ㄓ ㄓㄚˋ ㄉㄢˋ ㄓㄤ ㄩˊ'), name:P('炸彈章魚','ㄓㄚˋ ㄉㄢˋ ㄓㄤ ㄩˊ'), sprite:'octoBomb', tint:'#e2603c', sizeK:1.34,
+ { key:'b6', title:P('第六隻·炸彈章魚','ㄉㄧˋ ㄌㄧㄡˋ ㄓ ㄓㄚˋ ㄉㄢˋ ㄓㄤ ㄩˊ'), name:P('炸彈章魚','ㄓㄚˋ ㄉㄢˋ ㄓㄤ ㄩˊ'), sprite:'octoBomb', ultArt:'ultBomb', tint:'#e2603c', sizeK:1.34,
    hp:29, moves:['atk','block','heavy','magic'], ringMs:3250, gap:930,  win:0.56,
    ultAt:[0.65,0.35], ultSeq:['W','D','S','A','right','scroll'],
    item:'water', ph2:{ kind:'rage', gapK:0.82, tip:P('牠開始亂丟炸彈了！','ㄊㄚ ㄎㄞ ㄕˇ ㄌㄨㄢˋ ㄉㄧㄡ ㄓㄚˋ ㄉㄢˋ ㄌㄜ˙') } },
 
- { key:'b7', title:P('第七隻·鐵甲章魚','ㄉㄧˋ ㄑㄧ ㄓ ㄊㄧㄝˇ ㄐㄧㄚˇ ㄓㄤ ㄩˊ'), name:P('鐵甲章魚','ㄊㄧㄝˇ ㄐㄧㄚˇ ㄓㄤ ㄩˊ'), sprite:'octoArmor', brokenSprite:'octoArmorBroken', tint:'#8e9aa8', sizeK:1.38,
+ { key:'b7', title:P('第七隻·鐵甲章魚','ㄉㄧˋ ㄑㄧ ㄓ ㄊㄧㄝˇ ㄐㄧㄚˇ ㄓㄤ ㄩˊ'), name:P('鐵甲章魚','ㄊㄧㄝˇ ㄐㄧㄚˇ ㄓㄤ ㄩˊ'), sprite:'octoArmor', ultArt:'ultArmor', brokenSprite:'octoArmorBroken', tint:'#8e9aa8', sizeK:1.38,
    hp:32, moves:['atk','block','heavy','magic'], ringMs:3200, gap:920,  win:0.55,
    ultAt:[0.66,0.33], ultSeq:['W','D','S','A','right','click','scroll'],
    item:'drill', shell:{ cells:3 },               // ← 有殼：普通打會叮一聲彈開，要先鑽破
@@ -436,15 +437,25 @@ const BOSSES=[
 ];
 const N_BOSS=BOSSES.length;
 // 拍子序列：打人的拍（扣王血）中間穿插章魚攻擊的拍（要擋），順序每次不一樣
-function buildBeats(cfg){
+function buildBeats(cfg,blockRate){
   const dmgM=cfg.moves.filter(m=>MOVES[m].dmg>0), defM=cfg.moves.filter(m=>MOVES[m].dmg===0);
+  const rate=(blockRate==null)?0.42:blockRate;
   const seq=[]; let left=cfg.hp;
   while(left>0){ const m=pick(dmgM); seq.push(m); left-=MOVES[m].dmg; }
   shuffle(seq);
   const out=[];
-  seq.forEach((m,i)=>{ out.push(m); if(defM.length && i<seq.length-1 && Math.random()<0.42) out.push(pick(defM)); });
+  seq.forEach((m,i)=>{ out.push(m); if(defM.length && i<seq.length-1 && Math.random()<rate) out.push(pick(defM)); });
   if(defM.length && !out.some(m=>MOVES[m].dmg===0)) out.splice(1,0,pick(defM));
   return out; }
+/* 備戰帶對東西了嗎？——每隻 boss 的 cfg.item 就是牠的剋星。
+   規格 §GL 鐵則 6：主觀選擇必須掛客觀後果，所以七個道具「每一個」都要有實際效果，
+   而且要在關卡中真的看得到（HUD 常駐道具格 ＋ 生效當下閃一下）。 */
+function hasItem(){ return !!(st.cfg && S.item && S.item===st.cfg.item); }
+function itemProc(msg){                       // 道具生效時的可見回饋
+  st.itemFlash=now()+900;
+  if(msg) popText(W/2,H*0.40,msg,'#7cffb0',1.2); }
+// 判定窗：快鰭會加寬（拳擊章魚出拳很快，帶對了才跟得上）
+function winNow(){ return st.cfg.win + (st.winBonus||0); }
 /* ---------- 相位切換 ---------- */
 let st={}; // 每個相位的暫存
 function goPhase(p,extra){ S.phase=p; st={}; clearInput(); if(p==='wave') initWave(extra!=null?extra:S.wave); else if(p==='cover') initCover(); else if(p==='tut') initTut(); else if(p==='story') initStory(extra); else if(p==='quiz') initQuiz(extra); else if(p==='swim') initSwim(extra); else if(p==='forge') initForge(extra); else if(p==='prep') initPrep(extra); else if(p==='raid') initRaid(extra); else if(p==='minion') initMinion(extra); else if(p==='deliver') initDeliver(); }
@@ -763,7 +774,7 @@ function spawnBeat(){ if(!st.tut && st.bi>=st.beats.length){ roundClear(); retur
   st.beat={ mv, x:clamp(sp[i].x,pad,W-pad), y:clamp(sp[i].y,topSafe,H-pad), t0:now(), dur:st.ringMs/spd(), resolved:false };
   Sfx.cue(); }
 function beatP(){ const b=st.beat; return b?(now()-b.t0)/b.dur:0; }
-function beatInWin(){ const b=st.beat; if(!b) return false; const p=beatP(); return p>=1-st.cfg.win && p<=1+LATE; }
+function beatInWin(){ const b=st.beat; if(!b) return false; const p=beatP(); return p>=1-winNow() && p<=1+LATE; }
 function mouseActOf(e){
   if(e.t==='dbl') return {a:'dbl',x:e.x,y:e.y};
   if(e.t==='menu'||(e.t==='down'&&e.btn===2)) return {a:'right',x:e.x,y:e.y};
@@ -789,7 +800,7 @@ function judgeBeat(act){ const b=st.beat; if(!b||b.resolved) return; const mv=MO
   if(dist(act.x,act.y,b.x,b.y)>targetRad()*1.75){ beatSay('滑鼠要移到圈圈裡！','#ffce47'); nudge(); return; }
   if(!keyHeld(mv.key)){ beatSay('左手要按住 '+mv.key+' 鍵！','#ff9b6b'); nudge(); return; }
   const p=beatP();
-  if(p<1-st.cfg.win){ beatSay('太早了，等圈圈變小！','#7cd0ff'); nudge(); return; }
+  if(p<1-winNow()){ beatSay('太早了，等圈圈變小！','#7cd0ff'); nudge(); return; }
   // 殼還在的時候，普通攻擊打不進去：叮一聲彈開，王血不動。要讓小孩親眼看到「打不動」。
   if(st.shell && st.shell.state!=='broken' && MOVES[b.mv].dmg>0){
     b.resolved=true; Sfx.block(); ripple(b.x,b.y,'#cdd8e2');
@@ -879,10 +890,22 @@ function drawShell(){ const sh=st.shell; if(!sh||!st.boss) return; const B=st.bo
 /* 階段二：血剩一半（或殼破）換花樣。四隻各一種，沿用既有欄位不新增引擎概念。 */
 function enterPhase2(){ const ph=st.cfg.ph2; if(!ph||st.ph2) return; st.ph2=true;
   Sfx.cue(); shake(14,420); st.flash={col:ph.kind==='glare'?'#fff3c4':'#ff2b3b',until:now()+420};
-  if(ph.kind==='rage') st.cfg={...st.cfg, gap:Math.round(st.cfg.gap*(ph.gapK||0.8))};
-  if(ph.kind==='glare') st.glareUntil=now()+(ph.dimMs||2500)*(S.item==='shade'?0.4:1);
-  // 判定圈縮小；選對「硬殼盾」就不縮（備戰選擇的客觀後果）
-  if(ph.kind==='shrink') st.radK=(S.item==='shield')?1:(ph.radK||0.78);
+  /* 第二階段的花樣，以及「帶對道具就能抵銷」的客觀後果。
+     hasItem() ＝ 帶的正好是這一隻的剋星。 */
+  const got=hasItem();
+  if(ph.kind==='rage'){                                  // 暴走：出拍變快；水彈能澆熄
+    if(got&&st.cfg.item==='water'){ itemProc('水彈澆熄了炸彈！'); }
+    else st.cfg={...st.cfg, gap:Math.round(st.cfg.gap*(ph.gapK||0.8))}; }
+  if(ph.kind==='glare'){                                 // 強光：畫面變白；墨鏡大幅縮短
+    st.glareUntil=now()+(ph.dimMs||2500)*(got?0.4:1);
+    if(got) itemProc('墨鏡擋住強光！'); }
+  if(ph.kind==='shrink'){                                // 判定圈縮小；硬殼盾完全不縮
+    st.radK=got?1:(ph.radK||0.78);
+    if(got) itemProc('硬殼盾擋住毒刺！'); }
+  if(ph.kind==='drag'){                                  // 判定圈被吸著跑；重錨定住
+    st.driftK=got?0:(ph.drift||0.055);
+    if(got) itemProc('重錨定住了！'); }
+  if(ph.kind==='twin' && got && st.cfg.item==='fin') itemProc('快鰭跟得上！');
   // popText 吃純文字，所以把注音陣列攤成漢字（P() 的元素是 {c:漢字, z:注音}）
   if(ph.tip) popText(W/2,H*0.36, ph.tip.map(p=>p.c).join(''), '#ffce7a',1.3);
   st.ph2Banner=now()+1600; }
@@ -1129,7 +1152,15 @@ function initWave(n){ n=clamp(n,0,N_BOSS-1); S.wave=n; const cfg=BOSSES[n];
   // 強化台的等級在這裡套用：多一格血、用力打／魔法更痛。每場開打時算一次，不累積疊加。
   MOVES.heavy.dmg=heavyDmg(); MOVES.magic.dmg=magicDmg();
   st.hp=cfg.hp; st.ghost=cfg.hp; st.php=playerHp(); st.combo=0; st.miss=0; st.flash=null; st.lockUntil=0; st.lastSpot=-1;
-  st.beats=buildBeats(cfg); st.bi=0; st.beat=null; st.ringMs=cfg.ringMs; st.nextAt=0;
+  /* ── 備戰道具的實際效果（開打時就套用，整場有效）──
+     每一隻的 cfg.item 就是牠的剋星。帶對了才有下面這些好處，帶錯只是比較費工，不會過不了。 */
+  st.winBonus=0; st.driftK=0; st.itemFlash=0;
+  let blockRate=0.42;
+  if(S.item===cfg.item){
+    if(cfg.item==='fin')   st.winBonus=0.08;   // 快鰭：判定窗放寬，跟得上連續出拳
+    if(cfg.item==='lure')  blockRate=0.24;     // 小誘餌：引開一顆頭，要擋的拍變少
+  }
+  st.beats=buildBeats(cfg, blockRate); st.bi=0; st.beat=null; st.ringMs=cfg.ringMs; st.nextAt=0;
   st.ult=null; st.ultDone=(cfg.ultAt||[]).map(()=>0);
   st.ph2=false; st.ph2Banner=0; st.glareUntil=0; st.radK=1;
   st.boss=makeBoss(cfg); initShell(cfg); }
@@ -1234,6 +1265,27 @@ function drawWaveHUD(){ const cfg=st.cfg; st.ghost=lerp(st.ghost,st.hp,0.14);
   const n=PLAYER_HP, r=Math.min(17,W*0.017,H*0.022), gap=r*3.2, y=H-Math.min(74,H*0.095);
   ctx.save(); rr(W/2-(n*gap)/2-12, y-r*1.7, n*gap+24, r*3.4, r*1.7); ctx.fillStyle='rgba(4,18,32,.7)'; ctx.fill(); ctx.restore();
   for(let i=0;i<n;i++) gHeart(W/2-(n-1)/2*gap+i*gap, y, r, i<st.php); }
+/* 常駐道具格：讓「我剛剛帶了什麼」在關卡中一直看得見。
+   帶對的那一隻會亮綠邊並標「有效」，生效當下（進第二階段）整個格子閃一下。 */
+function drawItemChip(){
+  if(!S.item || st.minion) return;
+  const it=ITEMS[S.item]; if(!it) return;
+  const got=hasItem(), flash=st.itemFlash&&now()<st.itemFlash;
+  const s=Math.min(46,W*0.05,H*0.062), pad=Math.min(10,W*0.012);
+  const labFs=Math.min(15,W*0.024);
+  const w=s+pad*2+rubyWidth(it.name,labFs)+pad, h=s+pad*1.2;
+  const x=W-w-Math.min(14,W*0.018), y=Math.min(14,H*0.018);
+  ctx.save();
+  if(flash){ ctx.shadowColor='#7cffb0'; ctx.shadowBlur=16+pulse()*14; }
+  rr(x,y,w,h,h*0.32); ctx.fillStyle='rgba(3,14,26,.86)'; ctx.fill();
+  ctx.shadowBlur=0; ctx.strokeStyle=got?'#7cffb0':'rgba(160,190,215,.5)'; ctx.lineWidth=got?3:1.8; ctx.stroke();
+  ctx.restore();
+  const cx=x+pad+s/2, cy=y+h/2;
+  if(!(it.sprite && drawSprite(it.sprite,cx,cy,s*0.96))){
+    ctx.save(); ctx.fillStyle=it.col; ctx.beginPath(); ctx.arc(cx,cy,s*0.34,0,7); ctx.fill(); ctx.restore(); }
+  drawRuby(it.name, x+pad+s+pad+rubyWidth(it.name,labFs)/2, cy, labFs, got?'#7cffb0':'#cfe0ee');
+  if(got) drawRuby(P('有效','ㄧㄡˇ ㄒㄧㄠˋ'), x+w/2, y+h+Math.min(11,H*0.015), Math.min(12,W*0.02), '#7cffb0');
+}
 const ST_WAVE={ update(evs){
     if(st.mode==='intro'){ for(const e of evs){ if(e.t==='down'&&inBtn(e,startWaveBtn())){ startFight(); return; } } return; }
     if(st.dead){ handleGameOver(evs); return; }
@@ -1246,6 +1298,9 @@ const ST_WAVE={ update(evs){
     if(st.busy) return;
     if(st.ult){ updateUlt(evs); return; }
     if(!st.beat){ if(now()>=st.nextAt) spawnBeat(); return; }
+    // 吸盤章魚的第二階段：判定圈被慢慢吸向牠，滑鼠要追。帶重錨的話 driftK=0，圈不動。
+    if(st.driftK>0 && st.boss){ const b=st.beat, B=st.boss;
+      b.x=lerp(b.x,B.x,st.driftK*0.30); b.y=lerp(b.y,B.y,st.driftK*0.30); }
     if(beatP()>1+LATE){ beatMiss(); return; }
     for(const e of evs){ const a=mouseActOf(e); if(a) judgeBeat(a); if(!st.beat) return; } },
   draw(){ const cfg=st.cfg; seaBg(); drawCover('seabed',0.5);
@@ -1256,7 +1311,7 @@ const ST_WAVE={ update(evs){
     if(st.glareUntil && now()<st.glareUntil){ ctx.save();
       ctx.globalAlpha=0.42*Math.min(1,(st.glareUntil-now())/600); ctx.fillStyle='#fff3c4'; ctx.fillRect(0,0,W,H); ctx.restore(); }
     drawMoveCard(st.beat?st.beat.mv:(st.beats[st.bi]||st.beats[st.beats.length-1]), hudBottom()+10);
-    drawWaveHUD();
+    drawWaveHUD(); drawItemChip();
     if(st.ph2Banner && now()<st.ph2Banner) drawRuby(P('牠變厲害了！','ㄊㄚ ㄅㄧㄢˋ ㄌㄧˋ ㄏㄞˋ ㄌㄜ˙'), W/2, H*0.24, Math.min(30,W*0.052), '#ff9b6b');
     if(st.ult) drawUlt();
     if(TOUCH) drawKeypad();
@@ -1404,10 +1459,15 @@ function updateUlt(evs){ const u=st.ult;
 function ultIconSize(){ return Math.min(64, W*0.062, H*0.082); }
 function drawUlt(){ const u=st.ult; if(!u) return;
   ctx.save(); ctx.fillStyle='rgba(3,10,20,.72)'; ctx.fillRect(0,0,W,H); ctx.restore();
-  // 放大的章魚剪影
+  /* 放大招時換成「這一隻正在放絕招」的專屬圖，而不是拿平常的立繪放大。
+     小孩要一眼認得出「牠現在在幹嘛」——連打拳／爆閃光／捲漩渦／噴毒刺／雙頭震波／
+     丟一堆炸彈／鐵頭撞過來，每一隻都不一樣。沒有專屬圖才退回原本的立繪剪影。 */
   const B=st.boss, p=pulse();
-  ctx.save(); ctx.globalAlpha=0.5+p*0.2;
-  if(!drawSprite(B.sprite,W/2,H*0.40,Math.min(W*0.95,H*0.86))) vOcto(W/2,H*0.40,H*0.3,B.tint||'#a45bd6',0,B.captain);
+  ctx.save(); ctx.globalAlpha=0.62+p*0.22;
+  const ultKey=st.cfg&&st.cfg.ultArt;
+  if(!(ultKey && drawSprite(ultKey,W/2,H*0.40,Math.min(W*0.98,H*0.88)))){
+    ctx.globalAlpha=0.5+p*0.2;
+    if(!drawSprite(B.sprite,W/2,H*0.40,Math.min(W*0.95,H*0.86))) vOcto(W/2,H*0.40,H*0.3,B.tint||'#a45bd6',0,B.captain); }
   ctx.restore();
   const warn=ultWarning(), cfg=st.cfg;
   if(warn){

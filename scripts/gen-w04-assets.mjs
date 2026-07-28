@@ -51,6 +51,16 @@ const JOBS = [
   { f: "w4-oct-armor.png",   ar: "1:1", p: CHAR("a steel grey octopus wearing a thick riveted iron armour helmet shell covering its head, heavy metal plating, tough and sturdy, small eyes peeking out from under the helmet") },
   // 大探索關的基地守衛小兵：要明顯比中 boss 小一號、樸素、看起來就是雜兵
   { f: "w4-minion.png",      ar: "1:1", p: CHAR("a SMALL plain slate-blue octopus foot-soldier guard, much smaller and simpler than a boss, wearing a little round bronze helmet and holding a short spear, dutiful but not very fierce, simple markings") },
+
+  /* 絕招圖：大招預告時全螢幕出現，讓小孩知道「牠要出大絕了」。
+     同一隻章魚的放大招瞬間，動作要誇張、能量要明顯，但仍然不嚇人。 */
+  { f: "w4-ult-boxer.png",   ar: "16:9", p: CHAR("a deep pink octopus boxer unleashing its ultimate: throwing a huge flurry of glowing red punches, motion-blur trails of fists filling the air, boxing gloves blazing with energy, dynamic action pose") },
+  { f: "w4-ult-lantern.png", ar: "16:9", p: CHAR("a golden amber octopus with an anglerfish lantern unleashing its ultimate: the lantern bulb flaring into a blinding starburst of white-gold light, rays shooting outward in all directions") },
+  { f: "w4-ult-sucker.png",  ar: "16:9", p: CHAR("a teal octopus covered in suction cups unleashing its ultimate: creating a huge swirling whirlpool vortex of water around itself, spiral current lines pulling everything inward") },
+  { f: "w4-ult-spike.png",   ar: "16:9", p: CHAR("an olive-green spiky octopus unleashing its ultimate: firing a burst of glowing purple venom spikes outward like a spray of darts, purple droplets trailing") },
+  { f: "w4-ult-twin.png",    ar: "16:9", p: CHAR("a violet two-headed octopus unleashing its ultimate: both heads roaring at once and releasing a double shockwave ring of purple energy, symmetrical blast") },
+  { f: "w4-ult-bomb.png",    ar: "16:9", p: CHAR("a burnt-orange octopus unleashing its ultimate: hurling a whole shower of round cartoon bombs with sparkling lit fuses in every direction, comic chaos but not scary") },
+  { f: "w4-ult-armor.png",   ar: "16:9", p: CHAR("a steel grey armoured octopus unleashing its ultimate: charging forward head-first like a battering ram, its iron helmet glowing hot orange, speed lines and shockwave behind it") },
   { f: "w4-oct-king.png",    ar: "3:4", p: CHAR("an ENORMOUS royal purple octopus KING wearing a tall golden crown with jewels, majestic and imposing, thick powerful tentacles spreading wide, glowing amber eyes, regal presence") },
   // 鐵甲章魚被破甲後換這張：殼碎了、露出弱點、氣勢下降但還在戰鬥
   { f: "w4-oct-armor-broken.png", ar: "1:1", p: CHAR("the SAME steel grey octopus as an armoured warrior, but its iron helmet armour is now SHATTERED and broken apart — cracked plates falling off, jagged broken edges, bent rivets, the bare soft head exposed underneath with a glowing red weak spot, dazed and wobbly expression, small scratches, still floating but clearly weakened. Keep exactly the same steel grey body colour and the same character design as before, only the armour is destroyed") },
