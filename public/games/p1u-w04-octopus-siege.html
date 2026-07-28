@@ -75,7 +75,7 @@ function loadSprite(key,src){ ASSET_TOTAL++; const im=new Image(); const o={im,r
 function assetsSettled(){ return ASSET_TOTAL===0 || ASSET_DONE>=ASSET_TOTAL; }
 // 沿用 W02 已生成的美術（風格一致、本來就是圖生）：小兵/潛水員/背景/POV打擊圖
 loadSprite('octo','assets/w2-oct1.png'); loadSprite('octo2','assets/w2-oct2.png'); loadSprite('diver','assets/w2-diver.png'); loadSprite('seabed','assets/w2-seabed.png');
-['Sword','Hammer','Shield','Wand'].forEach(k=>loadSprite('pov'+k,'assets/pov-'+k.toLowerCase()+'.png'));
+['Sword','Hammer','Shield','Wand','Drill'].forEach(k=>loadSprite('pov'+k,'assets/pov-'+k.toLowerCase()+'.png'));
 // W03 沿用：封面、衝擊波（其餘 W03 專用圖不載入，避免載了不畫）
 ['cover','shock'].forEach(k=>loadSprite(k,'assets/w3-'+k+'.png'));
 // W04 四隻中 boss。這些圖還沒生成 → drawSprite 會回 false，自動退回向量章魚，不會白畫面。
@@ -266,7 +266,7 @@ function cmdChip(x,y,v){ const m=VERB[v]; const iconW=(m.cmd==='wasd')?40:38; co
   ctx.save(); ctx.fillStyle=m.col; ctx.font='900 14px "Noto Sans TC",sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(m.sub, x0+16+iconW+10+labW+8, y+1); ctx.restore(); ctx.textBaseline='alphabetic'; }
 /* POV 玩家視角打擊動畫（沿用 W02：劍/鎚/盾/杖；圖未載退回向量） */
 let pov=null;
-function playPov(v,o){ pov={v,t0:now(),dur:v==='heavy'?500:v==='magic'?560:400,tx:o?o.x:W/2,ty:o?o.y:H*0.33,dir:(o&&o.sx!==undefined&&o.sx<W/2)?-1:1}; }
+function playPov(v,o){ pov={v,t0:now(),dur:v==='heavy'?500:v==='magic'?560:v==='drill'?680:400,tx:o?o.x:W/2,ty:o?o.y:H*0.33,dir:(o&&o.sx!==undefined&&o.sx<W/2)?-1:1}; }
 function drawPov(){ if(!pov) return; const t=clamp((now()-pov.t0)/pov.dur,0,1); if(t>=1){ pov=null; return; } const v=pov.v; const D=Math.min(W,H);
   if(v==='atk'){ const tt=Math.min(1,t*1.5); const px=lerp(W*0.78,W*0.42,tt), py=lerp(H*0.92,H*0.45,tt); const ang=lerp(0.9,-0.7,tt);
     if(!drawSprite('povSword',px,py,D*0.55,ang,1-Math.max(0,t-0.65)/0.35)){ ctx.save(); ctx.translate(px,py); ctx.rotate(ang); ctx.strokeStyle='#dff2ff'; ctx.lineWidth=12; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-D*0.3); ctx.stroke(); ctx.restore(); }
@@ -281,6 +281,19 @@ function drawPov(){ if(!pov) return; const t=clamp((now()-pov.t0)/pov.dur,0,1); 
     if(!drawSprite('povWand',wx,wy,D*0.45,-0.5)){ ctx.save(); ctx.strokeStyle='#c98a52'; ctx.lineWidth=10; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(wx+30,wy+40); ctx.lineTo(wx-40,wy-60); ctx.stroke(); ctx.restore(); }
     const bx=pov.tx, by=pov.ty; ctx.save(); ctx.globalAlpha=0.8*(1-Math.abs(t-0.4)); ctx.strokeStyle='#2bd17e'; ctx.shadowColor='#2bd17e'; ctx.shadowBlur=18; ctx.lineWidth=10-6*t; ctx.beginPath(); ctx.moveTo(wx-52,wy-74); ctx.lineTo(bx,by); ctx.stroke(); ctx.restore();
     if(t>0.3&&t<0.45) burst(bx,by,'#2bd17e',3); }
+  /* 破甲：鑽頭從右下往目標刺進去，抖動代表在鑽，並噴出金屬火花。
+     用鑽頭的時候打擊動畫就要是鑽頭，不能沿用鐵鎚。 */
+  else if(v==='drill'){
+    const push=Math.min(1,t*1.7), jitter=(t>0.35&&t<0.85)?Math.sin(now()/18)*D*0.012:0;
+    const px=lerp(W*0.86,pov.tx+D*0.10,push)+jitter, py=lerp(H*0.98,pov.ty+D*0.10,push)+jitter*0.6;
+    const ang=lerp(0.55,0.18,push);
+    if(!drawSprite('povDrill',px,py,D*0.52,ang,1-Math.max(0,t-0.72)/0.28)){
+      ctx.save(); ctx.translate(px,py); ctx.rotate(ang); ctx.fillStyle='#ffb347';
+      ctx.beginPath(); ctx.moveTo(-D*0.16,0); ctx.lineTo(0,-D*0.05); ctx.lineTo(0,D*0.05); ctx.closePath(); ctx.fill(); ctx.restore(); }
+    // 鑽到的地方冒火花
+    if(t>0.35&&t<0.85&&Math.random()<0.6) burst(pov.tx,pov.ty,'#ffd08a',3);
+    if(t>0.35){ ctx.save(); ctx.globalAlpha=0.5*(1-t); ctx.strokeStyle='#ffb347'; ctx.lineWidth=7; ctx.lineCap='round';
+      ctx.beginPath(); ctx.arc(pov.tx,pov.ty,D*0.09+t*D*0.06, -0.9, 0.9); ctx.stroke(); ctx.restore(); } }
   else if(v==='dodge'){ ctx.save(); ctx.globalAlpha=0.35*(1-t); ctx.strokeStyle='#dff2ff'; ctx.lineWidth=3;
     for(let i=0;i<5;i++){ const ly=H*0.3+i*H*0.12; ctx.beginPath(); ctx.moveTo(W/2-pov.dir*t*W*0.5, ly); ctx.lineTo(W/2-pov.dir*(t*W*0.5+90), ly); ctx.stroke(); } ctx.restore(); } }
 
@@ -373,7 +386,7 @@ const MOVES={
            label:P('放魔法','ㄈㄤˋ ㄇㄛˊ ㄈㄚˇ'),   how:P('按住 W ＋ 滾輪往前','ㄢˋ ㄓㄨˋ ㄍㄨㄣˇ ㄌㄨㄣˊ ㄨㄤˇ ㄑㄧㄢˊ') },
   // W04 新增：破甲。這是唯一的「累積型拍」——不是一個事件結算一拍，而是要在窗內點滿 need 下。
   // 左手沿用 heavy 的 S 鍵，小孩不用再學一顆新鍵位。
-  smash: { key:'S', mouse:'click', kind:'burst', need:4, dmg:0, pov:'heavy', col:'#ffb347',
+  smash: { key:'S', mouse:'click', kind:'burst', need:4, dmg:0, pov:'drill', col:'#ffb347',
            label:P('用鑽頭鑽','ㄩㄥˋ ㄗㄨㄢˋ ㄊㄡˊ ㄗㄨㄢ'), how:P('按住 S ＋ 快點左鍵','ㄢˋ ㄓㄨˋ ㄎㄨㄞˋ ㄉㄧㄢˇ ㄗㄨㄛˇ ㄐㄧㄢˋ') },
 };
 /* 四隻中 boss。hp＝要打掉幾格；ringMs＝圈縮多慢；win＝判定窗佔比；gap＝兩拍之間的休息。
@@ -809,11 +822,9 @@ function drawShell(){ const sh=st.shell; if(!sh||!st.boss) return; const B=st.bo
     // 已裂的格：暗紅裂痕
     for(let i=0;i<sh.done;i++){ ctx.beginPath(); ctx.arc(0,0,r, -Math.PI/2+i*seg+0.05, -Math.PI/2+(i+1)*seg-0.05);
       ctx.strokeStyle='rgba(200,70,50,.45)'; ctx.lineWidth=Math.max(4,r*0.10); ctx.setLineDash([6,7]); ctx.stroke(); ctx.setLineDash([]); }
-  } else {
-    // 弱點紅點：殼破之後常駐，告訴小孩「現在打這裡」
-    const p=pulse(); ctx.globalAlpha=0.55+p*0.4; ctx.fillStyle='#ff4d5e';
-    ctx.beginPath(); ctx.arc(0,0,r*0.26*(1+p*0.12),0,7); ctx.fill();
   }
+  // 殼破之後不再另外畫閃爍紅點：破甲立繪（w4-oct-armor-broken）本身就有裂盔與露出的弱點，
+  // 再疊一顆會蓋住臉、看起來像貼紙。
   ctx.restore();
   // 殼的進度條（M3 進度視覺化）
   if(sh.state!=='broken'){ const bw=Math.min(200,W*0.34), bh=Math.max(8,H*0.014), bx=W/2-bw/2, by=H*0.175;

@@ -51,6 +51,13 @@ const JOBS = [
   { f: "w4-oct-armor-broken.png", ar: "1:1", p: CHAR("the SAME steel grey octopus as an armoured warrior, but its iron helmet armour is now SHATTERED and broken apart — cracked plates falling off, jagged broken edges, bent rivets, the bare soft head exposed underneath with a glowing red weak spot, dazed and wobbly expression, small scratches, still floating but clearly weakened. Keep exactly the same steel grey body colour and the same character design as before, only the armour is destroyed") },
   // 破甲鑽頭：大探索關終點撿到的道具
   { f: "w4-item-drill.png",  ar: "1:1", p: CHAR("NOT an octopus — a single chunky cartoon HAND DRILL tool for cracking shells: a spiral golden-orange drill bit with a sturdy blue metal body and a grip handle, small glowing energy rune on the side, treasure-item presentation floating with a soft warm glow, clean readable silhouette like a game item icon") },
+  /* 第一人稱打擊動畫的鑽頭。這一組（pov-sword/hammer/shield/wand）是另一種畫風：
+     粗深藍描邊、平塗上色、對角線構圖、深色朦朧背景配小魚珊瑚氣泡，不是厚塗也不去背。 */
+  { f: "pov-drill.png", ar: "1:1", raw: true, p:
+`A chunky cartoon HAND DRILL held toward the viewer, first-person point of view, as if the viewer is thrusting it forward: golden-orange spiral drill bit pointing up-left, sturdy blue metal body, grip handle at the bottom right.
+Art style: bold thick dark navy outlines around every shape, flat cel-shaded colouring with simple highlight bands, chunky friendly proportions, diagonal dynamic composition filling the frame.
+Background: dark moody teal-to-brown blurred underwater bokeh, with a few small decorative glowing bubbles, a small turquoise fish and an orange coral sprig softly blurred behind the drill.
+No text, no letters, no numbers.` },
   // ── 場景 ──
   { f: "w4-base.jpg",  ar: "16:9", p: SCENE("An octopus army's underwater fortress base built into a dark rocky trench: purple bioluminescent lamps, drifting ink clouds, coral watchtowers and barricades") },
   { f: "w4-rc1.jpg",   ar: "16:9", p: SCENE("A brave little child diver in a yellow diving suit driving away a small purple scout octopus, triumphant pose, swirling bubbles, shafts of light from above") },
