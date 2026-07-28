@@ -52,7 +52,8 @@ async function keyOutBackdrop(srcPath) {
 /** 去背後角色四周會留一大圈空白 → 裁掉，讓遊戲裡的縮放不會白白浪費畫布 */
 const trimTransparent = (s) => s.trim({ threshold: 1 });
 
-const files = readdirSync(DIR).filter((f) => /^w4-.*\.(png|jpg)$/i.test(f));
+// pov-drill.png 也要進來去背：W03 那組 POV 圖實測 alpha 透明率 46%–74%，都是去背的
+const files = readdirSync(DIR).filter((f) => /^w4-.*\.(png|jpg)$/i.test(f) || f === "pov-drill.png");
 let before = 0, after = 0;
 
 for (const f of files) {
