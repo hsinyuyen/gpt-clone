@@ -49,6 +49,8 @@ const JOBS = [
   { f: "w4-oct-twin.png",    ar: "1:1", p: CHAR("a violet purple octopus with TWO heads side by side on one body, both heads with their own big eyes and their own expression — one grumpy and one grinning, tentacles spread below") },
   { f: "w4-oct-bomb.png",    ar: "1:1", p: CHAR("a burnt-orange octopus juggling three round black cartoon bombs with lit sparkling fuses in its tentacles, mischievous wide grin, goggles pushed up on its head") },
   { f: "w4-oct-armor.png",   ar: "1:1", p: CHAR("a steel grey octopus wearing a thick riveted iron armour helmet shell covering its head, heavy metal plating, tough and sturdy, small eyes peeking out from under the helmet") },
+  // 大探索關的基地守衛小兵：要明顯比中 boss 小一號、樸素、看起來就是雜兵
+  { f: "w4-minion.png",      ar: "1:1", p: CHAR("a SMALL plain slate-blue octopus foot-soldier guard, much smaller and simpler than a boss, wearing a little round bronze helmet and holding a short spear, dutiful but not very fierce, simple markings") },
   { f: "w4-oct-king.png",    ar: "3:4", p: CHAR("an ENORMOUS royal purple octopus KING wearing a tall golden crown with jewels, majestic and imposing, thick powerful tentacles spreading wide, glowing amber eyes, regal presence") },
   // 鐵甲章魚被破甲後換這張：殼碎了、露出弱點、氣勢下降但還在戰鬥
   { f: "w4-oct-armor-broken.png", ar: "1:1", p: CHAR("the SAME steel grey octopus as an armoured warrior, but its iron helmet armour is now SHATTERED and broken apart — cracked plates falling off, jagged broken edges, bent rivets, the bare soft head exposed underneath with a glowing red weak spot, dazed and wobbly expression, small scratches, still floating but clearly weakened. Keep exactly the same steel grey body colour and the same character design as before, only the armour is destroyed") },

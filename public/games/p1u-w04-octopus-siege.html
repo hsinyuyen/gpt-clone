@@ -84,7 +84,8 @@ loadSprite('octoBoxer','assets/w4-oct-boxer.png');   loadSprite('octoLantern','a
 loadSprite('octoSucker','assets/w4-oct-sucker.png'); loadSprite('octoArmor','assets/w4-oct-armor.png');
 loadSprite('octoSpike','assets/w4-oct-spike.png'); loadSprite('octoTwin','assets/w4-oct-twin.png'); loadSprite('octoBomb','assets/w4-oct-bomb.png');
 loadSprite('octoArmorBroken','assets/w4-oct-armor-broken.png'); // 殼被鑽破後換這張（裂盔＋露弱點）
-loadSprite('itemDrill','assets/w4-item-drill.png');             // 破甲鑽頭
+loadSprite('itemDrill','assets/w4-item-drill.png');
+loadSprite('minion','assets/w4-minion.png');   // 大探索關的基地守衛             // 破甲鑽頭
 loadSprite('octoKing','assets/w4-oct-king.png');     // 結尾現身的章魚王（引 W05）
 loadSprite('base','assets/w4-base.jpg');             // 軍團基地背景
 // W04 劇情圖：前情提要 3 張、今天說明 2 張、幕間 4 張
@@ -446,7 +447,7 @@ function buildBeats(cfg){
   return out; }
 /* ---------- 相位切換 ---------- */
 let st={}; // 每個相位的暫存
-function goPhase(p,extra){ S.phase=p; st={}; clearInput(); if(p==='wave') initWave(extra!=null?extra:S.wave); else if(p==='cover') initCover(); else if(p==='tut') initTut(); else if(p==='story') initStory(extra); else if(p==='quiz') initQuiz(extra); else if(p==='swim') initSwim(extra); else if(p==='forge') initForge(extra); else if(p==='prep') initPrep(extra); else if(p==='raid') initRaid(); else if(p==='deliver') initDeliver(); }
+function goPhase(p,extra){ S.phase=p; st={}; clearInput(); if(p==='wave') initWave(extra!=null?extra:S.wave); else if(p==='cover') initCover(); else if(p==='tut') initTut(); else if(p==='story') initStory(extra); else if(p==='quiz') initQuiz(extra); else if(p==='swim') initSwim(extra); else if(p==='forge') initForge(extra); else if(p==='prep') initPrep(extra); else if(p==='raid') initRaid(extra); else if(p==='minion') initMinion(extra); else if(p==='deliver') initDeliver(); }
 
 /* ================= COVER（Hook：先鋒章魚衝過來了！） ================= */
 function initCover(){ st.t0=now(); st.locked=false; checkLessonLock(); st.subs=[]; for(let i=0;i<6;i++) st.subs.push({x:Math.random()*W, y:-40-Math.random()*H, s:26+Math.random()*20, spd:0.4+Math.random()*0.6, ang:Math.random()}); }
@@ -929,7 +930,12 @@ const ST_TUT={ update(evs){
    沿用 SWIM 的世界／相機／視差骨架，地圖放大，加上墨雲障礙，終點取得「破甲鑽頭」。
    墨雲是非致命的：碰到只是視野變暗一下下，不扣血（A 層），但會拖慢你。
    鑽頭必得、不可失敗——否則第 4 隻會卡死。 */
-function initRaid(){
+function initRaid(a){
+  // 打完三隻守衛回來時帶 {drill:true}：不重新探索，直接播「拿到鑽頭」再進段末小考
+  if(a&&a.drill){ st.gotDrill=true; st.arrived=now()+1400; st.wld={w:W,h:H}; st.d={x:W/2,y:H*0.55,r:1,dir:1};
+    st.goal={x:W/2,y:H*0.45,r:Math.min(W,H)*0.075}; st.gems=[]; st.ink=[]; st.deco=[]; st.cam={x:0,y:0};
+    st.got=0; st.dim=0; st.lastT=0; st.t0=now();
+    Sfx.win(); confetti&&confetti(W/2,H*0.45); popText(W/2,H*0.34,'找到破甲鑽頭了！','#ffb347',1.45); return; }
   st.wld={ w:W*2.8, h:H*2.0 };
   st.d={ x:W*0.12, y:st.wld.h*0.5, r:Math.min(W,H)*0.032, dir:1 };
   st.goal={ x:st.wld.w-W*0.14, y:st.wld.h*0.5, r:Math.min(W,H)*0.075 };
@@ -940,7 +946,7 @@ function initRaid(){
 const ST_RAID={ update(evs){
     const d=st.d, t=now(), dt=Math.min(60, st.lastT?t-st.lastT:16); st.lastT=t;
     if(st.arrived){ if(t>=st.arrived){
-      S.drill=true; S.raidDone=true; grantMat('raid', st.got); persist();
+      S.drill=true; S.raidDone=true; persist();
       goPhase('quiz',{ set:'raidq', i:0, quick:{kind:'drill'}, next:{p:'swim',x:N_BOSS-1} }); } return; }
     let vx=(held.D?1:0)-(held.A?1:0), vy=(held.S?1:0)-(held.W?1:0);
     if(vx||vy){ const m=Math.hypot(vx,vy), slow=st.dim>0?0.55:1, sp=SWIM_SPEED*slow*(Math.min(W,H)/860)*dt/1000;
@@ -951,8 +957,11 @@ const ST_RAID={ update(evs){
     for(const k of st.ink){ if(dist(d.x,d.y,k.x,k.y)<=k.r){ if(st.dim<=0){ Sfx.bad(); popText(W/2,H*0.30,'墨雲！看不清楚～','#a58bd0',1.15); } st.dim=1500; } }
     for(const g of st.gems){ if(!g.got && dist(d.x,d.y,g.x,g.y)<=g.r+d.r){ g.got=true; st.got++; Sfx.ding();
       burst(g.x-st.cam.x,g.y-st.cam.y,'#ffe27a',14); popText(g.x-st.cam.x,g.y-st.cam.y-30,'+1','#ffe27a',1.1); } }
-    if(dist(d.x,d.y,st.goal.x,st.goal.y)<=st.goal.r+d.r){ st.arrived=t+1400; Sfx.win(); confetti&&confetti(W/2,H*0.45);
-      popText(W/2,H*0.34,'找到破甲鑽頭了！','#ffb347',1.45); } },
+    // 走到基地入口 → 守衛擋住，先打三隻小兵才拿得到鑽頭
+    if(dist(d.x,d.y,st.goal.x,st.goal.y)<=st.goal.r+d.r){
+      grantMat('raid', st.got);
+      Sfx.cue(); shake(8,260); popText(W/2,H*0.34,'守衛擋住了！','#ff9b6b',1.4);
+      goPhase('minion',0); } },
   draw(){ const cam=st.cam; seaBg(); if(!drawCover('base',0.55)) drawCover('seabed',0.35);
     ctx.save(); ctx.fillStyle='rgba(10,6,28,.35)'; ctx.fillRect(0,0,W,H); ctx.restore();
     for(const o of st.deco){ const sx=o.x-cam.x*(0.6+o.s*0.3), sy=o.y-cam.y*(0.6+o.s*0.3);
@@ -1106,11 +1115,36 @@ function initWave(n){ n=clamp(n,0,N_BOSS-1); S.wave=n; const cfg=BOSSES[n];
   st.ult=null; st.ultDone=(cfg.ultAt||[]).map(()=>0);
   st.ph2=false; st.ph2Banner=0; st.glareUntil=0; st.radK=1;
   st.boss=makeBoss(cfg); initShell(cfg); }
+/* ---------- 小兵波（大探索關的守衛）----------
+   規格 §四要求中段大探索關要有小兵波。整段沿用戰鬥的節奏拍引擎，只換設定＋改結算：
+   打完不給金幣、不推進 S.wave，而是接下一隻小兵，三隻打完才拿得到破甲鑽頭。
+   小兵很小很快但血很少，是節奏調劑不是關卡門檻。 */
+const N_MINION=3;
+const MINION={ key:'minion', title:P('基地守衛','ㄐㄧ ㄉㄧˋ ㄕㄡˇ ㄨㄟˋ'), name:P('小章魚兵','ㄒㄧㄠˇ ㄓㄤ ㄩˊ ㄅㄧㄥ'),
+  sprite:'minion', tint:'#5c7fa8', sizeK:0.78,
+  hp:3, moves:['atk','block'], ringMs:3300, gap:820, win:0.60 };
+function initMinion(i){
+  st.tut=false; st.minion=true; st.mi=clamp(i||0,0,N_MINION-1);
+  st.cfg={ ...MINION }; st.mode='intro'; st.dead=false; st.busy=false; st.cleared=null;
+  MOVES.heavy.dmg=heavyDmg(); MOVES.magic.dmg=magicDmg();
+  st.hp=MINION.hp; st.ghost=MINION.hp; st.php=playerHp(); st.combo=0; st.miss=0;
+  st.flash=null; st.lockUntil=0; st.lastSpot=-1;
+  st.beats=buildBeats(MINION); st.bi=0; st.beat=null; st.ringMs=MINION.ringMs; st.nextAt=0;
+  st.ult=null; st.ultDone=[]; st.ph2=false; st.ph2Banner=0; st.glareUntil=0; st.radK=1;
+  st.boss=makeBoss(MINION); st.shell=null; }
+function minionClear(){
+  st.busy=true; st.beat=null; st.combo=0;
+  Sfx.win(); burst(st.boss.x,st.boss.y,'#ffe27a',24); shake(10,300);
+  const next=st.mi+1;
+  st.cleared={ until:now()+1200, next };
+  popText(W/2,H*0.32, next>=N_MINION?'守衛都打退了！':'還有 '+(N_MINION-next)+' 隻！', '#7cffb0', 1.3); }
 function startFight(){ st.mode='fight'; st.nextAt=now()+700; popText(W/2,H*0.34,'開打！','#ffe27a',1.3); Sfx.cue(); }
 function battleLost(){ st.busy=true; st.dead=true; st.beat=null; st.combo=0; shake(22,560); Sfx.bad(); Sfx.tone(110,0.7,'sawtooth',0.07); st.flash={col:'#ff2b3b',until:now()+450}; S.deaths=(S.deaths||0)+1; persist(); }
 /* 擊敗動畫：翻白 → 旋轉縮小沉下去 → 打倒了！橫幅＋金幣，停留夠久再接幕間故事 */
 const KO_MS=3000;
-function roundClear(){ st.busy=true; st.beat=null; st.ult=null; st.combo=0;
+function roundClear(){
+  if(st.minion){ minionClear(); return; }   // 小兵不給金幣、不推進進度，走自己的結算
+  st.busy=true; st.beat=null; st.ult=null; st.combo=0;
   shake(14,420); Sfx.win(); burst(st.boss.x,st.boss.y,'#ffe27a',34); ripple(st.boss.x,st.boss.y,'#ffe27a');
   const newly=(S.wave+1)>S.waveMax; if(newly){ S.waveMax=S.wave+1; S.coins=Math.min(TOTAL_COINS,S.coins+COIN_WAVE); Account.creditCoins(COINKEY+'_wave'+(S.wave+1),COIN_WAVE,'P1U-W04 第'+(S.wave+1)+'隻'); }
   persist();
@@ -1185,6 +1219,10 @@ function drawWaveHUD(){ const cfg=st.cfg; st.ghost=lerp(st.ghost,st.hp,0.14);
 const ST_WAVE={ update(evs){
     if(st.mode==='intro'){ for(const e of evs){ if(e.t==='down'&&inBtn(e,startWaveBtn())){ startFight(); return; } } return; }
     if(st.dead){ handleGameOver(evs); return; }
+    // 小兵打完：接下一隻；三隻都打完就回大探索關拿鑽頭
+    if(st.minion && st.cleared){ if(now()>=st.cleared.until){
+        if(st.cleared.next<N_MINION) goPhase('minion', st.cleared.next);
+        else goPhase('raid',{drill:true}); } return; }
     if(st.ko){ if(now()>=st.cleared.until){ const w=S.wave;
         if(w+1>=N_BOSS) goPhase('deliver'); else goPhase('story',{set:'inter',i:w}); } return; }
     if(st.busy) return;
@@ -1471,7 +1509,7 @@ const ST_DELIVER={ update(evs){ st.cam=Math.min(1,st.cam+0.006); const T=dvT();
     drawFx(); } };
 
 /* ================= 主迴圈 ================= */
-const DISPATCH={ cover:ST_COVER, story:ST_STORY, quiz:ST_QUIZ, tut:ST_TUT, swim:ST_SWIM, raid:ST_RAID, forge:ST_FORGE, prep:ST_PREP, wave:ST_WAVE, deliver:ST_DELIVER };
+const DISPATCH={ cover:ST_COVER, story:ST_STORY, quiz:ST_QUIZ, tut:ST_TUT, swim:ST_SWIM, raid:ST_RAID, minion:ST_WAVE, forge:ST_FORGE, prep:ST_PREP, wave:ST_WAVE, deliver:ST_DELIVER };
 let bootT=0;
 // 所有圖都有向量 fallback，不需等素材載入 → 直接開跑，避免載入閘門卡住
 function frame1(){
