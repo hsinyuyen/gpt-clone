@@ -665,7 +665,11 @@ function targetRad(){ return Math.min(mwh()*0.088, 74); }
 function beatRad(p){ return lerp(mwh()*0.22, targetRad(), clamp(p,0,1)); }
 function beatSpots(){ const B=st.boss, r=B.sz*0.30; return [ {x:B.x,y:B.y-r}, {x:B.x-r*1.05,y:B.y+r*0.12}, {x:B.x+r*1.05,y:B.y+r*0.12}, {x:B.x,y:B.y+r} ]; }
 function spawnBeat(){ if(!st.tut && st.bi>=st.beats.length){ roundClear(); return; }
-  const mv=st.tut?(st.ti<TUT.length?TUT[st.ti].mv:st.tutMv):st.beats[st.bi];
+  let mv=st.tut?(st.ti<TUT.length?TUT[st.ti].mv:st.tutMv):st.beats[st.bi];
+  /* 殼還在的時候：先讓玩家用普通攻擊打兩拍、親耳聽到「叮」彈開（這是規格要的「不是文字解釋，
+     是親手打不動」），之後才排破甲拍。殼破了就回到正常譜面。 */
+  if(!st.tut && st.shell && st.shell.state!=='broken'){
+    mv = st.shell.taunt>0 ? (st.cfg.moves.filter(m=>MOVES[m].dmg>0)[0]||'atk') : 'smash'; }
   const sp=beatSpots(); let i=Math.floor(Math.random()*sp.length); if(i===st.lastSpot) i=(i+1)%sp.length; st.lastSpot=i;
   const pad=targetRad()*2.2;
   st.beat={ mv, x:clamp(sp[i].x,pad,W-pad), y:clamp(sp[i].y,H*0.26,H-pad), t0:now(), dur:st.ringMs/spd(), resolved:false };
@@ -682,6 +686,15 @@ function beatSay(txt,col){ const b=st.beat; popText(b?b.x:W/2, (b?b.y:H*0.5)-tar
 function nudge(){ st.lockUntil=now()+360; Sfx.tick(); }
 // 判定：鍵、滑鼠動作、位置、時機——四個都要對。任何一項不對都只給提示，不扣血。
 function judgeBeat(act){ const b=st.beat; if(!b||b.resolved) return; const mv=MOVES[b.mv];
+  /* 破甲＝唯一的「累積型拍」：不是一個事件結算一拍，而是要在這一拍裡快點滿 need 下。
+     只擋住「位置」與「左手」兩道門，點不夠不扣血、也不倒退已裂的格數（A 層：不倒退）。 */
+  if(mv.kind==='burst'){
+    if(now()<st.lockUntil) return;
+    if(dist(act.x,act.y,b.x,b.y)>targetRad()*1.9){ beatSay('滑鼠要放在殼上！','#ffce47'); return; }
+    if(!keyHeld(mv.key)){ beatSay('左手要按住 '+mv.key+' 鍵！','#ff9b6b'); nudge(); return; }
+    b.hits=(b.hits||0)+1; Sfx.tick(); burst(act.x,act.y,'#ffd08a',6);
+    if(b.hits>=(mv.need||4)) beatHit(false);            // 點滿 → 這一拍成立，交給 beatHit 裂殼
+    return; }
   if(mv.mouse==='dbl' && act.a==='click') return;      // 連點兩下的第一下不算做錯
   if(now()<st.lockUntil) return;
   if(act.a!==mv.mouse && !(TOUCH&&act.a==='click')){ beatSay('按錯了，看上面的圖！'); nudge(); return; }
@@ -689,12 +702,22 @@ function judgeBeat(act){ const b=st.beat; if(!b||b.resolved) return; const mv=MO
   if(!keyHeld(mv.key)){ beatSay('左手要按住 '+mv.key+' 鍵！','#ff9b6b'); nudge(); return; }
   const p=beatP();
   if(p<1-st.cfg.win){ beatSay('太早了，等圈圈變小！','#7cd0ff'); nudge(); return; }
+  // 殼還在的時候，普通攻擊打不進去：叮一聲彈開，王血不動。要讓小孩親眼看到「打不動」。
+  if(st.shell && st.shell.state!=='broken' && MOVES[b.mv].dmg>0){
+    b.resolved=true; Sfx.block(); ripple(b.x,b.y,'#cdd8e2');
+    popText(b.x,b.y-targetRad()-26,'叮！打不進去','#cdd8e2',1.2);
+    st.shell.pinged=now(); st.shell.taunt=Math.max(0,st.shell.taunt-1);
+    if(st.shell.taunt===0) beatSay('要「用力打」才鑽得破！','#ffb347');
+    st.beat=null; st.bi++; st.nextAt=now()+st.cfg.gap; return; }
   beatHit(p>=0.90&&p<=1.08); }
 function beatHit(perfect){ const b=st.beat, mv=MOVES[b.mv]; b.resolved=true;
   playPov(mv.pov,{x:b.x,y:b.y,sx:b.x});
   burst(b.x,b.y,mv.col,perfect?28:16); ripple(b.x,b.y,mv.col);
   if(st.tut){ Sfx.win(); popText(b.x,b.y-targetRad()-26,'做到了！','#7cffb0',1.3); st.beat=null; tutPass(); return; }
   st.combo++; st.miss=0;
+  // 破甲拍：不扣王血，改成把殼裂掉一格（帶鑽頭一次裂兩格）
+  if(mv.kind==='burst'){ shellCrack(); st.beat=null; st.bi++;
+    st.nextAt=now()+st.cfg.gap; return; }
   const dmg=mv.dmg+(perfect&&mv.dmg>0?1:0);
   if(dmg>0){ st.hp=Math.max(0,st.hp-dmg); bossHurt(perfect?1.7:1); Sfx.hit(st.combo); }
   else { Sfx.block(); }
@@ -705,6 +728,9 @@ function beatHit(perfect){ const b=st.beat, mv=MOVES[b.mv]; b.resolved=true;
   st.nextAt=now()+st.cfg.gap; }
 function beatMiss(){ const b=st.beat;
   if(st.tut){ st.beat=null; st.nextAt=now()+500; popText(W/2,H*0.30,'沒關係，再來一次','#7cd0ff',1.1); return; } // 教學關不扣血
+  // 破甲拍沒點滿：不扣血、不倒退已裂格數，只是再來一次（A 層：不卡死／不倒退／不羞辱）
+  if(b && MOVES[b.mv] && MOVES[b.mv].kind==='burst'){
+    st.beat=null; st.nextAt=now()+600; popText(W/2,H*0.30,'再快一點點！','#ffb347',1.15); return; }
   st.combo=0; st.php-=1; shake(14,320); Sfx.bad(); st.flash={col:'#ff5d6c',until:now()+320};
   popText(b.x,b.y-targetRad()-26,'沒跟上！','#ff9b6b',1.2);
   st.miss=(st.miss||0)+1;
@@ -718,10 +744,59 @@ function drawBeat(){ const b=st.beat; if(!b) return; const mv=MOVES[b.mv], p=bea
   ctx.strokeStyle=win?mv.col:'rgba(205,230,250,.8)'; ctx.lineWidth=win?8:4.5; ctx.beginPath(); ctx.arc(b.x,b.y,rad,0,7); ctx.stroke(); ctx.restore();
   gKeyCap(mv.key, b.x-tr*0.44, b.y, tr*0.66, !!keyHeld(mv.key));
   gCmd(mv.mouse, b.x+tr*0.48, b.y, tr*0.52);
+  // 破甲拍：把「已經點了幾下」畫成進度弧，讓小孩看得到自己在鑽
+  if(mv.kind==='burst'){ const need=mv.need||4, got=b.hits||0;
+    ctx.save(); ctx.strokeStyle='#ffb347'; ctx.lineWidth=Math.max(6,tr*0.20); ctx.lineCap='round';
+    ctx.beginPath(); ctx.arc(b.x,b.y,tr*0.72, -Math.PI/2, -Math.PI/2+Math.PI*2*Math.min(1,got/need)); ctx.stroke(); ctx.restore();
+    drawRuby(P('快點！','ㄎㄨㄞˋ ㄉㄧㄢˇ'), b.x, b.y+tr*1.25, Math.min(18,W*0.03), '#ffb347'); }
   if(win){ // 「現在！」壓在章魚身上會看不清楚 → 加一塊深色底板
     const nfs=Math.min(22,W*0.03), ny=b.y-tr-Math.min(28,H*0.037), nw=rubyWidth(NOW_LBL,nfs)+22, nh=nfs*1.9;
     ctx.save(); rr(b.x-nw/2,ny-nh/2,nw,nh,nh/2); ctx.fillStyle='rgba(3,14,26,.85)'; ctx.fill(); ctx.strokeStyle=mv.col; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
     drawRuby(NOW_LBL, b.x, ny, nfs, mv.col); } }
+/* ---------- 破甲：殼的狀態機 ----------
+   intact → （打不進去）→ 排破甲拍 → 每點滿一次裂一格 → 全裂 broken → 露弱點、恢復正常傷害。
+   帶「破甲鑽頭」時一次裂兩格（備戰選對的客觀後果）。已裂的格數永遠不倒退。 */
+function initShell(cfg){
+  st.shell = cfg.shell ? { cells:cfg.shell.cells||3, done:0, state:'intact', taunt:2, pinged:0, brokeAt:0 } : null; }
+function shellCrack(){ const sh=st.shell; if(!sh||sh.state==='broken') return;
+  const per = S.item==='drill' ? 2 : 1;                    // 選對道具＝一次裂兩格
+  sh.done=Math.min(sh.cells, sh.done+per);
+  Sfx.hit(2); burst(st.boss.x,st.boss.y,'#ffb347',22); shake(8,240);
+  if(sh.done>=sh.cells){ sh.state='broken'; sh.brokeAt=now();
+    Sfx.win(); confetti&&confetti(st.boss.x,st.boss.y); shake(16,420);
+    popText(W/2,H*0.30,'殼破了！打牠的弱點！','#ffe27a',1.45);
+    if(st.cfg.ph2) enterPhase2();                          // 殼一破就進暴走階段
+  } else popText(st.boss.x,st.boss.y-40,'裂開一塊！','#ffb347',1.25); }
+function drawShell(){ const sh=st.shell; if(!sh||!st.boss) return; const B=st.boss, r=B.sz*0.52;
+  ctx.save(); ctx.translate(B.x,B.y);
+  if(sh.state!=='broken'){
+    // 殼：一圈厚環，依已裂格數缺口
+    const seg=Math.PI*2/sh.cells;
+    for(let i=0;i<sh.cells;i++){ if(i<sh.done) continue;
+      ctx.beginPath(); ctx.arc(0,0,r, -Math.PI/2+i*seg+0.05, -Math.PI/2+(i+1)*seg-0.05);
+      ctx.strokeStyle= (now()-sh.pinged<260)?'#ffffff':'#9aa8b6'; ctx.lineWidth=Math.max(7,r*0.20); ctx.stroke(); }
+    // 已裂的格：暗紅裂痕
+    for(let i=0;i<sh.done;i++){ ctx.beginPath(); ctx.arc(0,0,r, -Math.PI/2+i*seg+0.05, -Math.PI/2+(i+1)*seg-0.05);
+      ctx.strokeStyle='rgba(200,70,50,.45)'; ctx.lineWidth=Math.max(4,r*0.10); ctx.setLineDash([6,7]); ctx.stroke(); ctx.setLineDash([]); }
+  } else {
+    // 弱點紅點：殼破之後常駐，告訴小孩「現在打這裡」
+    const p=pulse(); ctx.globalAlpha=0.55+p*0.4; ctx.fillStyle='#ff4d5e';
+    ctx.beginPath(); ctx.arc(0,0,r*0.26*(1+p*0.12),0,7); ctx.fill();
+  }
+  ctx.restore();
+  // 殼的進度條（M3 進度視覺化）
+  if(sh.state!=='broken'){ const bw=Math.min(200,W*0.34), bh=Math.max(8,H*0.014), bx=W/2-bw/2, by=H*0.175;
+    ctx.save(); rr(bx,by,bw,bh,bh/2); ctx.fillStyle='rgba(8,26,44,.8)'; ctx.fill();
+    rr(bx,by,bw*(sh.done/sh.cells),bh,bh/2); ctx.fillStyle='#ffb347'; ctx.fill();
+    ctx.strokeStyle='#9aa8b6'; ctx.lineWidth=1.5; rr(bx,by,bw,bh,bh/2); ctx.stroke(); ctx.restore();
+    drawRuby(P('鐵甲','ㄊㄧㄝˇ ㄐㄧㄚˇ'), bx-Math.min(34,W*0.05), by+bh/2, Math.min(15,W*0.026), '#cdd8e2'); } }
+/* 階段二：血剩一半（或殼破）換花樣。四隻各一種，沿用既有欄位不新增引擎概念。 */
+function enterPhase2(){ const ph=st.cfg.ph2; if(!ph||st.ph2) return; st.ph2=true;
+  Sfx.cue(); shake(14,420); st.flash={col:ph.kind==='glare'?'#fff3c4':'#ff2b3b',until:now()+420};
+  if(ph.kind==='rage') st.cfg={...st.cfg, gap:Math.round(st.cfg.gap*(ph.gapK||0.8))};
+  if(ph.kind==='glare') st.glareUntil=now()+(ph.dimMs||2500)*(S.item==='shade'?0.4:1);
+  if(ph.tip) popText(W/2,H*0.36, ph.tip.map?ph.tip.map(c=>c.t||c.c||'').join(''):'', '#ffce7a',1.3);
+  st.ph2Banner=now()+1600; }
 function drawFlash(){ if(!st.flash||now()>=st.flash.until) return; ctx.save(); ctx.globalAlpha=(st.flash.until-now())/360*0.32; ctx.fillStyle=st.flash.col; ctx.fillRect(0,0,W,H); ctx.restore(); }
 
 /* ================= 教學關（一步教一招；教學關不會扣血） ================= */
@@ -883,7 +958,8 @@ function initWave(n){ n=clamp(n,0,N_BOSS-1); S.wave=n; const cfg=BOSSES[n];
   st.hp=cfg.hp; st.ghost=cfg.hp; st.php=playerHp(); st.combo=0; st.miss=0; st.flash=null; st.lockUntil=0; st.lastSpot=-1;
   st.beats=buildBeats(cfg); st.bi=0; st.beat=null; st.ringMs=cfg.ringMs; st.nextAt=0;
   st.ult=null; st.ultDone=(cfg.ultAt||[]).map(()=>0);
-  st.boss=makeBoss(cfg); }
+  st.ph2=false; st.ph2Banner=0; st.glareUntil=0;
+  st.boss=makeBoss(cfg); initShell(cfg); }
 function startFight(){ st.mode='fight'; st.nextAt=now()+700; popText(W/2,H*0.34,'開打！','#ffe27a',1.3); Sfx.cue(); }
 function battleLost(){ st.busy=true; st.dead=true; st.beat=null; st.combo=0; shake(22,560); Sfx.bad(); Sfx.tone(110,0.7,'sawtooth',0.07); st.flash={col:'#ff2b3b',until:now()+450}; S.deaths=(S.deaths||0)+1; persist(); }
 /* 擊敗動畫：翻白 → 旋轉縮小沉下去 → 打倒了！橫幅＋金幣，停留夠久再接幕間故事 */
@@ -973,9 +1049,13 @@ const ST_WAVE={ update(evs){
   draw(){ const cfg=st.cfg; seaBg(); drawCover('seabed',0.5);
     if(st.mode==='intro'){ drawWaveIntro(cfg); return; }
     if(st.ko){ drawKO(); drawFx(); if(st.dead) drawGameOver(); return; }
-    drawBoss(); drawBeat(); drawPov(); drawFx(); drawFlash();
+    drawBoss(); drawShell(); drawBeat(); drawPov(); drawFx(); drawFlash();
+    // 燈籠章魚的第二階段：強光遮蔽（選了墨鏡會短很多）
+    if(st.glareUntil && now()<st.glareUntil){ ctx.save();
+      ctx.globalAlpha=0.42*Math.min(1,(st.glareUntil-now())/600); ctx.fillStyle='#fff3c4'; ctx.fillRect(0,0,W,H); ctx.restore(); }
     drawMoveCard(st.beat?st.beat.mv:(st.beats[st.bi]||st.beats[st.beats.length-1]), hudBottom()+10);
     drawWaveHUD();
+    if(st.ph2Banner && now()<st.ph2Banner) drawRuby(P('牠變厲害了！','ㄊㄚ ㄅㄧㄢˋ ㄌㄧˋ ㄏㄞˋ ㄌㄜ˙'), W/2, H*0.24, Math.min(30,W*0.052), '#ff9b6b');
     if(st.ult) drawUlt();
     if(TOUCH) drawKeypad();
     if(st.dead) drawGameOver(); } };
@@ -1178,6 +1258,8 @@ function drawUlt(){ const u=st.ult; if(!u) return;
 // 王血降到門檻時觸發（每個門檻只放一次）
 function checkUlt(){ const cfg=st.cfg; if(st.tut||st.ult||!cfg.ultAt||!cfg.ultSeq) return;
   const frac=st.hp/cfg.hp;
+  // 血剩一半 → 進第二階段（鐵甲章魚例外：牠是殼破才暴走，在 shellCrack 裡觸發）
+  if(!st.ph2 && !cfg.shell && frac<=0.5) enterPhase2();
   for(let i=0;i<cfg.ultAt.length;i++){ if(!st.ultDone[i] && frac<=cfg.ultAt[i]){ st.ultDone[i]=1; startUlt(); return; } } }
 
 /* ================= DELIVER：通關動畫（章魚撤退→寶石升起發光→獎盃）＋ 通關畫面 ================= */
