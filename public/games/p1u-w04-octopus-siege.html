@@ -720,6 +720,15 @@ function gKeyCap(ch,x,y,s,on){ ctx.save(); ctx.translate(x,y);
 
 /* ---------- 指令面板：[按住][鍵帽] ＋ [滑鼠圖][招式大字] 全部排成一行 ---------- */
 function moveCardH(){ return Math.max(Math.min(56,W*0.055,H*0.072), Math.min(34,W*0.036,H*0.045)*1.5)*1.3; }
+/* 上方 HUD（說明框／指令列／血條／進度條）的下緣。
+   判定圈一定要排在這條線以下，否則指令會蓋住小孩正要點的圈——實際試玩回報過這個問題。
+   原本 spawnBeat 只把上緣 clamp 在 H*0.26，但教學關的 UI 實際延伸到將近 H*0.33。 */
+function uiTop(){
+  if(st.tut){ const bn=tutBanner();
+    return bn.y + bn.h + Math.min(16,H*0.022) + moveCardH() + Math.min(18,H*0.024)
+         + Math.min(9,H*0.013) + Math.min(26,H*0.032); }
+  return hudBottom() + 10 + moveCardH() + Math.min(14,H*0.02);
+}
 function hudBottom(){ const hh=Math.min(22,H*0.028); return hh*2+21; } // 王血條＋「第 N 關」那行字的下緣
 function drawMoveCard(mvKey,topY){ const mv=MOVES[mvKey]; if(!mv) return; const on=!!keyHeld(mv.key);
   const ks=Math.min(56,W*0.055,H*0.072), ms=Math.min(32,W*0.032,H*0.042);
@@ -748,7 +757,10 @@ function spawnBeat(){ if(!st.tut && st.bi>=st.beats.length){ roundClear(); retur
     mv = st.shell.taunt>0 ? (st.cfg.moves.filter(m=>MOVES[m].dmg>0)[0]||'atk') : 'smash'; }
   const sp=beatSpots(); let i=Math.floor(Math.random()*sp.length); if(i===st.lastSpot) i=(i+1)%sp.length; st.lastSpot=i;
   const pad=targetRad()*2.2;
-  st.beat={ mv, x:clamp(sp[i].x,pad,W-pad), y:clamp(sp[i].y,H*0.26,H-pad), t0:now(), dur:st.ringMs/spd(), resolved:false };
+  // 上緣要讓開 HUD：圈本身、圈左右的鍵帽／滑鼠圖示都不能被指令列蓋住。
+  // 1.35 倍是因為 drawBeat 會在圈的上方再畫「現在！」的底板。
+  const topSafe=Math.min(H*0.62, uiTop()+targetRad()*1.35);
+  st.beat={ mv, x:clamp(sp[i].x,pad,W-pad), y:clamp(sp[i].y,topSafe,H-pad), t0:now(), dur:st.ringMs/spd(), resolved:false };
   Sfx.cue(); }
 function beatP(){ const b=st.beat; return b?(now()-b.t0)/b.dur:0; }
 function beatInWin(){ const b=st.beat; if(!b) return false; const p=beatP(); return p>=1-st.cfg.win && p<=1+LATE; }
@@ -892,7 +904,10 @@ const DUMMY={ key:'dummy', title:P('練習玩偶','ㄌㄧㄢˋ ㄒㄧˊ ㄨㄢˊ
   ringMs:3600, gap:700, win:0.62 };
 function initTut(){ st.tut=true; st.ti=0; st.tdone=0; st.php=PLAYER_HP; st.combo=0; st.flash=null; st.lockUntil=0; st.lastSpot=-1;
   st.cfg={ ...DUMMY }; st.ringMs=3600; st.tutMv='atk';
-  st.boss=makeBoss(DUMMY); st.beat=null; st.nextAt=now()+650; }
+  st.boss=makeBoss(DUMMY);
+  // 教學關的說明框比戰鬥關高很多，玩偶往下挪一點才不會被蓋住頭
+  st.boss.y=Math.max(st.boss.y, uiTop()+st.boss.sz*0.30);
+  st.beat=null; st.nextAt=now()+650; }
 function tutPass(){ Sfx.win(); st.flash={col:'#ffe27a',until:now()+340};
   if(st.ti>=TUT_TOTAL-1){ st.tdone=now()+1400; popText(W/2,H*0.30,'全部練完了！','#7cffb0',1.4); return; }
   st.ti++;
