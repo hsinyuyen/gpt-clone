@@ -82,7 +82,6 @@ loadSprite('octo','assets/w2-oct1.png'); loadSprite('octo2','assets/w2-oct2.png'
 loadSprite('octoBlade','assets/w4-oct-blade.png');   loadSprite('octoLantern','assets/w4-oct-lantern.png');
 loadSprite('octoSucker','assets/w4-oct-sucker.png'); loadSprite('octoArmor','assets/w4-oct-armor.png');
 loadSprite('octoKing','assets/w4-oct-king.png');     // 結尾現身的章魚王（引 W05）
-loadSprite('minion','assets/w4-minion.png');         // 大探索關的小兵
 loadSprite('base','assets/w4-base.jpg');             // 軍團基地背景
 // W04 劇情圖：前情提要 3 張、今天說明 2 張、幕間 4 張
 for(let i=1;i<=3;i++) loadSprite('rc'+i,'assets/w4-rc'+i+'.jpg');
@@ -380,22 +379,22 @@ const MOVES={
    ph2＝血剩一半後的第二階段，每隻換一種花樣（見各筆 ph2.kind）。 */
 const BOSSES=[
  { key:'b1', title:P('第一隻·雙刀章魚','ㄉㄧˋ ㄧ ㄓ ㄕㄨㄤ ㄉㄠ ㄓㄤ ㄩˊ'), name:P('雙刀章魚','ㄕㄨㄤ ㄉㄠ ㄓㄤ ㄩˊ'), sprite:'octoBlade', tint:'#d05a7a', sizeK:1.15,
-   hp:10, moves:['atk','block'],                 ringMs:3600, gap:1050, win:0.62,
+   hp:14, moves:['atk','block'],                 ringMs:3600, gap:1050, win:0.62,
    ultAt:[0.5], ultSeq:['W','D','click'],
    item:'fin',   ph2:{ kind:'twin',  blockRate:0.70, tip:P('牠改成連揮兩刀了！','ㄊㄚ ㄍㄞˇ ㄔㄥˊ ㄌㄧㄢˊ ㄏㄨㄟ ㄌㄧㄤˇ ㄉㄠ ㄌㄜ˙') } },
 
  { key:'b2', title:P('第二隻·燈籠章魚','ㄉㄧˋ ㄦˋ ㄓ ㄉㄥ ㄌㄨㄥˊ ㄓㄤ ㄩˊ'), name:P('燈籠章魚','ㄉㄥ ㄌㄨㄥˊ ㄓㄤ ㄩˊ'), sprite:'octoLantern', tint:'#e8a13c', sizeK:1.22,
-   hp:12, moves:['atk','block','heavy'],         ringMs:3500, gap:1000, win:0.60,
+   hp:18, moves:['atk','block','heavy'],         ringMs:3500, gap:1000, win:0.60,
    ultAt:[0.55], ultSeq:['W','D','S','right'],
    item:'shade', ph2:{ kind:'glare', dimMs:2500,  tip:P('好亮！瞇著眼睛也要打。','ㄏㄠˇ ㄌㄧㄤˋ ㄇㄧˇ ㄓㄜ˙ ㄧㄢˇ ㄐㄧㄥ ㄧㄝˇ ㄧㄠˋ ㄉㄚˇ') } },
 
  { key:'b3', title:P('第三隻·吸盤章魚','ㄉㄧˋ ㄙㄢ ㄓ ㄒㄧ ㄆㄢˊ ㄓㄤ ㄩˊ'), name:P('吸盤章魚','ㄒㄧ ㄆㄢˊ ㄓㄤ ㄩˊ'), sprite:'octoSucker', tint:'#2fb6c0', sizeK:1.28,
-   hp:14, moves:['atk','block','heavy','magic'], ringMs:3400, gap:980,  win:0.58,
+   hp:22, moves:['atk','block','heavy','magic'], ringMs:3400, gap:980,  win:0.58,
    ultAt:[0.6,0.3], ultSeq:['W','D','S','A','scroll'],
    item:'anchor',ph2:{ kind:'drag',  drift:0.055, tip:P('圈圈被吸走了，追上去！','ㄑㄩㄢ ㄑㄩㄢ ㄅㄟˋ ㄒㄧ ㄗㄡˇ ㄌㄜ˙ ㄓㄨㄟ ㄕㄤˋ ㄑㄩˋ') } },
 
  { key:'b4', title:P('第四隻·鐵甲章魚','ㄉㄧˋ ㄙˋ ㄓ ㄊㄧㄝˇ ㄐㄧㄚˇ ㄓㄤ ㄩˊ'), name:P('鐵甲章魚','ㄊㄧㄝˇ ㄐㄧㄚˇ ㄓㄤ ㄩˊ'), sprite:'octoArmor', tint:'#8e9aa8', sizeK:1.35,
-   hp:16, moves:['atk','block','heavy','magic'], ringMs:3300, gap:950,  win:0.56,
+   hp:26, moves:['atk','block','heavy','magic'], ringMs:3300, gap:950,  win:0.56,
    ultAt:[0.66,0.33], ultSeq:['W','D','S','A','right','click','scroll'],
    item:'drill', shell:{ cells:3 },               // ← 有殼：普通打會叮一聲彈開，要先鑽破
    ph2:{ kind:'rage', gapK:0.8, tip:P('殼破了，牠抓狂了！','ㄎㄜˊ ㄆㄛˋ ㄌㄜ˙ ㄊㄚ ㄓㄨㄚ ㄎㄨㄤˊ ㄌㄜ˙') } },
