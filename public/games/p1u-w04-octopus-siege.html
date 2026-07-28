@@ -82,6 +82,8 @@ loadSprite('octo','assets/w2-oct1.png'); loadSprite('octo2','assets/w2-oct2.png'
 loadSprite('octoDummy','assets/w4-oct-dummy.png');   // 教學關的練習用玩偶章魚（布偶，不是真敵人）
 loadSprite('octoBoxer','assets/w4-oct-boxer.png');   loadSprite('octoLantern','assets/w4-oct-lantern.png');
 loadSprite('octoSucker','assets/w4-oct-sucker.png'); loadSprite('octoArmor','assets/w4-oct-armor.png');
+loadSprite('octoArmorBroken','assets/w4-oct-armor-broken.png'); // 殼被鑽破後換這張（裂盔＋露弱點）
+loadSprite('itemDrill','assets/w4-item-drill.png');             // 破甲鑽頭
 loadSprite('octoKing','assets/w4-oct-king.png');     // 結尾現身的章魚王（引 W05）
 loadSprite('base','assets/w4-base.jpg');             // 軍團基地背景
 // W04 劇情圖：前情提要 3 張、今天說明 2 張、幕間 4 張
@@ -394,7 +396,7 @@ const BOSSES=[
    ultAt:[0.6,0.3], ultSeq:['W','D','S','A','scroll'],
    item:'anchor',ph2:{ kind:'drag',  drift:0.055, tip:P('圈圈被吸走了，追上去！','ㄑㄩㄢ ㄑㄩㄢ ㄅㄟˋ ㄒㄧ ㄗㄡˇ ㄌㄜ˙ ㄓㄨㄟ ㄕㄤˋ ㄑㄩˋ') } },
 
- { key:'b4', title:P('第四隻·鐵甲章魚','ㄉㄧˋ ㄙˋ ㄓ ㄊㄧㄝˇ ㄐㄧㄚˇ ㄓㄤ ㄩˊ'), name:P('鐵甲章魚','ㄊㄧㄝˇ ㄐㄧㄚˇ ㄓㄤ ㄩˊ'), sprite:'octoArmor', tint:'#8e9aa8', sizeK:1.35,
+ { key:'b4', title:P('第四隻·鐵甲章魚','ㄉㄧˋ ㄙˋ ㄓ ㄊㄧㄝˇ ㄐㄧㄚˇ ㄓㄤ ㄩˊ'), name:P('鐵甲章魚','ㄊㄧㄝˇ ㄐㄧㄚˇ ㄓㄤ ㄩˊ'), sprite:'octoArmor', brokenSprite:'octoArmorBroken', tint:'#8e9aa8', sizeK:1.35,
    hp:26, moves:['atk','block','heavy','magic'], ringMs:3300, gap:950,  win:0.56,
    ultAt:[0.66,0.33], ultSeq:['W','D','S','A','right','click','scroll'],
    item:'drill', shell:{ cells:3 },               // ← 有殼：普通打會叮一聲彈開，要先鑽破
@@ -655,11 +657,14 @@ function startWaveBtn(){ const w=Math.min(280,W*0.55), h=Math.min(66,H*0.1); ret
 function bossHurt(m){ st.boss.hurtUntil=now()+130; st.boss.shake={mag:6*(m||1),until:now()+240}; }
 function drawBoss(){ const B=st.boss; if(!B) return; let bx=B.x, by=B.y+Math.sin(now()/700)*B.sz*0.02;
   if(B.shake&&now()<B.shake.until) bx+=Math.sin(now()/22)*B.shake.mag;
+  // 殼被鑽破之後換成「受傷的破甲版本」立繪：裂開的頭盔、露出的紅色弱點。
+  // 這比只在原圖上疊一個紅點更看得懂——小孩會知道「牠真的被我打壞了」。
+  const spr=(B.brokenSprite && st.shell && st.shell.state==='broken') ? B.brokenSprite : B.sprite;
   ctx.save(); if(B.hurtUntil&&now()<B.hurtUntil) ctx.globalAlpha=0.62;
-  if(!drawSprite(B.sprite,bx,by,B.sz)) vOcto(bx,by,B.sz*0.5,B.tint||'#a45bd6',0,B.captain);
+  if(!drawSprite(spr,bx,by,B.sz)) vOcto(bx,by,B.sz*0.5,B.tint||'#a45bd6',0,B.captain);
   ctx.restore();
   if(B.hurtUntil&&now()<B.hurtUntil){ ctx.save(); ctx.globalAlpha=0.4; ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(bx,by,B.sz*0.36,0,7); ctx.fill(); ctx.restore(); } }
-function makeBoss(cfg){ return { x:W/2, y:H*0.47, sz:Math.min(W*0.52,H*0.56)*(cfg.sizeK||1), sprite:cfg.sprite, tint:cfg.tint, captain:!!cfg.captain, hurtUntil:0, shake:null }; }
+function makeBoss(cfg){ return { x:W/2, y:H*0.47, sz:Math.min(W*0.52,H*0.56)*(cfg.sizeK||1), sprite:cfg.sprite, brokenSprite:cfg.brokenSprite||null, tint:cfg.tint, captain:!!cfg.captain, hurtUntil:0, shake:null }; }
 
 /* ---------- 大鍵帽：按住的時候會亮起來（小孩最需要的「我真的有按住」回饋） ---------- */
 function gKeyCap(ch,x,y,s,on){ ctx.save(); ctx.translate(x,y);
@@ -918,8 +923,10 @@ const ST_RAID={ update(evs){
     const gx=st.goal.x-cam.x, gy=st.goal.y-cam.y, p=pulse();
     ctx.save(); ctx.globalAlpha=0.3+p*0.35; ctx.fillStyle='#ffb347';
     ctx.beginPath(); ctx.arc(gx,gy,st.goal.r*(1.6+p*0.4),0,7); ctx.fill(); ctx.restore();
-    ctx.save(); ctx.translate(gx,gy); ctx.fillStyle='#ffb347'; ctx.strokeStyle='#8a5a1a'; ctx.lineWidth=3;
-    ctx.beginPath(); ctx.moveTo(0,-st.goal.r*0.8); ctx.lineTo(st.goal.r*0.42,st.goal.r*0.6); ctx.lineTo(-st.goal.r*0.42,st.goal.r*0.6); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+    // 鑽頭本體：有圖就用圖，沒載到才退回手繪三角形
+    if(!drawSprite('itemDrill',gx,gy,st.goal.r*2.6)){
+      ctx.save(); ctx.translate(gx,gy); ctx.fillStyle='#ffb347'; ctx.strokeStyle='#8a5a1a'; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(0,-st.goal.r*0.8); ctx.lineTo(st.goal.r*0.42,st.goal.r*0.6); ctx.lineTo(-st.goal.r*0.42,st.goal.r*0.6); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
     drawRuby(P('破甲鑽頭','ㄆㄛˋ ㄐㄧㄚˇ ㄗㄨㄢˋ ㄊㄡˊ'), gx, gy-st.goal.r*1.8, Math.min(19,W*0.032), '#ffd08a');
     for(const g of st.gems){ if(g.got) continue; const sx=g.x-cam.x, sy=g.y-cam.y+Math.sin(now()/500+g.ph)*5;
       if(sx<-40||sx>W+40) continue; gCoin(sx,sy,g.r*0.8); }
@@ -994,7 +1001,7 @@ const ITEMS={
  fin:   { name:P('快鰭','ㄎㄨㄞˋ ㄑㄧˊ'),     hint:P('出拳很快，要跟得上','ㄔㄨ ㄑㄩㄢˊ ㄏㄣˇ ㄎㄨㄞˋ ㄧㄠˋ ㄍㄣ ㄉㄜ˙ ㄕㄤˋ'), col:'#5bc0ff' },
  shade: { name:P('墨鏡','ㄇㄛˋ ㄐㄧㄥˋ'),     hint:P('牠會放很亮的光','ㄊㄚ ㄏㄨㄟˋ ㄈㄤˋ ㄏㄣˇ ㄌㄧㄤˋ ㄉㄜ˙ ㄍㄨㄤ'), col:'#e8a13c' },
  anchor:{ name:P('重錨','ㄓㄨㄥˋ ㄇㄠˊ'),     hint:P('牠會把你吸走','ㄊㄚ ㄏㄨㄟˋ ㄅㄚˇ ㄋㄧˇ ㄒㄧ ㄗㄡˇ'),        col:'#2fb6c0' },
- drill: { name:P('破甲鑽頭','ㄆㄛˋ ㄐㄧㄚˇ ㄗㄨㄢˋ ㄊㄡˊ'), hint:P('牠有很硬的殼','ㄊㄚ ㄧㄡˇ ㄏㄣˇ ㄧㄥˋ ㄉㄜ˙ ㄎㄜˊ'), col:'#ffb347' },
+ drill: { name:P('破甲鑽頭','ㄆㄛˋ ㄐㄧㄚˇ ㄗㄨㄢˋ ㄊㄡˊ'), hint:P('牠有很硬的殼','ㄊㄚ ㄧㄡˇ ㄏㄣˇ ㄧㄥˋ ㄉㄜ˙ ㄎㄜˊ'), col:'#ffb347', sprite:'itemDrill' },
 };
 const ITEM_KEYS=['fin','shade','anchor','drill'];
 function initPrep(target){
@@ -1034,7 +1041,10 @@ const ST_PREP={ update(evs){
       gr.addColorStop(0,'rgba(238,252,255,.99)'); gr.addColorStop(0.7,'rgba(152,216,255,.92)'); gr.addColorStop(1,'rgba(108,180,250,.72)');
       ctx.globalAlpha=locked?0.55:1; ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(o.x,o.y,o.r+(locked?0:p*2),0,7); ctx.fill();
       ctx.strokeStyle=it.col; ctx.lineWidth=3; ctx.stroke(); ctx.restore();
-      drawRuby(it.name, o.x, o.y, rubyFit(it.name, o.r*1.7, Math.min(20,o.r*0.34)), '#0b2740'); }
+      // 有圖的道具就把圖畫在泡泡裡，名字移到泡泡下方；沒圖的維持文字置中
+      const hasIcon=it.sprite && drawSprite(it.sprite, o.x, o.y-o.r*0.12, o.r*1.35);
+      drawRuby(it.name, o.x, hasIcon?(o.y+o.r*0.62):o.y,
+        rubyFit(it.name, o.r*1.9, Math.min(20,o.r*0.34)), hasIcon?'#eaf6ff':'#0b2740'); }
     if(locked) drawRuby(P('等一下下…','ㄉㄥˇ ㄧˊ ㄒㄧㄚˋ ㄒㄧㄚˋ')+'', cx, H*0.79, Math.min(20,W*0.036), '#ff9b6b');
     drawFx();
     if(st.picked!=null) drawRuby(P('帶著它出發！','ㄉㄞˋ ㄓㄜ˙ ㄊㄚ ㄔㄨ ㄈㄚ'), cx, H*0.86, Math.min(28,W*0.05), '#7cffb0'); } };

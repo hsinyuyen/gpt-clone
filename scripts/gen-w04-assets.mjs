@@ -47,6 +47,10 @@ const JOBS = [
   { f: "w4-oct-sucker.png",  ar: "1:1", p: CHAR("a teal and turquoise octopus with very large prominent round suction cups covering every tentacle, tentacles curling inward as if sucking water toward itself") },
   { f: "w4-oct-armor.png",   ar: "1:1", p: CHAR("a steel grey octopus wearing a thick riveted iron armour helmet shell covering its head, heavy metal plating, tough and sturdy, small eyes peeking out from under the helmet") },
   { f: "w4-oct-king.png",    ar: "3:4", p: CHAR("an ENORMOUS royal purple octopus KING wearing a tall golden crown with jewels, majestic and imposing, thick powerful tentacles spreading wide, glowing amber eyes, regal presence") },
+  // 鐵甲章魚被破甲後換這張：殼碎了、露出弱點、氣勢下降但還在戰鬥
+  { f: "w4-oct-armor-broken.png", ar: "1:1", p: CHAR("the SAME steel grey octopus as an armoured warrior, but its iron helmet armour is now SHATTERED and broken apart — cracked plates falling off, jagged broken edges, bent rivets, the bare soft head exposed underneath with a glowing red weak spot, dazed and wobbly expression, small scratches, still floating but clearly weakened. Keep exactly the same steel grey body colour and the same character design as before, only the armour is destroyed") },
+  // 破甲鑽頭：大探索關終點撿到的道具
+  { f: "w4-item-drill.png",  ar: "1:1", p: CHAR("NOT an octopus — a single chunky cartoon HAND DRILL tool for cracking shells: a spiral golden-orange drill bit with a sturdy blue metal body and a grip handle, small glowing energy rune on the side, treasure-item presentation floating with a soft warm glow, clean readable silhouette like a game item icon") },
   // ── 場景 ──
   { f: "w4-base.jpg",  ar: "16:9", p: SCENE("An octopus army's underwater fortress base built into a dark rocky trench: purple bioluminescent lamps, drifting ink clouds, coral watchtowers and barricades") },
   { f: "w4-rc1.jpg",   ar: "16:9", p: SCENE("A brave little child diver in a yellow diving suit driving away a small purple scout octopus, triumphant pose, swirling bubbles, shafts of light from above") },
