@@ -9,6 +9,11 @@
  *     才能跟 W03 的角色圖一樣有透明背景（W03 實測 channels=4、hasAlpha=true）。
  *
  * 原圖會先備份到 assets/_raw/，重跑一律從備份重新處理，不會拿處理過的再處理一次。
+ *
+ * ⚠️ 需要 sharp，但它「刻意不列在 package.json」：
+ *    只有這支離線腳本會用到，而 Vercel 是用 yarn install --frozen-lockfile 建置，
+ *    把它加進 devDependencies 會讓 package.json 與 yarn.lock 不一致而直接建置失敗。
+ *    要跑這支腳本時自行安裝：  npm i --no-save sharp
  */
 import sharp from "sharp";
 import { readdirSync, mkdirSync, existsSync, copyFileSync, statSync, writeFileSync } from "node:fs";

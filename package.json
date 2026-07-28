@@ -45,7 +45,6 @@
     "@types/formidable": "^3.5.0",
     "@types/mixpanel-browser": "^2.38.1",
     "@types/react-syntax-highlighter": "^15.5.13",
-    "@types/uuid": "^9.0.1",
-    "sharp": "^0.35.3"
+    "@types/uuid": "^9.0.1"
   }
 }
