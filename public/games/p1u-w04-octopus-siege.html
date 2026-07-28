@@ -82,6 +82,7 @@ loadSprite('octo','assets/w2-oct1.png'); loadSprite('octo2','assets/w2-oct2.png'
 loadSprite('octoDummy','assets/w4-oct-dummy.png');   // 教學關的練習用玩偶章魚（布偶，不是真敵人）
 loadSprite('octoBoxer','assets/w4-oct-boxer.png');   loadSprite('octoLantern','assets/w4-oct-lantern.png');
 loadSprite('octoSucker','assets/w4-oct-sucker.png'); loadSprite('octoArmor','assets/w4-oct-armor.png');
+loadSprite('octoSpike','assets/w4-oct-spike.png'); loadSprite('octoTwin','assets/w4-oct-twin.png'); loadSprite('octoBomb','assets/w4-oct-bomb.png');
 loadSprite('octoArmorBroken','assets/w4-oct-armor-broken.png'); // 殼被鑽破後換這張（裂盔＋露弱點）
 loadSprite('itemDrill','assets/w4-item-drill.png');             // 破甲鑽頭
 loadSprite('octoKing','assets/w4-oct-king.png');     // 結尾現身的章魚王（引 W05）
@@ -89,7 +90,7 @@ loadSprite('base','assets/w4-base.jpg');             // 軍團基地背景
 // W04 劇情圖：前情提要 3 張、今天說明 2 張、幕間 4 張
 for(let i=1;i<=3;i++) loadSprite('rc'+i,'assets/w4-rc'+i+'.jpg');
 for(let i=1;i<=2;i++) loadSprite('bf'+i,'assets/w4-bf'+i+'.jpg');
-for(let i=1;i<=4;i++) loadSprite('it'+i,'assets/w4-it'+i+'.jpg');
+for(let i=1;i<=7;i++) loadSprite('it'+i,'assets/w4-it'+i+'.jpg');
 const mouseImg=new Image(); let mouseImgReady=false; ASSET_TOTAL++; mouseImg.onload=()=>{mouseImgReady=true; ASSET_DONE++;}; mouseImg.onerror=()=>{ASSET_DONE++;}; mouseImg.src='assets/mouse-big.png';
 function drawSprite(key,x,y,size,rot,alpha){ const s=SPRITES[key]; if(!s||!s.ready) return false; const ar=s.sw/s.sh; let w,h; if(ar>=1){ w=size; h=size/ar; } else { h=size; w=size*ar; }
   ctx.save(); if(alpha!==undefined) ctx.globalAlpha=alpha; ctx.translate(x,y); if(rot) ctx.rotate(rot); ctx.drawImage(s.im,s.sx,s.sy,s.sw,s.sh,-w/2,-h/2,w,h); ctx.restore(); return true; }
@@ -369,7 +370,7 @@ function loadLocal(){ try{ const r=localStorage.getItem(SKEY); if(r){ const o=JS
    這就是「兩手齊發」——左手按鍵盤、右手移動＋操作滑鼠，缺一不可。
    只有一個很寬鬆的難度：圈很慢、判定窗很大、按錯／太早都不扣血，只有整拍沒跟上才扣，
    而且連續沒跟上兩次會自動把圈再放慢。 */
-const COIN_WAVE=40, COIN_DONE=70, COIN_FORGE=5, COIN_TA=125; // 40×4 ＋ 5×4 ＋ 70 ＝ 250；TA 另計（CLAUDE.md §21：任務的 50%）
+const COIN_WAVE=25, COIN_DONE=40, COIN_FORGE=5, COIN_TA=125; // 25×7 ＋ 5×7 ＋ 40 ＝ 250；TA 另計（CLAUDE.md §21：任務的 50%）
 const PLAYER_HP=8; // W03 是 6。目標年級是小一（f=1），比 W03 調校的年段小，血量上調兩格
 const LATE=0.22;            // 稍微慢一點點也還算中（判定窗往後多開一截）
 const HOLD_LBL=P('按住','ㄢˋ ㄓㄨˋ');
@@ -409,8 +410,23 @@ const BOSSES=[
    ultAt:[0.6,0.3], ultSeq:['W','D','S','A','scroll'],
    item:'anchor',ph2:{ kind:'drag',  drift:0.055, tip:P('圈圈被吸走了，追上去！','ㄑㄩㄢ ㄑㄩㄢ ㄅㄟˋ ㄒㄧ ㄗㄡˇ ㄌㄜ˙ ㄓㄨㄟ ㄕㄤˋ ㄑㄩˋ') } },
 
- { key:'b4', title:P('第四隻·鐵甲章魚','ㄉㄧˋ ㄙˋ ㄓ ㄊㄧㄝˇ ㄐㄧㄚˇ ㄓㄤ ㄩˊ'), name:P('鐵甲章魚','ㄊㄧㄝˇ ㄐㄧㄚˇ ㄓㄤ ㄩˊ'), sprite:'octoArmor', brokenSprite:'octoArmorBroken', tint:'#8e9aa8', sizeK:1.35,
-   hp:26, moves:['atk','block','heavy','magic'], ringMs:3300, gap:950,  win:0.56,
+ { key:'b4', title:P('第四隻·毒刺章魚','ㄉㄧˋ ㄙˋ ㄓ ㄉㄨˊ ㄘˋ ㄓㄤ ㄩˊ'), name:P('毒刺章魚','ㄉㄨˊ ㄘˋ ㄓㄤ ㄩˊ'), sprite:'octoSpike', tint:'#7fb03a', sizeK:1.30,
+   hp:24, moves:['atk','block','heavy','magic'], ringMs:3350, gap:960,  win:0.57,
+   ultAt:[0.6,0.3], ultSeq:['W','D','S','right','click'],
+   item:'shield',ph2:{ kind:'shrink', radK:0.78, tip:P('圈圈變小了，瞄準一點！','ㄑㄩㄢ ㄑㄩㄢ ㄅㄧㄢˋ ㄒㄧㄠˇ ㄌㄜ˙ ㄇㄧㄠˊ ㄓㄨㄣˇ ㄧˋ ㄉㄧㄢˇ') } },
+
+ { key:'b5', title:P('第五隻·雙頭章魚','ㄉㄧˋ ㄨˇ ㄓ ㄕㄨㄤ ㄊㄡˊ ㄓㄤ ㄩˊ'), name:P('雙頭章魚','ㄕㄨㄤ ㄊㄡˊ ㄓㄤ ㄩˊ'), sprite:'octoTwin', tint:'#9a6cd0', sizeK:1.32,
+   hp:27, moves:['atk','block','heavy','magic'], ringMs:3300, gap:950,  win:0.56,
+   ultAt:[0.62,0.32], ultSeq:['W','D','S','A','click'],
+   item:'lure',  ph2:{ kind:'twin', blockRate:0.78, tip:P('兩顆頭一起打過來！','ㄌㄧㄤˇ ㄎㄜ ㄊㄡˊ ㄧˋ ㄑㄧˇ ㄉㄚˇ ㄍㄨㄛˋ ㄌㄞˊ') } },
+
+ { key:'b6', title:P('第六隻·炸彈章魚','ㄉㄧˋ ㄌㄧㄡˋ ㄓ ㄓㄚˋ ㄉㄢˋ ㄓㄤ ㄩˊ'), name:P('炸彈章魚','ㄓㄚˋ ㄉㄢˋ ㄓㄤ ㄩˊ'), sprite:'octoBomb', tint:'#e2603c', sizeK:1.34,
+   hp:29, moves:['atk','block','heavy','magic'], ringMs:3250, gap:930,  win:0.56,
+   ultAt:[0.65,0.35], ultSeq:['W','D','S','A','right','scroll'],
+   item:'water', ph2:{ kind:'rage', gapK:0.82, tip:P('牠開始亂丟炸彈了！','ㄊㄚ ㄎㄞ ㄕˇ ㄌㄨㄢˋ ㄉㄧㄡ ㄓㄚˋ ㄉㄢˋ ㄌㄜ˙') } },
+
+ { key:'b7', title:P('第七隻·鐵甲章魚','ㄉㄧˋ ㄑㄧ ㄓ ㄊㄧㄝˇ ㄐㄧㄚˇ ㄓㄤ ㄩˊ'), name:P('鐵甲章魚','ㄊㄧㄝˇ ㄐㄧㄚˇ ㄓㄤ ㄩˊ'), sprite:'octoArmor', brokenSprite:'octoArmorBroken', tint:'#8e9aa8', sizeK:1.38,
+   hp:32, moves:['atk','block','heavy','magic'], ringMs:3200, gap:920,  win:0.55,
    ultAt:[0.66,0.33], ultSeq:['W','D','S','A','right','click','scroll'],
    item:'drill', shell:{ cells:3 },               // ← 有殼：普通打會叮一聲彈開，要先鑽破
    ph2:{ kind:'rage', gapK:0.8, tip:P('殼破了，牠抓狂了！','ㄎㄜˊ ㄆㄛˋ ㄌㄜ˙ ㄊㄚ ㄓㄨㄚ ㄎㄨㄤˊ ㄌㄜ˙') } },
@@ -514,7 +530,19 @@ const INTERLUDE=[
    s:P('水流停下來了。','ㄕㄨㄟˇ ㄌㄧㄡˊ ㄊㄧㄥˊ ㄒㄧㄚˋ ㄌㄞˊ ㄌㄜ˙'),
    quiz:{ q:P('吸盤章魚會做什麼？','ㄒㄧ ㄆㄢˊ ㄓㄤ ㄩˊ ㄏㄨㄟˋ ㄗㄨㄛˋ ㄕㄜˊ ㄇㄜ˙'),
      opts:[ P('把你吸走','ㄅㄚˇ ㄋㄧˇ ㄒㄧ ㄗㄡˇ'), P('請你吃飯','ㄑㄧㄥˇ ㄋㄧˇ ㄔ ㄈㄢˋ'), P('幫你加油','ㄅㄤ ㄋㄧˇ ㄐㄧㄚ ㄧㄡˊ') ], a:0 } },
- { art:'it4', t:P('防線破了','ㄈㄤˊ ㄒㄧㄢˋ ㄆㄛˋ ㄌㄜ˙'),
+ { art:'it4', t:P('毒刺斷了','ㄉㄨˊ ㄘˋ ㄉㄨㄢˋ ㄌㄜ˙'),
+   s:P('海水又乾淨了。','ㄏㄞˇ ㄕㄨㄟˇ ㄧㄡˋ ㄍㄢ ㄐㄧㄥˋ ㄌㄜ˙'),
+   quiz:{ q:P('毒刺章魚會怎樣？','ㄉㄨˊ ㄘˋ ㄓㄤ ㄩˊ ㄏㄨㄟˋ ㄗㄣˇ ㄧㄤˋ'),
+     opts:[ P('圈圈變小','ㄑㄩㄢ ㄑㄩㄢ ㄅㄧㄢˋ ㄒㄧㄠˇ'), P('圈圈變大','ㄑㄩㄢ ㄑㄩㄢ ㄅㄧㄢˋ ㄉㄚˋ'), P('圈圈不見','ㄑㄩㄢ ㄑㄩㄢ ㄅㄨˊ ㄐㄧㄢˋ') ], a:0 } },
+ { art:'it5', t:P('兩顆頭暈了','ㄌㄧㄤˇ ㄎㄜ ㄊㄡˊ ㄩㄣ ㄌㄜ˙'),
+   s:P('牠們互相撞到了。','ㄊㄚ ㄇㄣ˙ ㄏㄨˋ ㄒㄧㄤ ㄓㄨㄤˋ ㄉㄠˋ ㄌㄜ˙'),
+   quiz:{ q:P('雙頭章魚有幾顆頭？','ㄕㄨㄤ ㄊㄡˊ ㄓㄤ ㄩˊ ㄧㄡˇ ㄐㄧˇ ㄎㄜ ㄊㄡˊ'),
+     opts:[ P('兩顆','ㄌㄧㄤˇ ㄎㄜ'), P('一顆','ㄧˋ ㄎㄜ'), P('五顆','ㄨˇ ㄎㄜ') ], a:0 } },
+ { art:'it6', t:P('炸彈丟完了','ㄓㄚˋ ㄉㄢˋ ㄉㄧㄡ ㄨㄢˊ ㄌㄜ˙'),
+   s:P('前面就是基地。','ㄑㄧㄢˊ ㄇㄧㄢˋ ㄐㄧㄡˋ ㄕˋ ㄐㄧ ㄉㄧˋ'),
+   quiz:{ q:P('打炸彈章魚要帶什麼？','ㄉㄚˇ ㄓㄚˋ ㄉㄢˋ ㄓㄤ ㄩˊ ㄧㄠˋ ㄉㄞˋ ㄕㄜˊ ㄇㄜ˙'),
+     opts:[ P('水彈','ㄕㄨㄟˇ ㄉㄢˋ'), P('雨傘','ㄩˇ ㄙㄢˇ'), P('枕頭','ㄓㄣˇ ㄊㄡˊ') ], a:0 } },
+ { art:'it7', t:P('防線破了','ㄈㄤˊ ㄒㄧㄢˋ ㄆㄛˋ ㄌㄜ˙'),
    s:P('寶石還在發光。','ㄅㄠˇ ㄕˊ ㄏㄞˊ ㄗㄞˋ ㄈㄚ ㄍㄨㄤ'),
    quiz:{ q:P('鐵甲要怎麼打破？','ㄊㄧㄝˇ ㄐㄧㄚˇ ㄧㄠˋ ㄗㄣˇ ㄇㄜ˙ ㄉㄚˇ ㄆㄛˋ'),
      opts:[ P('用力鑽','ㄩㄥˋ ㄌㄧˋ ㄗㄨㄢ'), P('輕輕摸','ㄑㄧㄥ ㄑㄧㄥ ㄇㄛ'), P('大聲叫','ㄉㄚˋ ㄕㄥ ㄐㄧㄠˋ') ], a:0 } },
@@ -705,7 +733,8 @@ function drawMoveCard(mvKey,topY){ const mv=MOVES[mvKey]; if(!mv) return; const 
   drawRuby(mv.label, x, cy, fs, '#fff', 'left'); }
 
 /* ---------- 節奏拍 ---------- */
-function targetRad(){ return Math.min(mwh()*0.088, 74); }
+// st.radK＝判定圈半徑倍率。毒刺章魚的第二階段會把它縮小（選對硬殼盾就不縮）。
+function targetRad(){ return Math.min(mwh()*0.088, 74) * (st.radK||1); }
 function beatRad(p){ return lerp(mwh()*0.22, targetRad(), clamp(p,0,1)); }
 function beatSpots(){ const B=st.boss, r=B.sz*0.30; return [ {x:B.x,y:B.y-r}, {x:B.x-r*1.05,y:B.y+r*0.12}, {x:B.x+r*1.05,y:B.y+r*0.12}, {x:B.x,y:B.y+r} ]; }
 function spawnBeat(){ if(!st.tut && st.bi>=st.beats.length){ roundClear(); return; }
@@ -837,6 +866,8 @@ function enterPhase2(){ const ph=st.cfg.ph2; if(!ph||st.ph2) return; st.ph2=true
   Sfx.cue(); shake(14,420); st.flash={col:ph.kind==='glare'?'#fff3c4':'#ff2b3b',until:now()+420};
   if(ph.kind==='rage') st.cfg={...st.cfg, gap:Math.round(st.cfg.gap*(ph.gapK||0.8))};
   if(ph.kind==='glare') st.glareUntil=now()+(ph.dimMs||2500)*(S.item==='shade'?0.4:1);
+  // 判定圈縮小；選對「硬殼盾」就不縮（備戰選擇的客觀後果）
+  if(ph.kind==='shrink') st.radK=(S.item==='shield')?1:(ph.radK||0.78);
   if(ph.tip) popText(W/2,H*0.36, ph.tip.map?ph.tip.map(c=>c.t||c.c||'').join(''):'', '#ffce7a',1.3);
   st.ph2Banner=now()+1600; }
 function drawFlash(){ if(!st.flash||now()>=st.flash.until) return; ctx.save(); ctx.globalAlpha=(st.flash.until-now())/360*0.32; ctx.fillStyle=st.flash.col; ctx.fillRect(0,0,W,H); ctx.restore(); }
@@ -1012,9 +1043,12 @@ const ITEMS={
  fin:   { name:P('快鰭','ㄎㄨㄞˋ ㄑㄧˊ'),     hint:P('出拳很快，要跟得上','ㄔㄨ ㄑㄩㄢˊ ㄏㄣˇ ㄎㄨㄞˋ ㄧㄠˋ ㄍㄣ ㄉㄜ˙ ㄕㄤˋ'), col:'#5bc0ff' },
  shade: { name:P('墨鏡','ㄇㄛˋ ㄐㄧㄥˋ'),     hint:P('牠會放很亮的光','ㄊㄚ ㄏㄨㄟˋ ㄈㄤˋ ㄏㄣˇ ㄌㄧㄤˋ ㄉㄜ˙ ㄍㄨㄤ'), col:'#e8a13c' },
  anchor:{ name:P('重錨','ㄓㄨㄥˋ ㄇㄠˊ'),     hint:P('牠會把你吸走','ㄊㄚ ㄏㄨㄟˋ ㄅㄚˇ ㄋㄧˇ ㄒㄧ ㄗㄡˇ'),        col:'#2fb6c0' },
+ shield:{ name:P('硬殼盾','ㄧㄥˋ ㄎㄜˊ ㄉㄨㄣˋ'), hint:P('牠的刺很毒','ㄊㄚ ㄉㄜ˙ ㄘˋ ㄏㄣˇ ㄉㄨˊ'),        col:'#7fb03a' },
+ lure:  { name:P('小誘餌','ㄒㄧㄠˇ ㄧㄡˋ ㄦˇ'),   hint:P('牠有兩顆頭','ㄊㄚ ㄧㄡˇ ㄌㄧㄤˇ ㄎㄜ ㄊㄡˊ'),      col:'#9a6cd0' },
+ water: { name:P('水彈','ㄕㄨㄟˇ ㄉㄢˋ'),         hint:P('牠會亂丟炸彈','ㄊㄚ ㄏㄨㄟˋ ㄌㄨㄢˋ ㄉㄧㄡ ㄓㄚˋ ㄉㄢˋ'), col:'#e2603c' },
  drill: { name:P('破甲鑽頭','ㄆㄛˋ ㄐㄧㄚˇ ㄗㄨㄢˋ ㄊㄡˊ'), hint:P('牠有很硬的殼','ㄊㄚ ㄧㄡˇ ㄏㄣˇ ㄧㄥˋ ㄉㄜ˙ ㄎㄜˊ'), col:'#ffb347', sprite:'itemDrill' },
 };
-const ITEM_KEYS=['fin','shade','anchor','drill'];
+const ITEM_KEYS=['fin','shade','anchor','shield','lure','water','drill'];
 function initPrep(target){
   st.target=clamp(target==null?S.wave:target,0,N_BOSS-1);
   const cfg=BOSSES[st.target];
@@ -1068,7 +1102,7 @@ function initWave(n){ n=clamp(n,0,N_BOSS-1); S.wave=n; const cfg=BOSSES[n];
   st.hp=cfg.hp; st.ghost=cfg.hp; st.php=playerHp(); st.combo=0; st.miss=0; st.flash=null; st.lockUntil=0; st.lastSpot=-1;
   st.beats=buildBeats(cfg); st.bi=0; st.beat=null; st.ringMs=cfg.ringMs; st.nextAt=0;
   st.ult=null; st.ultDone=(cfg.ultAt||[]).map(()=>0);
-  st.ph2=false; st.ph2Banner=0; st.glareUntil=0;
+  st.ph2=false; st.ph2Banner=0; st.glareUntil=0; st.radK=1;
   st.boss=makeBoss(cfg); initShell(cfg); }
 function startFight(){ st.mode='fight'; st.nextAt=now()+700; popText(W/2,H*0.34,'開打！','#ffe27a',1.3); Sfx.cue(); }
 function battleLost(){ st.busy=true; st.dead=true; st.beat=null; st.combo=0; shake(22,560); Sfx.bad(); Sfx.tone(110,0.7,'sawtooth',0.07); st.flash={col:'#ff2b3b',until:now()+450}; S.deaths=(S.deaths||0)+1; persist(); }

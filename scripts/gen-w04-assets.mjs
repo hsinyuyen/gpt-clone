@@ -45,6 +45,9 @@ const JOBS = [
   { f: "w4-oct-boxer.png",   ar: "1:1", p: CHAR("a deep pink and crimson octopus BOXER wearing big red padded boxing gloves on two of its front tentacles, raised in a boxing guard, headband, determined grin") },
   { f: "w4-oct-lantern.png", ar: "1:1", p: CHAR("a golden amber octopus with a huge glowing anglerfish lantern bulb on a stalk above its head, the bulb casting a warm bright glow over its face") },
   { f: "w4-oct-sucker.png",  ar: "1:1", p: CHAR("a teal and turquoise octopus with very large prominent round suction cups covering every tentacle, tentacles curling inward as if sucking water toward itself") },
+  { f: "w4-oct-spike.png",   ar: "1:1", p: CHAR("a poisonous olive-green octopus covered in sharp purple venom spikes along its head and tentacles, each spike tipped with a small glowing purple droplet, narrowed sly eyes") },
+  { f: "w4-oct-twin.png",    ar: "1:1", p: CHAR("a violet purple octopus with TWO heads side by side on one body, both heads with their own big eyes and their own expression — one grumpy and one grinning, tentacles spread below") },
+  { f: "w4-oct-bomb.png",    ar: "1:1", p: CHAR("a burnt-orange octopus juggling three round black cartoon bombs with lit sparkling fuses in its tentacles, mischievous wide grin, goggles pushed up on its head") },
   { f: "w4-oct-armor.png",   ar: "1:1", p: CHAR("a steel grey octopus wearing a thick riveted iron armour helmet shell covering its head, heavy metal plating, tough and sturdy, small eyes peeking out from under the helmet") },
   { f: "w4-oct-king.png",    ar: "3:4", p: CHAR("an ENORMOUS royal purple octopus KING wearing a tall golden crown with jewels, majestic and imposing, thick powerful tentacles spreading wide, glowing amber eyes, regal presence") },
   // 鐵甲章魚被破甲後換這張：殼碎了、露出弱點、氣勢下降但還在戰鬥
@@ -71,7 +74,10 @@ No text, no letters, no numbers.` },
   { f: "w4-it1.jpg",   ar: "16:9", p: SCENE("A pair of red boxing gloves sinking slowly down to the sandy seabed, trailing small bubbles, calm after a fight") },
   { f: "w4-it2.jpg",   ar: "16:9", p: SCENE("A large anglerfish lantern going dark underwater as the murky water clears back to bright blue, a feeling of relief") },
   { f: "w4-it3.jpg",   ar: "16:9", p: SCENE("Swirling whirlpool currents settling into stillness, loosened suction cups drifting away in the calm water") },
-  { f: "w4-it4.jpg",   ar: "16:9", p: SCENE("A broken coral defence barricade with five gemstones still glowing safely behind it, warm dawn light streaming from the surface") },
+  { f: "w4-it4.jpg",   ar: "16:9", p: SCENE("Broken purple venom spikes scattered on the seabed, the murky green water around them clearing back to clean blue") },
+  { f: "w4-it5.jpg",   ar: "16:9", p: SCENE("Two dizzy cartoon octopus heads seeing stars after bonking into each other, comical, bubbles spinning around them") },
+  { f: "w4-it6.jpg",   ar: "16:9", p: SCENE("Spent burnt-out bomb casings sinking harmlessly to the seabed, and beyond them the dark silhouette of a fortress entrance") },
+  { f: "w4-it7.jpg",   ar: "16:9", p: SCENE("A broken coral defence barricade with five gemstones still glowing safely behind it, warm dawn light streaming from the surface") },
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
