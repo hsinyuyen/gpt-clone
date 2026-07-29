@@ -42,6 +42,10 @@ service cloud.firestore {
     match /cardAnimations/{id}  { allow read, write: if true; }
     match /pvpRooms/{id}        { allow read, write: if true; }
     match /worksheets/{id}      { allow read, write: if true; }
+    match /labToolCache/{worksheetId} {
+      allow read, write: if true;
+      match /{sub=**} { allow read, write: if true; }
+    }
     match /auditLog/{id}        { allow read, write: if true; }
     match /gameProgress/{id}    { allow read, write: if true; }   // ← S5-W15 遊戲進度（本次新增）
 

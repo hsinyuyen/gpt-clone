@@ -1,6 +1,20 @@
 import crypto from "crypto";
 import fs from "fs/promises";
+import os from "os";
 import path from "path";
+import { initializeApp, getApps } from "firebase/app";
+import {
+  doc,
+  getDoc,
+  getFirestore,
+  setDoc,
+} from "firebase/firestore";
+import {
+  getDownloadURL,
+  getStorage,
+  ref as storageRef,
+  uploadBytes,
+} from "firebase/storage";
 
 export type CacheableLabToolKind = "image" | "music" | "video";
 
@@ -11,6 +25,10 @@ interface CacheEntry {
   fileName: string;
   mimeType: string;
   createdAt: string;
+  size?: number;
+  storagePath?: string;
+  downloadUrl?: string;
+  syncedAt?: string;
 }
 
 interface SaveCacheParams {
@@ -23,7 +41,36 @@ interface SaveCacheParams {
   limit: number;
 }
 
-const CACHE_ROOT = path.join(process.cwd(), ".lab-tool-cache");
+export interface CachedAssetBuffer {
+  buffer: Buffer;
+  mimeType: string;
+  fileName: string;
+}
+
+export interface CachedAssetRedirect {
+  downloadUrl: string;
+  mimeType: string;
+  fileName: string;
+}
+
+export type ResolvedCachedAsset = CachedAssetBuffer | CachedAssetRedirect;
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78",
+  authDomain: "gpt-clone-68b9f.firebaseapp.com",
+  projectId: "gpt-clone-68b9f",
+  storageBucket: "gpt-clone-68b9f.firebasestorage.app",
+  messagingSenderId: "436942056069",
+  appId: "1:436942056069:web:8762675dfff7b7e92017ec",
+  measurementId: "G-842KZYGN8Q",
+};
+
+const CACHE_ROOT =
+  process.env.LAB_TOOL_CACHE_ROOT ||
+  (process.env.VERCEL
+    ? path.join(os.tmpdir(), ".lab-tool-cache")
+    : path.join(process.cwd(), ".lab-tool-cache"));
+const CLOUD_CACHE_ROOT = "lab-tool-cache";
 const SIMILARITY_THRESHOLD = 0.72;
 const MAX_CACHE_LIMIT = 100;
 const apiCooldownUntil = new Map<string, number>();
@@ -103,7 +150,35 @@ const kindDir = (worksheetId: string, kind: CacheableLabToolKind) =>
 const indexPath = (worksheetId: string, kind: CacheableLabToolKind) =>
   path.join(kindDir(worksheetId, kind), "index.json");
 
-async function readIndex(worksheetId: string, kind: CacheableLabToolKind): Promise<CacheEntry[]> {
+function firebaseServices() {
+  const app = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApps()[0];
+  return {
+    db: getFirestore(app),
+    storage: getStorage(app),
+  };
+}
+
+function cloudStoragePath(
+  worksheetId: string,
+  kind: CacheableLabToolKind,
+  fileName: string
+) {
+  return `${CLOUD_CACHE_ROOT}/${normalizeWorksheetId(worksheetId)}/${kind}/${path.basename(fileName)}`;
+}
+
+function cloudIndexRefs(worksheetId: string, kind: CacheableLabToolKind) {
+  const { db } = firebaseServices();
+  const normalizedWorksheetId = normalizeWorksheetId(worksheetId);
+  return [
+    doc(db, "system", `labToolCache_${normalizedWorksheetId}_${kind}`),
+    doc(db, "labToolCache", normalizedWorksheetId, "kinds", kind),
+  ];
+}
+
+async function readLocalIndex(
+  worksheetId: string,
+  kind: CacheableLabToolKind
+): Promise<CacheEntry[]> {
   try {
     const raw = await fs.readFile(indexPath(worksheetId, kind), "utf8");
     const parsed = JSON.parse(raw);
@@ -113,13 +188,87 @@ async function readIndex(worksheetId: string, kind: CacheableLabToolKind): Promi
   }
 }
 
-async function writeIndex(
+async function readCloudIndex(
+  worksheetId: string,
+  kind: CacheableLabToolKind
+): Promise<CacheEntry[]> {
+  for (const ref of cloudIndexRefs(worksheetId, kind)) {
+    try {
+      const snap = await getDoc(ref);
+      const entries = snap.exists() ? snap.data()?.entries : null;
+      if (Array.isArray(entries)) return entries as CacheEntry[];
+    } catch (error) {
+      console.warn("[LabToolCache] cloud index read failed:", ref.path, error);
+    }
+  }
+  return [];
+}
+
+async function readIndex(
+  worksheetId: string,
+  kind: CacheableLabToolKind
+): Promise<CacheEntry[]> {
+  const localEntries = await readLocalIndex(worksheetId, kind);
+  if (localEntries.length > 0) return localEntries;
+  return readCloudIndex(worksheetId, kind);
+}
+
+async function writeLocalIndex(
   worksheetId: string,
   kind: CacheableLabToolKind,
   entries: CacheEntry[]
 ) {
   await fs.mkdir(kindDir(worksheetId, kind), { recursive: true });
   await fs.writeFile(indexPath(worksheetId, kind), JSON.stringify(entries, null, 2), "utf8");
+}
+
+async function writeCloudIndex(
+  worksheetId: string,
+  kind: CacheableLabToolKind,
+  entries: CacheEntry[]
+) {
+  const normalizedWorksheetId = normalizeWorksheetId(worksheetId);
+  const payload = {
+    worksheetId: normalizedWorksheetId,
+    kind,
+    entries: entries.map((entry) =>
+      Object.fromEntries(
+        Object.entries(entry).filter(([, value]) => value !== undefined)
+      )
+    ),
+    updatedAt: new Date().toISOString(),
+    version: 1,
+  };
+
+  let lastError: unknown = null;
+  const writtenPaths: string[] = [];
+  for (const ref of cloudIndexRefs(worksheetId, kind)) {
+    try {
+      await setDoc(ref, payload, { merge: true });
+      writtenPaths.push(ref.path);
+    } catch (error) {
+      lastError = error;
+      console.warn("[LabToolCache] cloud index write failed:", ref.path, error);
+    }
+  }
+
+  if (writtenPaths.length > 0) return writtenPaths.join(",");
+  throw lastError || new Error("Cloud index write failed");
+}
+
+async function uploadCloudAsset(params: {
+  worksheetId: string;
+  kind: CacheableLabToolKind;
+  fileName: string;
+  buffer: Buffer;
+  mimeType: string;
+}) {
+  const { storage } = firebaseServices();
+  const storagePath = cloudStoragePath(params.worksheetId, params.kind, params.fileName);
+  const ref = storageRef(storage, storagePath);
+  await uploadBytes(ref, params.buffer, { contentType: params.mimeType });
+  const downloadUrl = await getDownloadURL(ref);
+  return { storagePath, downloadUrl };
 }
 
 export function cachedAssetUrl(
@@ -238,10 +387,27 @@ export async function saveLabToolResult(params: SaveCacheParams) {
   const dir = kindDir(worksheetId, params.kind);
   const fullPath = path.join(dir, fileName);
 
-  await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(fullPath, params.buffer);
+  try {
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(fullPath, params.buffer);
+  } catch (error) {
+    console.warn("[LabToolCache] local asset write failed:", fullPath, error);
+  }
 
   const entries = await readIndex(worksheetId, params.kind);
+  let cloud: { storagePath: string; downloadUrl: string } | null = null;
+  try {
+    cloud = await uploadCloudAsset({
+      worksheetId,
+      kind: params.kind,
+      fileName,
+      buffer: params.buffer,
+      mimeType: params.mimeType,
+    });
+  } catch (error) {
+    console.warn("[LabToolCache] cloud asset upload failed:", error);
+  }
+
   const nextEntries: CacheEntry[] = [
     {
       id: hash,
@@ -250,11 +416,25 @@ export async function saveLabToolResult(params: SaveCacheParams) {
       fileName,
       mimeType: params.mimeType,
       createdAt: new Date().toISOString(),
+      size: params.buffer.length,
+      storagePath: cloud?.storagePath,
+      downloadUrl: cloud?.downloadUrl,
+      syncedAt: cloud ? new Date().toISOString() : undefined,
     },
     ...entries,
   ].slice(0, params.limit);
 
-  await writeIndex(worksheetId, params.kind, nextEntries);
+  try {
+    await writeLocalIndex(worksheetId, params.kind, nextEntries);
+  } catch (error) {
+    console.warn("[LabToolCache] local index write failed:", error);
+  }
+
+  try {
+    await writeCloudIndex(worksheetId, params.kind, nextEntries);
+  } catch (error) {
+    console.warn("[LabToolCache] cloud index write failed:", error);
+  }
 
   return {
     cached: false,
@@ -268,25 +448,63 @@ export async function readCachedAsset(
   worksheetId: string,
   kind: CacheableLabToolKind,
   fileName: string
-) {
+): Promise<CachedAssetBuffer | null> {
+  const resolved = await resolveCachedAsset(worksheetId, kind, fileName);
+  if (!resolved || "buffer" in resolved) return resolved;
+
+  try {
+    const response = await fetch(resolved.downloadUrl);
+    if (response.ok) {
+      const contentType =
+        response.headers.get("content-type") ||
+        resolved.mimeType ||
+        "application/octet-stream";
+      return {
+        buffer: Buffer.from(await response.arrayBuffer()),
+        mimeType: contentType.split(";")[0],
+        fileName: resolved.fileName,
+      };
+    }
+    console.warn("[LabToolCache] cloud asset download failed:", response.status);
+  } catch (error) {
+    console.warn("[LabToolCache] cloud asset fetch failed:", error);
+  }
+
+  return null;
+}
+
+export async function resolveCachedAsset(
+  worksheetId: string,
+  kind: CacheableLabToolKind,
+  fileName: string
+): Promise<ResolvedCachedAsset | null> {
   const safeFile = path.basename(fileName);
   const entries = await readIndex(worksheetId, kind);
   const entry = entries.find((item) => item.fileName === safeFile);
 
   const fullPath = path.join(kindDir(worksheetId, kind), safeFile);
-  let buffer: Buffer;
   try {
-    buffer = await fs.readFile(fullPath);
+    const buffer = await fs.readFile(fullPath);
+    const extension = path.extname(safeFile).replace(".", "").toLowerCase();
+    return {
+      buffer,
+      mimeType: entry?.mimeType || MIME_BY_EXTENSION[extension] || "application/octet-stream",
+      fileName: entry?.fileName || safeFile,
+    };
   } catch {
-    return null;
+    // Fall through to cloud storage. This is the normal path after deployment,
+    // where the server filesystem may not contain the generated cache files.
   }
 
-  const extension = path.extname(safeFile).replace(".", "").toLowerCase();
-  return {
-    buffer,
-    mimeType: entry?.mimeType || MIME_BY_EXTENSION[extension] || "application/octet-stream",
-    fileName: entry?.fileName || safeFile,
-  };
+  if (entry?.downloadUrl) {
+    return {
+      downloadUrl: entry.downloadUrl,
+      mimeType: entry.mimeType || "application/octet-stream",
+      fileName: entry.fileName || safeFile,
+    };
+  }
+
+  return null;
 }
 
 export async function downloadToBuffer(url: string) {

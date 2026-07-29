@@ -1,13 +1,33 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import {
   CacheableLabToolKind,
-  readCachedAsset,
+  resolveCachedAsset,
 } from "@/server/labToolCache";
 
 const CACHEABLE_KINDS: CacheableLabToolKind[] = ["image", "music", "video"];
 
 const getSingleQueryValue = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
+
+export const config = {
+  api: {
+    responseLimit: false,
+  },
+};
+
+function withDownloadDisposition(url: string, fileName: string, shouldDownload: boolean) {
+  if (!shouldDownload) return url;
+  try {
+    const nextUrl = new URL(url);
+    nextUrl.searchParams.set(
+      "response-content-disposition",
+      `attachment; filename="${fileName}"`
+    );
+    return nextUrl.toString();
+  } catch {
+    return url;
+  }
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -27,9 +47,17 @@ export default async function handler(
   }
 
   try {
-    const asset = await readCachedAsset(worksheetId, kind, fileName);
+    const asset = await resolveCachedAsset(worksheetId, kind, fileName);
     if (!asset) {
       return res.status(404).json({ error: "Cached asset not found" });
+    }
+
+    if ("downloadUrl" in asset) {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      return res.redirect(
+        302,
+        withDownloadDisposition(asset.downloadUrl, asset.fileName, shouldDownload)
+      );
     }
 
     res.setHeader("Content-Type", asset.mimeType);
