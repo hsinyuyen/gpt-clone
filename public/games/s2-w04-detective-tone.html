@@ -182,7 +182,21 @@
     .owpad{grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,38px);gap:5px;}
     .dbtn{font-size:16px;border-radius:9px;} .dbtn.act{font-size:18px;}
     .owbar{font-size:11.5px;} .owhint{font-size:11.5px;padding:3px 11px;} .map{gap:4px;}
+    /* 遇怪戰鬥在極矮螢幕：縮小怪物、收掉多餘提示 */
+    .battle{gap:5px;} .bmon{width:min(18vh,80px);} .battle .lead{display:none;}
+    .bhearts{font-size:17px;} .btones .tone{padding:5px 4px;} .btones .tone svg{width:26px;height:26px;}
   }
+  /* ── 遇怪戰鬥：用對的語氣攻擊情緒怪（延續 W04 語氣主題）── */
+  .battle{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:8px;
+    align-items:center;justify-content:center;text-align:center;overflow-y:auto;}
+  .bmon{width:min(30vh,150px);aspect-ratio:1;flex:0 1 auto;}
+  .bmon img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 8px 18px rgba(0,0,0,.5));}
+  .bmon.hit img{animation:bhit .3s;} @keyframes bhit{0%{filter:brightness(3.5)}100%{filter:none}}
+  .bmon.atk{animation:batk .35s;} @keyframes batk{0%,100%{transform:translateX(0)}25%{transform:translateX(-12px)}75%{transform:translateX(12px)}}
+  .bhp{width:min(78%,320px);height:12px;background:rgba(255,255,255,.14);border-radius:99px;overflow:hidden;flex:0 0 auto;}
+  .bhp>i{display:block;height:100%;background:linear-gradient(90deg,#ff5d6c,#ff9f43);transition:width .3s;}
+  .bhearts{font-size:20px;letter-spacing:2px;flex:0 0 auto;}
+  .btones{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:min(100%,470px);flex:0 0 auto;}
   /* 線索板 */
   .clues{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin:6px 0 0;}
   .slot{background:#101f33;border:1px dashed var(--line);border-radius:12px;padding:7px 10px;min-height:0;
@@ -1057,7 +1071,7 @@ function buildWorld(act){ const W=40,H=30; const map=[]; for(let y=0;y<H;y++)map
 }
 function initWorld(act){ const w=buildWorld(act);
   const s=(S.owHero&&S.owAct===act&&typeof S.owHero.tx==='number')?S.owHero:w.start;
-  ow={act,W:w.W,H:w.H,map:w.map,events:w.events,cam:{x:0,y:0},dpad:null,
+  ow={act,W:w.W,H:w.H,map:w.map,events:w.events,cam:{x:0,y:0},dpad:null,grassSteps:0,
     hero:{tx:s.tx,ty:s.ty,px:s.tx*TILE,py:s.ty*TILE,dir:'down',moving:false}}; S.owAct=act; }
 function owBlocked(x,y){ if(x<0||y<0||x>=ow.W||y>=ow.H)return true; const t=ow.map[y][x]; return t===2||t===3; }
 function owDir(){ if(owKeys.up||ow.dpad==='up')return{dx:0,dy:-1,name:'up'}; if(owKeys.down||ow.dpad==='down')return{dx:0,dy:1,name:'down'};
@@ -1066,7 +1080,10 @@ function owUpdate(dt){ const h=ow.hero;
   if(!h.moving){ const d=owDir(); if(d){ h.dir=d.name; const nx=h.tx+d.dx,ny=h.ty+d.dy;
     if(!owBlocked(nx,ny)){ h.moving=true;h.fx=h.px;h.fy=h.py;h.ntx=nx;h.nty=ny;h.mt=0; } } }
   if(h.moving){ h.mt+=dt/150; const t=Math.min(1,h.mt); h.px=h.fx+(h.ntx*TILE-h.fx)*t; h.py=h.fy+(h.nty*TILE-h.fy)*t;
-    if(t>=1){ h.moving=false;h.tx=h.ntx;h.ty=h.nty;h.px=h.tx*TILE;h.py=h.ty*TILE; S.owHero={tx:h.tx,ty:h.ty}; owSaveThrottle(); owUpdateHint(); } }
+    if(t>=1){ h.moving=false;h.tx=h.ntx;h.ty=h.nty;h.px=h.tx*TILE;h.py=h.ty*TILE; S.owHero={tx:h.tx,ty:h.ty}; owSaveThrottle();
+      // 走在草地上有機率遇到情緒怪（沿用 W03 的遇敵機制）
+      if(ow.map[h.ty][h.tx]===0){ ow.grassSteps++; if(ow.grassSteps>3 && Math.random()<0.13){ ow.grassSteps=0; startEncounter(); return; } }
+      owUpdateHint(); } }
   const vw=ow.canvas.width,vh=ow.canvas.height;
   ow.cam.x=clamp(h.px+TILE/2-vw/2,0,Math.max(0,ow.W*TILE-vw));
   ow.cam.y=clamp(h.py+TILE/2-vh/2,0,Math.max(0,ow.H*TILE-vh)); }
@@ -1166,6 +1183,48 @@ function renderMap(ch,i){
 function owFit(){ if(!ow||!ow.wrap||!ow.canvas)return; const r=ow.wrap.getBoundingClientRect();
   const w=Math.max(220,Math.floor(r.width)), h=Math.max(140,Math.floor(r.height));
   if(ow.canvas.width!==w||ow.canvas.height!==h){ ow.canvas.width=w; ow.canvas.height=h; } }
+
+/* =========================================================================
+   遇怪戰鬥：走在草地上隨機遇到「情緒怪」。每隻怪有一個弱點語氣——
+   用對的語氣攻擊就扣血，用錯就被牠反咬掉一顆愛心。血扣光＝打倒，繼續探索。
+   （沿用 W03 的遇敵→打怪→繼續機制，但戰法改成 W04 的語氣主題。）
+   ========================================================================= */
+const MONSTERS=[
+  { body:'mon-mech', name:'硬邦邦機器怪', weak:'serious', line:'阿問：這隻硬邦邦的，要用「認真」讓它知道你是說真的，才打得動！' },
+  { body:'mon-slug', name:'黏答答氣噗噗怪', weak:'warm',    line:'阿問：它在鬧脾氣，先用「溫柔」安撫，它就軟下來了！' },
+  { body:'mon-rat',  name:'吱吱亂竄怪',     weak:'funny',   line:'阿問：它太緊張一直亂竄，用「搞笑」逗笑它就破功！' },
+];
+let battle=null;
+function startEncounter(){ owActive=false; owStop();
+  const mon=MONSTERS[Math.floor(Math.random()*MONSTERS.length)];
+  battle={mon,hp:3,maxhp:3,hearts:3,locked:false};
+  renderBattle();
+}
+function renderBattle(){ const b=battle, mon=b.mon; setScene(null);
+  stage.innerHTML='';
+  const head=el('div'); head.appendChild(el('h1',null,'⚔️ 遇到「'+mon.name+'」！')); stage.appendChild(head);
+  const w=el('div','battle');
+  w.appendChild(el('div','bubble ask',mon.line));
+  const mb=el('div','bmon'); const im=document.createElement('img'); im.src='assets/'+mon.body+'.png'; im.alt=''; mb.appendChild(im); w.appendChild(mb);
+  const hp=el('div','bhp'); const hpi=el('i'); hpi.style.width='100%'; hp.appendChild(hpi); w.appendChild(hp);
+  const hearts=el('div','bhearts'); const drawHearts=()=>hearts.textContent='❤️'.repeat(b.hearts)+'🤍'.repeat(b.maxhp-b.hearts); drawHearts(); w.appendChild(hearts);
+  w.appendChild(el('div','lead','用對的語氣攻擊它！'));
+  const tg=el('div','btones');
+  TONE_KEYS.forEach(k=>{ const T=TONES[k]; const btn=el('button','tone'); btn.style.setProperty('--c',T.col);
+    btn.appendChild(toneIcon(k)); btn.appendChild(el('div','nm',T.name));
+    btn.onclick=()=>{ if(b.locked)return; Sfx.resume();
+      if(k===mon.weak){ Sfx.ding(); b.hp--; hpi.style.width=Math.round(b.hp/b.maxhp*100)+'%';
+        mb.classList.add('hit'); setTimeout(()=>mb.classList.remove('hit'),300);
+        if(b.hp<=0){ b.locked=true; setTimeout(winBattle,550); } }
+      else{ Sfx.bad(); b.hearts--; drawHearts(); mb.classList.add('atk'); setTimeout(()=>mb.classList.remove('atk'),350);
+        if(b.hearts<=0){ b.locked=true; toast('被反咬了…深呼吸，再試一次！');
+          setTimeout(()=>{ b.hp=b.maxhp; b.hearts=b.maxhp; b.locked=false; hpi.style.width='100%'; drawHearts(); },1000); } }
+    };
+    tg.appendChild(btn); });
+  w.appendChild(tg);
+  stage.appendChild(w);
+}
+function winBattle(){ Sfx.win(); toast('打倒了！繼續探索 🗺'); battle=null; goCh(S.ch); }
 
 /* ---------- 流程控制 ---------- */
 function goCh(i){
