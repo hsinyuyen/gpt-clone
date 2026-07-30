@@ -317,7 +317,9 @@ function addCoins(id,amount,reason){
   S.coins=Math.min(TOTAL_COINS,(S.coins||0)+amount);
   Account.creditCoins(GAMEKEY+'_'+id,amount,reason);
   renderCoin(); persist(); }
-function renderCoin(){ const h=$('#coinHud'); if(h) h.textContent='🪙 '+(S.coins||0)+' / '+TOTAL_COINS; }
+// 只顯示累計金幣（沿用 S2-W03）。不顯示「/ 總額」——總額含小老師 17，
+// 正常玩只到 35，分母會讓最後那段看起來永遠是空的。
+function renderCoin(){ const h=$('#coinHud'); if(h) h.textContent='🪙 '+(S.coins||0); }
 
 /* =========================================================================
    四種語氣（語氣變身器）
