@@ -104,7 +104,7 @@
   /* 泡泡小考：漂浮泡泡＋防硬按。
      高度改成吃掉畫面剩下的空間（原本寫死 230px，配上其他卡片就會超出一頁）。 */
   .qs{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;}
-  .qbs{position:relative;flex:1 1 auto;min-height:150px;margin:6px 0 0;}
+  .qbs{position:relative;flex:1 1 auto;min-height:132px;margin:6px 0 0;}
   .qb{position:absolute;width:150px;height:150px;border-radius:50%;border:3px solid rgba(220,245,255,.85);
     background:radial-gradient(circle at 34% 30%,rgba(238,252,255,.99),rgba(152,216,255,.92) 70%,rgba(108,180,250,.72));
     color:#062a45;font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:center;
@@ -116,6 +116,17 @@
   .slot{background:#101f33;border:1px dashed var(--line);border-radius:12px;padding:7px 10px;min-height:0;
     font-size:14px;line-height:1.4;color:var(--dim);}
   .slot.got{border-style:solid;border-color:var(--good);color:var(--ink);background:#122c26;}
+  /* 嫌疑人名冊：推理關把「昨晚在場的人＋他們的特徵」列出來，
+     學生才有辦法把抽象線索（穿紅衣、有鑰匙）連到具體的人。 */
+  .susp{display:flex;flex-direction:column;gap:5px;margin:5px 0 0;}
+  .susp .row{display:flex;align-items:center;gap:10px;background:#101f33;border:1px solid var(--line);
+    border-radius:12px;padding:5px 9px;}
+  .susp .row .pic{flex:0 0 auto;width:40px;height:40px;border-radius:9px;overflow:hidden;background:#20344c;}
+  .susp .row .pic img{width:100%;height:100%;object-fit:contain;}
+  .susp .row .pic.fail img{display:none;}
+  .susp .row .nm{flex:0 0 auto;font-weight:900;font-size:15px;min-width:2.6em;}
+  .susp .row .tr{font-size:13.5px;color:var(--ink2);line-height:1.35;}
+  .dlead{margin:6px 0 0;}
   .coin{position:fixed;right:12px;top:46px;z-index:25;background:rgba(14,24,38,.9);border:1px solid var(--line);
     border-radius:999px;padding:5px 12px;font-weight:900;color:var(--gold);font-size:13.5px;}
   .prog{height:6px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden;margin:5px 0 0;}
@@ -126,7 +137,7 @@
   /* ── 矮又寬（手機橫放）：改成左右並排 ──
      這種尺寸只剩約 330px 可用高度，直排怎麼縮都塞不下，而小三的字級不該再縮。
      好在每個畫面剛好都是兩張卡（劇情/角色 ＋ 小考/操作），並排就把高度砍半。 */
-  @media (max-height:560px) and (min-aspect-ratio:13/10){
+  @media (max-height:620px) and (min-aspect-ratio:13/10){
     .pane{flex-direction:row;align-items:stretch;}
     .pane>.card{flex:1 1 0;min-width:0;overflow-y:auto;}
     .who{flex-direction:column;align-items:center;gap:7px;}
@@ -149,6 +160,16 @@
     .btn{padding:9px 20px;font-size:16px;}
     .clues{grid-template-columns:repeat(4,1fr);}  /* 結局的 8 條線索改排四欄 */
     .slot{font-size:12.5px;padding:5px 8px;}
+    /* 推理關的嫌疑人名冊：橫排太矮塞不下三列＋頭像，改成頭像縮小、字收一階、間距壓緊 */
+    .susp{gap:3px;margin:3px 0 0;}
+    .susp .row{padding:2px 8px;gap:8px;}
+    .susp .row .pic{width:26px;height:26px;}
+    .susp .row .nm{font-size:13px;}
+    .susp .row .tr{font-size:11.5px;line-height:1.2;}
+    .dlead{margin:2px 0 0;font-size:11.5px;line-height:1.25;}
+    /* 推理關的線索格與標題在橫排再收一點，把名冊擠得下 */
+    .pane .clues{gap:5px;}
+    .pane .slot{padding:3px 7px;font-size:12px;}
   }
 </style>
 </head>
@@ -467,7 +488,16 @@ const CHAPTERS=[
 
  { type:'deduce', act:1, title:'幕一・把線索連起來', scene:'s2w04-board',
    need:['red','stay','kept','key'],
-   quiz:{ q:'昨晚穿紅衣、留下來、又是值日生的人是誰？', opts:['小華','阿強','小美'], a:0 } },
+   lead:'阿問把昨晚在學校附近的三個人都找出來了。把上面的線索跟每個人比一比，看誰「全部」都符合。',
+   /* 特徵設計成：只有小華同時滿足三條線索，另外兩人各被一條排除——
+      穿紅衣→只有小華；留下來→小美回家了排除；有鑰匙→阿強沒鑰匙排除。
+      這樣「誰是兇手」才是真的能從線索推出來，而不是硬猜一個沒見過的名字。 */
+   suspects:[
+     { name:'小華', img:'s2w04-hua',    tr:'穿紅色外套、昨天的值日生（有鑰匙）' },
+     { name:'阿強', img:'s2w04-qiang',  tr:'穿藍色運動服、昨天沒有鑰匙' },
+     { name:'小美', img:'s2w04-mei',    tr:'穿圍裙、放學就回家了' },
+   ],
+   quiz:{ q:'穿紅衣、有留下來、又有鑰匙——三條線索全部符合的是誰？', opts:['小華','阿強','小美'], a:0 } },
 
  { type:'twist', title:'咦？他好像不是壞人', scene:'s2w04-rain',
    intro:'你們找到小華，正要怪他——',
@@ -717,12 +747,31 @@ function renderTwist(ch,i){
   s.appendChild(c);
   bubbleQuiz(s, ch.quiz, ()=>{ addCoins('ch'+i,COIN_PER_CH,'S2-W04 翻轉'); goCh(i+1); });
 }
+function suspectRoster(list){
+  const box=el('div','susp');
+  list.forEach(su=>{
+    const row=el('div','row');
+    const p=pic(su.img); p.classList.remove('img'); p.classList.add('pic');  // 借用 pic() 的載入退色塊，但套名冊的小框
+    row.appendChild(p);
+    row.appendChild(el('div','nm',su.name));
+    row.appendChild(el('div','tr',su.tr));
+    box.appendChild(row);
+  });
+  return box;
+}
 function renderDeduce(ch,i){
   setScene(ch.scene);
   const s=screen(ch,i);
   const c=el('div','card');
   c.appendChild(el('h2',null,'先把線索攤開'));
-  c.appendChild(clueGrid(ch.need));         // 線索格嵌進同一張卡，省一張卡的高度
+  c.appendChild(clueGrid(ch.need));         // 線索格嵌進同一張卡
+  // 有嫌疑人名冊的推理關（第一幕「是誰」）：把在場的人＋特徵列出來，
+  // 學生才能把線索比對到具體的人，而不是硬猜一個沒見過的名字。
+  // 名冊接在同一張卡內（不另開卡）——直排時省下一張卡的內距與間距。
+  if(ch.suspects){
+    if(ch.lead) c.appendChild(el('p','lead dlead',ch.lead));  // 用 class 才能被橫排 media query 收窄（inline 樣式會蓋過）
+    c.appendChild(suspectRoster(ch.suspects));
+  }
   s.appendChild(c);
   bubbleQuiz(s, ch.quiz, ()=>{ addCoins('act'+ch.act,COIN_ACT,'S2-W04 第'+ch.act+'幕破案'); goCh(i+1); });
 }
