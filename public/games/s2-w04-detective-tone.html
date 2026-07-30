@@ -344,9 +344,9 @@ const GAMEKEY='s2w04';
    給幣的章節＝前情提要 2 ＋ 語氣教學 4 ＋ 訪談 8 ＋ 翻轉 1 ＝ 15 章 ×2 ＝ 30
    ＋ 兩幕推理各 2 ＝ 4 ＋ 破案 1 ＝ 35。小老師另計 17（約任務的 50%，CLAUDE.md §21）。 */
 const COIN_PER_CH=2, COIN_ACT=2, COIN_DONE=1, COIN_FOLLOW=1, COIN_TA=17;
-// 遊戲幣：訪談 8×2 ＋ 追問 8×1 ＋ 前情/翻轉 3×2 ＋ 語氣教學 4×2 ＋ 兩幕推理 2×2 ＋ 破案 1 ＝ 51
-// （＋第三幕會再加，最後統一結算；小老師 TA 17 另計）。TOTAL_COINS 只當入帳上限用。
-const TOTAL_COINS=200;
+// 遊戲幣＝56：前情/翻轉 4×2 ＋ 語氣教學 4×2 ＋ 訪談 11×2 ＋ 追問 11×1 ＋ 三幕推理 3×2 ＋ 破案 1。
+// 小老師 TA 17 另計 → 73。TOTAL_COINS 當入帳上限（HUD 只顯示累計數字、不顯示分母）。
+const TOTAL_COINS=73;
 const FB={apiKey:"AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78",authDomain:"gpt-clone-68b9f.firebaseapp.com",projectId:"gpt-clone-68b9f",storageBucket:"gpt-clone-68b9f.firebasestorage.app",messagingSenderId:"436942056069",appId:"1:436942056069:web:8762675dfff7b7e92017ec"};
 const Account=(()=>{let uid=null,uname='',db=null,ready=false;
   function su(){try{const r=(sessionStorage.getItem('@session/currentUser')||localStorage.getItem('@session/currentUser'));return r?JSON.parse(r):null;}catch(e){return null;}}
@@ -558,6 +558,22 @@ const CHARS={
             warm:'（他笑）小朋友你人很好，但我沒事啦。',
             serious:'（他愣住）你是要跟我算帳嗎？',
             funny:'（他搖頭）年輕人就是愛玩。' } },
+  /* ── 第三幕「和好」情境（重用同一張圖，但情緒／反應是和好脈絡）── */
+  hua3:   { name:'小華', img:'s2w04-hua', mood:'真相清楚了，可是小華還在自責：「都是我不好，害大家吵架。」', tone:'warm',
+    react:{ warm:'（他抬起頭，鬆了口氣）謝謝你…原來我只是想保護招牌，下次我會先跟大家說一聲。',
+            serious:'（他更緊張）我知道我錯了…對不起…',
+            funny:'（他勉強笑）我現在笑不太出來…',
+            polite:'（他愣住）你不用對我這麼客氣啦…' } },
+  blamed3:{ name:'被怪的同學', img:'s2w04-blamed', mood:'他還在氣：「大家都冤枉我，一句道歉都沒有！」', tone:'serious',
+    react:{ serious:'（他認真點頭）謝謝你幫我把話說清楚，我接受，我們和好。',
+            warm:'（他別過頭）我不需要安慰，我要的是一句公道話。',
+            funny:'（他皺眉）這一點都不好笑。',
+            polite:'（他哼一聲）光是客氣沒有用。' } },
+  mei3:   { name:'小美', img:'s2w04-mei', mood:'小美攤位被弄亂，還在嘟嘴：「哼，害我忙一整個早上。」', tone:'funny',
+    react:{ funny:'（她終於笑了）好啦好啦，招牌找回來就好，不氣了！',
+            warm:'（她嘟嘴）我沒有難過，我只是不甘心啦。',
+            serious:'（她翻白眼）你幹嘛這麼嚴肅。',
+            polite:'（她揮手）別那麼見外啦。' } },
 };
 
 /* =========================================================================
@@ -671,6 +687,36 @@ const CHAPTERS=[
  { type:'deduce', act:2, title:'幕二・還原真相', scene:'s2w04-board',
    need:['why','rain','hug','nofault'],
    quiz:{ q:'所以真相是什麼？', opts:['一場好意造成的誤會','有人故意搗蛋','招牌被偷走了'], a:0 } },
+
+ /* ── 第三幕：真相大白了，但大家還在鬧脾氣、還有誤會，要用對的語氣幫大家和好。── */
+ { type:'twist', title:'真相大白，但還沒和好', scene:'s2w04-yard',
+   lines:[
+     '你查出來了：招牌是小華怕淋雨才收起來的，根本沒有壞人，是一場好意造成的誤會。',
+     '可是大家還在生氣——小華一直自責、被冤枉的同學還在氣、小美忙了一早也不甘心。',
+     '阿問說：好偵探不只要找出真相，還要幫大家「好好和好」。用對的語氣，把每個人的心結一個一個打開。'],
+   quiz:{ q:'找出真相以後，接下來還要做什麼？', opts:['幫大家好好和好','趕快回家','把小華處罰一頓'], a:0 } },
+
+ { type:'map', act:3, title:'探索地圖・幫大家和好', scene:'s2w04-end' },
+
+ { type:'talk', act:3, who:'hua3', title:'幕三・別自責的小華', scene:'s2w04-rain',
+   clue:{ id:'hua_ok', text:'小華放下自責，願意主動說一聲' },
+   follow:{ tone:'warm', mood:'他放鬆多了，但還有點不好意思。',
+     detail:'（他小聲）我可以自己去跟小美道歉嗎？我想親口跟她說對不起。' },
+   quiz:{ q:'小華一直自責，要用什麼語氣安撫他？', opts:['溫柔','兇一點','搞笑'], a:0 } },
+ { type:'talk', act:3, who:'blamed3', title:'幕三・跟被怪的同學道歉', scene:'s2w04-corridor',
+   clue:{ id:'sorry_ok', text:'被冤枉的同學收到道歉，願意和好' },
+   follow:{ tone:'serious', mood:'他氣消了，想了一下。',
+     detail:'（他認真地說）其實我一開始也對大家大吼，這樣不對，我也跟大家說對不起。' },
+   quiz:{ q:'要讓被冤枉、還在氣的人聽進道歉，用什麼語氣？', opts:['認真','搞笑','客套'], a:0 } },
+ { type:'talk', act:3, who:'mei3', title:'幕三・跟小美和好', scene:'s2w04-stall',
+   clue:{ id:'mei_ok', text:'小美笑著原諒，不氣了' },
+   follow:{ tone:'funny', mood:'她心情變好了，話也多了。',
+     detail:'（她笑）那我請小華喝一杯我攤位的果汁，這件事就算翻篇啦！' },
+   quiz:{ q:'小美還在不甘心，什麼語氣讓她笑著放下？', opts:['搞笑','認真','命令'], a:0 } },
+
+ { type:'deduce', act:3, title:'幕三・大家和好了嗎', scene:'s2w04-end',
+   need:['hua_ok','sorry_ok','mei_ok'],
+   quiz:{ q:'怎麼樣才算真的和好？', opts:['聽對方說，也把話好好說開','假裝沒事就好','各走各的'], a:0 } },
 
  { type:'end', title:'大家和好了', scene:'s2w04-end' },
 ];
