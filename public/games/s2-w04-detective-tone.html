@@ -17,22 +17,40 @@
     --t-warm:#3fc6dd; --t-serious:#b07dff; --t-funny:#ff9f43; --t-polite:#ff8fbb;
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  /* ── 單頁式：一關＝一個畫面，整頁永遠不捲動 ──
+     html/body 鎖高、body 當 flex 直欄，#stage 吃掉剩下的空間。
+     用 100dvh 而不是 100vh：手機瀏覽器的網址列會伸縮，100vh 會算成
+     比實際可視區還高，底下的按鈕就被推到看不到的地方。 */
+  html,body{height:100%;overflow:hidden;}
   body{background:radial-gradient(120% 90% at 50% 0%,var(--bg2),var(--bg));color:var(--ink);
-    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.7;
-    min-height:100vh;-webkit-user-select:none;user-select:none;}
-  #stage{max-width:900px;margin:0 auto;padding:14px 16px 90px;}
-  .topbar{position:sticky;top:0;z-index:30;background:rgba(14,24,38,.94);backdrop-filter:blur(8px);
-    border-bottom:1px solid var(--line);padding:8px 16px;display:flex;align-items:center;gap:12px;}
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.55;
+    height:100dvh;display:flex;flex-direction:column;-webkit-user-select:none;user-select:none;}
+  /* 場景圖改當背景。原本是 width:100% 的區塊元素，桌機上一張 16:9 就吃掉約 500px 高，
+     是要捲動的頭號原因；當背景則完全不佔版面，看起來也更像遊戲。 */
+  #bg{position:fixed;inset:0;z-index:-1;background-size:cover;background-position:center;
+    opacity:.34;filter:saturate(.9);transition:opacity .35s;}
+  #bg::after{content:'';position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(8,20,34,.5),rgba(8,20,34,.86));}
+  #stage{flex:1 1 auto;min-height:0;width:100%;max-width:900px;margin:0 auto;padding:8px 16px 12px;
+    display:flex;flex-direction:column;gap:8px;overflow:hidden;}
+  /* 章節內的一個步驟。整頁不捲，但這裡留 overflow-y:auto 當安全閥——
+     螢幕真的太矮時內容還是拿得到，不會有按不到的送出鍵。
+     ⚠️ 不可以叫 .step：topbar 的「第 N / 18 章」標籤已經用了那個 class，
+        撞名會把 flex/overflow 樣式套到標籤上，量測時也會抓錯元素。 */
+  .pane{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:8px;overflow-y:auto;}
+  .topbar{flex:0 0 auto;z-index:30;background:rgba(14,24,38,.94);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);padding:7px 16px;display:flex;align-items:center;gap:12px;}
   .topbar .t{font-weight:900;font-size:15px;}
   .topbar .step{margin-left:auto;font-size:13px;color:var(--dim);font-weight:700;}
   .back{text-decoration:none;color:var(--dim);font-weight:700;font-size:13px;padding:5px 11px;
     border:1px solid var(--line);border-radius:999px;}
-  h1{font-size:clamp(26px,6vw,38px);font-weight:900;line-height:1.15;margin:16px 0 8px;}
-  h2{font-size:clamp(18px,4vw,23px);font-weight:900;margin:14px 0 6px;}
-  p.lead{color:var(--dim);font-size:16px;margin-bottom:14px;}
-  .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:2px solid var(--line);border-radius:16px;padding:16px 18px;margin:12px 0;
-    box-shadow:0 8px 26px rgba(0,0,0,.28);}
-  .btn{display:inline-block;border:0;border-radius:16px;padding:15px 30px;font-size:clamp(16px,4.2vw,20px);font-weight:900;
+  /* 字級與間距整體收一階：要塞進一個畫面，但不能小到小三看不清楚（正文維持 16px 以上） */
+  h1{font-size:clamp(19px,4.4vw,26px);font-weight:900;line-height:1.2;margin:0;}
+  h2{font-size:clamp(17px,3.6vw,20px);font-weight:900;margin:0 0 4px;}
+  p.lead{color:var(--dim);font-size:15.5px;margin-bottom:8px;}
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:2px solid var(--line);border-radius:16px;padding:11px 14px;margin:0;
+    box-shadow:0 8px 26px rgba(0,0,0,.28);flex:0 0 auto;}
+  .btn{display:inline-block;border:0;border-radius:16px;padding:12px 28px;font-size:clamp(16px,4.2vw,19px);font-weight:900;
     color:#08202f;cursor:pointer;font-family:inherit;background:linear-gradient(180deg,#ffe07a,var(--gold));
     box-shadow:0 6px 16px rgba(255,206,71,.28);}
   .btn:active{transform:translateY(1px);}
@@ -45,39 +63,48 @@
   .img.fail{aspect-ratio:1/1;background:linear-gradient(140deg,#26405c,#1b2c42);}
   .img.fail img{display:none;}
   /* 語氣變身器 */
-  .tones{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0;}
-  @media(max-width:560px){.tones{grid-template-columns:repeat(2,1fr);}}
-  .tone{background:linear-gradient(180deg,#16304f,#102540);border:2px solid var(--line);border-radius:16px;padding:12px 8px;cursor:pointer;
+  .tones{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0;}
+  .tone{background:linear-gradient(180deg,#16304f,#102540);border:2px solid var(--line);border-radius:14px;padding:8px 6px;cursor:pointer;
     text-align:center;font-family:inherit;color:var(--ink);transition:transform .1s,border-color .15s;}
   .tone:active{transform:translateY(1px);}
   .tone.on{border-color:var(--c);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 30%,transparent);}
-  .tone .ic{width:44px;height:44px;margin:0 auto 6px;}
-  .tone .nm{font-weight:900;font-size:16px;}
-  .tone .use{font-size:12.5px;color:var(--dim);margin-top:2px;}
+  /* ⚠️ 選 svg，不要選 .ic：toneIcon() 產生的 SVG 沒有 class，
+     原本寫 .tone .ic 是死規則，圖示大小一直是 SVG 自己的 width/height 屬性說了算。 */
+  .tone svg{display:block;width:34px;height:34px;margin:0 auto 3px;}
+  .tone .nm{font-weight:900;font-size:15px;line-height:1.25;}
+  .tone .use{font-size:11.5px;color:var(--dim);margin-top:1px;line-height:1.3;}
   .tone[disabled]{opacity:.45;cursor:not-allowed;}
   /* 角色立繪：放鬆／抗拒兩態 */
-  .who{display:flex;gap:16px;align-items:flex-start;}
-  .who .por{flex:0 0 auto;width:min(38vw,168px);}
-  .who .por .img{border:3px solid var(--line);}
+  .who{display:flex;gap:12px;align-items:flex-start;}
+  /* 寬度同時受畫面高度限制（14vh）：矮螢幕上立繪自己縮，不用為每種尺寸手調數字 */
+  .who .por{flex:0 0 auto;width:min(24vw,104px,14vh);}
+  /* 立繪固定成 3:4 的框。每張角色圖去背後各自 trim 過，長寬比都不一樣，
+     只固定寬度的話高度會因人而異——實測阿強、小華那兩關就是這樣多出 30px 撐破版面。
+     contain 保證整個人都看得到，空白處露出框的底色。 */
+  .who .por .img{border:3px solid var(--line);aspect-ratio:3/4;}
+  .who .por .img img{height:100%;object-fit:contain;}
   .who.relaxed .por .img{border-color:var(--good);box-shadow:0 0 22px rgba(124,255,176,.35);}
   .who.resist .por .img{border-color:var(--warn);filter:saturate(.75) brightness(.9);}
   .who .say{flex:1;min-width:0;}
   .bubble{background:#1b2f47;border:1px solid var(--line);border-radius:16px;border-bottom-left-radius:4px;
-    padding:12px 14px;font-size:16.5px;}
+    padding:9px 12px;font-size:16px;}
+  .bubble+.bubble{margin-top:6px;}
   .bubble.ask{background:#173a52;border-color:rgba(124,208,255,.4);}
   .bubble.good{background:#14402f;border-color:rgba(124,255,176,.5);}
   .bubble.bad{background:#41231c;border-color:rgba(255,155,107,.5);}
-  .mood{display:inline-block;font-size:13px;font-weight:800;color:var(--gold);
-    border:1px solid var(--line);border-radius:999px;padding:3px 10px;margin-bottom:7px;}
+  .mood{display:inline-block;font-size:12.5px;font-weight:800;color:var(--gold);
+    border:1px solid var(--line);border-radius:999px;padding:2px 9px;margin-bottom:5px;}
   /* 語氣改寫打字 */
-  .tpl{font-size:14px;color:var(--dim);margin:8px 0 4px;}
-  textarea{width:100%;min-height:74px;border:1px solid var(--line);border-radius:12px;padding:11px 12px;
-    background:#0d1a2a;color:var(--ink);font-family:inherit;font-size:16.5px;line-height:1.6;resize:vertical;
+  .tpl{font-size:13.5px;color:var(--dim);margin:5px 0 3px;}
+  textarea{width:100%;min-height:56px;border:1px solid var(--line);border-radius:12px;padding:9px 11px;
+    background:#0d1a2a;color:var(--ink);font-family:inherit;font-size:16px;line-height:1.5;resize:none;
     -webkit-user-select:text;user-select:text;}
-  .eg{font-size:13.5px;color:var(--dim);margin-top:6px;}
-  .err{color:var(--warn);font-size:14.5px;font-weight:800;margin-top:8px;}
-  /* 泡泡小考：漂浮泡泡＋防硬按 */
-  .qbs{position:relative;height:230px;margin:10px 0;}
+  .eg{font-size:13px;color:var(--dim);margin-top:4px;}
+  .err{color:var(--warn);font-size:14px;font-weight:800;margin-top:5px;}
+  /* 泡泡小考：漂浮泡泡＋防硬按。
+     高度改成吃掉畫面剩下的空間（原本寫死 230px，配上其他卡片就會超出一頁）。 */
+  .qs{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;}
+  .qbs{position:relative;flex:1 1 auto;min-height:150px;margin:6px 0 0;}
   .qb{position:absolute;width:150px;height:150px;border-radius:50%;border:3px solid rgba(220,245,255,.85);
     background:radial-gradient(circle at 34% 30%,rgba(238,252,255,.99),rgba(152,216,255,.92) 70%,rgba(108,180,250,.72));
     color:#062a45;font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:center;
@@ -85,20 +112,48 @@
   .qb:active{transform:scale(.97);}
   .qbs.locked .qb{opacity:.55;cursor:not-allowed;}
   /* 線索板 */
-  .clues{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:10px 0;}
-  .slot{background:#101f33;border:1px dashed var(--line);border-radius:14px;padding:11px 13px;min-height:64px;
-    font-size:15px;color:var(--dim);}
+  .clues{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin:6px 0 0;}
+  .slot{background:#101f33;border:1px dashed var(--line);border-radius:12px;padding:7px 10px;min-height:0;
+    font-size:14px;line-height:1.4;color:var(--dim);}
   .slot.got{border-style:solid;border-color:var(--good);color:var(--ink);background:#122c26;}
-  .coin{position:fixed;right:12px;top:52px;z-index:25;background:rgba(14,24,38,.9);border:1px solid var(--line);
-    border-radius:999px;padding:6px 13px;font-weight:900;color:var(--gold);font-size:14px;}
-  .prog{height:7px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden;margin:10px 0 4px;}
+  .coin{position:fixed;right:12px;top:46px;z-index:25;background:rgba(14,24,38,.9);border:1px solid var(--line);
+    border-radius:999px;padding:5px 12px;font-weight:900;color:var(--gold);font-size:13.5px;}
+  .prog{height:6px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden;margin:5px 0 0;}
   .prog>i{display:block;height:100%;background:var(--good);border-radius:999px;transition:width .3s;}
   .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;z-index:60;background:rgba(8,20,34,.95);
     border:1px solid var(--good);color:var(--good);border-radius:999px;padding:10px 20px;font-weight:900;}
   .zh{font-size:.62em;color:var(--dim);}
+  /* ── 矮又寬（手機橫放）：改成左右並排 ──
+     這種尺寸只剩約 330px 可用高度，直排怎麼縮都塞不下，而小三的字級不該再縮。
+     好在每個畫面剛好都是兩張卡（劇情/角色 ＋ 小考/操作），並排就把高度砍半。 */
+  @media (max-height:560px) and (min-aspect-ratio:13/10){
+    .pane{flex-direction:row;align-items:stretch;}
+    .pane>.card{flex:1 1 0;min-width:0;overflow-y:auto;}
+    .who{flex-direction:column;align-items:center;gap:7px;}
+    .who .por{width:min(17vh,84px);}
+    .who .say{width:100%;}
+    h1{font-size:17px;}
+    h2{font-size:15px;}
+    .card{padding:9px 11px;}
+    /* 操作卡最擠：語氣鈕的說明字收掉（各關標題已經講了什麼時候用哪種語氣），
+       圖示與打字框也縮一階。填空模板與例句要留著——那是小三真正需要的鷹架。 */
+    .tone .use{display:none;}
+    .tone svg{width:26px;height:26px;margin-bottom:2px;}
+    .tone .nm{font-size:14px;}
+    .tone{padding:6px 4px;}
+    .tones{gap:6px;margin:4px 0;}
+    textarea{min-height:42px;}
+    .eg,.tpl{font-size:12px;line-height:1.3;margin:3px 0 0;}
+    .err{margin-top:3px;font-size:12.5px;}
+    .bubble{padding:7px 10px;font-size:15px;}
+    .btn{padding:9px 20px;font-size:16px;}
+    .clues{grid-template-columns:repeat(4,1fr);}  /* 結局的 8 條線索改排四欄 */
+    .slot{font-size:12.5px;padding:5px 8px;}
+  }
 </style>
 </head>
 <body>
+<div id="bg"></div>
 <div class="topbar">
   <a class="back" href="/worksheets">← 返回</a>
   <span class="t">阿問偵探社・第四話：語氣變身術</span>
@@ -288,16 +343,31 @@ async function reviewTone(toneKey,txt,target,mood){
     const lo=localReview(toneKey,txt); lo.by='local'; return lo;
   }
 }
-/* 過關後自動捲到下一題（同一頁時）——不要讓小孩以為卡住了。
-   ⚠️ 有些情況下 behavior:'smooth' 會被忽略（分頁在背景、使用者設了減少動態效果、
-      或瀏覽器節流），實測就遇過完全沒捲動。所以捲完再檢查一次，還在畫面外就用瞬間捲補上。 */
-function scrollToNext(node){
-  if(!node) return;
-  const inView=()=>{ const r=node.getBoundingClientRect(); return r.top>=0 && r.top<innerHeight*0.9; };
-  setTimeout(()=>{
-    try{ node.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){}
-    setTimeout(()=>{ if(!inView()){ try{ node.scrollIntoView({block:'center'}); }catch(e){ node.scrollIntoView(); } } },600);
-  },120);
+/* =========================================================================
+   單頁式畫面控制
+   一關就是一個畫面，整頁不捲動。原本會捲的兩個原因都在這裡處理掉：
+   ① 場景圖是 width:100% 的區塊 → 改成 setScene() 畫在背景層，不佔版面。
+   ② 章節內容往下疊 → 改成 screen() 換掉整個畫面。
+      （最明顯的是訪談過關後又長出「線索到手＋線索板＋小考」三張卡。）
+   所以也不再需要「自動捲到下一題」——下一題本來就在眼前。
+   ========================================================================= */
+const bgEl=document.getElementById('bg');
+function setScene(name){
+  bgEl.style.backgroundImage = name ? "url('assets/"+name+".jpg')" : '';
+}
+/* 開一個新的步驟畫面：清空舞台、放上標題與進度列，回傳可以塞內容的容器。
+   同一章的第二步（例如訪談過關後的線索＋小考）也是呼叫這支，換掉而不是接在後面。 */
+/* 畫面換掉時要解除的監聽（例如泡泡題的 resize）。
+   不收的話每換一關就多疊一組，而且會對著已經被清掉的節點做事。 */
+let teardown=[];
+function onScreenExit(fn){ teardown.push(fn); }
+function screen(ch,i){
+  teardown.forEach(fn=>{ try{ fn(); }catch(e){} }); teardown=[];
+  stage.innerHTML='';
+  stage.appendChild(header(ch,i));
+  const s=el('div','pane');
+  stage.appendChild(s);
+  return s;
 }
 
 /* =========================================================================
@@ -438,25 +508,28 @@ function header(ch,i){
    答對才會進下一段——沒有純「繼續」。
    ========================================================================= */
 function bubbleQuiz(host,q,onPass){
-  const box=el('div','card');
+  const box=el('div','card qs');            // qs＝吃掉畫面剩下的高度，泡泡才不會撐破一頁
   box.appendChild(el('h2',null,'考考你'));
   box.appendChild(el('p','lead',q.q));
   const wrap=el('div','qbs'); box.appendChild(wrap);
   const msg=el('div','err'); box.appendChild(msg);
   host.appendChild(box);
-  let wrongN=0, lockUntil=0;
+  let wrongN=0, lockUntil=0, solved=false;
   const opts=shuffle(q.opts.map((t,i)=>({t,ok:i===q.a})));
   function layout(){
     wrap.innerHTML='';
+    /* 泡泡大小同時受寬與高限制。只看寬度的話，在矮螢幕上泡泡會比容器還高而被裁掉。
+       容器高度要等版面算完才有值，所以拿不到就先用 190 當保守值。 */
+    const cols=wrap.clientWidth||600, rows=wrap.clientHeight||190;
+    const size=Math.round(clamp(Math.min(cols/3.4,rows*0.82),86,150));
     shuffle(opts).forEach((o,i)=>{
       const b=el('button','qb',o.t);
-      const cols=wrap.clientWidth||600, size=Math.min(150,Math.max(96,cols/3.4));
       b.style.width=b.style.height=size+'px';
       b.style.left=Math.round(i*(cols-size)/Math.max(1,opts.length-1))+'px';
-      b.style.top=Math.round(18+Math.random()*(230-size-30))+'px';
+      b.style.top=Math.round(Math.random()*Math.max(0,rows-size))+'px';
       b.onclick=()=>{
         if(now()<lockUntil){ Sfx.pop(); return; }
-        if(o.ok){ Sfx.ding(); msg.style.color='var(--good)'; msg.textContent='答對了！';
+        if(o.ok){ Sfx.ding(); solved=true; msg.style.color='var(--good)'; msg.textContent='答對了！';
           wrap.querySelectorAll('.qb').forEach(x=>x.disabled=true);
           setTimeout(onPass,650); }
         else{ Sfx.bad(); wrongN++; lockUntil=now()+2000+(wrongN-1)*1000;
@@ -471,20 +544,31 @@ function bubbleQuiz(host,q,onPass){
     });
   }
   layout();
-  return box;   // 回傳節點，讓呼叫端可以直接捲到這一題（不要用 children[index] 猜）
+  /* 轉螢幕／改視窗大小時泡泡要重排，否則會跑到容器外面。
+     已經答對或正在罰站倒數時不重排——會把鎖定狀態洗掉。 */
+  const onResize=()=>{ if(!solved && now()>=lockUntil) layout(); };
+  addEventListener('resize',onResize);
+  onScreenExit(()=>removeEventListener('resize',onResize));
+  return box;
 }
 
-/* ---------- 線索板 ---------- */
-function clueBoard(host,needIds){
-  const box=el('div','card');
-  box.appendChild(el('h2',null,'線索板'));
+/* ---------- 線索板 ----------
+   拆成「格線」與「整張卡」兩支：單頁式要盡量少一張卡，
+   所以線索格常常是嵌在別的卡裡（例如「線索到手」那一步），而不是自己佔一張。 */
+function clueGrid(needIds){
   const g=el('div','clues');
   (needIds||Object.keys(CLUE_TEXT)).forEach(id=>{
     const got=!!S.clues[id];
-    const s=el('div','slot'+(got?' got':''), got?CLUE_TEXT[id]:'？（還沒問到）');
-    g.appendChild(s);
+    g.appendChild(el('div','slot'+(got?' got':''), got?CLUE_TEXT[id]:'？（還沒問到）'));
   });
-  box.appendChild(g); host.appendChild(box);
+  return g;
+}
+function clueBoard(host,needIds){
+  const box=el('div','card');
+  box.appendChild(el('h2',null,'線索板'));
+  box.appendChild(clueGrid(needIds));
+  host.appendChild(box);
+  return box;
 }
 
 /* =========================================================================
@@ -493,9 +577,9 @@ function clueBoard(host,needIds){
    → 選對才給線索、選錯換語氣或改句子再試（非致命）→ 線索上板 → 互動確認
    ========================================================================= */
 function renderTalk(ch,i){
-  stage.innerHTML=''; stage.appendChild(header(ch,i));
+  setScene(ch.scene);                       // 場景走背景層，不佔版面
+  const s=screen(ch,i);
   const who=CHARS[ch.who];
-  if(ch.scene) stage.appendChild(pic(ch.scene+'.jpg','')); // 場景圖，載不到退色塊
 
   const card=el('div','card');
   const row=el('div','who'); row.id='whoRow';
@@ -504,12 +588,11 @@ function renderTalk(ch,i){
   say.appendChild(el('div','mood','他現在的樣子'));
   say.appendChild(el('div','bubble',who.mood));
   const reply=el('div'); reply.id='reply'; say.appendChild(reply);
-  row.appendChild(say); card.appendChild(row); stage.appendChild(card);
+  row.appendChild(say); card.appendChild(row); s.appendChild(card);
 
   // 語氣變身器
   const tc=el('div','card');
   tc.appendChild(el('h2',null,'語氣變身器'));
-  tc.appendChild(el('p','lead','選一種語氣，再自己打一句話，阿問就會用那個語氣去問。'));
   const tg=el('div','tones');
   let picked=null;
   TONE_KEYS.forEach(k=>{
@@ -529,7 +612,7 @@ function renderTalk(ch,i){
   const eg=el('div','eg'); tc.appendChild(eg);
   const err=el('div','err'); tc.appendChild(err);
   const send=el('button','btn wide','叫阿問這樣去問'); tc.appendChild(send);
-  stage.appendChild(tc);
+  s.appendChild(tc);
 
   send.onclick=async()=>{
     Sfx.resume();
@@ -554,30 +637,35 @@ function renderTalk(ch,i){
       addCoins('ch'+i, COIN_PER_CH, 'S2-W04 第'+(i+1)+'章');
       send.disabled=true; ta.disabled=true;
       [...tg.children].forEach(x=>x.disabled=true);
-      const nxt=el('div','card');
-      nxt.appendChild(el('h2',null,'線索到手'));
-      nxt.appendChild(el('div','bubble good','線索：'+ch.clue.text));
-      stage.appendChild(nxt);
-      clueBoard(stage, CHAPTERS.filter(c=>c.clue&&c.act===ch.act).map(c=>c.clue.id));
-      const qbox=bubbleQuiz(stage, ch.quiz, ()=>goCh(i+1));
-      scrollToNext(nxt);                          // 先讓學生看到「線索到手」
-      setTimeout(()=>scrollToNext(qbox),1500);    // 再帶到接著的小考
+      // 讓學生先看到對方鬆口的反應，再換到「線索到手」那一步
+      setTimeout(()=>talkResult(ch,i),1200);
     } else {
       Sfx.bad();
       err.textContent='他更不想說了。換一種語氣，或把句子改一下再試——不會被扣分。';
     }
   };
 }
+/* 訪談的第二步：線索到手＋小考。整個換掉第一步的畫面，不是接在它下面。
+   線索格直接嵌進「線索到手」這張卡，省下一張卡的高度（單頁式要斤斤計較）。 */
+function talkResult(ch,i){
+  const s=screen(ch,i);
+  const c=el('div','card');
+  c.appendChild(el('h2',null,'線索到手'));
+  c.appendChild(el('div','bubble good',ch.clue.text));
+  c.appendChild(clueGrid(CHAPTERS.filter(x=>x.clue&&x.act===ch.act).map(x=>x.clue.id)));
+  s.appendChild(c);
+  bubbleQuiz(s, ch.quiz, ()=>goCh(i+1));
+}
 
 /* ---------- 章0：語氣教學。一關只教一種語氣、只打一句話 ---------- */
 function renderTone0(ch,i){
-  stage.innerHTML=''; stage.appendChild(header(ch,i));
-  if(ch.scene) stage.appendChild(pic(ch.scene+'.jpg',''));
+  setScene(ch.scene);
+  const s=screen(ch,i);
   const T=TONES[ch.tone];
   const c1=el('div','card');
   c1.appendChild(el('div','bubble',ch.intro));
   c1.appendChild(el('div','bubble ask',ch.intro2));
-  stage.appendChild(c1);
+  s.appendChild(c1);
 
   const c2=el('div','card');
   // 這一關只顯示這一種語氣（其餘三種要等各自的關卡），版面不會又是四選一
@@ -593,7 +681,7 @@ function renderTone0(ch,i){
   c2.appendChild(el('div','eg','例如：'+T.eg));
   const err=el('div','err'); c2.appendChild(err);
   const ok=el('button','btn wide','這句可以'); c2.appendChild(ok);
-  stage.appendChild(c2);
+  s.appendChild(c2);
   setTimeout(()=>ta.focus(),100);
 
   ok.onclick=async()=>{
@@ -607,39 +695,46 @@ function renderTone0(ch,i){
     Sfx.ding(); err.style.color='var(--good)'; err.textContent=v.feedback;
     ta.disabled=true;
     addCoins('ch'+i, COIN_PER_CH, 'S2-W04 '+T.name+'練習');
-    scrollToNext(bubbleQuiz(stage, ch.quiz, ()=>goCh(i+1)));   // 自動捲到剛長出來的那一題
+    // 讓學生讀完阿問的肯定，再換到小考那一步（換畫面，不往下疊）
+    setTimeout(()=>{
+      const s2=screen(ch,i);
+      const done=el('div','card');
+      done.appendChild(el('h2',null,'「'+T.name+'」學會了'));
+      done.appendChild(el('div','bubble good',v.feedback));
+      s2.appendChild(done);
+      bubbleQuiz(s2, ch.quiz, ()=>goCh(i+1));
+    },1400);
   };
 }
 
 /* ---------- 翻轉／推理／結局 ---------- */
 function renderTwist(ch,i){
-  stage.innerHTML=''; stage.appendChild(header(ch,i));
-  if(ch.scene) stage.appendChild(pic(ch.scene+'.jpg',''));
+  setScene(ch.scene);
+  const s=screen(ch,i);
   const c=el('div','card');
   c.appendChild(el('div','bubble',ch.intro));
   c.appendChild(el('div','bubble ask',ch.intro2));
-  stage.appendChild(c);
-  bubbleQuiz(stage, ch.quiz, ()=>{ addCoins('ch'+i,COIN_PER_CH,'S2-W04 翻轉'); goCh(i+1); });
+  s.appendChild(c);
+  bubbleQuiz(s, ch.quiz, ()=>{ addCoins('ch'+i,COIN_PER_CH,'S2-W04 翻轉'); goCh(i+1); });
 }
 function renderDeduce(ch,i){
-  stage.innerHTML=''; stage.appendChild(header(ch,i));
+  setScene(ch.scene);
+  const s=screen(ch,i);
   const c=el('div','card');
   c.appendChild(el('h2',null,'先把線索攤開'));
-  c.appendChild(el('p','lead','四條線索都在這裡，看看它們指向同一件事。'));
-  stage.appendChild(c);
-  clueBoard(stage, ch.need);
-  bubbleQuiz(stage, ch.quiz, ()=>{ addCoins('act'+ch.act,COIN_ACT,'S2-W04 第'+ch.act+'幕破案'); goCh(i+1); });
+  c.appendChild(clueGrid(ch.need));         // 線索格嵌進同一張卡，省一張卡的高度
+  s.appendChild(c);
+  bubbleQuiz(s, ch.quiz, ()=>{ addCoins('act'+ch.act,COIN_ACT,'S2-W04 第'+ch.act+'幕破案'); goCh(i+1); });
 }
 function renderEnd(ch,i){
-  stage.innerHTML=''; stage.appendChild(header(ch,i));
-  if(ch.scene) stage.appendChild(pic(ch.scene+'.jpg',''));
+  setScene(ch.scene);
+  const s=screen(ch,i);
   if(!S.done){ S.done=true; addCoins('done',COIN_DONE,'S2-W04 破案'); }
   const c=el('div','card');
-  c.appendChild(el('h1',null,'最會好好說話的偵探'));
-  c.appendChild(el('p','lead','招牌掛回去了，園遊會照常舉行。沒有壞人，只有一場好意造成的誤會。'));
+  c.appendChild(el('h2',null,'最會好好說話的偵探'));
   c.appendChild(el('div','bubble good','你學到的事：同一句話，換個語氣，對方肯不肯講差很多。'));
-  stage.appendChild(c);
-  clueBoard(stage, Object.keys(CLUE_TEXT));
+  c.appendChild(clueGrid(Object.keys(CLUE_TEXT)));
+  s.appendChild(c);
   const c2=el('div','card');
   const ta=el('button','btn wide', S.ta?'已經當過小老師':'我是小偵探學長');
   ta.disabled=!!S.ta;
@@ -647,10 +742,10 @@ function renderEnd(ch,i){
     addCoins('ta',COIN_TA,'S2-W04 小老師');
     toast('去教一位同學：怎麼看對方的情緒選語氣！'); };
   c2.appendChild(ta);
-  const home=el('button','btn ghost wide','回學習單'); home.style.marginTop='10px';
+  const home=el('button','btn ghost wide','回學習單'); home.style.marginTop='8px';
   home.onclick=()=>{ location.href='/worksheets'; };
   c2.appendChild(home);
-  stage.appendChild(c2);
+  s.appendChild(c2);
 }
 function toast(msg){ const t=el('div','toast',msg); document.body.appendChild(t);
   setTimeout(()=>t.remove(),2600); }
@@ -660,7 +755,6 @@ function goCh(i){
   if(i>=CHAPTERS.length) i=CHAPTERS.length-1;
   S.ch=i; if(i>S.chMax) S.chMax=i;
   persist(); renderCoin();
-  window.scrollTo(0,0);
   const ch=CHAPTERS[i];
   if(ch.type==='tone0')  return renderTone0(ch,i);
   if(ch.type==='talk')   return renderTalk(ch,i);
