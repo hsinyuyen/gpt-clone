@@ -158,6 +158,31 @@
   .card.dfwrong{animation:dfshake .4s;}
   .card.dfdone .fslot.on{border-color:var(--good);color:var(--good);background:rgba(79,224,138,.18);}
   @keyframes dfshake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+  /* ── 探索地圖（沿用 W03 的走路 RPG 大地圖）──
+     整個畫面就是地圖：頂部進度條、中間畫布（吃滿剩餘高度）、底部 D-pad。 */
+  .map{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:6px;align-items:center;}
+  .owbar{flex:0 0 auto;font-size:14px;font-weight:800;color:var(--ink2);text-align:center;}
+  .owbar b{color:var(--gold);font-size:15.5px;}
+  .owwrap{flex:1 1 auto;min-height:0;width:100%;display:flex;justify-content:center;align-items:center;}
+  .owcanvas{border-radius:14px;border:2px solid var(--line);box-shadow:0 10px 26px rgba(0,0,0,.45);
+    background:#6fb050;display:block;image-rendering:auto;max-width:100%;max-height:100%;touch-action:none;}
+  .owhint{flex:0 0 auto;font-size:13.5px;font-weight:900;color:#2a1c00;background:var(--gold);
+    border-radius:20px;padding:5px 15px;box-shadow:0 3px 8px rgba(0,0,0,.35);min-height:0;}
+  .owpad{flex:0 0 auto;display:grid;grid-template-columns:repeat(3,clamp(44px,7.5vh,54px));
+    grid-template-rows:repeat(3,clamp(44px,7.5vh,54px));gap:6px;justify-content:center;}
+  .dbtn{border:2px solid var(--line);background:rgba(20,48,79,.9);color:var(--ink);border-radius:12px;
+    font-size:21px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    user-select:none;-webkit-user-select:none;touch-action:none;font-family:inherit;}
+  .dbtn.up{grid-area:1/2;} .dbtn.left{grid-area:2/1;}
+  .dbtn.act{grid-area:2/2;background:linear-gradient(180deg,#ffcf5c,#f0a52e);color:#3a2405;font-size:23px;}
+  .dbtn.right{grid-area:2/3;} .dbtn.down{grid-area:3/2;}
+  .dbtn:active{filter:brightness(1.35);transform:scale(.95);}
+  /* 極矮螢幕（手機橫放）：縮小 D-pad 與文字，把高度讓給地圖畫布 */
+  @media (max-height:440px){
+    .owpad{grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,38px);gap:5px;}
+    .dbtn{font-size:16px;border-radius:9px;} .dbtn.act{font-size:18px;}
+    .owbar{font-size:11.5px;} .owhint{font-size:11.5px;padding:3px 11px;} .map{gap:4px;}
+  }
   /* 線索板 */
   .clues{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin:6px 0 0;}
   .slot{background:#101f33;border:1px dashed var(--line);border-radius:12px;padding:7px 10px;min-height:0;
@@ -326,7 +351,7 @@ Account.init();
 /* ---------- 存檔（鍵綁 uid：共用電腦不會繼承上一位學生的進度） ---------- */
 const VERSION=1;
 function defaultState(){ return { v:VERSION, ch:0, chMax:0, coins:0, done:false, pct:0,
-  clues:{}, ta:false }; }
+  clues:{}, ta:false, owHero:null, owAct:0, fromMap:false }; }
 let S=defaultState();
 const SKEY=(()=>{ const base='game:'+GAMEKEY;
   try{ localStorage.removeItem(base); }catch(e){}          // 清掉舊版沒綁人的存檔
@@ -561,6 +586,10 @@ const CHAPTERS=[
    intro2:'對方是長輩、或正在忙的時候，客氣一點他才會停下來聽你說。',
    quiz:{ q:'老師正在忙，要用哪一種語氣？', opts:['有禮貌','搞笑','大聲一點'], a:0 } },
 
+ /* 探索地圖：走到四個角色的房子去問話（沿用 W03 的走路 RPG）。
+    地圖上四個 ❗＝四個訪談對象，全問完集合點 ★ 才開放推理。 */
+ { type:'map', act:1, title:'探索地圖・找出「是誰」', scene:'s2w04-fair' },
+
  { type:'talk', act:1, who:'sister', title:'幕一・嚇到的小妹妹', scene:'s2w04-corner',
    clue:{ id:'red', text:'看到一個穿紅衣的人' },
    quiz:{ q:'剛剛她為什麼肯講了？', opts:['因為我們用溫柔的語氣','因為我們大聲一點','因為我們給她糖'], a:0 } },
@@ -591,6 +620,8 @@ const CHAPTERS=[
    intro:'你們找到小華，正要怪他——',
    intro2:'阿問提醒：招牌好好的，只是被收起來了。他好像有原因。',
    quiz:{ q:'招牌後來怎麼了？', opts:['被收起來，沒壞','被偷走了','被弄破了'], a:0 } },
+
+ { type:'map', act:2, title:'探索地圖・問出「為什麼」', scene:'s2w04-yard' },
 
  { type:'talk', act:2, who:'hua', title:'幕二・怕被罵的小華', scene:'s2w04-rain',
    clue:{ id:'why', text:'小華怕招牌淋雨，把它收起來' },
@@ -843,7 +874,8 @@ function talkResult(ch,i){
   c.appendChild(el('div','bubble good',ch.clue.text));
   c.appendChild(clueGrid(CHAPTERS.filter(x=>x.clue&&x.act===ch.act).map(x=>x.clue.id)));
   s.appendChild(c);
-  bubbleQuiz(s, ch.quiz, ()=>goCh(i+1));
+  // 問完回到該幕的探索地圖（若這幕有地圖），而不是線性下一關
+  bubbleQuiz(s, ch.quiz, ()=>afterTalk(ch));
 }
 
 /* ---------- 章0：語氣教學。一關只教一種語氣、只打一句話 ---------- */
@@ -985,13 +1017,165 @@ function buildDev(){
 }
 function refreshDev(i,ch){ if(devLb) devLb.textContent=i+'/'+(CHAPTERS.length-1)+'・'+ch.title; }
 
+/* =========================================================================
+   探索地圖（走路 RPG，引擎沿用 W03《消失的慶典皇冠》）
+   一張 40×30 磚的大地圖、相機跟隨；走到角色房子（❗）按 🔍 去問他，
+   四人全問完，走到集合點（★）才開放推理。
+   ========================================================================= */
+const TILE=32;
+const HERO_IMG=new Image(); HERO_IMG.src='assets/hero.png';
+let ow=null, owRAF=0, owLast=0, owActive=false, owHintEl=null, owMapCleanup=null;
+const owKeys={};
+const MAP_SPOT=[[5,15],[20,4],[30,22],[10,8]];         // 四個房子的磚座標
+const ROOFS=['#3fc6dd','#b07dff','#ff9f43','#ff8fbb']; // 屋頂配色（對齊四種語氣色）
+function chIdx(pred){ for(let i=0;i<CHAPTERS.length;i++) if(pred(CHAPTERS[i],i)) return i; return -1; }
+function actTalkIdx(act){ const r=[]; CHAPTERS.forEach((c,i)=>{ if(c.type==='talk'&&c.act===act) r.push(i); }); return r; }
+function mapIdx(act){ return chIdx(c=>c.type==='map'&&c.act===act); }
+function deduceIdx(act){ return chIdx(c=>c.type==='deduce'&&c.act===act); }
+function talkDone(ci){ return !!S.clues[CHAPTERS[ci].clue.id]; }
+function actAllDone(act){ return actTalkIdx(act).every(talkDone); }
+/* 訪談結束後回到該幕的地圖（而不是線性下一關）。 */
+function afterTalk(ch){ S.fromMap=false; const mi=mapIdx(ch.act); goCh(mi>=0?mi:S.ch+1); }
+
+// 磚：0草 1路 2水(擋) 3樹(擋) 5花
+function buildWorld(act){ const W=40,H=30; const map=[]; for(let y=0;y<H;y++)map.push(new Array(W).fill(0));
+  for(let x=0;x<W;x++){map[0][x]=map[1][x]=3;map[H-1][x]=map[H-2][x]=3;}
+  for(let y=0;y<H;y++){map[y][0]=map[y][1]=3;map[y][W-1]=map[y][W-2]=3;}
+  for(let x=2;x<W-2;x++)map[15][x]=1;                 // 橫向大道
+  for(let y=2;y<H-2;y++)map[y][20]=1;                 // 縱向大道
+  for(let y=8;y<=15;y++)map[y][10]=1;
+  for(let y=15;y<=22;y++)map[y][30]=1;
+  for(let y=5;y<9;y++)for(let x=5;x<9;x++)map[y][x]=2; // 池塘
+  [[32,6],[8,23],[33,23],[15,7],[27,9],[13,20],[26,24]].forEach(([cx,cy])=>{
+    [[-1,0],[1,0],[0,-1],[0,1],[0,0],[1,1],[-1,1]].forEach(([dx,dy])=>{const x=cx+dx,y=cy+dy;if(map[y]&&map[y][x]===0)map[y][x]=3;});});
+  [[24,17],[16,18],[34,10],[6,18],[24,7],[12,12]].forEach(([x,y])=>{if(map[y]&&map[y][x]===0)map[y][x]=5;});
+  const events=[{star:true, tx:20,ty:15, label:'集合點', roof:'#ffce47'}];
+  actTalkIdx(act).forEach((ci,k)=>{ const [tx,ty]=MAP_SPOT[k%MAP_SPOT.length];
+    events.push({chIdx:ci, tx,ty, label:CHARS[CHAPTERS[ci].who].name, roof:ROOFS[k%ROOFS.length]}); });
+  events.forEach(e=>{ if(map[e.ty][e.tx]!==1)map[e.ty][e.tx]=1; });
+  return {W,H,map,events,start:{tx:20,ty:15}};
+}
+function initWorld(act){ const w=buildWorld(act);
+  const s=(S.owHero&&S.owAct===act&&typeof S.owHero.tx==='number')?S.owHero:w.start;
+  ow={act,W:w.W,H:w.H,map:w.map,events:w.events,cam:{x:0,y:0},dpad:null,
+    hero:{tx:s.tx,ty:s.ty,px:s.tx*TILE,py:s.ty*TILE,dir:'down',moving:false}}; S.owAct=act; }
+function owBlocked(x,y){ if(x<0||y<0||x>=ow.W||y>=ow.H)return true; const t=ow.map[y][x]; return t===2||t===3; }
+function owDir(){ if(owKeys.up||ow.dpad==='up')return{dx:0,dy:-1,name:'up'}; if(owKeys.down||ow.dpad==='down')return{dx:0,dy:1,name:'down'};
+  if(owKeys.left||ow.dpad==='left')return{dx:-1,dy:0,name:'left'}; if(owKeys.right||ow.dpad==='right')return{dx:1,dy:0,name:'right'}; return null; }
+function owUpdate(dt){ const h=ow.hero;
+  if(!h.moving){ const d=owDir(); if(d){ h.dir=d.name; const nx=h.tx+d.dx,ny=h.ty+d.dy;
+    if(!owBlocked(nx,ny)){ h.moving=true;h.fx=h.px;h.fy=h.py;h.ntx=nx;h.nty=ny;h.mt=0; } } }
+  if(h.moving){ h.mt+=dt/150; const t=Math.min(1,h.mt); h.px=h.fx+(h.ntx*TILE-h.fx)*t; h.py=h.fy+(h.nty*TILE-h.fy)*t;
+    if(t>=1){ h.moving=false;h.tx=h.ntx;h.ty=h.nty;h.px=h.tx*TILE;h.py=h.ty*TILE; S.owHero={tx:h.tx,ty:h.ty}; owSaveThrottle(); owUpdateHint(); } }
+  const vw=ow.canvas.width,vh=ow.canvas.height;
+  ow.cam.x=clamp(h.px+TILE/2-vw/2,0,Math.max(0,ow.W*TILE-vw));
+  ow.cam.y=clamp(h.py+TILE/2-vh/2,0,Math.max(0,ow.H*TILE-vh)); }
+let _owSaveT=0; function owSaveThrottle(){ if(_owSaveT)return; _owSaveT=setTimeout(()=>{_owSaveT=0;persist();},1200); }
+function nearestEvent(){ const h=ow.hero; let best=null,bd=99; ow.events.forEach(ev=>{ const d=Math.abs(ev.tx-h.tx)+Math.abs(ev.ty-h.ty); if(d<=1&&d<bd){bd=d;best=ev;} }); return best; }
+function mapInteract(){ const ev=nearestEvent();
+  if(!ev){ toast('走到房子旁邊，按 🔍 去問他！'); return; }
+  if(ev.star){ if(actAllDone(ow.act)){ leaveMap(); goCh(deduceIdx(ow.act)); }
+    else toast('還有人沒問到，先去問完 ❗！'); return; }
+  if(talkDone(ev.chIdx)){ toast('這個人已經問過了 ✓'); return; }
+  leaveMap(); S.fromMap=true; goCh(ev.chIdx); }
+/* ---- 繪圖（磚塊/房子/角色，沿用 W03）---- */
+function owDrawTile(g,t,sx,sy,gx,gy){ const T=TILE; const g1=((gx+gy)&1)?'#67a949':'#6fb050'; g.fillStyle=g1; g.fillRect(sx,sy,T,T);
+  if(t!==2){ if(((gx*7+gy*13)%11)===0){ g.fillStyle='#5c9a44'; g.fillRect(sx+6,sy+18,3,6);g.fillRect(sx+11,sy+20,3,5);g.fillRect(sx+16,sy+17,3,7);} }
+  if(t===1){ g.fillStyle='#d9bd77'; g.fillRect(sx,sy,T,T); g.fillStyle='#cbab63'; if((gx+gy*3)%4===0)g.fillRect(sx+7,sy+9,4,4); if((gx*2+gy)%5===0)g.fillRect(sx+18,sy+16,4,4); }
+  else if(t===2){ g.fillStyle='#3f8fd0'; g.fillRect(sx,sy,T,T); g.strokeStyle='rgba(255,255,255,.35)';g.lineWidth=2; const ph=now()/400; g.beginPath(); for(let i=0;i<T;i+=2){g.lineTo(sx+i,sy+10+Math.sin((gx*4+i)/6+ph)*2.2);} g.stroke(); }
+  else if(t===3){ const cx=sx+T/2,cy=sy+T/2; g.fillStyle='rgba(0,0,0,.18)';g.beginPath();g.ellipse(cx,sy+T-4,11,4,0,0,7);g.fill();
+    g.fillStyle='#6b4a24';g.fillRect(cx-3,cy,6,T/2-2); g.fillStyle='#2e6b34';g.beginPath();g.arc(cx,cy-2,12,0,7);g.fill(); g.fillStyle='#3c8544';g.beginPath();g.arc(cx-4,cy-5,7,0,7);g.arc(cx+5,cy-3,6,0,7);g.fill(); }
+  else if(t===5){ g.fillStyle=['#ff7ab0','#ffd75e','#b07dff'][(gx+gy)%3]; [[10,12],[20,18],[14,22]].forEach(([ox,oy])=>{g.beginPath();g.arc(sx+ox,sy+oy,3,0,7);g.fill();}); }
+}
+function owDrawEvent(g,ev,sx,sy){ const T=TILE;
+  const done=ev.star ? actAllDone(ow.act) : talkDone(ev.chIdx);
+  const starLock=ev.star && !done;
+  const bx=sx-T*0.5, by=sy-T*1.35, bw=T*2, bh=T*1.3;
+  g.save(); if(starLock)g.globalAlpha=0.55;
+  g.fillStyle='rgba(0,0,0,.2)';g.beginPath();g.ellipse(sx+T/2,sy+T-3,T*0.8,5,0,0,7);g.fill();
+  g.fillStyle=starLock?'#c8c0b0':'#f0e4cf';g.fillRect(bx,by+bh*0.42,bw,bh*0.62);
+  g.fillStyle=starLock?'#8a8577':ev.roof;g.beginPath();g.moveTo(bx-4,by+bh*0.5);g.lineTo(bx+bw/2,by-2);g.lineTo(bx+bw+4,by+bh*0.5);g.closePath();g.fill();
+  g.fillStyle='#7a4a24';g.fillRect(sx+T/2-6,by+bh*0.6,12,bh*0.42);
+  g.restore();
+  const my=by-14+Math.sin(now()/300)*3;
+  g.font='900 20px sans-serif';g.textAlign='center';g.textBaseline='middle';
+  if(ev.star){ if(done){ g.fillStyle='#ffd75e';g.beginPath();g.arc(sx+T/2,my,12,0,7);g.fill();g.fillStyle='#3a2405';g.fillText('★',sx+T/2,my+1); }
+    else { g.fillStyle='#6b7280';g.beginPath();g.arc(sx+T/2,my,12,0,7);g.fill();g.font='900 14px sans-serif';g.fillStyle='#e8eef5';g.fillText('🔒',sx+T/2,my+1); } }
+  else if(done){ g.fillStyle='#2bd17e';g.beginPath();g.arc(sx+T/2,my,12,0,7);g.fill();g.fillStyle='#03271a';g.fillText('✓',sx+T/2,my+1); }
+  else { g.fillStyle='#ff5d6c';g.beginPath();g.arc(sx+T/2,my,12,0,7);g.fill();g.fillStyle='#fff';g.fillText('!',sx+T/2,my+1); }
+  // 名牌
+  g.font='900 11px "Noto Sans TC",sans-serif'; const label=ev.label; const tw=g.measureText(label).width;
+  g.fillStyle='rgba(6,16,30,.82)'; g.fillRect(sx+T/2-tw/2-5, by-34, tw+10, 15);
+  g.fillStyle=done?'#bff3d4':'#fff'; g.textBaseline='middle'; g.fillText(label, sx+T/2, by-26);
+  g.textBaseline='alphabetic'; }
+function owDrawHero(g,sx,sy){ const h=ow.hero; const im=HERO_IMG; const bob=h.moving?Math.abs(Math.sin(now()/90))*3:0; const sz=TILE*1.15;
+  g.save(); g.translate(sx+TILE/2, sy+TILE/2-bob);
+  g.fillStyle='rgba(0,0,0,.22)';g.beginPath();g.ellipse(0,TILE*0.5,10,4,0,0,7);g.fill();
+  if(h.dir==='left')g.scale(-1,1);
+  if(im&&im.complete&&im.naturalWidth){ g.drawImage(im,-sz/2,-sz*0.62,sz,sz); }
+  else { g.fillStyle='#ffce47';g.beginPath();g.arc(0,-6,10,0,7);g.fill(); }
+  g.restore(); }
+function owDraw(){ const g=ow.ctx; const {cam,map,W,H}=ow; const vw=ow.canvas.width,vh=ow.canvas.height;
+  g.clearRect(0,0,vw,vh);
+  const x0=Math.max(0,Math.floor(cam.x/TILE)),y0=Math.max(0,Math.floor(cam.y/TILE)),x1=Math.min(W,Math.ceil((cam.x+vw)/TILE)),y1=Math.min(H,Math.ceil((cam.y+vh)/TILE));
+  for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)owDrawTile(g,map[y][x],x*TILE-cam.x,y*TILE-cam.y,x,y);
+  ow.events.forEach(ev=>{ owDrawEvent(g,ev,ev.tx*TILE-cam.x,ev.ty*TILE-cam.y); });
+  owDrawHero(g,ow.hero.px-cam.x,ow.hero.py-cam.y); }
+function owUpdateHint(){ if(!owHintEl)return; const ev=nearestEvent(); let txt=null;
+  if(ev){ if(ev.star){ if(actAllDone(ow.act)) txt='★ 集合點　按 🔍 開始推理'; }
+    else if(!talkDone(ev.chIdx)) txt='❗ '+ev.label+'　按 🔍 去問他'; }
+  if(txt){ owHintEl.textContent=txt; owHintEl.style.display='block'; } else owHintEl.style.display='none'; }
+function owStep(t){ if(!owActive||!ow){owRAF=0;return;} const dt=Math.min(50,t-(owLast||t));owLast=t; owUpdate(dt); owDraw(); owRAF=requestAnimationFrame(owStep); }
+function owStop(){ if(owRAF){cancelAnimationFrame(owRAF);owRAF=0;} }
+function leaveMap(){ owActive=false; owStop(); if(owMapCleanup){ owMapCleanup(); owMapCleanup=null; } }
+/* 只在地圖畫面吃方向鍵；其他畫面不設鍵，避免殘留讓角色自己走 */
+addEventListener('keydown',e=>{ if(!owActive)return; const k=e.key.toLowerCase();
+  if(k==='arrowup'||k==='w'){owKeys.up=1;e.preventDefault();} else if(k==='arrowdown'||k==='s'){owKeys.down=1;e.preventDefault();}
+  else if(k==='arrowleft'||k==='a'){owKeys.left=1;e.preventDefault();} else if(k==='arrowright'||k==='d'){owKeys.right=1;e.preventDefault();}
+  else if(k===' '||k==='enter'){ mapInteract(); e.preventDefault(); } });
+addEventListener('keyup',e=>{ const k=e.key.toLowerCase();
+  if(k==='arrowup'||k==='w')owKeys.up=0; else if(k==='arrowdown'||k==='s')owKeys.down=0;
+  else if(k==='arrowleft'||k==='a')owKeys.left=0; else if(k==='arrowright'||k==='d')owKeys.right=0; });
+function renderMap(ch,i){
+  leaveMap();
+  setScene(ch.scene);
+  stage.innerHTML=''; stage.appendChild(header(ch,i));
+  const m=el('div','map');
+  const total=actTalkIdx(ch.act).length, done=actTalkIdx(ch.act).filter(talkDone).length;
+  const bar=el('div','owbar'); bar.innerHTML='🗺 探索地圖　·　已問到 <b>'+done+' / '+total+'</b>　·　走到房子按 🔍 去問'; m.appendChild(bar);
+  const wrap=el('div','owwrap'); const cv=el('canvas','owcanvas'); wrap.appendChild(cv); m.appendChild(wrap);
+  const hint=el('div','owhint'); hint.style.display='none'; m.appendChild(hint); owHintEl=hint;
+  const pad=el('div','owpad');
+  [['up','▲'],['left','◀'],['act','🔍'],['right','▶'],['down','▼']].forEach(([k,lb])=>{ const b=el('button','dbtn '+k,lb);
+    if(k==='act'){ b.onclick=()=>mapInteract(); }
+    else{ const set=v=>{ if(ow) ow.dpad=v?k:(ow.dpad===k?null:ow.dpad); };
+      b.addEventListener('pointerdown',e=>{e.preventDefault();set(1);}); b.addEventListener('pointerup',e=>{e.preventDefault();set(0);});
+      b.addEventListener('pointerleave',()=>set(0)); b.addEventListener('pointercancel',()=>set(0)); }
+    pad.appendChild(b); });
+  m.appendChild(pad);
+  stage.appendChild(m);
+  if(!ow||ow.act!==ch.act) initWorld(ch.act);
+  ow.canvas=cv; ow.ctx=cv.getContext('2d'); ow.wrap=wrap; owFit();
+  // ResizeObserver 會在版面算完（含初次）與視窗變動時重量畫布——比 addEventListener('resize')
+  // 可靠，也修掉「fit() 在 flex 尺寸算好前就量到太小」的時序問題。
+  const ro=new ResizeObserver(()=>owFit()); ro.observe(wrap);
+  owMapCleanup=()=>{ ro.disconnect(); };
+  owKeys.up=owKeys.down=owKeys.left=owKeys.right=0; ow.dpad=null;
+  owActive=true; owLast=0; owStop(); owRAF=requestAnimationFrame(owStep); owUpdateHint();
+}
+function owFit(){ if(!ow||!ow.wrap||!ow.canvas)return; const r=ow.wrap.getBoundingClientRect();
+  const w=Math.max(220,Math.floor(r.width)), h=Math.max(140,Math.floor(r.height));
+  if(ow.canvas.width!==w||ow.canvas.height!==h){ ow.canvas.width=w; ow.canvas.height=h; } }
+
 /* ---------- 流程控制 ---------- */
 function goCh(i){
   if(i>=CHAPTERS.length) i=CHAPTERS.length-1;
+  leaveMap();                         // 離開地圖引擎（若在地圖上）
   S.ch=i; if(i>S.chMax) S.chMax=i;
   persist(); renderCoin();
   const ch=CHAPTERS[i];
   refreshDev(i,ch);
+  if(ch.type==='map')    return renderMap(ch,i);
   if(ch.type==='tone0')  return renderTone0(ch,i);
   if(ch.type==='talk')   return renderTalk(ch,i);
   if(ch.type==='deduce') return renderDeduce(ch,i);
@@ -1000,15 +1184,19 @@ function goCh(i){
 }
 
 /* ---------- 啟動 ---------- */
+/* 續玩點：如果最遠進度停在某個訪談關（那是從地圖走進去的），
+   回到那一幕的地圖當中樞，而不是掉進一個已問過的訪談。 */
+function resumeTarget(){ let t=clamp(S.chMax||0,0,CHAPTERS.length-1);
+  const ch=CHAPTERS[t]; if(ch&&ch.type==='talk'){ const mi=mapIdx(ch.act); if(mi>=0) return mi; } return t; }
 function boot(){
   buildDev();
   const local=loadLocal(); if(local) S=Object.assign(defaultState(),local);
   renderCoin();
-  goCh(clamp(S.chMax||0,0,CHAPTERS.length-1));
+  goCh(resumeTarget());
   (async()=>{ try{ const cloud=await Account.load(); if(!cloud) return;
     if(progressScore(cloud)>progressScore(S)) S=Object.assign(defaultState(),cloud);
     mergeProgress(S,cloud); persist();
-    goCh(clamp(S.chMax||0,0,CHAPTERS.length-1));
+    goCh(resumeTarget());
   }catch(e){} })();
 }
 boot();
