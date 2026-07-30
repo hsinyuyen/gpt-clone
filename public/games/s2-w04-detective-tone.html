@@ -54,7 +54,8 @@
   /* ── 寬螢幕分左右：場景圖佔左半邊、吃滿整個高度，操作卡在右邊 ──
      只在夠寬（橫向）又夠高（≥640）時啟用，圖才有意義地變大。
      矮的橫排（≤620 高）走另一套（卡片並排、圖隱藏），不在這裡。 */
-  @media (min-aspect-ratio:1/1) and (min-height:640px){
+  /* 兩欄（圖在左）下限 560：再矮訪談關的右欄就塞不下，退回並排。 */
+  @media (min-aspect-ratio:1/1) and (min-height:560px){
     .pane{flex-direction:row;gap:12px;align-items:stretch;}
     .scene{flex:0 0 44%;min-height:0;}
     .content{flex:1 1 0;min-width:0;overflow-y:auto;}
@@ -190,17 +191,21 @@
   /* ── 矮又寬（手機橫放）：改成左右並排 ──
      這種尺寸只剩約 330px 可用高度，直排怎麼縮都塞不下，而小三的字級不該再縮。
      好在每個畫面剛好都是兩張卡（劇情/角色 ＋ 小考/操作），並排就把高度砍半。 */
-  /* 兩欄需要 ≥640 高才裝得下內容；這裡接到 639，中間不留縫（620–639 之前會掉回橫幅）。 */
-  @media (max-height:639px) and (min-aspect-ratio:13/10){
-    .scene{display:none;}   /* 又矮又寬：沒空間放畫框，改由 #bg 淡背景撐氛圍 */
+  /* 矮到兩欄塞不下訪談內容（≤559）就退回並排、圖隱藏由 #bg 撐氛圍。
+     560 以上維持左右分欄（圖在左），靠下面那段收縮內容來塞下。 */
+  @media (max-height:559px) and (min-aspect-ratio:13/10){
+    .scene{display:none;}
     .content{flex:1 1 auto;min-height:0;flex-direction:row;align-items:stretch;}
     .content>.card{flex:1 1 0;min-width:0;overflow-y:auto;}
+  }
+  /* 橫向又矮（≤639）：不改版面，只把右欄內容收一階，塞進較矮的畫面。 */
+  @media (max-height:639px) and (min-aspect-ratio:13/10){
     .who{flex-direction:column;align-items:center;gap:7px;}
     .who .por{width:min(17vh,84px);}
     .who .say{width:100%;}
     h1{font-size:17px;}
     h2{font-size:15px;}
-    .card{padding:9px 11px;}
+    .card{padding:7px 11px;}
     /* 操作卡最擠：語氣鈕的說明字收掉（各關標題已經講了什麼時候用哪種語氣），
        圖示與打字框也縮一階。填空模板與例句要留著——那是小三真正需要的鷹架。 */
     .tone .use{display:none;}
@@ -208,7 +213,7 @@
     .tone .nm{font-size:14px;}
     .tone{padding:6px 4px;}
     .tones{gap:6px;margin:4px 0;}
-    textarea{min-height:42px;}
+    textarea{min-height:38px;}
     .eg,.tpl{font-size:12px;line-height:1.3;margin:3px 0 0;}
     .err{margin-top:3px;font-size:12.5px;}
     .bubble{padding:6px 9px;font-size:13.5px;line-height:1.35;}
