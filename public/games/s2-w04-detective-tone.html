@@ -190,8 +190,9 @@
   /* ── 矮又寬（手機橫放）：改成左右並排 ──
      這種尺寸只剩約 330px 可用高度，直排怎麼縮都塞不下，而小三的字級不該再縮。
      好在每個畫面剛好都是兩張卡（劇情/角色 ＋ 小考/操作），並排就把高度砍半。 */
-  @media (max-height:620px) and (min-aspect-ratio:13/10){
-    .scene{display:none;}   /* 矮又寬：沒空間放畫框，改由 #bg 淡背景撐氛圍 */
+  /* 兩欄需要 ≥640 高才裝得下內容；這裡接到 639，中間不留縫（620–639 之前會掉回橫幅）。 */
+  @media (max-height:639px) and (min-aspect-ratio:13/10){
+    .scene{display:none;}   /* 又矮又寬：沒空間放畫框，改由 #bg 淡背景撐氛圍 */
     .content{flex:1 1 auto;min-height:0;flex-direction:row;align-items:stretch;}
     .content>.card{flex:1 1 0;min-width:0;overflow-y:auto;}
     .who{flex-direction:column;align-items:center;gap:7px;}
