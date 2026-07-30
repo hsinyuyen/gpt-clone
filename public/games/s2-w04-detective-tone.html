@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>阿問偵探社・第四話：語氣變身術｜S2 W04</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --bg:#0e1826; --bg2:#16263a; --ink:#eaf4ff; --dim:#9fbdd6; --line:rgba(150,190,220,.28);
+    --card:#15263b; --gold:#ffce47; --good:#7cffb0; --warn:#ff9b6b;
+    --t-warm:#3fd0c9; --t-serious:#a78bfa; --t-funny:#ffa94d; --t-polite:#ff8fbb;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{background:radial-gradient(120% 90% at 50% 0%,var(--bg2),var(--bg));color:var(--ink);
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.7;
+    min-height:100vh;-webkit-user-select:none;user-select:none;}
+  #stage{max-width:900px;margin:0 auto;padding:14px 16px 90px;}
+  .topbar{position:sticky;top:0;z-index:30;background:rgba(14,24,38,.94);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);padding:8px 16px;display:flex;align-items:center;gap:12px;}
+  .topbar .t{font-weight:900;font-size:15px;}
+  .topbar .step{margin-left:auto;font-size:13px;color:var(--dim);font-weight:700;}
+  .back{text-decoration:none;color:var(--dim);font-weight:700;font-size:13px;padding:5px 11px;
+    border:1px solid var(--line);border-radius:999px;}
+  h1{font-size:clamp(22px,5vw,31px);font-weight:900;margin:16px 0 8px;}
+  h2{font-size:clamp(18px,4vw,23px);font-weight:900;margin:14px 0 6px;}
+  p.lead{color:var(--dim);font-size:16px;margin-bottom:14px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px;margin:12px 0;
+    box-shadow:0 8px 26px rgba(0,0,0,.28);}
+  .btn{display:inline-block;border:0;border-radius:14px;padding:13px 22px;font-size:16px;font-weight:900;
+    color:#08202f;cursor:pointer;font-family:inherit;background:linear-gradient(180deg,#ffe07a,var(--gold));
+    box-shadow:0 6px 16px rgba(255,206,71,.28);}
+  .btn:active{transform:translateY(1px);}
+  .btn[disabled]{background:none;color:#6d8ba3;border:2px solid var(--line);box-shadow:none;cursor:not-allowed;}
+  .btn.wide{display:block;width:100%;text-align:center;}
+  .btn.ghost{background:none;color:var(--ink);border:2px solid var(--line);box-shadow:none;}
+  /* 圖片：載不到就退成色塊，離線不開天窗（沿用 S2-W03 做法） */
+  .img{width:100%;border-radius:14px;overflow:hidden;background:#20344c;}
+  .img img{width:100%;display:block;}
+  .img.fail{aspect-ratio:1/1;background:linear-gradient(140deg,#26405c,#1b2c42);}
+  .img.fail img{display:none;}
+  /* 語氣變身器 */
+  .tones{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0;}
+  @media(max-width:560px){.tones{grid-template-columns:repeat(2,1fr);}}
+  .tone{background:#12233a;border:2px solid var(--line);border-radius:16px;padding:12px 8px;cursor:pointer;
+    text-align:center;font-family:inherit;color:var(--ink);transition:transform .1s,border-color .15s;}
+  .tone:active{transform:translateY(1px);}
+  .tone.on{border-color:var(--c);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 30%,transparent);}
+  .tone .ic{width:44px;height:44px;margin:0 auto 6px;}
+  .tone .nm{font-weight:900;font-size:16px;}
+  .tone .use{font-size:12.5px;color:var(--dim);margin-top:2px;}
+  .tone[disabled]{opacity:.45;cursor:not-allowed;}
+  /* 角色立繪：放鬆／抗拒兩態 */
+  .who{display:flex;gap:16px;align-items:flex-start;}
+  .who .por{flex:0 0 auto;width:min(38vw,168px);}
+  .who .por .img{border:3px solid var(--line);}
+  .who.relaxed .por .img{border-color:var(--good);box-shadow:0 0 22px rgba(124,255,176,.35);}
+  .who.resist .por .img{border-color:var(--warn);filter:saturate(.75) brightness(.9);}
+  .who .say{flex:1;min-width:0;}
+  .bubble{background:#1b2f47;border:1px solid var(--line);border-radius:16px;border-bottom-left-radius:4px;
+    padding:12px 14px;font-size:16.5px;}
+  .bubble.ask{background:#173a52;border-color:rgba(124,208,255,.4);}
+  .bubble.good{background:#14402f;border-color:rgba(124,255,176,.5);}
+  .bubble.bad{background:#41231c;border-color:rgba(255,155,107,.5);}
+  .mood{display:inline-block;font-size:13px;font-weight:800;color:var(--gold);
+    border:1px solid var(--line);border-radius:999px;padding:3px 10px;margin-bottom:7px;}
+  /* 語氣改寫打字 */
+  .tpl{font-size:14px;color:var(--dim);margin:8px 0 4px;}
+  textarea{width:100%;min-height:74px;border:1px solid var(--line);border-radius:12px;padding:11px 12px;
+    background:#0d1a2a;color:var(--ink);font-family:inherit;font-size:16.5px;line-height:1.6;resize:vertical;
+    -webkit-user-select:text;user-select:text;}
+  .eg{font-size:13.5px;color:var(--dim);margin-top:6px;}
+  .err{color:var(--warn);font-size:14.5px;font-weight:800;margin-top:8px;}
+  /* 泡泡小考：漂浮泡泡＋防硬按 */
+  .qbs{position:relative;height:230px;margin:10px 0;}
+  .qb{position:absolute;width:150px;height:150px;border-radius:50%;border:3px solid rgba(220,245,255,.85);
+    background:radial-gradient(circle at 34% 30%,rgba(238,252,255,.99),rgba(152,216,255,.92) 70%,rgba(108,180,250,.72));
+    color:#062a45;font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:center;
+    text-align:center;padding:14px;cursor:pointer;transition:transform .12s;}
+  .qb:active{transform:scale(.97);}
+  .qbs.locked .qb{opacity:.55;cursor:not-allowed;}
+  /* 線索板 */
+  .clues{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:10px 0;}
+  .slot{background:#101f33;border:1px dashed var(--line);border-radius:14px;padding:11px 13px;min-height:64px;
+    font-size:15px;color:var(--dim);}
+  .slot.got{border-style:solid;border-color:var(--good);color:var(--ink);background:#122c26;}
+  .coin{position:fixed;right:12px;top:52px;z-index:25;background:rgba(14,24,38,.9);border:1px solid var(--line);
+    border-radius:999px;padding:6px 13px;font-weight:900;color:var(--gold);font-size:14px;}
+  .prog{height:7px;background:rgba(255,255,255,.12);border-radius:999px;overflow:hidden;margin:10px 0 4px;}
+  .prog>i{display:block;height:100%;background:var(--good);border-radius:999px;transition:width .3s;}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;z-index:60;background:rgba(8,20,34,.95);
+    border:1px solid var(--good);color:var(--good);border-radius:999px;padding:10px 20px;font-weight:900;}
+  .zh{font-size:.62em;color:var(--dim);}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="back" href="/worksheets">← 返回</a>
+  <span class="t">阿問偵探社・第四話：語氣變身術</span>
+  <span class="step" id="stepTag"></span>
+</div>
+<div class="coin" id="coinHud">🪙 0</div>
+<div id="stage"></div>
+<div id="overlay"></div>
+<script>
+/* =========================================================================
+   S2-W04《阿問偵探社・第四話：語氣變身術 — 被搞砸的園遊會》
+   學習核心＝語氣控制：對不同的人用對的語氣，他才願意開口。
+   兩幕：第一幕用 4 種語氣問 4 個人找出「是誰」→ 翻轉（他是好意）→
+         第二幕用同 4 種語氣換情境再問 4 個人，找出「為什麼」並和解。
+   引擎（DOM 單檔 / 存檔綁 uid / 金幣冪等 / 防硬按泡泡題）沿用 S2-W03 chassis。
+   每一段之後都接互動確認，沒有純「繼續」的頁面。
+   ========================================================================= */
+const stage=document.getElementById('stage');
+const $=(s,r)=>(r||document).querySelector(s);
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const now=()=>performance.now();
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+// 圖片載不到就退成色塊，離線也不會開天窗（沿用 S2-W03）
+function pic(name,cls){const w=el('div','img'+(cls?' '+cls:''));const im=document.createElement('img');
+  im.src='assets/'+name+(/\.(png|jpe?g|webp)$/i.test(name)?'':'.png');im.alt='';im.onerror=()=>w.classList.add('fail');
+  w.appendChild(im);return w;}
+
+/* ---------- 音效（程序化，不用音檔） ---------- */
+const Sfx=(()=>{let ac=null;function ctx(){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();}catch(e){}return ac;}
+  function tone(f,d,t,v){const a=ctx();if(!a)return;const o=a.createOscillator(),g=a.createGain();o.type=t||'sine';o.frequency.value=f;
+    g.gain.setValueAtTime(0,a.currentTime);g.gain.linearRampToValueAtTime(v||.06,a.currentTime+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+(d||.15));o.connect(g);g.connect(a.destination);
+    o.start();o.stop(a.currentTime+(d||.15));}
+  return {tick(){tone(430,.05,'triangle',.05);},ding(){tone(880,.12,'sine',.06);setTimeout(()=>tone(1320,.14,'sine',.05),70);},
+    pop(){tone(260,.12,'square',.05);},bad(){tone(180,.2,'sawtooth',.05);},
+    win(){[523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>tone(f,.17,'square',.05),i*95));},resume(){ctx();}};
+})();
+
+/* ---------- 帳號綁定（gameKey s2w04 獨立存檔；coins/{uid} 錢包與全系列共用） ---------- */
+const GAMEKEY='s2w04';
+/* 金幣：規格 §1 的課綱是 35。拆法要剛好加到 35，否則學習單列表會顯示對不起來的數字。
+   給幣的章節＝語氣教學 1 ＋ 訪談 8 ＋ 翻轉 1 ＝ 10 章 ×2 ＝ 20
+   ＋ 兩幕推理各 5 ＝ 10 ＋ 破案 5 ＝ 35。小老師另計 17（約任務的 50%，CLAUDE.md §21）。 */
+const COIN_PER_CH=2, COIN_ACT=5, COIN_DONE=5, COIN_TA=17;
+const TOTAL_COINS=35+COIN_TA;   // 52
+const FB={apiKey:"AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78",authDomain:"gpt-clone-68b9f.firebaseapp.com",projectId:"gpt-clone-68b9f",storageBucket:"gpt-clone-68b9f.firebasestorage.app",messagingSenderId:"436942056069",appId:"1:436942056069:web:8762675dfff7b7e92017ec"};
+const Account=(()=>{let uid=null,uname='',db=null,ready=false;
+  function su(){try{const r=(sessionStorage.getItem('@session/currentUser')||localStorage.getItem('@session/currentUser'));return r?JSON.parse(r):null;}catch(e){return null;}}
+  function init(){const u=su();if(u&&u.id){uid=u.id;uname=u.displayName||u.username||'';}
+    if(uid&&window.firebase){try{if(!firebase.apps.length)firebase.initializeApp(FB);db=firebase.firestore();ready=true;}catch(e){}}}
+  async function load(){if(!ready)return null;try{const s=await db.collection('gameProgress').doc(uid).get();return s.exists?(s.data()[GAMEKEY]||null):null;}catch(e){return null;}}
+  async function save(state){if(!ready)return;try{await db.collection('gameProgress').doc(uid).set({[GAMEKEY]:state,name:uname,updatedAt:new Date().toISOString()},{merge:true});}catch(e){}}
+  async function creditCoins(id,amount,reason){if(!ready||!(amount>0))return;const ref=db.collection('coins').doc(uid);
+    try{await db.runTransaction(async tx=>{const s=await tx.get(ref);const c=s.exists?s.data():{balance:0,totalEarned:0,transactions:[]};
+      const txs=Array.isArray(c.transactions)?c.transactions:[];
+      if(txs.some(t=>t&&t.id===id))return;                       // 冪等：同一個 id 只入帳一次
+      txs.push({id,amount,reason,timestamp:new Date().toISOString()});
+      tx.set(ref,{balance:(c.balance||0)+amount,totalEarned:(c.totalEarned||0)+amount,transactions:txs.slice(-160)});});}catch(e){}}
+  return {init,load,save,creditCoins,get ready(){return ready;},get uid(){return uid;},get name(){return uname;}};
+})();
+Account.init();
+
+/* ---------- 存檔（鍵綁 uid：共用電腦不會繼承上一位學生的進度） ---------- */
+const VERSION=1;
+function defaultState(){ return { v:VERSION, ch:0, chMax:0, coins:0, done:false, pct:0,
+  clues:{}, ta:false }; }
+let S=defaultState();
+const SKEY=(()=>{ const base='game:'+GAMEKEY;
+  try{ localStorage.removeItem(base); }catch(e){}          // 清掉舊版沒綁人的存檔
+  try{ const r=sessionStorage.getItem('@session/currentUser')||localStorage.getItem('@session/currentUser');
+       const u=r?JSON.parse(r):null; return base+':'+((u&&u.id)||'anon'); }catch(e){ return base+':anon'; } })();
+function overallPct(){ return S.done?1:clamp(S.chMax/CHAPTERS.length,0,1); }
+function persist(){ S.pct=overallPct(); try{ localStorage.setItem(SKEY,JSON.stringify(S)); }catch(e){} Account.save(S); }
+function loadLocal(){ try{ const r=localStorage.getItem(SKEY); if(r){ const o=JSON.parse(r); if(o&&o.v===VERSION) return o; } }catch(e){} return null; }
+/* 雲端／本機哪一份比較遠：先比是否破案，再比進度，可增不可減的欄位取聯集 */
+function progressScore(s){ return s? (s.done?1e6:0)+(s.chMax||0)*10+Object.keys(s.clues||{}).length : -1; }
+function mergeProgress(dst,other){ if(!dst||!other) return dst;
+  dst.chMax=Math.max(dst.chMax||0,other.chMax||0);
+  dst.coins=Math.max(dst.coins||0,other.coins||0);
+  dst.done=!!(dst.done||other.done); dst.ta=!!(dst.ta||other.ta);
+  dst.clues=Object.assign({},other.clues||{},dst.clues||{});
+  return dst; }
+function addCoins(id,amount,reason){
+  S.coins=Math.min(TOTAL_COINS,(S.coins||0)+amount);
+  Account.creditCoins(GAMEKEY+'_'+id,amount,reason);
+  renderCoin(); persist(); }
+function renderCoin(){ const h=$('#coinHud'); if(h) h.textContent='🪙 '+(S.coins||0)+' / '+TOTAL_COINS; }
+
+/* =========================================================================
+   四種語氣（語氣變身器）
+   ok＝這個語氣的關鍵字，玩家自己打的句子要含其中一個才算「寫出那個語氣」。
+   bad＝明顯不符該語氣的字，出現就給具體錯誤訊息。
+   ========================================================================= */
+const TONES={
+  warm:    { name:'溫柔', zh:'ㄨㄣ ㄋㄩㄡˊ', col:'var(--t-warm)',    use:'對方害怕、難過',
+             ok:['沒關係','別怕','不要怕','慢慢','好嗎','可以嗎','我陪你','不會罵'],
+             bad:['快說','講啊','笨','煩'], tpl:'＿＿＿，可以慢慢告訴我＿＿＿嗎？',
+             eg:'別怕，沒關係，可以慢慢告訴我你看到什麼嗎？' },
+  serious: { name:'認真', zh:'ㄖㄣˋ ㄓㄣ', col:'var(--t-serious)', use:'對方嘴硬、亂講',
+             ok:['很重要','認真','真的','事實','請你','幫忙想','仔細'],
+             bad:['隨便','無聊','算了','開玩笑'], tpl:'這件事很重要，請你＿＿＿。',
+             eg:'這件事很重要，請你認真想一想昨天晚上的事。' },
+  funny:   { name:'搞笑', zh:'ㄍㄠˇ ㄒㄧㄠˋ', col:'var(--t-funny)',  use:'對方在鬧脾氣、緊張',
+             ok:['哈','嘿','好啦','別氣','笑','有趣','好玩','放輕鬆'],
+             bad:['閉嘴','不准','嚴重','警告'], tpl:'哈哈，＿＿＿，先別氣好嗎？',
+             eg:'哈哈別氣啦，你氣起來好像一顆生氣的番茄，先跟我說發生什麼事？' },
+  polite:  { name:'有禮貌', zh:'ㄧㄡˇ ㄌㄧˇ ㄇㄠˋ', col:'var(--t-polite)', use:'對方是長輩、很忙',
+             ok:['請問','謝謝','不好意思','打擾','麻煩','您'],
+             bad:['喂','快點','我要','馬上'], tpl:'不好意思打擾您，請問＿＿＿？',
+             eg:'不好意思打擾您，請問昨天晚上有沒有下雨呢？謝謝您。' },
+};
+const TONE_KEYS=['warm','serious','funny','polite'];
+/* 自繪語氣圖示（規格要求非 emoji） */
+function toneIcon(k,size){
+  const s=size||44, ns='http://www.w3.org/2000/svg';
+  const sv=document.createElementNS(ns,'svg'); sv.setAttribute('viewBox','0 0 48 48');
+  sv.setAttribute('width',s); sv.setAttribute('height',s);
+  const col=getComputedStyle(document.documentElement).getPropertyValue('--t-'+
+    (k==='warm'?'warm':k==='serious'?'serious':k==='funny'?'funny':'polite')).trim()||'#fff';
+  const c=document.createElementNS(ns,'circle'); c.setAttribute('cx',24); c.setAttribute('cy',24);
+  c.setAttribute('r',20); c.setAttribute('fill','none'); c.setAttribute('stroke',col); c.setAttribute('stroke-width',3);
+  sv.appendChild(c);
+  const mk=(d,w)=>{const p=document.createElementNS(ns,'path');p.setAttribute('d',d);p.setAttribute('fill','none');
+    p.setAttribute('stroke',col);p.setAttribute('stroke-width',w||3);p.setAttribute('stroke-linecap','round');sv.appendChild(p);};
+  const eye=(x,y,r)=>{const e=document.createElementNS(ns,'circle');e.setAttribute('cx',x);e.setAttribute('cy',y);
+    e.setAttribute('r',r||2.4);e.setAttribute('fill',col);sv.appendChild(e);};
+  if(k==='warm'){    eye(17,21); eye(31,21); mk('M16 30 Q24 35 32 30'); }           // 微笑
+  if(k==='serious'){ mk('M14 20 L21 20',3); mk('M27 20 L34 20',3); mk('M17 31 L31 31'); } // 平嘴
+  if(k==='funny'){   mk('M14 19 Q17 15 20 19'); mk('M28 19 Q31 15 34 19'); mk('M15 28 Q24 38 33 28'); } // 大笑
+  if(k==='polite'){  eye(17,20); eye(31,20); mk('M13 33 Q24 28 35 33'); mk('M24 8 L24 13'); } // 鞠躬點頭
+  return sv;
+}
+
+/* =========================================================================
+   角色（一角一圖複用）。tone＝這個人吃哪一種語氣；
+   react＝四種語氣各自的反應台詞（全部預寫，本地判定，阿問不判定）。
+   ========================================================================= */
+const CHARS={
+  sister: { name:'小妹妹', img:'s2w04-sister', mood:'她被吵架聲嚇到，縮在角落發抖。', tone:'warm',
+    react:{ warm:'（她慢慢抬起頭）嗯…我看到一個穿紅衣的人。',
+            serious:'（她肩膀一縮）……（不敢講話）',
+            funny:'（她皺起眉）你在笑我嗎…（更縮了）',
+            polite:'（她愣住）你…你在跟老師講話嗎？' } },
+  qiang:  { name:'阿強', img:'s2w04-qiang', mood:'他雙手抱胸：「不干我的事。」', tone:'serious',
+    react:{ serious:'（他放下手）好啦…昨晚有人留下來沒回家。',
+            warm:'（他撇嘴）我又沒哭，你幹嘛這樣講話。',
+            funny:'（他翻白眼）無聊。（轉過身）',
+            polite:'（他笑出來）你幹嘛跟我這麼客氣，怪怪的。' } },
+  mei:    { name:'小美', img:'s2w04-mei', mood:'攤位長氣到跳腳，東西被弄亂她最生氣。', tone:'funny',
+    react:{ funny:'（她笑出來）好啦好啦…招牌不是被偷，是被收起來了。',
+            warm:'（她更大聲）我不是難過！我是生氣！',
+            serious:'（她瞪你）你是要來查我的嗎？',
+            polite:'（她揮手）別客套了啦，煩！' } },
+  teacher:{ name:'王老師', img:'s2w04-teacher', mood:'老師忙著搬桌子，沒空理你。', tone:'polite',
+    react:{ polite:'（她停下來）好，我告訴你——昨晚只有值日生有鑰匙。',
+            warm:'（她邊走邊說）老師現在很忙喔。',
+            serious:'（她皺眉）你這樣講話有點沒禮貌。',
+            funny:'（她搖頭）現在不是開玩笑的時候。' } },
+  hua:    { name:'小華', img:'s2w04-hua', mood:'他低著頭一直搓手，好像很怕被罵。', tone:'warm',
+    react:{ warm:'（他鬆了一口氣）昨晚下雨，我怕招牌淋壞，把它收起來…想整理攤位，結果弄亂了。對不起。',
+            serious:'（他眼睛紅了）我…我不是故意的…（說不出話）',
+            funny:'（他更低頭）不好笑……',
+            polite:'（他愣住）你不用對我這麼客氣…' } },
+  blamed: { name:'被怪的同學', img:'s2w04-blamed', mood:'他很生氣：「大家都說是我做的！」', tone:'serious',
+    react:{ serious:'（他冷靜下來）真的嗎…招牌沒有不見？那我聽他說。',
+            warm:'（他大聲）我不需要你安慰！',
+            funny:'（他更氣）你還笑得出來？',
+            polite:'（他哼一聲）講那麼客氣有什麼用。' } },
+  sister2:{ name:'小妹妹', img:'s2w04-sister', mood:'她還是有點緊張，手一直抓著衣角。', tone:'funny',
+    react:{ funny:'（她笑了）我有看到他抱著招牌躲雨！',
+            warm:'（她點點頭）嗯……（還是不敢多說）',
+            serious:'（她又縮起來）我不知道…',
+            polite:'（她小聲）你講話好好聽喔。' } },
+  janitor:{ name:'校工阿伯', img:'s2w04-janitor', mood:'他年紀比較大，正在掃地。', tone:'polite',
+    react:{ polite:'（他停下掃把）昨晚啊，真的下大雨呢。',
+            warm:'（他笑）小朋友你人很好，但我沒事啦。',
+            serious:'（他愣住）你是要跟我算帳嗎？',
+            funny:'（他搖頭）年輕人就是愛玩。' } },
+};
+
+/* =========================================================================
+   章節資料。type：tone0＝語氣教學、talk＝訪談、deduce＝推理、twist＝翻轉、end＝結局
+   每一段之後都接互動確認（quiz），沒有純「繼續」。
+   ========================================================================= */
+const CHAPTERS=[
+ { type:'tone0', title:'語氣變身器', scene:'s2w04-fair',
+   intro:'園遊會前一晚，攤位被弄亂、招牌不見了，大家吵成一團互相怪罪。',
+   intro2:'每個人都在鬧情緒。你要先學會一件事：對不同的人，要用不同的語氣。',
+   quiz:{ q:'有人嚇到在哭，要用哪一種語氣？',
+     opts:['溫柔','搞笑','認真'], a:0 } },
+
+ { type:'talk', act:1, who:'sister', title:'幕一・嚇到的小妹妹', scene:'s2w04-corner',
+   clue:{ id:'red', text:'看到一個穿紅衣的人' },
+   quiz:{ q:'剛剛她為什麼肯講了？', opts:['因為我們用溫柔的語氣','因為我們大聲一點','因為我們給她糖'], a:0 } },
+ { type:'talk', act:1, who:'qiang', title:'幕一・嘴硬的阿強', scene:'s2w04-corridor',
+   clue:{ id:'stay', text:'昨晚有人留下來沒回家' },
+   quiz:{ q:'對嘴硬的人要用什麼語氣？', opts:['認真','搞笑','溫柔'], a:0 } },
+ { type:'talk', act:1, who:'mei', title:'幕一・氣呼呼的小美', scene:'s2w04-stall',
+   clue:{ id:'kept', text:'招牌不是被偷，是被收起來' },
+   quiz:{ q:'小美在鬧脾氣，什麼語氣讓她笑出來？', opts:['搞笑','認真','有禮貌'], a:0 } },
+ { type:'talk', act:1, who:'teacher', title:'幕一・很忙的王老師', scene:'s2w04-class',
+   clue:{ id:'key', text:'昨晚只有值日生有鑰匙' },
+   quiz:{ q:'對忙碌的長輩要用什麼語氣？', opts:['有禮貌','搞笑','兇一點'], a:0 } },
+
+ { type:'deduce', act:1, title:'幕一・把線索連起來', scene:'s2w04-board',
+   need:['red','stay','kept','key'],
+   quiz:{ q:'昨晚穿紅衣、留下來、又是值日生的人是誰？', opts:['小華','阿強','小美'], a:0 } },
+
+ { type:'twist', title:'咦？他好像不是壞人', scene:'s2w04-rain',
+   intro:'你們找到小華，正要怪他——',
+   intro2:'阿問提醒：招牌好好的，只是被收起來了。他好像有原因。',
+   quiz:{ q:'招牌後來怎麼了？', opts:['被收起來，沒壞','被偷走了','被弄破了'], a:0 } },
+
+ { type:'talk', act:2, who:'hua', title:'幕二・怕被罵的小華', scene:'s2w04-rain',
+   clue:{ id:'why', text:'小華怕招牌淋雨，把它收起來' },
+   quiz:{ q:'小華為什麼把招牌收起來？', opts:['怕淋雨弄壞','想藏起來','不喜歡那個招牌'], a:0 } },
+ { type:'talk', act:2, who:'blamed', title:'幕二・被怪罪的同學', scene:'s2w04-stall',
+   clue:{ id:'nofault', text:'被怪的同學其實沒做' },
+   quiz:{ q:'要讓生氣的人聽進道理，用什麼語氣？', opts:['認真','搞笑','溫柔'], a:0 } },
+ { type:'talk', act:2, who:'sister2', title:'幕二・再問小妹妹', scene:'s2w04-corner',
+   clue:{ id:'hug', text:'有人看到他抱著招牌躲雨' },
+   quiz:{ q:'小妹妹補充了什麼？', opts:['他抱著招牌躲雨','他把招牌丟掉','他在哭'], a:0 } },
+ { type:'talk', act:2, who:'janitor', title:'幕二・校工阿伯', scene:'s2w04-yard',
+   clue:{ id:'rain', text:'昨晚真的下大雨' },
+   quiz:{ q:'校工阿伯證實了什麼？', opts:['昨晚真的下大雨','昨晚有小偷','昨晚停電'], a:0 } },
+
+ { type:'deduce', act:2, title:'幕二・還原真相', scene:'s2w04-board',
+   need:['why','rain','hug','nofault'],
+   quiz:{ q:'所以真相是什麼？', opts:['一場好意造成的誤會','有人故意搗蛋','招牌被偷走了'], a:0 } },
+
+ { type:'end', title:'大家和好了', scene:'s2w04-end' },
+];
+const CLUE_TEXT={}; CHAPTERS.forEach(c=>{ if(c.clue) CLUE_TEXT[c.clue.id]=c.clue.text; });
+
+/* ---------- 進度列 ---------- */
+function header(ch,i){
+  const w=el('div'); const t=el('h1',null,ch.title); w.appendChild(t);
+  const p=el('div','prog'); const b=el('i'); b.style.width=Math.round(i/CHAPTERS.length*100)+'%';
+  p.appendChild(b); w.appendChild(p);
+  $('#stepTag').textContent='第 '+(i+1)+' / '+CHAPTERS.length+' 章';
+  return w; }
+
+/* =========================================================================
+   泡泡小考：三顆漂浮泡泡，點錯鎖 2＋N 秒並重洗位置（防硬按）。
+   答對才會進下一段——沒有純「繼續」。
+   ========================================================================= */
+function bubbleQuiz(host,q,onPass){
+  const box=el('div','card');
+  box.appendChild(el('h2',null,'考考你'));
+  box.appendChild(el('p','lead',q.q));
+  const wrap=el('div','qbs'); box.appendChild(wrap);
+  const msg=el('div','err'); box.appendChild(msg);
+  host.appendChild(box);
+  let wrongN=0, lockUntil=0;
+  const opts=shuffle(q.opts.map((t,i)=>({t,ok:i===q.a})));
+  function layout(){
+    wrap.innerHTML='';
+    shuffle(opts).forEach((o,i)=>{
+      const b=el('button','qb',o.t);
+      const cols=wrap.clientWidth||600, size=Math.min(150,Math.max(96,cols/3.4));
+      b.style.width=b.style.height=size+'px';
+      b.style.left=Math.round(i*(cols-size)/Math.max(1,opts.length-1))+'px';
+      b.style.top=Math.round(18+Math.random()*(230-size-30))+'px';
+      b.onclick=()=>{
+        if(now()<lockUntil){ Sfx.pop(); return; }
+        if(o.ok){ Sfx.ding(); msg.style.color='var(--good)'; msg.textContent='答對了！';
+          wrap.querySelectorAll('.qb').forEach(x=>x.disabled=true);
+          setTimeout(onPass,650); }
+        else{ Sfx.bad(); wrongN++; lockUntil=now()+2000+(wrongN-1)*1000;
+          msg.style.color='var(--warn)';
+          msg.textContent='再想想～ 等一下下（'+Math.round((lockUntil-now())/1000)+' 秒）';
+          wrap.classList.add('locked');
+          const tk=setInterval(()=>{ const left=Math.ceil((lockUntil-now())/1000);
+            if(left<=0){ clearInterval(tk); wrap.classList.remove('locked'); msg.textContent=''; layout(); }
+            else msg.textContent='再想想～ 等一下下（'+left+' 秒）'; },250); }
+      };
+      wrap.appendChild(b);
+    });
+  }
+  layout();
+}
+
+/* ---------- 線索板 ---------- */
+function clueBoard(host,needIds){
+  const box=el('div','card');
+  box.appendChild(el('h2',null,'線索板'));
+  const g=el('div','clues');
+  (needIds||Object.keys(CLUE_TEXT)).forEach(id=>{
+    const got=!!S.clues[id];
+    const s=el('div','slot'+(got?' got':''), got?CLUE_TEXT[id]:'？（還沒問到）');
+    g.appendChild(s);
+  });
+  box.appendChild(g); host.appendChild(box);
+}
+
+/* =========================================================================
+   訪談引擎（8 章共用）
+   讀狀況 → 選語氣 → 自己打一句該語氣的話（內容驗證）→ 看對方反應
+   → 選對才給線索、選錯換語氣或改句子再試（非致命）→ 線索上板 → 互動確認
+   ========================================================================= */
+function renderTalk(ch,i){
+  stage.innerHTML=''; stage.appendChild(header(ch,i));
+  const who=CHARS[ch.who];
+  if(ch.scene) stage.appendChild(pic(ch.scene+'.jpg','')); // 場景圖，載不到退色塊
+
+  const card=el('div','card');
+  const row=el('div','who'); row.id='whoRow';
+  const por=el('div','por'); por.appendChild(pic(who.img)); row.appendChild(por);
+  const say=el('div','say');
+  say.appendChild(el('div','mood','他現在的樣子'));
+  say.appendChild(el('div','bubble',who.mood));
+  const reply=el('div'); reply.id='reply'; say.appendChild(reply);
+  row.appendChild(say); card.appendChild(row); stage.appendChild(card);
+
+  // 語氣變身器
+  const tc=el('div','card');
+  tc.appendChild(el('h2',null,'語氣變身器'));
+  tc.appendChild(el('p','lead','選一種語氣，再自己打一句話，阿問就會用那個語氣去問。'));
+  const tg=el('div','tones');
+  let picked=null;
+  TONE_KEYS.forEach(k=>{
+    const T=TONES[k], b=el('button','tone'); b.style.setProperty('--c',T.col);
+    b.appendChild(toneIcon(k));
+    b.appendChild(el('div','nm',T.name));
+    b.appendChild(el('div','use',T.use));
+    b.onclick=()=>{ picked=k; Sfx.tick();
+      [...tg.children].forEach(x=>x.classList.remove('on')); b.classList.add('on');
+      tpl.textContent='填空模板：'+T.tpl; eg.textContent='例如：'+T.eg; err.textContent='';
+      ta.placeholder='用「'+T.name+'」的語氣打一句話…'; ta.focus(); };
+    tg.appendChild(b);
+  });
+  tc.appendChild(tg);
+  const tpl=el('div','tpl','先選一個語氣'); tc.appendChild(tpl);
+  const ta=el('textarea'); ta.placeholder='先選一個語氣，再打一句話…'; tc.appendChild(ta);
+  const eg=el('div','eg'); tc.appendChild(eg);
+  const err=el('div','err'); tc.appendChild(err);
+  const send=el('button','btn wide','叫阿問這樣去問'); tc.appendChild(send);
+  stage.appendChild(tc);
+
+  send.onclick=()=>{
+    Sfx.resume();
+    if(!picked){ err.textContent='先選一種語氣喔。'; return; }
+    const T=TONES[picked], txt=(ta.value||'').trim();
+    // 內容驗證（五要素之一）：太短、有兇字、沒有該語氣的關鍵字，都給具體錯誤訊息
+    if(txt.length<6){ err.textContent='句子太短了，照著上面的模板寫一句完整的話。'; return; }
+    const hitBad=T.bad.find(w=>txt.includes(w));
+    if(hitBad){ err.textContent='「'+hitBad+'」這樣講有點不客氣喔，他會更不想說。'; return; }
+    if(!T.ok.some(w=>txt.includes(w))){
+      err.textContent='這句話還不夠「'+T.name+'」。試著用上：'+T.ok.slice(0,3).join('、'); return; }
+    err.textContent='';
+    // 通過驗證 → 對方按「這個語氣對不對」給出反應
+    const good=(picked===who.tone);
+    reply.innerHTML='';
+    reply.appendChild(el('div','mood',good?'他放鬆了':'他更抗拒了'));
+    reply.appendChild(el('div','bubble '+(good?'good':'bad'), who.react[picked]));
+    row.classList.remove('relaxed','resist'); row.classList.add(good?'relaxed':'resist');
+    if(good){
+      Sfx.ding();
+      S.clues[ch.clue.id]=true;
+      addCoins('ch'+i, COIN_PER_CH, 'S2-W04 第'+(i+1)+'章');
+      send.disabled=true; ta.disabled=true;
+      [...tg.children].forEach(x=>x.disabled=true);
+      const nxt=el('div','card');
+      nxt.appendChild(el('h2',null,'線索到手'));
+      nxt.appendChild(el('div','bubble good','線索：'+ch.clue.text));
+      stage.appendChild(nxt);
+      clueBoard(stage, CHAPTERS.filter(c=>c.clue&&c.act===ch.act).map(c=>c.clue.id));
+      bubbleQuiz(stage, ch.quiz, ()=>goCh(i+1));
+    } else {
+      Sfx.bad();
+      err.textContent='他更不想說了。換一種語氣，或把句子改一下再試——不會被扣分。';
+    }
+  };
+}
+
+/* ---------- 章0：語氣教學（四種各試打一句） ---------- */
+function renderTone0(ch,i){
+  stage.innerHTML=''; stage.appendChild(header(ch,i));
+  if(ch.scene) stage.appendChild(pic(ch.scene+'.jpg',''));
+  const c1=el('div','card');
+  c1.appendChild(el('div','bubble',ch.intro));
+  c1.appendChild(el('div','bubble ask',ch.intro2));
+  stage.appendChild(c1);
+
+  const c2=el('div','card');
+  c2.appendChild(el('h2',null,'先認識四種語氣'));
+  c2.appendChild(el('p','lead','每一種都自己打一句話試試看。四種都試過才能出發。'));
+  const tg=el('div','tones'); c2.appendChild(tg);
+  const tpl=el('div','tpl','點一種語氣開始練習'); c2.appendChild(tpl);
+  const ta=el('textarea'); ta.placeholder='先點一種語氣…'; c2.appendChild(ta);
+  const eg=el('div','eg'); c2.appendChild(eg);
+  const err=el('div','err'); c2.appendChild(err);
+  const ok=el('button','btn wide','這句可以'); c2.appendChild(ok);
+  stage.appendChild(c2);
+
+  const doneT={}; let cur=null;
+  TONE_KEYS.forEach(k=>{
+    const T=TONES[k], b=el('button','tone'); b.style.setProperty('--c',T.col);
+    b.appendChild(toneIcon(k)); b.appendChild(el('div','nm',T.name)); b.appendChild(el('div','use',T.use));
+    b.onclick=()=>{ cur=k; Sfx.tick(); [...tg.children].forEach(x=>x.classList.remove('on')); b.classList.add('on');
+      tpl.textContent='填空模板：'+T.tpl; eg.textContent='例如：'+T.eg; err.textContent='';
+      ta.value=''; ta.placeholder='用「'+T.name+'」的語氣打一句話…'; ta.focus(); };
+    b.dataset.k=k; tg.appendChild(b);
+  });
+  ok.onclick=()=>{
+    Sfx.resume();
+    if(!cur){ err.textContent='先點一種語氣。'; return; }
+    const T=TONES[cur], txt=(ta.value||'').trim();
+    if(txt.length<6){ err.textContent='句子太短了，照模板寫一句完整的話。'; return; }
+    const hitBad=T.bad.find(w=>txt.includes(w));
+    if(hitBad){ err.textContent='「'+hitBad+'」不太像「'+T.name+'」喔，換個說法。'; return; }
+    if(!T.ok.some(w=>txt.includes(w))){ err.textContent='還不夠「'+T.name+'」。試著用上：'+T.ok.slice(0,3).join('、'); return; }
+    doneT[cur]=true; Sfx.ding(); err.style.color='var(--good)';
+    err.textContent='「'+T.name+'」練好了！（'+Object.keys(doneT).length+' / 4）';
+    [...tg.children].forEach(x=>{ if(doneT[x.dataset.k]) x.style.opacity=.55; });
+    if(Object.keys(doneT).length>=4){
+      addCoins('ch'+i, COIN_PER_CH, 'S2-W04 語氣教學');
+      ok.disabled=true; ta.disabled=true;
+      bubbleQuiz(stage, ch.quiz, ()=>goCh(i+1));
+    } else { err.style.color='var(--good)'; }
+  };
+}
+
+/* ---------- 翻轉／推理／結局 ---------- */
+function renderTwist(ch,i){
+  stage.innerHTML=''; stage.appendChild(header(ch,i));
+  if(ch.scene) stage.appendChild(pic(ch.scene+'.jpg',''));
+  const c=el('div','card');
+  c.appendChild(el('div','bubble',ch.intro));
+  c.appendChild(el('div','bubble ask',ch.intro2));
+  stage.appendChild(c);
+  bubbleQuiz(stage, ch.quiz, ()=>{ addCoins('ch'+i,COIN_PER_CH,'S2-W04 翻轉'); goCh(i+1); });
+}
+function renderDeduce(ch,i){
+  stage.innerHTML=''; stage.appendChild(header(ch,i));
+  const c=el('div','card');
+  c.appendChild(el('h2',null,'先把線索攤開'));
+  c.appendChild(el('p','lead','四條線索都在這裡，看看它們指向同一件事。'));
+  stage.appendChild(c);
+  clueBoard(stage, ch.need);
+  bubbleQuiz(stage, ch.quiz, ()=>{ addCoins('act'+ch.act,COIN_ACT,'S2-W04 第'+ch.act+'幕破案'); goCh(i+1); });
+}
+function renderEnd(ch,i){
+  stage.innerHTML=''; stage.appendChild(header(ch,i));
+  if(ch.scene) stage.appendChild(pic(ch.scene+'.jpg',''));
+  if(!S.done){ S.done=true; addCoins('done',COIN_DONE,'S2-W04 破案'); }
+  const c=el('div','card');
+  c.appendChild(el('h1',null,'最會好好說話的偵探'));
+  c.appendChild(el('p','lead','招牌掛回去了，園遊會照常舉行。沒有壞人，只有一場好意造成的誤會。'));
+  c.appendChild(el('div','bubble good','你學到的事：同一句話，換個語氣，對方肯不肯講差很多。'));
+  stage.appendChild(c);
+  clueBoard(stage, Object.keys(CLUE_TEXT));
+  const c2=el('div','card');
+  const ta=el('button','btn wide', S.ta?'已經當過小老師':'我是小偵探學長');
+  ta.disabled=!!S.ta;
+  ta.onclick=()=>{ S.ta=true; ta.disabled=true; ta.textContent='已經當過小老師';
+    addCoins('ta',COIN_TA,'S2-W04 小老師');
+    toast('去教一位同學：怎麼看對方的情緒選語氣！'); };
+  c2.appendChild(ta);
+  const home=el('button','btn ghost wide','回學習單'); home.style.marginTop='10px';
+  home.onclick=()=>{ location.href='/worksheets'; };
+  c2.appendChild(home);
+  stage.appendChild(c2);
+}
+function toast(msg){ const t=el('div','toast',msg); document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2600); }
+
+/* ---------- 流程控制 ---------- */
+function goCh(i){
+  if(i>=CHAPTERS.length) i=CHAPTERS.length-1;
+  S.ch=i; if(i>S.chMax) S.chMax=i;
+  persist(); renderCoin();
+  window.scrollTo(0,0);
+  const ch=CHAPTERS[i];
+  if(ch.type==='tone0')  return renderTone0(ch,i);
+  if(ch.type==='talk')   return renderTalk(ch,i);
+  if(ch.type==='deduce') return renderDeduce(ch,i);
+  if(ch.type==='twist')  return renderTwist(ch,i);
+  return renderEnd(ch,i);
+}
+
+/* ---------- 啟動 ---------- */
+function boot(){
+  const local=loadLocal(); if(local) S=Object.assign(defaultState(),local);
+  renderCoin();
+  goCh(clamp(S.chMax||0,0,CHAPTERS.length-1));
+  (async()=>{ try{ const cloud=await Account.load(); if(!cloud) return;
+    if(progressScore(cloud)>progressScore(S)) S=Object.assign(defaultState(),cloud);
+    mergeProgress(S,cloud); persist();
+    goCh(clamp(S.chMax||0,0,CHAPTERS.length-1));
+  }catch(e){} })();
+}
+boot();
+// 測試接口
+window.W=({ S:()=>S, ch:(i)=>goCh(i), chapters:()=>CHAPTERS, tones:()=>TONES, chars:()=>CHARS });
+</script>
+</body>
+</html>
