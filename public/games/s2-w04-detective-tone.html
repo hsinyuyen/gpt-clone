@@ -133,6 +133,25 @@
     text-align:center;padding:14px;cursor:pointer;transition:transform .12s;}
   .qb:active{transform:scale(.97);}
   .qbs.locked .qb{opacity:.55;cursor:not-allowed;}
+  /* 拖拉填空：長答案塞不進泡泡時用（例如「先查是誰，再查為什麼」）。
+     把詞拖進句子的空格；也可以點詞再點空格（觸控更好操作）。 */
+  .fsent{font-size:16.5px;line-height:2.1;margin:5px 0 2px;text-align:center;}
+  .fslot{display:inline-block;min-width:70px;height:32px;line-height:29px;margin:0 4px;padding:0 8px;
+    border:2px dashed var(--gold);border-radius:9px;text-align:center;color:var(--gold);font-weight:900;
+    vertical-align:middle;background:rgba(255,207,92,.06);}
+  .fslot.on{border-style:solid;background:rgba(255,207,92,.16);}
+  .fslot.hover{background:rgba(255,207,92,.32);border-color:#fff;}
+  .fbank{display:flex;flex-wrap:wrap;gap:9px;margin-top:7px;justify-content:center;}
+  .ftile{border:2px solid var(--line);background:linear-gradient(180deg,#16304f,#102540);color:var(--ink);
+    border-radius:12px;padding:10px 18px;font-size:16.5px;font-weight:900;font-family:inherit;
+    cursor:grab;touch-action:none;-webkit-tap-highlight-color:transparent;}
+  .ftile.sel{border-color:var(--gold);box-shadow:0 0 0 3px rgba(255,207,92,.3);}
+  .ftile.used{visibility:hidden;}
+  .ftile.ghost{position:fixed;transform:translate(-50%,-50%);z-index:200;pointer-events:none;opacity:.96;cursor:grabbing;
+    box-shadow:0 8px 22px rgba(0,0,0,.5);}
+  .card.dfwrong{animation:dfshake .4s;}
+  .card.dfdone .fslot.on{border-color:var(--good);color:var(--good);background:rgba(79,224,138,.18);}
+  @keyframes dfshake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
   /* 線索板 */
   .clues{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin:6px 0 0;}
   .slot{background:#101f33;border:1px dashed var(--line);border-radius:12px;padding:7px 10px;min-height:0;
@@ -506,7 +525,11 @@ const CHAPTERS=[
      '明天就是園遊會，大家準備了好幾個禮拜。可是今天一早到學校，發現不得了：有一個攤位被弄得亂七八糟，最重要的招牌也不見了。',
      '更麻煩的是，沒有人承認。小妹妹嚇得躲起來、阿強一直說不干他的事、小美氣到跳腳，大家吵成一團，你怪我、我怪你。',
      '阿問說：要解開這件事，要先問出「是誰」把攤位弄成這樣，再問出「為什麼」。但大家現在情緒都很差，你用錯語氣，他們一句話都不會跟你說。'],
-   quiz:{ q:'今天要先查出什麼？', opts:['先查「是誰」，再查「為什麼」','先算誰輸誰贏','先看現在幾點'], a:0 } },
+   // 長答案（先查是誰、再查為什麼）塞不進泡泡，改成把詞拖進空格的填空題。
+   fill:{ q:'把下面的詞拖到空格裡：',
+     parts:['今天要先查出「', 0, '」，再查出「', 1, '」。'],
+     tiles:['是誰','為什麼','幾點','誰輸誰贏'],
+     answer:['是誰','為什麼'] } },
 
  /* 章0 拆成四關，一關只練一種語氣、只打一句話。
     第一版把四種擠在同一頁、要連打四句才過，對小三來說太重（實玩回饋）。 */
@@ -633,6 +656,77 @@ function bubbleQuiz(host,q,onPass){
   const onResize=()=>{ if(!solved && now()>=lockUntil) layout(); };
   addEventListener('resize',onResize);
   onScreenExit(()=>removeEventListener('resize',onResize));
+  return box;
+}
+
+/* =========================================================================
+   拖拉填空：把詞拖進句子的空格。長答案（例如「先查是誰，再查為什麼」）
+   塞不進圓泡泡時用這個。
+   cfg = { q:'提示', parts:['文字', 0, '文字', 1, '文字'], tiles:[...], answer:['詞0','詞1'] }
+     parts 裡的數字＝第幾個空格；answer[空格編號]＝該空格的正解詞。
+   ── 操作：拖曳（pointer，滑鼠＋觸控）為主，點詞再點空格為備援（觸控更好按）。
+   ========================================================================= */
+function dragFill(host,cfg,onPass){
+  const box=el('div','card');
+  box.appendChild(el('h2',null,'考考你'));
+  box.appendChild(el('p','lead',cfg.q||'把下面的詞拖到空格裡'));
+  const sent=el('div','fsent'); const slots=[];
+  cfg.parts.forEach(p=>{
+    if(typeof p==='number'){ const s=el('span','fslot'); s.dataset.blank=p; slots[p]=s; sent.appendChild(s); }
+    else sent.appendChild(el('span','ftxt',p));
+  });
+  box.appendChild(sent);
+  const bank=el('div','fbank'); box.appendChild(bank);
+  host.appendChild(box);
+
+  const filled={}; let sel=null, locked=false;
+  const clearSel=()=>{ if(sel){ sel.classList.remove('sel'); sel=null; } };
+  function returnTile(bi){ const s=slots[bi], w=filled[bi]; if(w==null)return;
+    if(s._tile){ s._tile.classList.remove('used'); } delete filled[bi];
+    s.textContent=''; s.classList.remove('on'); s._tile=null; }
+  function place(word,tileEl,slot){ const bi=+slot.dataset.blank;
+    if(filled[bi]!=null) returnTile(bi);
+    filled[bi]=word; slot.textContent=word; slot.classList.add('on'); slot._tile=tileEl;
+    tileEl.classList.add('used'); clearSel(); check(); }
+  function check(){
+    if(!slots.every(s=>filled[+s.dataset.blank]!=null)) return;
+    locked=true;
+    const ok=slots.every(s=>filled[+s.dataset.blank]===cfg.answer[+s.dataset.blank]);
+    if(ok){ Sfx.ding(); box.classList.add('dfdone');
+      [...bank.children].forEach(t=>t.disabled=true); setTimeout(onPass,650); }
+    else{ Sfx.bad(); box.classList.add('dfwrong');
+      setTimeout(()=>{ box.classList.remove('dfwrong');
+        slots.forEach(s=>returnTile(+s.dataset.blank)); locked=false; },700); }
+  }
+  // 點選備援
+  slots.forEach(s=>s.addEventListener('click',()=>{ if(locked)return;
+    if(sel){ place(sel.dataset.word,sel,s); }
+    else if(filled[+s.dataset.blank]!=null){ returnTile(+s.dataset.blank); } }));
+
+  const tiles=shuffle(cfg.tiles).map(w=>{ const t=el('button','ftile',w); t.dataset.word=w; bank.appendChild(t); return t; });
+  const slotUnder=(x,y)=>{ const e=document.elementFromPoint(x,y); return e&&e.closest?e.closest('.fslot'):null; };
+  let drag=null;
+  tiles.forEach(t=>{
+    t.addEventListener('pointerdown',e=>{ if(locked||t.classList.contains('used'))return;
+      e.preventDefault(); drag={t,moved:false,sx:e.clientX,sy:e.clientY,ghost:null};
+      try{ t.setPointerCapture(e.pointerId); }catch(_){} });
+    t.addEventListener('pointermove',e=>{ if(!drag||drag.t!==t)return;
+      if(!drag.moved && Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<6) return;
+      drag.moved=true;
+      if(!drag.ghost){ const g=t.cloneNode(true); g.className='ftile ghost'; document.body.appendChild(g); drag.ghost=g; t.style.visibility='hidden'; }
+      drag.ghost.style.left=e.clientX+'px'; drag.ghost.style.top=e.clientY+'px';
+      slots.forEach(s=>s.classList.remove('hover'));
+      const s=slotUnder(e.clientX,e.clientY); if(s)s.classList.add('hover'); });
+    t.addEventListener('pointerup',e=>{ if(!drag||drag.t!==t)return;
+      const wasDrag=drag.moved; if(drag.ghost)drag.ghost.remove();
+      t.style.visibility=''; slots.forEach(s=>s.classList.remove('hover'));
+      if(wasDrag){ const s=slotUnder(e.clientX,e.clientY); if(s&&!locked) place(t.dataset.word,t,s); }
+      else{ if(sel===t){clearSel();} else{ clearSel(); sel=t; t.classList.add('sel'); Sfx.tick(); } }
+      drag=null; });
+    t.addEventListener('pointercancel',()=>{ if(!drag)return; if(drag.ghost)drag.ghost.remove();
+      drag.t.style.visibility=''; slots.forEach(s=>s.classList.remove('hover')); drag=null; });
+  });
+  onScreenExit(()=>{ if(drag&&drag.ghost)drag.ghost.remove(); });
   return box;
 }
 
@@ -801,7 +895,8 @@ function renderTwist(ch,i){
   const lines=ch.lines||[ch.intro,ch.intro2];
   lines.forEach((t,k)=> c.appendChild(el('div','bubble'+(k===lines.length-1?' ask':''), t)));
   s.appendChild(c);
-  bubbleQuiz(s, ch.quiz, ()=>{ addCoins('ch'+i,COIN_PER_CH,'S2-W04 前情/翻轉'); goCh(i+1); });
+  const done=()=>{ addCoins('ch'+i,COIN_PER_CH,'S2-W04 前情/翻轉'); goCh(i+1); };
+  if(ch.fill) dragFill(s, ch.fill, done); else bubbleQuiz(s, ch.quiz, done);
 }
 function suspectRoster(list){
   const box=el('div','susp');
