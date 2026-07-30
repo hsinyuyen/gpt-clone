@@ -10,6 +10,7 @@ import {
   SeriesVisibility,
 } from "@/lib/firestore";
 import { Worksheet } from "@/types/Worksheet";
+import { getBuiltinGammaAnswerWorksheets } from "@/config/gammaAnswerWorksheets";
 
 const ADMIN_USERNAMES = ["admin", "teacher", "老師"];
 
@@ -39,14 +40,25 @@ export default function WorksheetVisibilityPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     const [ws, cls, vis] = await Promise.all([getWorksheets(), getClassrooms(), getSeriesVisibility()]);
-    setWorksheets(ws);
+    const deletedIds = new Set(ws.filter((worksheet) => worksheet.isDeleted).map((worksheet) => worksheet.id));
+    const worksheetMap = new Map<string, Worksheet>();
+    getBuiltinGammaAnswerWorksheets()
+      .filter((worksheet) => !deletedIds.has(worksheet.id))
+      .forEach((worksheet) => {
+        worksheetMap.set(worksheet.id, worksheet);
+      });
+    ws.filter((worksheet) => !worksheet.isDeleted).forEach((worksheet) => {
+      worksheetMap.set(worksheet.id, worksheet);
+    });
+    const allWorksheets = Array.from(worksheetMap.values());
+    setWorksheets(allWorksheets);
     setClassrooms(cls.sort((a, b) => a.name.localeCompare(b.name)));
 
     // 首次沒有設定 → 從「現有已發布學習單的班級」推算並種一份，保留目前的可見現況
     let cfg = vis;
     if (!vis || Object.keys(vis).length === 0) {
       const seeded: SeriesVisibility = {};
-      ws.forEach((w) => {
+      allWorksheets.forEach((w) => {
         if (!w.isPublished) return;
         const set = new Set(seeded[w.semester] || []);
         visIds(w).forEach((id) => set.add(id));

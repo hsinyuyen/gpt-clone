@@ -15,6 +15,7 @@ import {
   ref as storageRef,
   uploadBytes,
 } from "firebase/storage";
+import { getFirebaseConfig } from "@/config/firebaseConfig";
 
 export type CacheableLabToolKind = "image" | "music" | "video";
 
@@ -29,6 +30,7 @@ interface CacheEntry {
   storagePath?: string;
   downloadUrl?: string;
   syncedAt?: string;
+  metadata?: Record<string, unknown>;
 }
 
 interface SaveCacheParams {
@@ -39,31 +41,28 @@ interface SaveCacheParams {
   mimeType: string;
   extension: string;
   limit: number;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CachedAssetBuffer {
   buffer: Buffer;
   mimeType: string;
   fileName: string;
+  prompt?: string;
+  createdAt?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CachedAssetRedirect {
   downloadUrl: string;
   mimeType: string;
   fileName: string;
+  prompt?: string;
+  createdAt?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export type ResolvedCachedAsset = CachedAssetBuffer | CachedAssetRedirect;
-
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78",
-  authDomain: "gpt-clone-68b9f.firebaseapp.com",
-  projectId: "gpt-clone-68b9f",
-  storageBucket: "gpt-clone-68b9f.firebasestorage.app",
-  messagingSenderId: "436942056069",
-  appId: "1:436942056069:web:8762675dfff7b7e92017ec",
-  measurementId: "G-842KZYGN8Q",
-};
 
 const CACHE_ROOT =
   process.env.LAB_TOOL_CACHE_ROOT ||
@@ -88,10 +87,18 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 };
 
 const sanitizeSegment = (value: string) =>
-  value.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 48) || "S3W01";
+  value.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 48);
 
 export const normalizeWorksheetId = (worksheetId?: string) =>
-  sanitizeSegment((worksheetId || "S3W01").toUpperCase().replace(/[-_\s]/g, ""));
+  sanitizeSegment((worksheetId || "").toUpperCase().replace(/[-_\s]/g, ""));
+
+export function requireLabToolWorksheetId(worksheetId?: string) {
+  const normalized = normalizeWorksheetId(worksheetId);
+  if (!normalized) {
+    throw new Error("worksheetId is required for Lab Tool media generation.");
+  }
+  return normalized;
+}
 
 export function readLabToolCacheLimit(envName: string, fallback: number) {
   const parsed = Number(process.env[envName]);
@@ -151,7 +158,8 @@ const indexPath = (worksheetId: string, kind: CacheableLabToolKind) =>
   path.join(kindDir(worksheetId, kind), "index.json");
 
 function firebaseServices() {
-  const app = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApps()[0];
+  const app =
+    getApps().length === 0 ? initializeApp(getFirebaseConfig()) : getApps()[0];
   return {
     db: getFirestore(app),
     storage: getStorage(app),
@@ -326,6 +334,7 @@ export async function findCachedLabToolResult(
     cacheCount: usableEntries.length,
     cacheLimit: requiredCount,
     matchCount: matches.length,
+    metadata: picked.entry.metadata,
   };
 }
 
@@ -351,6 +360,7 @@ export async function findRandomCachedLabToolResult(
     createdAt: picked.createdAt,
     cacheCount: usableEntries.length,
     cacheLimit: requiredCount,
+    metadata: picked.metadata,
   };
 }
 
@@ -376,7 +386,7 @@ export function isLabToolApiCoolingDown(provider: string) {
 }
 
 export async function saveLabToolResult(params: SaveCacheParams) {
-  const worksheetId = normalizeWorksheetId(params.worksheetId);
+  const worksheetId = requireLabToolWorksheetId(params.worksheetId);
   const safeExtension = params.extension.replace(/[^a-z0-9]/gi, "").toLowerCase() || "bin";
   const hash = crypto
     .createHash("sha1")
@@ -420,6 +430,7 @@ export async function saveLabToolResult(params: SaveCacheParams) {
       storagePath: cloud?.storagePath,
       downloadUrl: cloud?.downloadUrl,
       syncedAt: cloud ? new Date().toISOString() : undefined,
+      metadata: params.metadata,
     },
     ...entries,
   ].slice(0, params.limit);
@@ -463,6 +474,9 @@ export async function readCachedAsset(
         buffer: Buffer.from(await response.arrayBuffer()),
         mimeType: contentType.split(";")[0],
         fileName: resolved.fileName,
+        prompt: resolved.prompt,
+        createdAt: resolved.createdAt,
+        metadata: resolved.metadata,
       };
     }
     console.warn("[LabToolCache] cloud asset download failed:", response.status);
@@ -490,6 +504,9 @@ export async function resolveCachedAsset(
       buffer,
       mimeType: entry?.mimeType || MIME_BY_EXTENSION[extension] || "application/octet-stream",
       fileName: entry?.fileName || safeFile,
+      prompt: entry?.prompt,
+      createdAt: entry?.createdAt,
+      metadata: entry?.metadata,
     };
   } catch {
     // Fall through to cloud storage. This is the normal path after deployment,
@@ -501,6 +518,9 @@ export async function resolveCachedAsset(
       downloadUrl: entry.downloadUrl,
       mimeType: entry.mimeType || "application/octet-stream",
       fileName: entry.fileName || safeFile,
+      prompt: entry.prompt,
+      createdAt: entry.createdAt,
+      metadata: entry.metadata,
     };
   }
 

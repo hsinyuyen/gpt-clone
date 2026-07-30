@@ -18,12 +18,19 @@ import { useCoin, COIN_VALUES } from "@/contexts/CoinContext";
 import { useConversation } from "@/contexts/ConversationContext";
 import generateSystemPrompt from "@/utils/generateSystemPrompt";
 import { ActiveScript, UserAvatar, AvatarPersonality } from "@/types/Script";
-import { uploadAvatarFrames, uploadStoryAudio } from "@/lib/firestore";
+import {
+  getStudentWorksheetProgress,
+  getWorksheet,
+  uploadAvatarFrames,
+  uploadStoryAudio,
+} from "@/lib/firestore";
 import { getScript } from "@/scripts";
 import type { ScriptDefinition, ParseResult } from "@/scripts/types";
 import type { StoryPhase } from "@/hooks/useStoryHelper";
 import { useStoryHelper } from "@/hooks/useStoryHelper";
+import type { StudentWorksheetProgress, Worksheet } from "@/types/Worksheet";
 import StorySlideshow from "./StorySlideshow";
+import { LAB_TOOL_MEDIA_ACCESS_KEY } from "@/config/gammaAnswerWorksheets";
 import {
   generateQuestionnairePrompt,
   generateForceStartGenerationPrompt,
@@ -70,9 +77,14 @@ interface LabToolConfig {
   doneMeta: string;
 }
 
+interface LabToolTaskContext {
+  taskId?: string;
+  task?: string;
+  questionId?: string;
+  toolId?: string;
+}
+
 const LAB_TOOL_RESULT_PREFIX = "[LAB_TOOL_RESULT]";
-const LAB_TOOL_WORKSHEET_ID = "S3W01";
-const LAB_TOOL_MEDIA_ACCESS_KEY = "lab-terminal:s3w01-media-access";
 const LAB_TOOL_VIDEO_POLL_ATTEMPTS = 3;
 const LAB_TOOL_VIDEO_POLL_INTERVAL_MS = 15000;
 
@@ -93,9 +105,9 @@ const LAB_TOOL_CONFIG: Record<LabToolMode, LabToolConfig> = {
     statusLabel: "TEXT",
     icon: FiFileText,
     assetUrl: "/games/assets/s3-w01/tool-text.png",
-    downloadName: "s3-w01-text-result.txt",
+    downloadName: "lab-tool-text-result.txt",
     title: "文字測試成果",
-    description: "已依照提示詞整理成預設文字內容。這是 S3W01 MVP 測試資料，沒有呼叫外部 API。",
+    description: "已依照提示詞整理成預設文字內容。",
     placeholder: "輸入文字提示詞，例如：把 AI 工具使用提醒整理成 3 點",
     doneMeta: "TEXT_CHAT_READY",
   },
@@ -107,9 +119,9 @@ const LAB_TOOL_CONFIG: Record<LabToolMode, LabToolConfig> = {
     icon: FiImage,
     assetUrl: "/games/assets/s3-w01/tool-image.png",
     downloadUrl: "/games/assets/s3-w01/tool-image.png",
-    downloadName: "s3-w01-image-result.png",
+    downloadName: "lab-tool-image-result.png",
     title: "圖片測試成果",
-    description: "已依照提示詞產生預設圖片。這是 S3W01 MVP 測試資料，沒有呼叫外部 API。",
+    description: "已依照目前學習單與提示詞產生圖片。",
     placeholder: "輸入圖片提示詞，例如：生成一張藍白亮晶晶的冰雪寶箱圖片",
     doneMeta: "PNG_PRESET_READY",
   },
@@ -121,7 +133,7 @@ const LAB_TOOL_CONFIG: Record<LabToolMode, LabToolConfig> = {
     icon: FiFilm,
     assetUrl: "/games/assets/s3-w01/tool-video.png",
     downloadUrl: "/games/assets/s3-w01/tool-video.png",
-    downloadName: "s3-w01-video-preview.png",
+    downloadName: "lab-tool-video-result.mp4",
     title: "影片測試成果",
     description: "影片生成完成後會顯示可播放的影片；生成中會持續等待 API 結果。",
     placeholder: "輸入影片提示詞，例如：生成 5 秒寶箱冒光的短影片",
@@ -135,9 +147,9 @@ const LAB_TOOL_CONFIG: Record<LabToolMode, LabToolConfig> = {
     icon: FiMusic,
     assetUrl: "/games/assets/s3-w01/tool-music.png",
     downloadUrl: "/games/assets/neon-grid.mp3",
-    downloadName: "s3-w01-music-result.mp3",
+    downloadName: "lab-tool-music-result.mp3",
     title: "音樂測試成果",
-    description: "已依照提示詞產生預設音樂封面。MVP 階段先用圖片代表音樂結果。",
+    description: "已依照提示詞產生預設音樂封面。學習單測試階段先用圖片代表音樂結果。",
     placeholder: "輸入音樂提示詞，例如：生成 30 秒明亮有節奏的背景音樂",
     doneMeta: "AUDIO_PRESET_COVER_READY",
   },
@@ -168,6 +180,7 @@ const getLabToolDemoReplies = (mode: LabToolMode): string[] => {
 interface LabToolResultPayload {
   mode: LabToolMode;
   prompt: string;
+  worksheetId?: string;
   createdAt?: string;
   text?: string;
   imageUrl?: string;
@@ -196,15 +209,56 @@ const parseLabToolResult = (content: string | null): LabToolResultPayload | null
   }
 };
 
-const hasLabToolMediaAccess = () => {
-  if (typeof window === "undefined") return false;
+const normalizeLabToolWorksheetId = (value: unknown) =>
+  typeof value === "string"
+    ? value.toUpperCase().replace(/[-_\s]/g, "").replace(/[^A-Z0-9_-]/g, "").slice(0, 48)
+    : "";
+
+const getLabToolMediaAccessState = () => {
+  if (typeof window === "undefined") {
+    return { hasAccess: false, worksheetId: "" };
+  }
   try {
     const raw = window.localStorage.getItem(LAB_TOOL_MEDIA_ACCESS_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
-    return parsed?.worksheetId === LAB_TOOL_WORKSHEET_ID && parsed?.status === "open";
+    const worksheetId = normalizeLabToolWorksheetId(parsed?.worksheetId);
+    return {
+      hasAccess: parsed?.status === "open" && Boolean(worksheetId),
+      worksheetId,
+      taskId: typeof parsed?.taskId === "string" ? parsed.taskId : undefined,
+      task:
+        typeof parsed?.task === "string"
+          ? parsed.task
+          : typeof parsed?.title === "string"
+          ? parsed.title
+          : undefined,
+      questionId: typeof parsed?.questionId === "string" ? parsed.questionId : undefined,
+      toolId: typeof parsed?.toolId === "string" ? parsed.toolId : undefined,
+    };
   } catch {
-    return false;
+    return { hasAccess: false, worksheetId: "" };
   }
+};
+
+const revokeStoredLabToolMediaAccess = () => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(LAB_TOOL_MEDIA_ACCESS_KEY);
+  } catch {
+    // Browser storage may be unavailable in restricted modes.
+  }
+};
+
+const isWorksheetProgressComplete = (
+  worksheet: Worksheet | null,
+  progress: StudentWorksheetProgress | null
+) => {
+  if (!worksheet || worksheet.tasks.length === 0) return false;
+  const completedTaskCount = progress?.completedTaskCount || 0;
+  const allTaskFlagsComplete = worksheet.tasks.every(
+    (task) => !!progress?.tasks?.[task.taskId]?.completed
+  );
+  return allTaskFlagsComplete || completedTaskCount >= worksheet.tasks.length;
 };
 
 const buildDownloadHref = (href: string) => {
@@ -260,6 +314,9 @@ const LabToolResultMessage: React.FC<{
   const videoUrl = payload.videoUrl || "";
   const hasError = Boolean(payload.error);
   const isProcessing = payload.status === "processing";
+  const worksheetLabel = payload.worksheetId
+    ? `${payload.worksheetId} 學習單`
+    : "目前學習單";
   const downloadHref = buildDownloadHref(
     payload.mode === "text"
       ? `data:text/plain;charset=utf-8,${encodeURIComponent(textResult)}`
@@ -418,7 +475,7 @@ const LabToolResultMessage: React.FC<{
 
                   {payload.cached && (
                     <div className="text-[var(--terminal-highlight)] text-xs">
-                      已找到相似提示詞，直接使用 S3W01 暫存成果。
+                      已找到相似提示詞，直接使用 {worksheetLabel} 暫存成果。
                     </div>
                   )}
 
@@ -441,7 +498,7 @@ const LabToolResultMessage: React.FC<{
               <div>{tool.description}</div>
               <div className="mt-1">學生提示詞：{payload.prompt}</div>
               <div className="mt-1 text-[var(--terminal-highlight)]">
-                下一步：回到 S3W01 學習單，把這個測試成果回填到對應題目。
+                下一步：回到 {worksheetLabel}，把這個成果回填到對應題目。
               </div>
             </div>
           </div>
@@ -531,6 +588,8 @@ const Chat = (props: ChatProps) => {
   const [isLabToolSwitching, setIsLabToolSwitching] = useState(false);
   const [isLabToolGenerating, setIsLabToolGenerating] = useState(false);
   const [labToolMediaAccess, setLabToolMediaAccess] = useState(false);
+  const [labToolWorksheetId, setLabToolWorksheetId] = useState("");
+  const [labToolTaskContext, setLabToolTaskContext] = useState<LabToolTaskContext>({});
   const [scriptPhase, setScriptPhase] = useState<ScriptPhase>("appearance");
   const [collectedInfo, setCollectedInfo] = useState<CollectedInfo>({});
   const [collectedStudentInfo, setCollectedStudentInfo] = useState<Record<string, any>>({});
@@ -578,6 +637,7 @@ const Chat = (props: ChatProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scriptInitialized = useRef(false);
   const labToolFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const labToolAccessCheckRef = useRef(0);
   const {
     isListening,
     transcript,
@@ -853,17 +913,83 @@ const Chat = (props: ChatProps) => {
     }
   }, [speechError]);
 
-  const refreshLabToolMediaAccess = useCallback(() => {
-    setLabToolMediaAccess(hasLabToolMediaAccess());
-  }, []);
+  const refreshLabToolMediaAccess = useCallback(async () => {
+    const requestId = labToolAccessCheckRef.current + 1;
+    labToolAccessCheckRef.current = requestId;
+    const state = getLabToolMediaAccessState();
+    setLabToolWorksheetId(state.worksheetId);
+    setLabToolTaskContext({
+      taskId: state.taskId,
+      task: state.task,
+      questionId: state.questionId,
+      toolId: state.toolId,
+    });
+    if (!state.hasAccess || !state.worksheetId || !user?.id) {
+      if (requestId === labToolAccessCheckRef.current) {
+        setLabToolMediaAccess(false);
+        setLabToolTaskContext({});
+      }
+      return false;
+    }
+
+    try {
+      const [worksheet, progress] = await Promise.all([
+        getWorksheet(state.worksheetId),
+        getStudentWorksheetProgress(user.id, state.worksheetId),
+      ]);
+      const completed = isWorksheetProgressComplete(worksheet, progress);
+      if (requestId !== labToolAccessCheckRef.current) {
+        return !completed;
+      }
+      if (!worksheet || completed) {
+        revokeStoredLabToolMediaAccess();
+        setLabToolMediaAccess(false);
+        setLabToolWorksheetId(state.worksheetId);
+        setLabToolTaskContext({});
+        setLabToolMode("text");
+        setIsLabToolMenuOpen(false);
+        setLabToolFeedback(
+          completed
+            ? `${state.worksheetId} 學習單已完成，圖片、影片、音樂生成權限已關閉。Terminal 文字模式仍可使用。`
+            : "找不到可使用的學習單權限，已切回 Terminal。"
+        );
+        return false;
+      }
+
+      setLabToolMediaAccess(true);
+      setLabToolWorksheetId(worksheet.id || state.worksheetId);
+      setLabToolTaskContext({
+        taskId: state.taskId,
+        task: state.task,
+        questionId: state.questionId,
+        toolId: state.toolId,
+      });
+      return true;
+    } catch (error) {
+      if (requestId === labToolAccessCheckRef.current) {
+        setLabToolMediaAccess(false);
+        setLabToolTaskContext({});
+        setLabToolMode("text");
+        setIsLabToolMenuOpen(false);
+        setLabToolFeedback("無法確認學習單進度，已暫時關閉圖片、影片、音樂生成。");
+      }
+      console.warn("Lab tool access validation failed", error);
+      return false;
+    }
+  }, [user?.id]);
 
   useEffect(() => {
-    refreshLabToolMediaAccess();
-    window.addEventListener("focus", refreshLabToolMediaAccess);
-    window.addEventListener("storage", refreshLabToolMediaAccess);
+    void refreshLabToolMediaAccess();
+    const handleRefresh = () => {
+      void refreshLabToolMediaAccess();
+    };
+    window.addEventListener("focus", handleRefresh);
+    window.addEventListener("storage", handleRefresh);
+    window.addEventListener("visibilitychange", handleRefresh);
     return () => {
-      window.removeEventListener("focus", refreshLabToolMediaAccess);
-      window.removeEventListener("storage", refreshLabToolMediaAccess);
+      window.removeEventListener("focus", handleRefresh);
+      window.removeEventListener("storage", handleRefresh);
+      window.removeEventListener("visibilitychange", handleRefresh);
     };
   }, [refreshLabToolMediaAccess]);
 
@@ -871,7 +997,7 @@ const Chat = (props: ChatProps) => {
     if (activeScript || labToolMode === "text" || labToolMediaAccess) return;
     setLabToolMode("text");
     setIsLabToolMenuOpen(false);
-    setLabToolFeedback("請先從 S3W01 學習單開啟任務，才可以使用圖片、影片、音樂生成。Terminal 文字模式仍可使用。");
+    setLabToolFeedback("請先從要作答的學習單開啟任務，才可以使用圖片、影片、音樂生成。Terminal 文字模式仍可使用。");
   }, [activeScript, labToolMediaAccess, labToolMode]);
 
   useEffect(() => {
@@ -882,37 +1008,46 @@ const Chat = (props: ChatProps) => {
 
     const mode = nextMode as LabToolMode;
     const tool = LAB_TOOL_CONFIG[mode];
-    if (mode !== "text" && !labToolMediaAccess) {
-      setLabToolMode("text");
+    let cancelled = false;
+
+    const applyRouteLabToolMode = async () => {
+      const canUseMode = mode === "text" || (await refreshLabToolMediaAccess());
+      if (cancelled) return;
+      if (!canUseMode) {
+        setLabToolMode("text");
+        setIsLabToolMenuOpen(false);
+        setIsLabToolSwitching(false);
+        setLabToolFeedback("請先從要作答的學習單開啟未完成任務，才可以使用圖片、影片、音樂生成。");
+        return;
+      }
+
+      setLabToolMode(mode);
       setIsLabToolMenuOpen(false);
-      setIsLabToolSwitching(false);
-      setLabToolFeedback("請先從 S3W01 學習單開啟任務，才可以使用圖片、影片、音樂生成。");
-      return;
-    }
-    setLabToolMode(mode);
-    setIsLabToolMenuOpen(false);
-    setIsLabToolSwitching(true);
-    setLabToolFeedback(`${tool.label} 已由學習單切換完成，可以直接生成${tool.shortLabel}。`);
-
-    setLabToolFeedback(
-      mode === "text"
-        ? "已切回 Terminal，文字會使用原本的對話模式。"
-        : `${tool.label} 已由學習單切換完成，可以生成${tool.shortLabel}。`
-    );
-
-    if (labToolFeedbackTimerRef.current) {
-      clearTimeout(labToolFeedbackTimerRef.current);
-    }
-    labToolFeedbackTimerRef.current = setTimeout(() => {
-      setIsLabToolSwitching(false);
-      setLabToolFeedback(`${tool.label} 已就緒，輸入提示詞後按送出。`);
+      setIsLabToolSwitching(true);
       setLabToolFeedback(
         mode === "text"
           ? "Terminal 已就緒，輸入文字後會使用原本的對話模式。"
-          : `${tool.label} 已就緒，輸入提示詞後按送出。`
+          : `${tool.label} 已由學習單切換完成，可以生成${tool.shortLabel}。`
       );
-    }, 1400);
-  }, [router.isReady, router.query.labTool, activeScript, labToolMediaAccess]);
+
+      if (labToolFeedbackTimerRef.current) {
+        clearTimeout(labToolFeedbackTimerRef.current);
+      }
+      labToolFeedbackTimerRef.current = setTimeout(() => {
+        setIsLabToolSwitching(false);
+        setLabToolFeedback(
+          mode === "text"
+            ? "Terminal 已就緒，輸入文字後會使用原本的對話模式。"
+            : `${tool.label} 已就緒，輸入提示詞後按送出。`
+        );
+      }, 1400);
+    };
+
+    void applyRouteLabToolMode();
+    return () => {
+      cancelled = true;
+    };
+  }, [router.isReady, router.query.labTool, activeScript, refreshLabToolMediaAccess]);
 
   useEffect(() => {
     return () => {
@@ -943,13 +1078,14 @@ const Chat = (props: ChatProps) => {
     return () => clearTimeout(readyFeedbackTimer);
   }, [activeScript, labToolMode]);
 
-  const handleLabToolModeChange = (mode: LabToolMode) => {
+  const handleLabToolModeChange = async (mode: LabToolMode) => {
     const tool = LAB_TOOL_CONFIG[mode];
-    if (mode !== "text" && !labToolMediaAccess) {
+    const canUseMode = mode === "text" || (await refreshLabToolMediaAccess());
+    if (!canUseMode) {
       setLabToolMode("text");
       setIsLabToolMenuOpen(false);
       setIsLabToolSwitching(false);
-      setLabToolFeedback("請先從 S3W01 學習單開啟任務，才可以使用圖片、影片、音樂生成。");
+      setLabToolFeedback("請先從要作答的學習單開啟未完成任務，才可以使用圖片、影片、音樂生成。");
       textAreaRef.current?.focus();
       return;
     }
@@ -987,7 +1123,11 @@ const Chat = (props: ChatProps) => {
     updateConversationMessages(messagesToSave);
   };
 
-  const pollLabToolVideoResult = async (prompt: string, videoId: string) => {
+  const pollLabToolVideoResult = async (
+    prompt: string,
+    videoId: string,
+    taskContext: LabToolTaskContext
+  ) => {
     let latestData: any = { status: "processing", videoId };
 
     for (let attempt = 1; attempt <= LAB_TOOL_VIDEO_POLL_ATTEMPTS; attempt += 1) {
@@ -1001,7 +1141,9 @@ const Chat = (props: ChatProps) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: prompt.trim(),
-          worksheetId: "S3W01",
+          worksheetId: labToolWorksheetId,
+          task: taskContext.task,
+          taskId: taskContext.taskId,
           videoId,
         }),
       });
@@ -1023,7 +1165,9 @@ const Chat = (props: ChatProps) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         prompt: prompt.trim(),
-        worksheetId: "S3W01",
+        worksheetId: labToolWorksheetId,
+        task: taskContext.task,
+        taskId: taskContext.taskId,
         fallbackOnly: true,
         videoId,
       }),
@@ -1045,13 +1189,25 @@ const Chat = (props: ChatProps) => {
 
   const completeLabToolDemoGeneration = async (prompt: string, mode: LabToolMode) => {
     const tool = LAB_TOOL_CONFIG[mode];
+    if (mode !== "text" && !labToolWorksheetId) {
+      setIsLabToolGenerating(false);
+      setLabToolFeedback("請先從要作答的學習單開啟任務，才可以使用圖片、影片、音樂生成。");
+      setErrorMessage("缺少學習單 ID，媒體生成已關閉。");
+      return;
+    }
+    const taskContext: LabToolTaskContext = {
+      taskId: labToolTaskContext.taskId,
+      task: labToolTaskContext.task || `${labToolWorksheetId} 學習單內容生成`,
+      questionId: labToolTaskContext.questionId,
+      toolId: labToolTaskContext.toolId,
+    };
     setIsLabToolGenerating(true);
     setLabToolFeedback(`${tool.label} 正在生成測試內容...`);
 
     await new Promise((resolve) => setTimeout(resolve, mode === "video" ? 900 : 650));
 
     let finalResponse = buildLabToolDemoResponse(mode, prompt);
-    let completionFeedback = `${tool.label} 已完成，請回到 S3W01 學習單回填成果。`;
+    let completionFeedback = `${tool.label} 已完成，請回到 ${labToolWorksheetId} 學習單回填成果。`;
 
     try {
       const response = await fetch(`/api/lab-tools/${mode}`, {
@@ -1059,8 +1215,9 @@ const Chat = (props: ChatProps) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: prompt.trim(),
-          task: "S3W01 學習單 MVP 內容生成測試",
-          worksheetId: "S3W01",
+          task: taskContext.task,
+          taskId: taskContext.taskId,
+          worksheetId: labToolWorksheetId,
           duration: mode === "video" ? 5 : undefined,
           durationMs: mode === "music" ? 30000 : undefined,
         }),
@@ -1072,7 +1229,7 @@ const Chat = (props: ChatProps) => {
       }
 
       if (mode === "video" && data.status === "processing" && data.videoId) {
-        data = await pollLabToolVideoResult(prompt.trim(), data.videoId);
+        data = await pollLabToolVideoResult(prompt.trim(), data.videoId, taskContext);
       }
 
       finalResponse =
@@ -1080,6 +1237,7 @@ const Chat = (props: ChatProps) => {
         JSON.stringify({
           mode,
           prompt: prompt.trim(),
+          worksheetId: labToolWorksheetId,
           createdAt: new Date().toISOString(),
           text: data.text,
           imageUrl: data.imageUrl,
@@ -1100,7 +1258,7 @@ const Chat = (props: ChatProps) => {
       if (data.fallback) {
         completionFeedback = `${tool.label} 等待時間已到，已改用保存素材。`;
       } else if (data.cached) {
-        completionFeedback = `${tool.label} 找到相似提示詞，已重用 S3W01 暫存成果。`;
+        completionFeedback = `${tool.label} 找到相似提示詞，已重用 ${labToolWorksheetId} 學習單暫存成果。`;
       } else if (data.status === "processing") {
         completionFeedback = `${tool.label} 已送出生成，先顯示測試預覽。`;
       }
@@ -1112,6 +1270,7 @@ const Chat = (props: ChatProps) => {
         JSON.stringify({
           mode,
           prompt: prompt.trim(),
+          worksheetId: labToolWorksheetId,
           createdAt: new Date().toISOString(),
           cached: false,
           error: formattedApiError,
@@ -1662,12 +1821,15 @@ const Chat = (props: ChatProps) => {
 
     sendMessageInFlightRef.current = true;
 
-    if (!activeScript && labToolMode !== "text" && !labToolMediaAccess) {
-      setLabToolMode("text");
-      setLabToolFeedback("請先從 S3W01 學習單開啟任務，才可以使用圖片、影片、音樂生成。");
-      setErrorMessage("請先從 S3W01 學習單開啟任務，才可以使用圖片、影片、音樂生成。");
-      sendMessageInFlightRef.current = false;
-      return;
+    if (!activeScript && labToolMode !== "text") {
+      const canUseMediaGeneration = await refreshLabToolMediaAccess();
+      if (!canUseMediaGeneration) {
+        setLabToolMode("text");
+        setLabToolFeedback("請先從要作答的學習單開啟未完成任務，才可以使用圖片、影片、音樂生成。");
+        setErrorMessage("學習單已完成或尚未開啟未完成任務，圖片、影片、音樂生成已關閉。");
+        sendMessageInFlightRef.current = false;
+        return;
+      }
     }
 
     trackEvent("send.message", { message: msg });
@@ -2448,7 +2610,7 @@ const Chat = (props: ChatProps) => {
                                     ? "border-[var(--terminal-primary-dim)] text-[var(--terminal-primary-dim)] opacity-50"
                                     : "border-[var(--terminal-primary-dim)] text-[var(--terminal-primary)] hover:border-[var(--terminal-highlight)] hover:bg-[var(--terminal-primary)]/10"
                                 }`}
-                                title={locked ? "請先從 S3W01 學習單開啟任務" : `切換到 ${tool.label}`}
+                                title={locked ? "請先從要作答的學習單開啟任務" : `切換到 ${tool.label}`}
                               >
                                 <Icon className="h-4 w-4 shrink-0" />
                                 <span>{mode === "text" ? "文字" : tool.shortLabel}</span>

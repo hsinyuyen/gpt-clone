@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import axios from "axios";
 import FormData from "form-data";
+import { isMissingOpenAIKeyError, openAIAuthHeader } from "@/server/openaiClient";
 
 export const config = {
   api: {
@@ -56,7 +57,7 @@ export default async function handler(
       formData,
       {
         headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          Authorization: openAIAuthHeader(),
           ...formData.getHeaders(),
         },
         maxContentLength: Infinity,
@@ -70,6 +71,10 @@ export default async function handler(
     });
   } catch (error: any) {
     console.error("Transcription error:", error.response?.data || error.message);
+
+    if (isMissingOpenAIKeyError(error)) {
+      return res.status(500).json({ error: error.message });
+    }
 
     const errorMessage = error.response?.data?.error?.message ||
                         error.message ||

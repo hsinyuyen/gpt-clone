@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import axios from "axios";
+import { isMissingOpenAIKeyError, openAIAuthHeader } from "@/server/openaiClient";
 
 export default async function handler(
   req: NextApiRequest,
@@ -29,7 +30,7 @@ export default async function handler(
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          Authorization: openAIAuthHeader(),
           "Content-Type": "application/json",
         },
         responseType: "arraybuffer",
@@ -45,6 +46,10 @@ export default async function handler(
     });
   } catch (error: any) {
     console.error("TTS error:", error.response?.data || error.message);
+
+    if (isMissingOpenAIKeyError(error)) {
+      return res.status(500).json({ error: error.message });
+    }
 
     const errorMessage =
       error.response?.data?.error?.message ||

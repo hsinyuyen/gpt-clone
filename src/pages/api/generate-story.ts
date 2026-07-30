@@ -1,13 +1,5 @@
+import { getOpenAIClient, isMissingOpenAIKeyError } from "@/server/openaiClient";
 import { NextApiRequest, NextApiResponse } from "next";
-import { Configuration, OpenAIApi } from "openai";
-import * as dotenv from "dotenv";
-
-dotenv.config();
-
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-const openai = new OpenAIApi(configuration);
 
 export default async function handler(
   req: NextApiRequest,
@@ -24,6 +16,7 @@ export default async function handler(
   }
 
   try {
+    const openai = getOpenAIClient();
     const systemPrompt = `你是一位專門為國小1-3年級小朋友寫故事的作家。
 規則:
 - 使用繁體中文
@@ -82,6 +75,9 @@ imagePrompt 要用英文描述這一頁的畫面，風格是兒童繪本插畫�
     return res.status(200).json(parsed);
   } catch (error: any) {
     console.error("generate-story error:", error.message || error);
+    if (isMissingOpenAIKeyError(error)) {
+      return res.status(500).json({ error: error.message });
+    }
     return res.status(500).json({ error: "故事生成失敗，請重試" });
   }
 }

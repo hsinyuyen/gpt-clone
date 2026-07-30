@@ -5,12 +5,11 @@ import useAppState from "./useAppState";
 let analyticsReady = false;
 
 function useAnalytics() {
-  const isDevelopment = process.env.APP_ENV === "development";
+  const appEnv = process.env.NEXT_PUBLIC_APP_ENV || "development";
+  const appName = process.env.NEXT_PUBLIC_APP_NAME || "gpt-clone";
+  const isDevelopment = appEnv === "development";
   const { userId } = useAppState();
-  const projectToken =
-    process.env.NEXT_PUBLIC_MIXPANEL_PROJECT_TOKEN ||
-    process.env.MIXPANEL_PROJECT_TOKEN ||
-    "";
+  const projectToken = process.env.NEXT_PUBLIC_MIXPANEL_PROJECT_TOKEN || "";
 
   useEffect(() => {
     if (!projectToken) return;
@@ -28,7 +27,7 @@ function useAnalytics() {
         mixpanel.identify(userId);
         mixpanel.people.set({
           $name: userId,
-          $app: process.env.APP_NAME,
+          $app: appName,
         });
       }
     } catch (error) {
@@ -37,12 +36,12 @@ function useAnalytics() {
         console.warn("Mixpanel initialization skipped", error);
       }
     }
-  }, [isDevelopment, projectToken, userId]);
+  }, [appName, isDevelopment, projectToken, userId]);
 
   function trackEvent(eventName: string, tags: Record<string, string> = {}) {
     const allTags = {
-      enviroment: process.env.APP_ENV,
-      app: process.env.APP_NAME,
+      enviroment: appEnv,
+      app: appName,
       ...tags,
     };
     if (analyticsReady) {

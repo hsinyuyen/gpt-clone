@@ -5,9 +5,12 @@ import {
   isLabToolApiCoolingDown,
   isRecoverableLabToolApiError,
   readLabToolCacheLimit,
+  requireLabToolWorksheetId,
   saveLabToolResult,
   startLabToolApiCooldown,
 } from "@/server/labToolCache";
+import { injectLabVideoMetadata } from "@/server/mp4UuidMetadata";
+import { LabVideoReviewMetadata } from "@/utils/labVideoMetadata";
 
 const GOOGLE_GENERATIVE_LANGUAGE_BASE =
   "https://generativelanguage.googleapis.com/v1beta";
@@ -40,6 +43,7 @@ const VIDEO_SKIP_API_WHEN_CACHE_READY =
   process.env.LAB_VIDEO_SKIP_API_WHEN_CACHE_READY === "true";
 const backgroundVideoJobs = new Map<string, Promise<void>>();
 const VEO_PROVIDER = "veo";
+const getVeoModel = () => process.env.LAB_VEO_MODEL || "veo-3.1-generate-preview";
 
 const getVeoApiKey = () => process.env.NANO_BANANA_API_KEY;
 
@@ -140,7 +144,7 @@ async function generateVeoVideo(params: {
   prompt: string;
   duration?: string | number;
 }) {
-  const model = process.env.LAB_VEO_MODEL || "veo-3.1-generate-preview";
+  const model = getVeoModel();
   const operation = await googleJsonRequest(
     `${GOOGLE_GENERATIVE_LANGUAGE_BASE}/models/${model}:predictLongRunning`,
     params.apiKey,
@@ -213,7 +217,10 @@ async function pollVeoVideoOperation(apiKey: string, operationName: string) {
 async function saveVeoVideoResult(params: {
   apiKey: string;
   worksheetId?: string;
+  taskId?: string;
+  task?: string;
   prompt: string;
+  duration?: string | number;
   video: {
     buffer?: Buffer;
     url?: string;
@@ -221,6 +228,7 @@ async function saveVeoVideoResult(params: {
     operationName?: string;
   };
 }) {
+  const worksheetId = requireLabToolWorksheetId(params.worksheetId);
   let videoBuffer = params.video.buffer;
   let mimeType = params.video.mimeType || "video/mp4";
 
@@ -247,14 +255,32 @@ async function saveVeoVideoResult(params: {
     throw new Error("Veo did not return downloadable video data");
   }
 
+  const durationSeconds = normalizeVeoDuration(params.duration);
+  const reviewMetadata: LabVideoReviewMetadata = {
+    source: "lab-terminal",
+    tool: "Lab Video",
+    worksheetId,
+    taskId: params.taskId,
+    task: params.task || "Lab Video task",
+    prompt: params.prompt,
+    durationSeconds,
+    generatedAt: new Date().toISOString(),
+    provider: VEO_PROVIDER,
+    model: getVeoModel(),
+  };
+  const taggedVideoBuffer = /mp4|quicktime/i.test(mimeType)
+    ? injectLabVideoMetadata(videoBuffer, reviewMetadata)
+    : videoBuffer;
+
   const saved = await saveLabToolResult({
-    worksheetId: params.worksheetId,
+    worksheetId,
     kind: "video",
     prompt: params.prompt,
-    buffer: videoBuffer,
+    buffer: taggedVideoBuffer,
     mimeType,
     extension: getVideoExtension(mimeType),
     limit: VIDEO_CACHE_LIMIT,
+    metadata: { labVideoReview: reviewMetadata },
   });
 
   return {
@@ -264,16 +290,20 @@ async function saveVeoVideoResult(params: {
     fileName: saved.fileName,
     videoId: params.video.operationName,
     provider: "veo",
+    reviewMetadata,
   };
 }
 
 function startBackgroundVeoVideoSave(params: {
   apiKey: string;
   worksheetId?: string;
+  taskId?: string;
+  task?: string;
   prompt: string;
+  duration?: string | number;
   operationName: string;
 }) {
-  const worksheetId = params.worksheetId || "S3W01";
+  const worksheetId = requireLabToolWorksheetId(params.worksheetId);
   const jobKey = `${worksheetId}:${params.operationName}`;
   if (backgroundVideoJobs.has(jobKey)) return false;
 
@@ -292,7 +322,10 @@ function startBackgroundVeoVideoSave(params: {
       const saved = await saveVeoVideoResult({
         apiKey: params.apiKey,
         worksheetId,
+        taskId: params.taskId,
+        task: params.task,
         prompt: params.prompt,
+        duration: params.duration,
         video: generated as {
           buffer?: Buffer;
           url?: string;
@@ -334,9 +367,10 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { prompt, task, duration, worksheetId, videoId, fallbackOnly } = req.body as {
+  const { prompt, task, taskId, duration, worksheetId, videoId, fallbackOnly } = req.body as {
     prompt?: string;
     task?: string;
+    taskId?: string;
     duration?: string | number;
     worksheetId?: string;
     videoId?: string;
@@ -348,6 +382,13 @@ export default async function handler(
     return res.status(400).json({ error: "Prompt is required" });
   }
 
+  let safeWorksheetId: string;
+  try {
+    safeWorksheetId = requireLabToolWorksheetId(worksheetId);
+  } catch (error: any) {
+    return res.status(400).json({ error: error.message || "worksheetId is required" });
+  }
+
   const safeVideoId = videoId?.trim();
 
   if (fallbackOnly) {
@@ -356,13 +397,16 @@ export default async function handler(
       Boolean(safeVideoId && apiKey) &&
       startBackgroundVeoVideoSave({
         apiKey: apiKey as string,
-        worksheetId,
+        worksheetId: safeWorksheetId,
+        taskId,
+        task,
         prompt: safePrompt,
+        duration,
         operationName: safeVideoId as string,
       });
 
     const fallback = await findRandomCachedLabToolResult(
-      worksheetId || "S3W01",
+      safeWorksheetId,
       "video",
       VIDEO_CACHE_LIMIT
     );
@@ -399,7 +443,7 @@ export default async function handler(
 
   if (!safeVideoId) {
     const cached = await findCachedLabToolResult(
-      worksheetId || "S3W01",
+      safeWorksheetId,
       "video",
       safePrompt,
       VIDEO_CACHE_LIMIT
@@ -421,7 +465,7 @@ export default async function handler(
 
     if (VIDEO_SKIP_API_WHEN_CACHE_READY) {
       const fallback = await findRandomCachedLabToolResult(
-        worksheetId || "S3W01",
+        safeWorksheetId,
         "video",
         VIDEO_CACHE_LIMIT
       );
@@ -453,7 +497,7 @@ export default async function handler(
 
   if (!safeVideoId && isLabToolApiCoolingDown(VEO_PROVIDER)) {
     const fallback = await findRandomCachedLabToolResult(
-      worksheetId || "S3W01",
+      safeWorksheetId,
       "video",
       VIDEO_CACHE_LIMIT
     );
@@ -491,8 +535,11 @@ export default async function handler(
 
       const savedVideo = await saveVeoVideoResult({
         apiKey,
-        worksheetId,
+        worksheetId: safeWorksheetId,
+        taskId,
+        task,
         prompt: safePrompt,
+        duration,
         video: generated as {
           buffer?: Buffer;
           url?: string;
@@ -511,7 +558,7 @@ export default async function handler(
       if (isRecoverableLabToolApiError(error)) {
         startLabToolApiCooldown(VEO_PROVIDER);
         const fallback = await findRandomCachedLabToolResult(
-          worksheetId || "S3W01",
+          safeWorksheetId,
           "video",
           VIDEO_CACHE_LIMIT
         );
@@ -561,8 +608,11 @@ export default async function handler(
 
     const savedVideo = await saveVeoVideoResult({
       apiKey,
-      worksheetId,
+      worksheetId: safeWorksheetId,
+      taskId,
+      task,
       prompt: safePrompt,
+      duration,
       video: generated as {
         buffer?: Buffer;
         url?: string;
@@ -581,7 +631,7 @@ export default async function handler(
     if (isRecoverableLabToolApiError(error)) {
       startLabToolApiCooldown(VEO_PROVIDER);
       const fallback = await findRandomCachedLabToolResult(
-        worksheetId || "S3W01",
+        safeWorksheetId,
         "video",
         VIDEO_CACHE_LIMIT
       );

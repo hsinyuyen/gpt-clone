@@ -1,11 +1,6 @@
+import { getOpenAIClient, isMissingOpenAIKeyError } from "@/server/openaiClient";
 import { NextApiRequest, NextApiResponse } from "next";
-import { ChatCompletionRequestMessage, Configuration, OpenAIApi } from "openai";
-
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-const openai = new OpenAIApi(configuration);
+import { ChatCompletionRequestMessage } from "openai";
 
 export default async function handler(
   req: NextApiRequest,
@@ -15,10 +10,6 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  if (!process.env.OPENAI_API_KEY) {
-    return res.status(500).json({ error: "OPENAI_API_KEY not configured" });
-  }
-
   const { prompt, task } = req.body as { prompt?: string; task?: string };
 
   if (!prompt) {
@@ -26,6 +17,7 @@ export default async function handler(
   }
 
   try {
+    const openai = getOpenAIClient();
     const messages: ChatCompletionRequestMessage[] = [
       {
         role: "system",
@@ -57,6 +49,9 @@ export default async function handler(
     });
   } catch (error: any) {
     console.error("lab-tools/text error:", error.response?.data || error);
+    if (isMissingOpenAIKeyError(error)) {
+      return res.status(500).json({ error: error.message });
+    }
     return res.status(500).json({
       error: error.response?.data?.error?.message || "文字生成失敗",
     });

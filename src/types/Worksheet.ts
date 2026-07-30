@@ -1,3 +1,5 @@
+import type { GammaAnswerWorksheetConfig } from "./GammaAnswerWorksheet";
+
 export interface Task {
   taskId: string;
   label: string;
@@ -23,7 +25,10 @@ export interface Worksheet {
   styledHtmlUrl: string | null;
   styledHtmlGeneratedAt: string | null;
   styledHtmlStatus: 'pending' | 'generating' | 'ready' | 'error';
+  sourceFormat?: 'markdown' | 'html';
   gammaUrl: string | null;
+  gammaAnswerConfig?: GammaAnswerWorksheetConfig | null;
+  isDeleted?: boolean;
   // P1（動作技能）等互動遊戲型學習單：卡片點擊後直接開這個單檔遊戲，
   // 進度/金幣由遊戲自己寫入 gameProgress/{uid} 的 gameKey 欄位（不走 studentProgress 逐任務審核）。
   externalGameUrl?: string | null;
@@ -49,6 +54,28 @@ export interface StudentWorksheetProgress {
   totalCoinsAwarded: number;
   completedTaskCount: number;
   lastUpdatedAt: string;
+  gammaAnswerDraft?: {
+    version: string;
+    activeQuestionId: string;
+    answers: Record<string, {
+      text: string;
+      attachments: Array<{
+        id: string;
+        name: string;
+        type: string;
+        size: number;
+        kind: string;
+        source: string;
+        downloadUrl?: string;
+      }>;
+      review?: {
+        passed: boolean;
+        feedback: string;
+        reviewedAt: string;
+      };
+    }>;
+    savedAt: string;
+  };
 }
 
 export interface AuditLogEntry {

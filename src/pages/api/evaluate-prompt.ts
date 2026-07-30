@@ -1,11 +1,8 @@
 // Auto-evaluator for the Prompt Engineering course. Sends the player's prompt
 // to the chat model along with the lesson criteria, and asks for a JSON
 // verdict { passed: boolean, feedback: string }.
+import { getOpenAIClient, isMissingOpenAIKeyError } from "@/server/openaiClient";
 import { NextApiRequest, NextApiResponse } from "next";
-import { Configuration, OpenAIApi } from "openai";
-
-const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY });
-const openai = new OpenAIApi(configuration);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -77,6 +74,7 @@ ${userPrompt}
 3. 對小朋友友善鼓勵，但若忽略題目要求或抄襲，請給 false`;
 
   try {
+    const openai = getOpenAIClient();
     const completion = await openai.createChatCompletion({
       model: "gpt-5.4",
       messages: [{ role: "system", content: systemMessage }],
@@ -99,6 +97,9 @@ ${userPrompt}
     });
   } catch (err: any) {
     console.error("[evaluate-prompt] error:", err.message || err);
+    if (isMissingOpenAIKeyError(err)) {
+      return res.status(500).json({ error: err.message });
+    }
     return res.status(500).json({ error: err.message || "Evaluation failed" });
   }
 }

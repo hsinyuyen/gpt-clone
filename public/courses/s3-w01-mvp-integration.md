@@ -1,15 +1,24 @@
-# S3-W01 GAMMA 答題版 MVP 規格
+# S3-W01 GAMMA 答題版學習單規格
 
-對應頁面：`/courses/gamma-mixed-worksheet-demo.html`
+## 2026-07-29 規格更新
 
-本規格以目前實作為準，用於 S3W01 學習單 MVP 測試。流程必須模擬學生實際上機：從主頁進入學習單，選擇 S3W01，閱讀左側 GAMMA，再回 Lab Terminal 主頁產出文字、圖片、音樂或影片。
+- S3W01 已從 MVP 測試入口修正為正式「學習單」型態，入口不可再硬編在 /worksheets 頁面。
+- 學生端必須透過主頁進入 /worksheets，再依照班級開放的系列看到 S3W01。
+- S3W01 目前由 src/config/gammaAnswerWorksheets.ts 的 built-in config 管理，並透過 getPublishedWorksheetsForClass(classId) 合併到既有學習單清單。
+- 課堂/班級開放方式走既有系列可見性設定，S3 對應 system/seriesVisibility.map.S3，管理頁為 /admin/worksheets/visibility。
+- /worksheets 不應保留 S3W01 專用卡片；未來新增 S3W02、S3W03 時應只新增 config，再由系列切換管理。
+- 學習單畫面需使用固定 viewport 高度，不讓整頁滾動；GAMMA 區與答題區需自適應分配空間，答題表單不得把頁面撐高。
+
+對應頁面：`/worksheets/S3W01`
+
+本規格以目前實作為準，用於 S3W01 GAMMA 答題版學習單。流程必須模擬學生實際上機：從主頁進入學習單，選擇 S3W01，閱讀左側 GAMMA，再回 Lab Terminal 主頁產出文字、圖片、音樂或影片。
 
 ## 入口流程
 
 1. 學生從主頁 `/` 進入。
 2. 進入學習單列表 `/worksheets`。
-3. 點選 S3W01 MVP 入口。
-4. 開啟 `/courses/gamma-mixed-worksheet-demo.html`。
+3. 點選 S3W01 學習單入口。
+4. 開啟 `/worksheets/S3W01`。
 5. 左側顯示 GAMMA，右側顯示 Lab Terminal 答題面板。
 6. 學生需要產出內容時，可回主頁 `/` 使用 Lab Terminal。
 
@@ -34,13 +43,13 @@ https://gamma.app/docs/S3-W01-hixa52whtzl6aas
 頁面網址：
 
 ```txt
-/courses/gamma-mixed-worksheet-demo.html
+/worksheets/S3W01
 ```
 
 可用 `gamma` 覆寫：
 
 ```txt
-/courses/gamma-mixed-worksheet-demo.html?gamma=https%3A%2F%2Fgamma.app%2Fdocs%2F...
+/worksheets/S3W01?gamma=https%3A%2F%2Fgamma.app%2Fdocs%2F...
 ```
 
 `gamma` 需要是可被 iframe embed 的 GAMMA URL。若 GAMMA provider 禁止 iframe，瀏覽器會顯示 provider 錯誤狀態；目前不再使用內建題目卡作為 GAMMA fallback。
@@ -332,6 +341,17 @@ download=1
 
 前端對圖片、音樂、影片都需要顯示下載按鈕；音樂與影片也需要播放按鈕。
 
+## 功能封裝
+
+GAMMA + 右側答題區已從舊 MVP HTML 移到可重用程式：
+
+```txt
+src/config/gammaAnswerWorksheets.ts
+src/components/worksheets/GammaAnswerWorksheet.tsx
+```
+
+未來新增 S?W?? 課程時，優先新增 config；若版面與題型相同，不需要複製整份 HTML。舊網址 `/courses/gamma-mixed-worksheet-demo.html` 只保留轉址到 `/worksheets/S3W01`。
+
 ## 學習單存檔
 
 存檔採「本機暫存保底 + Firestore 同步」。
@@ -345,7 +365,7 @@ studentProgress/{studentId}/worksheets/S3W01
 主要欄位：
 
 ```txt
-mvpDraft
+gammaAnswerDraft
 studentId
 studentName
 worksheetId
@@ -356,7 +376,7 @@ classId
 lastUpdatedAt
 ```
 
-`mvpDraft` 內容包含：
+`gammaAnswerDraft` 內容包含：
 
 ```txt
 version
@@ -374,19 +394,19 @@ reason
 本機暫存 key 需依學生分開：
 
 ```txt
-s3-w01-gamma-mvp:{STORAGE_VERSION}:{studentId}:{questionId}
+gamma-answer-worksheet:{STORAGE_VERSION}:{WORKSHEET_ID}:{studentId}
 ```
 
 目前版本：
 
 ```txt
-v21-reset-progress-20260728
+v22-gamma-answer-worksheet-20260729
 ```
 
 讀取策略：
 
 1. 開頁先清除舊版 S3W01 本機暫存。
-2. 嘗試從 Firestore 讀取同版本 `mvpDraft`。
+2. 嘗試從 Firestore 讀取同版本 `gammaAnswerDraft`。
 3. Firestore 讀取超過 2200ms 時，先使用本機暫存。
 4. 若本機暫存比 Firestore 新，保留本機暫存並稍後同步。
 5. Firestore 寫入超過 5000ms 時，不阻塞學生操作，保留本機暫存。
@@ -398,9 +418,22 @@ v21-reset-progress-20260728
 - `data:` 與 `blob:` URL 不寫入 Firestore。
 - 正式跨裝置保存檔案本體時，需改接 Firebase Storage 或等價檔案儲存。
 
+
+## 金幣加分
+
+每題 AI 審核通過後會呼叫既有 `approveTask()` transaction。這不是 localStorage 假加分，會實際寫入：
+
+```txt
+studentProgress/{studentId}/worksheets/S3W01
+coins/{studentId}
+auditLog/{autoId}
+```
+
+同一題如果已完成，transaction 會拒絕重複加分；全部完成後會寫入 `users/{studentId}/progress/lessons` 的 `worksheet:S3W01` 完成記錄，並收回 Lab media access。
+
 ## AI 審核
 
-目前 MVP 的 AI 審核是前端本機規則檢查，不呼叫外部 AI API。
+目前 AI 審核是前端本機規則檢查，不呼叫外部 AI API；審核通過後會呼叫正式 Firestore transaction 加金幣。
 
 通過條件依題型判斷：
 
@@ -463,7 +496,7 @@ window.addEventListener('message', (event) => {
 若與頁面同源且可直接操作 child window：
 
 ```js
-const api = iframe.contentWindow.S3W01_MVP;
+const api = iframe.contentWindow.GammaAnswerWorksheet;
 api.exportState();
 api.switchQuestion(2);
 api.reviewCurrentAnswer();

@@ -15,6 +15,8 @@ import {
   lessonKeys,
   isLockedByDerived,
 } from "@/types/LessonCompletion";
+import GammaAnswerWorksheet from "@/components/worksheets/GammaAnswerWorksheet";
+import { resolveGammaAnswerWorksheetConfig } from "@/config/gammaAnswerWorksheets";
 
 // Convert any gamma.app URL to the embed format
 // e.g. https://gamma.app/docs/S5-W13--nrrfbs7svs8h2el → https://gamma.app/embed/S5-W13--nrrfbs7svs8h2el
@@ -109,6 +111,18 @@ export default function WorksheetViewPage() {
 
   const completedCount = progress?.completedTaskCount || 0;
   const totalTasks = worksheet.tasks.length;
+  const gammaAnswerConfig = resolveGammaAnswerWorksheetConfig(worksheet);
+
+  if (gammaAnswerConfig) {
+    return (
+      <GammaAnswerWorksheet
+        config={gammaAnswerConfig}
+        worksheet={worksheet}
+        progress={progress}
+        onProgressChange={setProgress}
+      />
+    );
+  }
 
   // 全部任務完成 → 鎖成成果展示，不再顯示學習單內容（老師開放重做時才解開）
   const allDone = totalTasks > 0 && completedCount >= totalTasks;

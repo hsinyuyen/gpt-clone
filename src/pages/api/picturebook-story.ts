@@ -1,11 +1,5 @@
+import { getOpenAIClient, isMissingOpenAIKeyError } from "@/server/openaiClient";
 import { NextApiRequest, NextApiResponse } from "next";
-import { Configuration, OpenAIApi } from "openai";
-import * as dotenv from "dotenv";
-
-dotenv.config();
-
-const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY });
-const openai = new OpenAIApi(configuration);
 
 // AI 繪本 L2《故事八格機》文字生成端點。
 // 三種模式：
@@ -134,6 +128,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       : "讀者是小四到小六，句子可以稍微完整，但仍然口語好懂。";
 
   try {
+    const openai = getOpenAIClient();
     // ---- 骰一格：給某一格一個點子 ----
     if (mode === "roll") {
       const slot: Slot = req.body?.slot || {};
@@ -597,6 +592,9 @@ ${grade === "low" ? ZY_ASK + "\n" : ""}
     return res.status(400).json({ error: "unknown-mode" });
   } catch (error: any) {
     console.error("picturebook-story error:", error?.message || error);
+    if (isMissingOpenAIKeyError(error)) {
+      return res.status(500).json({ error: error.message });
+    }
     return res.status(500).json({ error: "ai-failed" });
   }
 }

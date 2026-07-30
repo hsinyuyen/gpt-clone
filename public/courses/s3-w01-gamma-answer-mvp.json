@@ -1,19 +1,39 @@
 {
-  "version": 2,
+  "version": 3,
   "worksheetKind": "gamma_answer",
   "id": "S3W01",
   "title": "S3 W01｜工具選擇與初次使用",
   "semester": "S3",
   "week": 1,
   "gammaUrl": "https://gamma.app/docs/S3-W01-hixa52whtzl6aas",
-  "pageUrl": "/courses/gamma-mixed-worksheet-demo.html",
+  "pageUrl": "/worksheets/S3W01",
+  "management": {
+    "mode": "builtin_gamma_answer_worksheet",
+    "configSource": "src/config/gammaAnswerWorksheets.ts",
+    "worksheetListSource": "getPublishedWorksheetsForClass(classId)",
+    "adminVisibilityPath": "/admin/worksheets/visibility",
+    "seriesVisibilityKey": "S3",
+    "rules": [
+      "S3W01 is a worksheet, not a one-off MVP card.",
+      "The worksheet list must receive S3W01 through the same published worksheet flow as other worksheets.",
+      "Teachers manage classroom access by toggling the S3 series visibility.",
+      "Do not hard-code S3W01 entry cards in /worksheets."
+    ]
+  },
+  "layoutRequirement": {
+    "pageScroll": false,
+    "viewport": "h-screen",
+    "desktop": "GAMMA left, answer workspace right, both constrained to the visible browser height.",
+    "smallViewport": "GAMMA top, answer workspace bottom, both constrained to the visible browser height.",
+    "answerWorkspace": "Use flex/min-h-0 so text inputs, uploads, previews, review button, and feedback do not push the page taller than the viewport."
+  },
   "entryFlow": {
     "required": true,
     "steps": [
       "從主頁 / 進入",
       "進入 /worksheets",
-      "點選 S3W01 MVP 入口",
-      "開啟 GAMMA 答題版頁面",
+      "點選 S3W01 學習單入口",
+      "開啟 GAMMA + 答題區學習單",
       "需要生成內容時回到主頁 Lab Terminal"
     ]
   },
@@ -27,9 +47,9 @@
   "autosave": {
     "mode": "localStorage_with_firestore_sync",
     "firestorePath": "studentProgress/{studentId}/worksheets/S3W01",
-    "draftField": "mvpDraft",
-    "localStorageKeyPattern": "s3-w01-gamma-mvp:{storageVersion}:{studentId}:{questionId}",
-    "storageVersion": "v21-reset-progress-20260728",
+    "draftField": "gammaAnswerDraft",
+    "localStorageKeyPattern": "gamma-answer-worksheet:{storageVersion}:{WORKSHEET_ID}:{studentId}",
+    "storageVersion": "v22-gamma-answer-worksheet-20260729",
     "firestoreLoadTimeoutMs": 2200,
     "firestoreSaveTimeoutMs": 5000,
     "storesBinaryFilesInFirestore": false,
@@ -160,7 +180,7 @@
       },
       "allowedAttachments": [],
       "review": {
-        "mode": "local_mvp_ai",
+        "mode": "local_ai_with_coin_transaction",
         "rubric": [
           "有 3 點文字提醒",
           "內容跟 AI 工具使用有關",
@@ -198,7 +218,7 @@
         "image/webp"
       ],
       "review": {
-        "mode": "local_mvp_ai",
+        "mode": "local_ai_with_coin_transaction",
         "rubric": [
           "有圖片附件",
           "看得出小狗",
@@ -237,7 +257,7 @@
         "audio/mp4"
       ],
       "review": {
-        "mode": "local_mvp_ai",
+        "mode": "local_ai_with_coin_transaction",
         "rubric": [
           "有音訊附件",
           "符合咖啡廳或爵士風格",
@@ -275,7 +295,7 @@
         "video/quicktime"
       ],
       "review": {
-        "mode": "local_mvp_ai",
+        "mode": "local_ai_with_coin_transaction",
         "rubric": [
           "有影片附件",
           "看得出滑雪或雪地",
@@ -306,5 +326,22 @@
     "save",
     "firestoreSave",
     "complete"
-  ]
+  ],
+  "coinAwarding": {
+    "mode": "firestore_transaction",
+    "function": "approveTask",
+    "writes": [
+      "studentProgress/{studentId}/worksheets/S3W01.tasks.{taskId}",
+      "coins/{studentId}",
+      "auditLog/{autoId}",
+      "users/{studentId}/progress/lessons.worksheet:S3W01 when all questions complete"
+    ],
+    "idempotency": "completed task will not be awarded twice"
+  },
+  "componentization": {
+    "config": "src/config/gammaAnswerWorksheets.ts",
+    "component": "src/components/worksheets/GammaAnswerWorksheet.tsx",
+    "entry": "/worksheets/S3W01",
+    "legacyPage": "/courses/gamma-mixed-worksheet-demo.html redirects to /worksheets/S3W01"
+  }
 }

@@ -12,7 +12,7 @@
 git clone https://github.com/hsinyuyen/gpt-clone.git
 cd gpt-clone
 npm install
-cp .env.example .env      # 然後填入金鑰（見下方）
+cp .env.example .env.local # 然後填入金鑰（見下方）
 npm run dev               # 開 http://localhost:3000
 ```
 
@@ -20,9 +20,9 @@ npm run dev               # 開 http://localhost:3000
 
 ## 環境變數
 
-複製 `.env.example` 成 `.env` 填值。核心必填：`OPENAI_API_KEY`、`GEMINI_API_KEY`、`MIXPANEL_PROJECT_TOKEN`、`APP_ENV`、`APP_NAME`；其餘為選用功能的金鑰。完整清單與說明見 [.env.example](.env.example)。
+複製 `.env.example` 成 `.env.local` 填值；正式站則在 Vercel Project Settings 的 Environment Variables 設同名變數。核心必填：`OPENAI_API_KEY`、`GEMINI_API_KEY`、`NEXT_PUBLIC_MIXPANEL_PROJECT_TOKEN`、`NEXT_PUBLIC_APP_ENV`、`NEXT_PUBLIC_APP_NAME`、`NEXT_PUBLIC_FIREBASE_API_KEY`、`NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`、`NEXT_PUBLIC_FIREBASE_PROJECT_ID`、`NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`、`NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`、`NEXT_PUBLIC_FIREBASE_APP_ID`；其餘為選用功能的金鑰。公開給瀏覽器的設定只使用 `NEXT_PUBLIC_`，OpenAI/Gemini 等 API key 一律只放 server-only env。
 
-- Firebase 前端設定是**寫死**在 `src/lib/firebase.ts`（專案**沒有 Firebase Auth**，改用 localStorage 當 session；Firestore 規則採每個 collection 白名單制）。
+- Firebase 前端設定改由 `NEXT_PUBLIC_FIREBASE_*` 提供；專案沒有 Firebase Auth，改用 localStorage 當 session，Firestore 規則採每個 collection 白名單制。
 
 ## 專案結構（重點）
 

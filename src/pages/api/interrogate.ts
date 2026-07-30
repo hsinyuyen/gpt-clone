@@ -2,11 +2,8 @@
 // 三要素(角色+背景+問題)的「有沒有齊」由前端三格輸入本地判定；
 // 這支只做：判亂打/離題，並用偵探搭檔「阿問」的口吻，把「本層預寫線索(clueSeed)」
 // 個人化地回答孩子那句話。回傳 { ok, reply }。低成本、可離線降級（前端負責）。
+import { getOpenAIClient, isMissingOpenAIKeyError } from "@/server/openaiClient";
 import { NextApiRequest, NextApiResponse } from "next";
-import { Configuration, OpenAIApi } from "openai";
-
-const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY });
-const openai = new OpenAIApi(configuration);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -36,6 +33,7 @@ reply：ok=true 給一句阿問口吻的鼓勵反應（≤20 字，例「好敏�
 只回傳純 JSON（不要 markdown）：{ "ok": true 或 false, "reply": "≤25 字" }`;
 
   try {
+    const openai = getOpenAIClient();
     const completion = await openai.createChatCompletion({
       model: "gpt-4o-mini", // 便宜、對此類 JSON 判定/改寫指令遵循度高（gpt-5.4 判斷不穩）
       messages: [{ role: "system", content: systemMessage }],
@@ -56,6 +54,9 @@ reply：ok=true 給一句阿問口吻的鼓勵反應（≤20 字，例「好敏�
     });
   } catch (err: any) {
     console.error("[interrogate] error:", err?.message || err);
+    if (isMissingOpenAIKeyError(err)) {
+      return res.status(500).json({ error: err.message });
+    }
     // 失敗不擋課：回 ok=true 讓前端用本地 clueSeed 降級顯示
     return res.status(200).json({ ok: true, reply: "", offline: true });
   }

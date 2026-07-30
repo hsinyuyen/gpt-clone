@@ -5,6 +5,7 @@ import {
   isLabToolApiCoolingDown,
   isRecoverableLabToolApiError,
   readLabToolCacheLimit,
+  requireLabToolWorksheetId,
   saveLabToolResult,
   startLabToolApiCooldown,
 } from "@/server/labToolCache";
@@ -92,8 +93,15 @@ export default async function handler(
     return res.status(400).json({ error: "Prompt is required" });
   }
 
+  let safeWorksheetId: string;
+  try {
+    safeWorksheetId = requireLabToolWorksheetId(worksheetId);
+  } catch (error: any) {
+    return res.status(400).json({ error: error.message || "worksheetId is required" });
+  }
+
   const cached = await findCachedLabToolResult(
-    worksheetId || "S3W01",
+    safeWorksheetId,
     "image",
     safePrompt,
     IMAGE_CACHE_LIMIT
@@ -115,7 +123,7 @@ export default async function handler(
 
   if (isLabToolApiCoolingDown(NANO_BANANA_PROVIDER)) {
     const fallback = await findRandomCachedLabToolResult(
-      worksheetId || "S3W01",
+      safeWorksheetId,
       "image",
       IMAGE_CACHE_LIMIT
     );
@@ -154,7 +162,7 @@ No text, no letters, no watermark.`;
       : "image/png";
 
     const saved = await saveLabToolResult({
-      worksheetId,
+      worksheetId: safeWorksheetId,
       kind: "image",
       prompt: safePrompt,
       buffer: generated.buffer,
@@ -177,7 +185,7 @@ No text, no letters, no watermark.`;
     if (isRecoverableLabToolApiError(error)) {
       startLabToolApiCooldown(NANO_BANANA_PROVIDER);
       const fallback = await findRandomCachedLabToolResult(
-        worksheetId || "S3W01",
+        safeWorksheetId,
         "image",
         IMAGE_CACHE_LIMIT
       );

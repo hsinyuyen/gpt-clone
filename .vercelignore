@@ -10,3 +10,4 @@
 /.env
 /.env.*
 *.tsbuildinfo
+.next-dev.*.log

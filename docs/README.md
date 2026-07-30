@@ -2,6 +2,7 @@
 
 | 文件 | 給誰 | 內容 |
 |------|------|------|
+| [gamma-answer-worksheet-json-standard.md](gamma-answer-worksheet-json-standard.md) | **教案設計團隊 / 後台維護者** | GAMMA + 答題區學習單的 Authoring JSON 標準、Markdown 尾部格式、preset 展開規則與建置檢查表 |
 | [lab-terminal-course-design.md](lab-terminal-course-design.md) | **開發者** | Lab Terminal 互動課程的設計與工程知識庫：可複用的設計模式、踩過的坑、關鍵檔案、技術債（整理自 S5-W15 遊戲開發模擬器）|
 | [lesson-design-guide.md](lesson-design-guide.md) | **教案設計團隊** | 怎麼設計一堂好的互動**概念課**（高年級）：每站標準結構、十大設計原則、評量、交付給工程端的清單、設計者自我檢核表 |
 | [motor-skill-lesson-design-guide.md](motor-skill-lesson-design-guide.md) | **教案設計團隊** | 怎麼設計一堂好的**低年級動作技能課**（小一 6–7 歲）：M1–M5 原則、防挫折 vs 反硬 A、Hook/Repeat/Deliver、小一硬約束、規格治理 |

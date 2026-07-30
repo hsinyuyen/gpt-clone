@@ -33,6 +33,18 @@ import {
   LessonCompletionMap,
   lessonKeys,
 } from "@/types/LessonCompletion";
+import {
+  getBuiltinGammaAnswerWorksheet,
+  getBuiltinGammaAnswerWorksheets,
+} from "@/config/gammaAnswerWorksheets";
+
+function worksheetFromSnapshot(snapshot: { id: string; data: () => unknown }): Worksheet {
+  const data = snapshot.data() as Worksheet;
+  return {
+    ...data,
+    id: snapshot.id || data.id,
+  };
+}
 
 // ============ Users ============
 
@@ -605,12 +617,16 @@ export async function getOpenPvpRooms(): Promise<PvpBattleRoom[]> {
 
 export async function getWorksheets(): Promise<Worksheet[]> {
   const snap = await getDocs(collection(db, "worksheets"));
-  return snap.docs.map((d) => d.data() as Worksheet);
+  return snap.docs.map(worksheetFromSnapshot);
 }
 
 export async function getWorksheet(id: string): Promise<Worksheet | null> {
   const snap = await getDoc(doc(db, "worksheets", id));
-  return snap.exists() ? (snap.data() as Worksheet) : null;
+  if (snap.exists()) {
+    const worksheet = worksheetFromSnapshot(snap);
+    return worksheet.isDeleted ? null : worksheet;
+  }
+  return getBuiltinGammaAnswerWorksheet(id);
 }
 
 export async function getPublishedWorksheetsByClass(classId: string): Promise<Worksheet[]> {
@@ -627,7 +643,10 @@ export async function getPublishedWorksheetsByClass(classId: string): Promise<Wo
   );
   const [snapNew, snapLegacy] = await Promise.all([getDocs(qNew), getDocs(qLegacy)]);
   const map = new Map<string, Worksheet>();
-  [...snapNew.docs, ...snapLegacy.docs].forEach((d) => map.set(d.id, d.data() as Worksheet));
+  [...snapNew.docs, ...snapLegacy.docs].forEach((d) => {
+    const worksheet = worksheetFromSnapshot(d);
+    map.set(worksheet.id, worksheet);
+  });
   return Array.from(map.values());
 }
 
@@ -653,23 +672,55 @@ export async function saveSeriesVisibility(map: SeriesVisibility): Promise<void>
  * 用系列即時判斷 → 新出的同系列學習單發布後自動出現，毋須手動指派班級。
  */
 export async function getPublishedWorksheetsForClass(classId: string): Promise<Worksheet[]> {
+  return getPublishedWorksheetsForClasses([classId]);
+}
+
+export async function getPublishedWorksheetsForClasses(classIds: string[]): Promise<Worksheet[]> {
+  const classIdSet = new Set(classIds.filter(Boolean));
+  if (classIdSet.size === 0) return [];
+
   const [snap, vis] = await Promise.all([
-    getDocs(query(collection(db, "worksheets"), where("isPublished", "==", true))),
+    getDocs(collection(db, "worksheets")),
     getSeriesVisibility(),
   ]);
   const openSemesters = new Set(
     Object.entries(vis)
-      .filter(([, ids]) => Array.isArray(ids) && ids.includes(classId))
+      .filter(([, ids]) => Array.isArray(ids) && ids.some((id) => classIdSet.has(id)))
       .map(([sem]) => sem)
   );
-  return snap.docs
-    .map((d) => d.data() as Worksheet)
+  const byId = new Map<string, Worksheet>();
+  getBuiltinGammaAnswerWorksheets().forEach((worksheet) => byId.set(worksheet.id, worksheet));
+  snap.docs.forEach((docSnap) => {
+    const worksheet = worksheetFromSnapshot(docSnap);
+    if (worksheet.isDeleted || !worksheet.isPublished) {
+      byId.delete(worksheet.id);
+      return;
+    }
+    byId.set(worksheet.id, worksheet);
+  });
+  return Array.from(byId.values())
     .filter((w) => {
       if (openSemesters.has(w.semester)) return true;
       const ids =
         w.classIds && w.classIds.length > 0 ? w.classIds : w.classId ? [w.classId] : [];
-      return ids.includes(classId);
+      return ids.some((id) => classIdSet.has(id));
     });
+}
+
+function removeUndefinedFields<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => removeUndefinedFields(item))
+      .filter((item) => item !== undefined) as T;
+  }
+  if (value && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .map(([key, item]) => [key, removeUndefinedFields(item)])
+        .filter(([, item]) => item !== undefined)
+    ) as T;
+  }
+  return value;
 }
 
 export async function saveWorksheet(worksheet: Worksheet): Promise<void> {
@@ -678,7 +729,8 @@ export async function saveWorksheet(worksheet: Worksheet): Promise<void> {
     new Set([worksheet.classId, ...(worksheet.classIds || [])].filter(Boolean))
   );
   const primary = classIds[0] || worksheet.classId;
-  await setDoc(doc(db, "worksheets", worksheet.id), { ...worksheet, classId: primary, classIds });
+  const payload = removeUndefinedFields({ ...worksheet, classId: primary, classIds });
+  await setDoc(doc(db, "worksheets", worksheet.id), payload);
 }
 
 export async function deleteWorksheet(id: string): Promise<void> {
@@ -882,8 +934,10 @@ export async function approveTask(params: {
   await runTransaction(db, async (tx) => {
     const worksheetRef = doc(db, "worksheets", worksheetId);
     const worksheetSnap = await tx.get(worksheetRef);
-    if (!worksheetSnap.exists()) throw new Error("Worksheet not found");
-    const worksheet = worksheetSnap.data() as Worksheet;
+    const worksheet = worksheetSnap.exists()
+      ? worksheetFromSnapshot(worksheetSnap)
+      : getBuiltinGammaAnswerWorksheet(worksheetId);
+    if (!worksheet) throw new Error("Worksheet not found");
 
     const task = worksheet.tasks.find((t) => t.taskId === taskId);
     if (!task) throw new Error("Task not found");
@@ -913,7 +967,7 @@ export async function approveTask(params: {
       semester: worksheet.semester,
       week: worksheet.week,
       classId: worksheet.classId,
-      firstOpenedAt: progress?.firstOpenedAt || null,
+      firstOpenedAt: progress?.firstOpenedAt || now,
       tasks: {
         ...(progress?.tasks || {}),
         [taskId]: {
@@ -984,8 +1038,8 @@ export async function revokeTask(params: {
     const worksheetRef = doc(db, "worksheets", worksheetId);
     const worksheetSnap = await tx.get(worksheetRef);
     const worksheet = worksheetSnap.exists()
-      ? (worksheetSnap.data() as Worksheet)
-      : null;
+      ? worksheetFromSnapshot(worksheetSnap)
+      : getBuiltinGammaAnswerWorksheet(worksheetId);
 
     const coinRef = doc(db, "coins", studentId);
     const coinSnap = await tx.get(coinRef);
@@ -1092,9 +1146,13 @@ export function onStudentProgressChange(
 
 // Helper: find which classroom a student belongs to
 export async function getStudentClassId(studentId: string): Promise<string | null> {
+  const classIds = await getStudentClassIds(studentId);
+  return classIds[0] || null;
+}
+
+export async function getStudentClassIds(studentId: string): Promise<string[]> {
   const classrooms = await getClassrooms();
-  for (const cls of classrooms) {
-    if (cls.studentIds.includes(studentId)) return cls.id;
-  }
-  return null;
+  return classrooms
+    .filter((cls) => cls.studentIds.includes(studentId))
+    .map((cls) => cls.id);
 }

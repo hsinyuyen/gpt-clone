@@ -1,10 +1,5 @@
+import { getOpenAIClient, isMissingOpenAIKeyError } from "@/server/openaiClient";
 import { NextApiRequest, NextApiResponse } from "next";
-import { Configuration, OpenAIApi } from "openai";
-
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-const openai = new OpenAIApi(configuration);
 
 const DESIGN_SYSTEM = `
 /* Color Tokens */
@@ -107,6 +102,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    const openai = getOpenAIClient();
     const response = await openai.createChatCompletion({
       model: "gpt-4o",
       messages: [
@@ -149,6 +145,9 @@ ${PAGE_LAYOUT_RULES}
     res.status(200).json({ html });
   } catch (error: any) {
     console.error("Generate worksheet HTML error:", error?.response?.data || error.message);
+    if (isMissingOpenAIKeyError(error)) {
+      return res.status(500).json({ error: error.message });
+    }
     res.status(500).json({
       error: "Failed to generate HTML",
       details: error?.response?.data?.error?.message || error.message,
