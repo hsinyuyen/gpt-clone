@@ -52,3 +52,6 @@ serviceAccount*.json
 nul
 .claude/worktrees/
 .env*
+
+# 生圖原檔備份（壓縮前），不進版控
+public/games/assets/_raw/
