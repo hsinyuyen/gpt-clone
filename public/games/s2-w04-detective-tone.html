@@ -49,6 +49,16 @@
   .scene img{width:100%;height:100%;object-fit:cover;display:block;}
   .scene.fail{background:linear-gradient(140deg,#26405c,#1b2c42);}
   .scene.fail img{display:none;}
+  /* 卡片容器。直向時是自然高度（場景圖在上方吃剩餘空間）；分左右時是右半欄。 */
+  .content{display:flex;flex-direction:column;gap:6px;min-height:0;flex:0 0 auto;}
+  /* ── 寬螢幕分左右：場景圖佔左半邊、吃滿整個高度，操作卡在右邊 ──
+     只在夠寬（橫向）又夠高（≥640）時啟用，圖才有意義地變大。
+     矮的橫排（≤620 高）走另一套（卡片並排、圖隱藏），不在這裡。 */
+  @media (min-aspect-ratio:1/1) and (min-height:640px){
+    .pane{flex-direction:row;gap:12px;align-items:stretch;}
+    .scene{flex:0 0 44%;min-height:0;}
+    .content{flex:1 1 0;min-width:0;overflow-y:auto;}
+  }
   .topbar{flex:0 0 auto;z-index:30;background:rgba(14,24,38,.94);backdrop-filter:blur(8px);
     border-bottom:1px solid var(--line);padding:7px 16px;display:flex;align-items:center;gap:12px;}
   .topbar .t{font-weight:900;font-size:15px;}
@@ -163,8 +173,8 @@
      好在每個畫面剛好都是兩張卡（劇情/角色 ＋ 小考/操作），並排就把高度砍半。 */
   @media (max-height:620px) and (min-aspect-ratio:13/10){
     .scene{display:none;}   /* 矮又寬：沒空間放畫框，改由 #bg 淡背景撐氛圍 */
-    .pane{flex-direction:row;align-items:stretch;}
-    .pane>.card{flex:1 1 0;min-width:0;overflow-y:auto;}
+    .content{flex:1 1 auto;min-height:0;flex-direction:row;align-items:stretch;}
+    .content>.card{flex:1 1 0;min-width:0;overflow-y:auto;}
     .who{flex-direction:column;align-items:center;gap:7px;}
     .who .por{width:min(17vh,84px);}
     .who .say{width:100%;}
@@ -413,16 +423,21 @@ function screen(ch,i){
   teardown.forEach(fn=>{ try{ fn(); }catch(e){} }); teardown=[];
   stage.innerHTML='';
   stage.appendChild(header(ch,i));
-  const s=el('div','pane');
-  // 每一幕的場景圖畫框（放在卡片上方）。載不到就退成色塊，離線不開天窗。
+  const pane=el('div','pane');
+  // 每一幕的場景圖畫框。載不到就退成色塊，離線不開天窗。
+  // 寬螢幕（橫向）時它會被 CSS 擺到左半邊、吃滿整個高度＝大圖沉浸；
+  // 窄螢幕（直向）時擺在內容上方當橫幅。
   if(ch.scene){
     const sc=el('div','scene');
     const im=document.createElement('img'); im.src='assets/'+ch.scene+'.jpg'; im.alt='';
     im.onerror=()=>sc.classList.add('fail');
-    sc.appendChild(im); s.appendChild(sc);
+    sc.appendChild(im); pane.appendChild(sc);
   }
-  stage.appendChild(s);
-  return s;
+  // 卡片都放進 .content：分左右時它是右半欄（卡片在裡面直向堆疊）。
+  const content=el('div','content');
+  pane.appendChild(content);
+  stage.appendChild(pane);
+  return content;
 }
 
 /* =========================================================================
