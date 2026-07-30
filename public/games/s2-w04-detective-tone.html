@@ -37,7 +37,18 @@
      螢幕真的太矮時內容還是拿得到，不會有按不到的送出鍵。
      ⚠️ 不可以叫 .step：topbar 的「第 N / 18 章」標籤已經用了那個 class，
         撞名會把 flex/overflow 樣式套到標籤上，量測時也會抓錯元素。 */
-  .pane{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:8px;overflow-y:auto;}
+  .pane{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:6px;overflow-y:auto;}
+  /* 每一幕的場景圖畫框。flex:1 1 0 + min-height:0 ＝ 吃掉卡片沒用到的空間：
+     劇情關空得多、圖就大又有沉浸感；訪談關內容多、圖就自動縮，但因為卡片是
+     flex:0 0 auto、圖可以縮到 0，所以永遠不會把版面撐破。object-fit:cover 讓
+     圖在任何高度都保持好看的滿版構圖。淡背景 #bg 保留當模糊襯底。 */
+  /* 用陰影＋內描邊當畫框，不用實體 border——實體 border 就算圖縮到 0 也留 2px，
+     在內容最滿的關（第一幕推理）會多出 1px 撐破版面。 */
+  .scene{flex:1 1 0;min-height:0;width:100%;border-radius:14px;overflow:hidden;
+    background:#20344c;box-shadow:0 6px 20px rgba(0,0,0,.3),inset 0 0 0 1px var(--line);}
+  .scene img{width:100%;height:100%;object-fit:cover;display:block;}
+  .scene.fail{background:linear-gradient(140deg,#26405c,#1b2c42);}
+  .scene.fail img{display:none;}
   .topbar{flex:0 0 auto;z-index:30;background:rgba(14,24,38,.94);backdrop-filter:blur(8px);
     border-bottom:1px solid var(--line);padding:7px 16px;display:flex;align-items:center;gap:12px;}
   .topbar .t{font-weight:900;font-size:15px;}
@@ -103,8 +114,9 @@
   .err{color:var(--warn);font-size:14px;font-weight:800;margin-top:5px;}
   /* 泡泡小考：漂浮泡泡＋防硬按。
      高度改成吃掉畫面剩下的空間（原本寫死 230px，配上其他卡片就會超出一頁）。 */
-  .qs{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;}
-  .qbs{position:relative;flex:1 1 auto;min-height:132px;margin:6px 0 0;}
+  /* 小考卡不再吃剩餘空間（改由場景圖吃）；泡泡區給固定高度，隨畫面高微調。 */
+  .qs{flex:0 0 auto;display:flex;flex-direction:column;}
+  .qbs{position:relative;height:clamp(114px,14.5vh,148px);margin:6px 0 0;}
   .qb{position:absolute;width:150px;height:150px;border-radius:50%;border:3px solid rgba(220,245,255,.85);
     background:radial-gradient(circle at 34% 30%,rgba(238,252,255,.99),rgba(152,216,255,.92) 70%,rgba(108,180,250,.72));
     color:#062a45;font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:center;
@@ -150,6 +162,7 @@
      這種尺寸只剩約 330px 可用高度，直排怎麼縮都塞不下，而小三的字級不該再縮。
      好在每個畫面剛好都是兩張卡（劇情/角色 ＋ 小考/操作），並排就把高度砍半。 */
   @media (max-height:620px) and (min-aspect-ratio:13/10){
+    .scene{display:none;}   /* 矮又寬：沒空間放畫框，改由 #bg 淡背景撐氛圍 */
     .pane{flex-direction:row;align-items:stretch;}
     .pane>.card{flex:1 1 0;min-width:0;overflow-y:auto;}
     .who{flex-direction:column;align-items:center;gap:7px;}
@@ -401,6 +414,13 @@ function screen(ch,i){
   stage.innerHTML='';
   stage.appendChild(header(ch,i));
   const s=el('div','pane');
+  // 每一幕的場景圖畫框（放在卡片上方）。載不到就退成色塊，離線不開天窗。
+  if(ch.scene){
+    const sc=el('div','scene');
+    const im=document.createElement('img'); im.src='assets/'+ch.scene+'.jpg'; im.alt='';
+    im.onerror=()=>sc.classList.add('fail');
+    sc.appendChild(im); s.appendChild(sc);
+  }
   stage.appendChild(s);
   return s;
 }
