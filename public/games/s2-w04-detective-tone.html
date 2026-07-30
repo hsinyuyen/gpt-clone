@@ -122,6 +122,24 @@ const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=nu
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const now=()=>performance.now();
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+/* 語氣改寫一律要自己打字。
+   照著回饋裡的範例句重打一遍沒關係——那也是練習；但複製貼上就完全沒練到。
+   paste 事件涵蓋 Ctrl+V、右鍵貼上、長按貼上；拖曳文字進來是另一條路，所以 drop 也要擋。
+   要在 ta 進 DOM 之後才呼叫（提示訊息是插在它後面）。 */
+function noPaste(ta){
+  const warn=el('div','err','這句要自己打喔，不能貼上。');
+  warn.style.display='none';
+  ta.insertAdjacentElement('afterend',warn);
+  let t=null;
+  const block=(e)=>{
+    e.preventDefault();
+    warn.style.display='';
+    clearTimeout(t); t=setTimeout(()=>{warn.style.display='none';},2400);
+  };
+  ta.addEventListener('paste',block);
+  ta.addEventListener('drop',block);
+  return ta;
+}
 // 圖片載不到就退成色塊，離線也不會開天窗（沿用 S2-W03）
 function pic(name,cls){const w=el('div','img'+(cls?' '+cls:''));const im=document.createElement('img');
   im.src='assets/'+name+(/\.(png|jpe?g|webp)$/i.test(name)?'':'.png');im.alt='';im.onerror=()=>w.classList.add('fail');
@@ -507,7 +525,7 @@ function renderTalk(ch,i){
   });
   tc.appendChild(tg);
   const tpl=el('div','tpl','先選一個語氣'); tc.appendChild(tpl);
-  const ta=el('textarea'); ta.placeholder='先選一個語氣，再打一句話…'; tc.appendChild(ta);
+  const ta=el('textarea'); ta.placeholder='先選一個語氣，再打一句話…'; tc.appendChild(ta); noPaste(ta);
   const eg=el('div','eg'); tc.appendChild(eg);
   const err=el('div','err'); tc.appendChild(err);
   const send=el('button','btn wide','叫阿問這樣去問'); tc.appendChild(send);
@@ -571,7 +589,7 @@ function renderTone0(ch,i){
   head.appendChild(chip); c2.appendChild(head);
 
   c2.appendChild(el('div','tpl','填空模板：'+T.tpl));
-  const ta=el('textarea'); ta.placeholder='用「'+T.name+'」的語氣打一句話…'; c2.appendChild(ta);
+  const ta=el('textarea'); ta.placeholder='用「'+T.name+'」的語氣打一句話…'; c2.appendChild(ta); noPaste(ta);
   c2.appendChild(el('div','eg','例如：'+T.eg));
   const err=el('div','err'); c2.appendChild(err);
   const ok=el('button','btn wide','這句可以'); c2.appendChild(ok);
