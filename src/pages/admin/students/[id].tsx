@@ -104,6 +104,7 @@ export default function StudentHistoryPage() {
     // ⚠️ 遊戲型課程接了完成鎖定就一定要在這裡有對應入口，否則學生破關即永久鎖死、
     //    老師沒有任何 UI 可放行（Firestore 規則已禁止刪除，救不回來）。
     { key: lessonKeys.game("p1uw04"), label: "P1U W04 · 突破軍團防線" },
+    { key: lessonKeys.game("s2w04"), label: "S2 W04 · 阿問偵探社・語氣變身術" },
   ];
 
   const filtered = activeSemester

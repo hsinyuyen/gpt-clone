@@ -6,6 +6,7 @@
 <title>阿問偵探社・第四話：語氣變身術｜S2 W04</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="/courses/lesson-lock.js"></script>
 <style>
   /* 調色盤／元件沿用 S2-W03《消失的慶典皇冠》，讓第四話跟前三話看起來是同一個系列 */
   :root{
@@ -1061,6 +1062,8 @@ function renderEnd(ch,i){
   setScene(ch.scene);
   const s=screen(ch,i);
   if(!S.done){ S.done=true; addCoins('done',COIN_DONE,'S2-W04 破案'); }
+  // 完成鎖：標記這一課完成（成品＝賺到的金幣），之後進入畫面就鎖在成品展示。
+  if(window.LessonLock){ try{ LessonLock.markComplete('game:s2w04',{type:'score',score:S.coins,label:'語氣變身術'}); }catch(e){} }
   const c=el('div','card');
   c.appendChild(el('h2',null,'最會好好說話的偵探'));
   c.appendChild(el('div','bubble good','你學到的事：同一句話，換個語氣，對方肯不肯講差很多。'));
@@ -1318,15 +1321,45 @@ function goCh(i){
    回到那一幕的地圖當中樞，而不是掉進一個已問過的訪談。 */
 function resumeTarget(){ let t=clamp(S.chMax||0,0,CHAPTERS.length-1);
   const ch=CHAPTERS[t]; if(ch&&ch.type==='talk'){ const mi=mapIdx(ch.act); if(mi>=0) return mi; } return t; }
+/* 完成鎖：完成過就停在「成品展示」，不讓重玩；老師在後台開放重做才解開。 */
+function renderLocked(){
+  leaveMap(); stage.innerHTML='';
+  setScene('s2w04-end');
+  const wrap=el('div','pane'); wrap.style.justifyContent='center';
+  const c=el('div','card');
+  c.appendChild(el('h2',null,'🎉 這一課完成了！'));
+  c.appendChild(el('div','bubble good','你破了案、也幫大家好好和好——「語氣變身術」通關！'));
+  c.appendChild(el('div','bubble','🪙 這一課你一共賺到 '+(S.coins||0)+' 個金幣。'));
+  c.appendChild(el('p','lead','這一課已經完成囉，會停在這裡。想再玩一次要請老師開放重做。'));
+  const home=el('button','btn wide','回學習單'); home.style.marginTop='8px'; home.onclick=()=>location.href='/worksheets';
+  c.appendChild(home);
+  wrap.appendChild(c); stage.appendChild(wrap);
+}
+function resetForRedo(){ S=defaultState(); persist(); renderCoin(); }
+/* 進入遊戲：先用本機狀態樂觀處理（完成→先鎖，避免白畫面），
+   再用 Firestore 的完成／重做狀態修正（跨裝置完成也會鎖；老師開放重做則重來）。
+   開發模式（localhost / ?dev=1）不鎖，方便測試。 */
+function enterGame(){
+  if(DEV){ goCh(resumeTarget()); return; }
+  if(S.done) renderLocked(); else goCh(resumeTarget());
+  if(!window.LessonLock || !LessonLock.uid) return;
+  LessonLock.load().then(function(map){
+    var e=(map||{})['game:s2w04'];
+    var completed = !!S.done || !!(e&&e.completed);
+    if(completed && !(e&&e.redoAllowed)){ renderLocked(); }               // 鎖住
+    else if(completed && e&&e.redoAllowed){ resetForRedo(); goCh(0); }     // 老師開放重做→重來
+    else if(!completed){ goCh(resumeTarget()); }                          // 還沒完成→正常玩
+  }).catch(function(){});
+}
 function boot(){
   buildDev();
   const local=loadLocal(); if(local) S=Object.assign(defaultState(),local);
   renderCoin();
-  goCh(resumeTarget());
+  enterGame();
   (async()=>{ try{ const cloud=await Account.load(); if(!cloud) return;
     if(progressScore(cloud)>progressScore(S)) S=Object.assign(defaultState(),cloud);
     mergeProgress(S,cloud); persist();
-    goCh(resumeTarget());
+    enterGame();
   }catch(e){} })();
 }
 boot();
