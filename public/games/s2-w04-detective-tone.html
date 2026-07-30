@@ -343,8 +343,10 @@ const GAMEKEY='s2w04';
 /* 金幣：規格 §1 的課綱是 35。拆法要剛好加到 35，否則學習單列表會顯示對不起來的數字。
    給幣的章節＝前情提要 2 ＋ 語氣教學 4 ＋ 訪談 8 ＋ 翻轉 1 ＝ 15 章 ×2 ＝ 30
    ＋ 兩幕推理各 2 ＝ 4 ＋ 破案 1 ＝ 35。小老師另計 17（約任務的 50%，CLAUDE.md §21）。 */
-const COIN_PER_CH=2, COIN_ACT=2, COIN_DONE=1, COIN_TA=17;
-const TOTAL_COINS=35+COIN_TA;   // 52
+const COIN_PER_CH=2, COIN_ACT=2, COIN_DONE=1, COIN_FOLLOW=1, COIN_TA=17;
+// 遊戲幣：訪談 8×2 ＋ 追問 8×1 ＋ 前情/翻轉 3×2 ＋ 語氣教學 4×2 ＋ 兩幕推理 2×2 ＋ 破案 1 ＝ 51
+// （＋第三幕會再加，最後統一結算；小老師 TA 17 另計）。TOTAL_COINS 只當入帳上限用。
+const TOTAL_COINS=200;
 const FB={apiKey:"AIzaSyDVnab3BCfnlJH5cRCz_EqaHlP7yQUpK78",authDomain:"gpt-clone-68b9f.firebaseapp.com",projectId:"gpt-clone-68b9f",storageBucket:"gpt-clone-68b9f.firebasestorage.app",messagingSenderId:"436942056069",appId:"1:436942056069:web:8762675dfff7b7e92017ec"};
 const Account=(()=>{let uid=null,uname='',db=null,ready=false;
   function su(){try{const r=(sessionStorage.getItem('@session/currentUser')||localStorage.getItem('@session/currentUser'));return r?JSON.parse(r):null;}catch(e){return null;}}
@@ -606,15 +608,23 @@ const CHAPTERS=[
 
  { type:'talk', act:1, who:'sister', title:'幕一・嚇到的小妹妹', scene:'s2w04-corner',
    clue:{ id:'red', text:'看到一個穿紅衣的人' },
+   follow:{ tone:'warm', mood:'她小聲講完，又低下頭，好像還有話沒說。',
+     detail:'（她小小聲）那個人個子不高…好像還抱著一個大大的東西。' },
    quiz:{ q:'剛剛她為什麼肯講了？', opts:['因為我們用溫柔的語氣','因為我們大聲一點','因為我們給她糖'], a:0 } },
  { type:'talk', act:1, who:'qiang', title:'幕一・嘴硬的阿強', scene:'s2w04-corridor',
    clue:{ id:'stay', text:'昨晚有人留下來沒回家' },
+   follow:{ tone:'serious', mood:'他講了一半又停住，眼神飄走。',
+     detail:'（他認真想了想）我看到的時候天已經黑了，那個人還一直待在操場那邊。' },
    quiz:{ q:'對嘴硬的人要用什麼語氣？', opts:['認真','搞笑','溫柔'], a:0 } },
  { type:'talk', act:1, who:'mei', title:'幕一・氣呼呼的小美', scene:'s2w04-stall',
    clue:{ id:'kept', text:'招牌不是被偷，是被收起來' },
+   follow:{ tone:'funny', mood:'她氣消了一點，但還在嘟嘴。',
+     detail:'（她被逗笑）招牌本來好好掛在攤位上，今天一早就不見了，超奇怪的！' },
    quiz:{ q:'小美在鬧脾氣，什麼語氣讓她笑出來？', opts:['搞笑','認真','有禮貌'], a:0 } },
  { type:'talk', act:1, who:'teacher', title:'幕一・很忙的王老師', scene:'s2w04-class',
    clue:{ id:'key', text:'昨晚只有值日生有鑰匙' },
+   follow:{ tone:'polite', mood:'老師搬完箱子，擦了擦汗，還是很忙的樣子。',
+     detail:'（老師想了一下）昨天的值日生啊…好像是那個常穿紅外套的孩子。' },
    quiz:{ q:'對忙碌的長輩要用什麼語氣？', opts:['有禮貌','搞笑','兇一點'], a:0 } },
 
  { type:'deduce', act:1, title:'幕一・把線索連起來', scene:'s2w04-board',
@@ -639,15 +649,23 @@ const CHAPTERS=[
 
  { type:'talk', act:2, who:'hua', title:'幕二・怕被罵的小華', scene:'s2w04-rain',
    clue:{ id:'why', text:'小華怕招牌淋雨，把它收起來' },
+   follow:{ tone:'warm', mood:'他鬆了一口氣，但眼睛還紅紅的。',
+     detail:'（他小聲）我看雨越下越大，怕招牌上的字被沖掉…就把它抱進走廊了。' },
    quiz:{ q:'小華為什麼把招牌收起來？', opts:['怕淋雨弄壞','想藏起來','不喜歡那個招牌'], a:0 } },
  { type:'talk', act:2, who:'blamed', title:'幕二・被怪罪的同學', scene:'s2w04-stall',
    clue:{ id:'nofault', text:'被怪的同學其實沒做' },
+   follow:{ tone:'serious', mood:'他情緒平復了，但還是有點委屈。',
+     detail:'（他認真地說）謝謝你相信我。我昨天根本沒來學校，怎麼可能是我。' },
    quiz:{ q:'要讓生氣的人聽進道理，用什麼語氣？', opts:['認真','搞笑','溫柔'], a:0 } },
  { type:'talk', act:2, who:'sister2', title:'幕二・再問小妹妹', scene:'s2w04-corner',
    clue:{ id:'hug', text:'有人看到他抱著招牌躲雨' },
+   follow:{ tone:'funny', mood:'她笑了出來，話變多了一點。',
+     detail:'（她咯咯笑）他抱著招牌躲在走廊，像抱著一塊超大的餅乾！' },
    quiz:{ q:'小妹妹補充了什麼？', opts:['他抱著招牌躲雨','他把招牌丟掉','他在哭'], a:0 } },
  { type:'talk', act:2, who:'janitor', title:'幕二・校工阿伯', scene:'s2w04-yard',
    clue:{ id:'rain', text:'昨晚真的下大雨' },
+   follow:{ tone:'polite', mood:'阿伯停下掃把，慢慢回想。',
+     detail:'（阿伯笑呵呵）那孩子啊，昨晚還幫我一起把招牌搬到乾的地方呢。' },
    quiz:{ q:'校工阿伯證實了什麼？', opts:['昨晚真的下大雨','昨晚有小偷','昨晚停電'], a:0 } },
 
  { type:'deduce', act:2, title:'幕二・還原真相', scene:'s2w04-board',
@@ -810,74 +828,75 @@ function clueBoard(host,needIds){
    讀狀況 → 選語氣 → 自己打一句該語氣的話（內容驗證）→ 看對方反應
    → 選對才給線索、選錯換語氣或改句子再試（非致命）→ 線索上板 → 互動確認
    ========================================================================= */
-function renderTalk(ch,i){
-  setScene(ch.scene);                       // 場景走背景層，不佔版面
-  const s=screen(ch,i);
-  const who=CHARS[ch.who];
-
-  const card=el('div','card');
-  const row=el('div','who'); row.id='whoRow';
-  const por=el('div','por'); por.appendChild(pic(who.img)); row.appendChild(por);
-  const say=el('div','say');
-  say.appendChild(el('div','mood','他現在的樣子'));
-  say.appendChild(el('div','bubble',who.mood));
-  const reply=el('div'); reply.id='reply'; say.appendChild(reply);
-  row.appendChild(say); card.appendChild(row); s.appendChild(card);
-
-  // 語氣變身器
-  const tc=el('div','card');
-  tc.appendChild(el('h2',null,'語氣變身器'));
-  const tg=el('div','tones');
-  let picked=null;
-  TONE_KEYS.forEach(k=>{
-    const T=TONES[k], b=el('button','tone'); b.style.setProperty('--c',T.col);
-    b.appendChild(toneIcon(k));
-    b.appendChild(el('div','nm',T.name));
-    b.appendChild(el('div','use',T.use));
-    b.onclick=()=>{ picked=k; Sfx.tick();
-      [...tg.children].forEach(x=>x.classList.remove('on')); b.classList.add('on');
+/* 語氣挑戰卡（主訪談＋追問共用）：選語氣→打一句該語氣的話→AI 審核。
+   通過審核就呼叫 onPass(pickedKey, api)；api.lock() 鎖住卡片、api.retry(msg) 顯示訊息。
+   「語氣對不對」（是不是這個人吃的語氣）由 onPass 自己判斷。 */
+function toneChallenge(host, targetName, targetMood){
+  const tc=el('div','card'); tc.appendChild(el('h2',null,'語氣變身器'));
+  const tg=el('div','tones'); let picked=null, cb=null;
+  const tpl=el('div','tpl','先選一個語氣');
+  const ta=el('textarea'); ta.placeholder='先選一個語氣，再打一句話…';
+  const eg=el('div','eg'); const err=el('div','err');
+  const send=el('button','btn wide','叫阿問這樣去問');
+  TONE_KEYS.forEach(k=>{ const T=TONES[k], b=el('button','tone'); b.style.setProperty('--c',T.col);
+    b.appendChild(toneIcon(k)); b.appendChild(el('div','nm',T.name)); b.appendChild(el('div','use',T.use));
+    b.onclick=()=>{ picked=k; Sfx.tick(); [...tg.children].forEach(x=>x.classList.remove('on')); b.classList.add('on');
       tpl.textContent='填空模板：'+T.tpl; eg.textContent='例如：'+T.eg; err.textContent='';
       ta.placeholder='用「'+T.name+'」的語氣打一句話…'; ta.focus(); };
-    tg.appendChild(b);
-  });
-  tc.appendChild(tg);
-  const tpl=el('div','tpl','先選一個語氣'); tc.appendChild(tpl);
-  const ta=el('textarea'); ta.placeholder='先選一個語氣，再打一句話…'; tc.appendChild(ta); noPaste(ta);
-  const eg=el('div','eg'); tc.appendChild(eg);
-  const err=el('div','err'); tc.appendChild(err);
-  const send=el('button','btn wide','叫阿問這樣去問'); tc.appendChild(send);
-  s.appendChild(tc);
-
-  send.onclick=async()=>{
-    Sfx.resume();
+    tg.appendChild(b); });
+  tc.appendChild(tg); tc.appendChild(tpl); tc.appendChild(ta); noPaste(ta); tc.appendChild(eg); tc.appendChild(err); tc.appendChild(send);
+  host.appendChild(tc);
+  const api={ lock:()=>{ send.disabled=true; ta.disabled=true; [...tg.children].forEach(x=>x.disabled=true); },
+              retry:(msg)=>{ err.style.color='var(--warn)'; err.textContent=msg; } };
+  send.onclick=async()=>{ Sfx.resume();
     if(!picked){ err.style.color='var(--warn)'; err.textContent='先選一種語氣喔。'; return; }
-    const T=TONES[picked], txt=(ta.value||'').trim();
-    // 內容驗證交給 AI（阿問看得懂整句的感覺，不是比對關鍵字）；連不上就退回本地判定
     send.disabled=true; const label=send.textContent; send.textContent='阿問正在看…';
     err.style.color='var(--dim)'; err.textContent='';
-    const v=await reviewTone(picked, txt, who.name, who.mood);
+    const v=await reviewTone(picked, (ta.value||'').trim(), targetName, targetMood);
     send.textContent=label; send.disabled=false;
     if(!v.passed){ err.style.color='var(--warn)'; err.textContent=v.feedback; Sfx.pop(); return; }
-    err.textContent='';
-    // 通過驗證 → 對方按「這個語氣對不對」給出反應
+    err.textContent=''; if(cb) cb(picked, api);
+  };
+  return { onPass:(fn)=>{ cb=fn; } };
+}
+function whoRow(host, who, moodLabel, moodText){
+  const card=el('div','card'); const row=el('div','who');
+  const por=el('div','por'); por.appendChild(pic(who.img)); row.appendChild(por);
+  const say=el('div','say'); say.appendChild(el('div','mood',moodLabel)); say.appendChild(el('div','bubble',moodText));
+  const reply=el('div'); say.appendChild(reply);
+  row.appendChild(say); card.appendChild(row); host.appendChild(card);
+  return { row, reply }; }
+
+function renderTalk(ch,i){
+  setScene(ch.scene);
+  const s=screen(ch,i);
+  const who=CHARS[ch.who];
+  const { row, reply }=whoRow(s, who, '他現在的樣子', who.mood);
+  toneChallenge(s, who.name, who.mood).onPass((picked, api)=>{
     const good=(picked===who.tone);
     reply.innerHTML='';
     reply.appendChild(el('div','mood',good?'他放鬆了':'他更抗拒了'));
     reply.appendChild(el('div','bubble '+(good?'good':'bad'), who.react[picked]));
     row.classList.remove('relaxed','resist'); row.classList.add(good?'relaxed':'resist');
-    if(good){
-      Sfx.ding();
-      S.clues[ch.clue.id]=true;
-      addCoins('ch'+i, COIN_PER_CH, 'S2-W04 第'+(i+1)+'章');
-      send.disabled=true; ta.disabled=true;
-      [...tg.children].forEach(x=>x.disabled=true);
-      // 讓學生先看到對方鬆口的反應，再換到「線索到手」那一步
-      setTimeout(()=>talkResult(ch,i),1200);
-    } else {
-      Sfx.bad();
-      err.textContent='他更不想說了。換一種語氣，或把句子改一下再試——不會被扣分。';
-    }
-  };
+    if(good){ Sfx.ding(); S.clues[ch.clue.id]=true; addCoins('ch'+i, COIN_PER_CH, 'S2-W04 第'+(i+1)+'章'); api.lock();
+      // 有追問就先追問（多一輪語氣練習），否則直接進「線索到手」
+      setTimeout(()=> ch.follow ? renderFollow(ch,i) : talkResult(ch,i), 1200);
+    } else { Sfx.bad(); api.retry('他更不想說了。換一種語氣，或把句子改一下再試——不會被扣分。'); }
+  });
+}
+/* 追問：問到線索後，再用對的語氣多問一句，套出一個細節（深化訪談、多練一次語氣）。 */
+function renderFollow(ch,i){
+  const f=ch.follow, who=CHARS[ch.who];
+  setScene(ch.scene);
+  const s=screen(ch,i);
+  const { reply }=whoRow(s, who, '再多問一句', f.mood);
+  toneChallenge(s, who.name, f.mood).onPass((picked, api)=>{
+    if(picked===f.tone){ Sfx.ding(); api.lock();
+      reply.innerHTML=''; reply.appendChild(el('div','mood','他又多說了')); reply.appendChild(el('div','bubble good', f.detail));
+      addCoins('follow'+i, COIN_FOLLOW, 'S2-W04 追問');
+      setTimeout(()=>talkResult(ch,i),1900);
+    } else { Sfx.bad(); api.retry('這個語氣他不太買帳，換一種再試試。'); }
+  });
 }
 /* 訪談的第二步：線索到手＋小考。整個換掉第一步的畫面，不是接在它下面。
    線索格直接嵌進「線索到手」這張卡，省下一張卡的高度（單頁式要斤斤計較）。 */
