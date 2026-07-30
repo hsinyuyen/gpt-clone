@@ -127,6 +127,7 @@
     background:#0d1a2a;color:var(--ink);font-family:inherit;font-size:16px;line-height:1.5;resize:none;
     -webkit-user-select:text;user-select:text;}
   .eg{font-size:13px;color:var(--dim);margin-top:4px;}
+  .tonehint{font-size:13.5px;color:var(--gold);font-weight:800;line-height:1.4;margin:2px 0 5px;}
   .err{color:var(--warn);font-size:14px;font-weight:800;margin-top:5px;}
   /* 泡泡小考：漂浮泡泡＋防硬按。
      高度改成吃掉畫面剩下的空間（原本寫死 230px，配上其他卡片就會超出一頁）。 */
@@ -244,12 +245,12 @@
   }
   /* 橫向又矮（≤639）：不改版面，只把右欄內容收一階，塞進較矮的畫面。 */
   @media (max-height:639px) and (min-aspect-ratio:13/10){
-    .who{flex-direction:column;align-items:center;gap:7px;}
-    .who .por{width:min(17vh,84px);}
+    .who{flex-direction:column;align-items:center;gap:6px;}
+    .who .por{width:min(14vh,70px);}
     .who .say{width:100%;}
     h1{font-size:17px;}
     h2{font-size:15px;}
-    .card{padding:7px 11px;}
+    .card{padding:6px 11px;}
     /* 操作卡最擠：語氣鈕的說明字收掉（各關標題已經講了什麼時候用哪種語氣），
        圖示與打字框也縮一階。填空模板與例句要留著——那是小三真正需要的鷹架。 */
     .tone .use{display:none;}
@@ -257,8 +258,9 @@
     .tone .nm{font-size:14px;}
     .tone{padding:6px 4px;}
     .tones{gap:6px;margin:4px 0;}
-    textarea{min-height:38px;}
+    textarea{min-height:32px;}
     .eg,.tpl{font-size:12px;line-height:1.3;margin:3px 0 0;}
+    .tonehint{font-size:12px;line-height:1.25;margin:1px 0 3px;}
     .err{margin-top:3px;font-size:12.5px;}
     .bubble{padding:6px 9px;font-size:13.5px;line-height:1.35;}
     .bubble+.bubble{margin-top:4px;}
@@ -877,8 +879,12 @@ function clueBoard(host,needIds){
 /* 語氣挑戰卡（主訪談＋追問共用）：選語氣→打一句該語氣的話→AI 審核。
    通過審核就呼叫 onPass(pickedKey, api)；api.lock() 鎖住卡片、api.retry(msg) 顯示訊息。
    「語氣對不對」（是不是這個人吃的語氣）由 onPass 自己判斷。 */
-function toneChallenge(host, targetName, targetMood){
+/* 選語氣的提示：把對方的心情對應到語氣的「使用情境」，引導學生選對語氣
+   （但句子還是要自己打、AI 會審——提示只幫他選方向，不代替練習）。 */
+function toneHint(toneKey){ return '💡 提示：他像是「'+TONES[toneKey].use+'」的時候喔'; }
+function toneChallenge(host, targetName, targetMood, hint){
   const tc=el('div','card'); tc.appendChild(el('h2',null,'語氣變身器'));
+  if(hint) tc.appendChild(el('div','tonehint', hint));
   const tg=el('div','tones'); let picked=null, cb=null;
   const tpl=el('div','tpl','先選一個語氣');
   const ta=el('textarea'); ta.placeholder='先選一個語氣，再打一句話…';
@@ -918,7 +924,7 @@ function renderTalk(ch,i){
   const s=screen(ch,i);
   const who=CHARS[ch.who];
   const { row, reply }=whoRow(s, who, '他現在的樣子', who.mood);
-  toneChallenge(s, who.name, who.mood).onPass((picked, api)=>{
+  toneChallenge(s, who.name, who.mood, toneHint(who.tone)).onPass((picked, api)=>{
     const good=(picked===who.tone);
     reply.innerHTML='';
     reply.appendChild(el('div','mood',good?'他放鬆了':'他更抗拒了'));
@@ -936,7 +942,7 @@ function renderFollow(ch,i){
   setScene(ch.scene);
   const s=screen(ch,i);
   const { reply }=whoRow(s, who, '再多問一句', f.mood);
-  toneChallenge(s, who.name, f.mood).onPass((picked, api)=>{
+  toneChallenge(s, who.name, f.mood, toneHint(f.tone)).onPass((picked, api)=>{
     if(picked===f.tone){ Sfx.ding(); api.lock();
       reply.innerHTML=''; reply.appendChild(el('div','mood','他又多說了')); reply.appendChild(el('div','bubble good', f.detail));
       addCoins('follow'+i, COIN_FOLLOW, 'S2-W04 追問');
