@@ -28,7 +28,7 @@
 - Project Name: `gpt-clone`
 - Project ID: `prj_v5xq9qzq1G0W92oKPsz4X4EMY1OI`
 - Org/Team ID: `team_paThHkXizEJsjCoy2eNgEkCH`
-- Production URL: https://chat-clone-gpt.vercel.app/
+- Production URL: https://gpt-clone-beta-six.vercel.app/  （`vercel --prod` 更新的正式別名；舊記的 chat-clone-gpt.vercel.app 已失效／404）
 - Deploy command: `vercel --prod` (CLI deployment)
 - Build: `next build` / Start: `next start`
 
