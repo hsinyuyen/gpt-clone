@@ -42,7 +42,20 @@ next-env.d.ts
 # dotenv variables
 .env
 
+# secrets — 絕對不要 commit（見 SECURITY.md）；但保留 .env.example 範本
+.env.*
+!.env.example
+*firebase-adminsdk*.json
+*service-account*.json
+serviceAccount*.json
+*.key
+*.p12
+*.pfx
+
 # stray Windows reserved-name file + Claude Code worktree artifacts
 nul
 .claude/worktrees/
 .env*
+
+# 生圖原檔備份（壓縮前），不進版控
+public/games/assets/_raw/
