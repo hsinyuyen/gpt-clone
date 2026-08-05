@@ -4,6 +4,12 @@ export interface LabVideoReviewMetadata {
   source: "lab-terminal";
   tool: "Lab Video";
   worksheetId?: string;
+  sessionId?: string;
+  sessionTitle?: string;
+  courseId?: string;
+  courseTitle?: string;
+  semester?: string;
+  week?: number;
   taskId?: string;
   task?: string;
   prompt: string;
@@ -11,6 +17,9 @@ export interface LabVideoReviewMetadata {
   generatedAt: string;
   provider?: string;
   model?: string;
+  signature?: string;
+  contentHash?: string;
+  signatureVersion?: number;
 }
 
 const MAX_VIDEO_METADATA_READ_BYTES = 256 * 1024;

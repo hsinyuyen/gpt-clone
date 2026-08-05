@@ -28,6 +28,10 @@ yarn-debug.log*
 yarn-error.log*
 .next-dev.*.log
 
+# local launch helpers
+start-localhost.cmd
+start-localhost.ps1
+
 # local env files
 .env*.local
 

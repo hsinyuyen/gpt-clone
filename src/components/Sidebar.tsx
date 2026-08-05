@@ -249,9 +249,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
                 </div>
               ) : (
                 conversations.map((conv) => (
-                  <button
+                  <div
                     key={conv.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => handleSelectSession(conv.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        handleSelectSession(conv.id);
+                      }
+                    }}
                     className={`w-full text-left px-2 py-2 text-xs transition-colors group ${
                       currentConversation?.id === conv.id
                         ? "bg-[var(--terminal-green)]/20 border-l-2 border-[var(--terminal-green)]"
@@ -279,7 +287,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
                         ✕
                       </button>
                     </div>
-                  </button>
+                  </div>
                 ))
               )}
             </div>
@@ -310,9 +318,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
                   const info = headerMsg?.content?.replace(/\[STORY_HEADER\].*?\[\/STORY_HEADER\]\n?/, "").trim() || "";
 
                   return (
-                    <button
+                    <div
                       key={conv.id}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => handleSelectSession(conv.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleSelectSession(conv.id);
+                        }
+                      }}
                       className={`w-full text-left border p-2 transition-colors group ${
                         currentConversation?.id === conv.id
                           ? "border-[var(--terminal-amber)] bg-[var(--terminal-amber)]/10"
@@ -341,7 +357,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewSession, onSelectSession }) => {
                           ✕
                         </button>
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>

@@ -30,11 +30,30 @@ export type GammaTextValidationQuestion = {
 
 type GammaTextValidationOptions = {
   maxReviewChars?: number;
+  skipKeywordCoverage?: boolean;
 };
+
+export function validateBasicGammaTextAnswer(rawText: string, maxChars = 1200) {
+  const text = rawText.trim();
+  const problems: string[] = [];
+  if (!text) {
+    return ["請先填寫答案，再送出審查。"];
+  }
+  if (textLength(text) > maxChars) {
+    problems.push(`答案太長了，請整理在 ${maxChars} 字以內再送審。`);
+  }
+
+  const compact = text.replace(/\s+/g, "");
+  if (/(.)\1{5,}/u.test(compact) || /^(.{1,12})\1{3,}$/u.test(compact)) {
+    problems.push("內容看起來有重複輸入，請確認後再送審。");
+  }
+  return problems;
+}
 
 const DIRECT_COPY_MIN_CHARS = 12;
 const ENGLISH_ONLY_MIN_LATIN_CHARS = 16;
 const ENGLISH_DOMINATED_MIN_LATIN_CHARS = 30;
+const KEY_MESSAGE_PASS_RATE = 0.8;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -122,12 +141,46 @@ function isCopiedFromQuestion(text: string, question: GammaTextValidationQuestio
   });
 }
 
-function countKeywordMatches(text: string, keywords: string[]) {
-  const normalized = text.normalize("NFKC").toLowerCase();
-  return keywords.filter((keyword) => {
-    const target = keyword.normalize("NFKC").toLowerCase().trim();
-    return target.length > 0 && normalized.includes(target);
-  }).length;
+function compactForKeyMessage(text: string) {
+  return text
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^a-z0-9\u3400-\u9fff]/g, "");
+}
+
+function uniqueMessages(messages: string[]) {
+  const seen = new Set<string>();
+  return messages.filter((message) => {
+    const key = compactForKeyMessage(message);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function collectKeyMessages(
+  question: GammaTextValidationQuestion,
+  criteria: ReturnType<typeof getTextCriteria>
+) {
+  if (criteria.keywords.length > 0) return uniqueMessages(criteria.keywords);
+
+  const brief = isRecord(question.reviewBrief) ? question.reviewBrief : {};
+  return uniqueMessages(stringArray(brief.mustInclude) || []);
+}
+
+function isKeyMessageMatched(text: string, keyMessage: string) {
+  const answer = compactForKeyMessage(text);
+  const target = compactForKeyMessage(keyMessage);
+  return target.length > 0 && answer.includes(target);
+}
+
+function keyMessageCoverage(text: string, keyMessages: string[]) {
+  const matched = keyMessages.filter((message) => isKeyMessageMatched(text, message)).length;
+  return {
+    matched,
+    total: keyMessages.length,
+    rate: keyMessages.length > 0 ? matched / keyMessages.length : 1,
+  };
 }
 
 function countAnswerPoints(text: string) {
@@ -199,10 +252,20 @@ export function validateGammaTextAnswer(
     problems.push("這一題需要整理成至少 3 點。");
   }
 
-  if (criteria.keywords.length > 0 && criteria.minimumKeywordMatches > 0) {
-    const matches = countKeywordMatches(text, criteria.keywords);
-    if (matches < criteria.minimumKeywordMatches) {
-      problems.push("答案還缺少這題需要的重點，請回到題目找關鍵字再整理。");
+  const keyMessages = collectKeyMessages(question, criteria);
+  if (!options.skipKeywordCoverage && keyMessages.length > 0) {
+    const coverage = keyMessageCoverage(text, keyMessages);
+    const requiredMatches = Math.max(
+      1,
+      Math.ceil(keyMessages.length * KEY_MESSAGE_PASS_RATE),
+      criteria.minimumKeywordMatches || 0
+    );
+    if (coverage.matched < requiredMatches) {
+      problems.push(
+        `關鍵訊息命中 ${coverage.matched}/${coverage.total}（${Math.round(
+          coverage.rate * 100
+        )}%），需要至少 ${Math.round(KEY_MESSAGE_PASS_RATE * 100)}%。`
+      );
     }
   }
 

@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import {
   findCachedLabToolResult,
   findRandomCachedLabToolResult,
+  getLabToolCacheCount,
   isLabToolApiCoolingDown,
   isRecoverableLabToolApiError,
   readLabToolCacheLimit,
@@ -10,6 +11,9 @@ import {
   startLabToolApiCooldown,
 } from "@/server/labToolCache";
 import { injectLabVideoMetadata } from "@/server/mp4UuidMetadata";
+import { reviewLabToolPrompt } from "@/server/labToolPromptReview";
+import { resolveLabToolWorksheetContext } from "@/server/labToolWorksheetContext";
+import { createLabToolSignature, readLabToolSignature } from "@/server/labToolSignatures";
 import { LabVideoReviewMetadata } from "@/utils/labVideoMetadata";
 
 const GOOGLE_GENERATIVE_LANGUAGE_BASE =
@@ -217,10 +221,17 @@ async function pollVeoVideoOperation(apiKey: string, operationName: string) {
 async function saveVeoVideoResult(params: {
   apiKey: string;
   worksheetId?: string;
+  sessionId?: string;
+  sessionTitle?: string;
+  courseId?: string;
+  courseTitle?: string;
+  semester?: string;
+  week?: number;
   taskId?: string;
   task?: string;
   prompt: string;
   duration?: string | number;
+  cacheLimit?: number;
   video: {
     buffer?: Buffer;
     url?: string;
@@ -256,10 +267,23 @@ async function saveVeoVideoResult(params: {
   }
 
   const durationSeconds = normalizeVeoDuration(params.duration);
+  const signatureData = createLabToolSignature({
+    worksheetId,
+    kind: "video",
+    taskId: params.taskId,
+    prompt: params.prompt,
+    buffer: videoBuffer,
+  });
   const reviewMetadata: LabVideoReviewMetadata = {
     source: "lab-terminal",
     tool: "Lab Video",
     worksheetId,
+    sessionId: params.sessionId,
+    sessionTitle: params.sessionTitle,
+    courseId: params.courseId,
+    courseTitle: params.courseTitle,
+    semester: params.semester,
+    week: params.week,
     taskId: params.taskId,
     task: params.task || "Lab Video task",
     prompt: params.prompt,
@@ -267,6 +291,7 @@ async function saveVeoVideoResult(params: {
     generatedAt: new Date().toISOString(),
     provider: VEO_PROVIDER,
     model: getVeoModel(),
+    ...signatureData,
   };
   const taggedVideoBuffer = /mp4|quicktime/i.test(mimeType)
     ? injectLabVideoMetadata(videoBuffer, reviewMetadata)
@@ -279,7 +304,7 @@ async function saveVeoVideoResult(params: {
     buffer: taggedVideoBuffer,
     mimeType,
     extension: getVideoExtension(mimeType),
-    limit: VIDEO_CACHE_LIMIT,
+    limit: params.cacheLimit || VIDEO_CACHE_LIMIT,
     metadata: { labVideoReview: reviewMetadata },
   });
 
@@ -288,8 +313,11 @@ async function saveVeoVideoResult(params: {
     videoUrl: saved.assetUrl,
     downloadUrl: saved.assetUrl,
     fileName: saved.fileName,
+    storagePath: saved.storagePath,
+    cloudDownloadUrl: saved.downloadUrl,
     videoId: params.video.operationName,
     provider: "veo",
+    signature: reviewMetadata.signature,
     reviewMetadata,
   };
 }
@@ -297,10 +325,17 @@ async function saveVeoVideoResult(params: {
 function startBackgroundVeoVideoSave(params: {
   apiKey: string;
   worksheetId?: string;
+  sessionId?: string;
+  sessionTitle?: string;
+  courseId?: string;
+  courseTitle?: string;
+  semester?: string;
+  week?: number;
   taskId?: string;
   task?: string;
   prompt: string;
   duration?: string | number;
+  cacheLimit?: number;
   operationName: string;
 }) {
   const worksheetId = requireLabToolWorksheetId(params.worksheetId);
@@ -322,10 +357,17 @@ function startBackgroundVeoVideoSave(params: {
       const saved = await saveVeoVideoResult({
         apiKey: params.apiKey,
         worksheetId,
+        sessionId: params.sessionId,
+        sessionTitle: params.sessionTitle,
+        courseId: params.courseId,
+        courseTitle: params.courseTitle,
+        semester: params.semester,
+        week: params.week,
         taskId: params.taskId,
         task: params.task,
         prompt: params.prompt,
         duration: params.duration,
+        cacheLimit: params.cacheLimit,
         video: generated as {
           buffer?: Buffer;
           url?: string;
@@ -367,29 +409,94 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { prompt, task, taskId, duration, worksheetId, videoId, fallbackOnly } = req.body as {
+  const {
+    prompt,
+    sessionId,
+    sessionTitle,
+    courseId,
+    courseTitle,
+    semester,
+    week,
+    task,
+    taskId,
+    toolPrompt,
+    expectedKind,
+    duration,
+    worksheetId,
+    videoId,
+    fallbackOnly,
+  } = req.body as {
     prompt?: string;
+    sessionId?: string;
+    sessionTitle?: string;
+    courseId?: string;
+    courseTitle?: string;
+    semester?: string;
+    week?: number;
     task?: string;
     taskId?: string;
+    toolPrompt?: string;
+    expectedKind?: string;
     duration?: string | number;
     worksheetId?: string;
     videoId?: string;
     fallbackOnly?: boolean;
   };
 
-  const safePrompt = prompt?.trim();
-  if (!safePrompt) {
-    return res.status(400).json({ error: "Prompt is required" });
-  }
+  const safePrompt = prompt?.trim() || "";
+  console.info("[lab-tools/video] request-received", {
+    worksheetId,
+    taskId,
+    videoId: videoId?.trim() || undefined,
+    fallbackOnly: Boolean(fallbackOnly),
+    promptLength: safePrompt.length,
+    promptPreview: safePrompt.slice(0, 120),
+  });
 
-  let safeWorksheetId: string;
+  let context: Awaited<ReturnType<typeof resolveLabToolWorksheetContext>>;
   try {
-    safeWorksheetId = requireLabToolWorksheetId(worksheetId);
+    context = await resolveLabToolWorksheetContext({ worksheetId, taskId, mode: "video" });
   } catch (error: any) {
-    return res.status(400).json({ error: error.message || "worksheetId is required" });
+    return res.status(400).json({ error: error.message || "學習單設定無法使用" });
   }
+  const safeWorksheetId = context.worksheetId;
+  const cacheLimit = context.assetCacheLimit || VIDEO_CACHE_LIMIT;
+  console.info("[lab-tools/video] worksheet-context-resolved", {
+    worksheetId: safeWorksheetId,
+    taskId: context.taskId,
+    expectedKind: context.expectedKind,
+  });
 
   const safeVideoId = videoId?.trim();
+  let promptReview: Awaited<ReturnType<typeof reviewLabToolPrompt>> | null = null;
+
+  if (!fallbackOnly && !safeVideoId) {
+    promptReview = await reviewLabToolPrompt({
+      mode: "video",
+      prompt: safePrompt,
+      worksheetId: safeWorksheetId,
+      courseTitle: context.courseTitle,
+      sessionTitle: context.sessionTitle,
+      taskId: context.taskId,
+      task: context.task,
+      toolPrompt: context.toolPrompt,
+      promptReviewCriteria: context.promptReviewCriteria,
+      legacyReviewHint: context.legacyReviewHint,
+      expectedKind: context.expectedKind,
+    });
+    console.info("[lab-tools/video] prompt-review-complete", {
+      passed: promptReview.passed,
+      source: promptReview.source,
+      missing: promptReview.missing,
+    });
+    if (!promptReview.passed) {
+      console.info("[lab-tools/video] generation-blocked", { reason: "prompt-review" });
+      return res.status(422).json({
+        error: promptReview.feedback,
+        promptReview,
+      });
+    }
+  }
 
   if (fallbackOnly) {
     const apiKey = getVeoApiKey();
@@ -398,17 +505,25 @@ export default async function handler(
       startBackgroundVeoVideoSave({
         apiKey: apiKey as string,
         worksheetId: safeWorksheetId,
-        taskId,
-        task,
+        sessionId: context.sessionId,
+        sessionTitle: context.sessionTitle,
+        courseId: context.courseId,
+        courseTitle: context.courseTitle,
+        semester: context.semester,
+        week: context.week,
+        taskId: context.taskId,
+        task: context.task,
         prompt: safePrompt,
         duration,
+        cacheLimit,
         operationName: safeVideoId as string,
       });
 
     const fallback = await findRandomCachedLabToolResult(
       safeWorksheetId,
       "video",
-      VIDEO_CACHE_LIMIT
+      cacheLimit,
+      context.taskId
     );
 
     if (fallback) {
@@ -423,8 +538,12 @@ export default async function handler(
         fileName: fallback.fileName,
         cacheCount: fallback.cacheCount,
         cacheLimit: fallback.cacheLimit,
+        provider: "local-cache",
+        videoId: safeVideoId,
         backgroundTracking,
         backgroundVideoId: safeVideoId,
+        signature: readLabToolSignature(fallback.metadata),
+        reviewMetadata: fallback.metadata,
       });
     }
 
@@ -435,6 +554,8 @@ export default async function handler(
       status: "processing",
       fallback: false,
       fallbackReason: "timeout-no-cache",
+      provider: "veo",
+      videoId: safeVideoId,
       backgroundTracking,
       backgroundVideoId: safeVideoId,
       message: "Video generation is still processing and no cached video is available.",
@@ -446,7 +567,8 @@ export default async function handler(
       safeWorksheetId,
       "video",
       safePrompt,
-      VIDEO_CACHE_LIMIT
+      cacheLimit,
+      context.taskId
     );
     if (cached) {
       return res.status(200).json({
@@ -460,6 +582,43 @@ export default async function handler(
         cacheCount: cached.cacheCount,
         cacheLimit: cached.cacheLimit,
         cacheMatchCount: cached.matchCount,
+        signature: readLabToolSignature(cached.metadata),
+        reviewMetadata: cached.metadata,
+        promptReview,
+      });
+    }
+
+    const cacheCount = await getLabToolCacheCount(safeWorksheetId, "video");
+    if (cacheCount >= cacheLimit) {
+      const fallback = await findRandomCachedLabToolResult(
+        safeWorksheetId,
+        "video",
+        cacheLimit,
+        context.taskId
+      );
+      if (fallback) {
+        return res.status(200).json({
+          success: true,
+          kind: "video",
+          cached: true,
+          fallback: true,
+          fallbackReason: "cache-limit",
+          videoUrl: fallback.assetUrl,
+          downloadUrl: fallback.assetUrl,
+          fileName: fallback.fileName,
+          cacheCount,
+          cacheLimit,
+          provider: "local-cache",
+          signature: readLabToolSignature(fallback.metadata),
+          reviewMetadata: fallback.metadata,
+          promptReview,
+        });
+      }
+      return res.status(429).json({
+        error: "這題的影片儲存額度已滿，目前沒有可安全回用的影片。請由老師清除已存影片後再試。",
+        cacheCount,
+        cacheLimit,
+        promptReview,
       });
     }
 
@@ -467,7 +626,8 @@ export default async function handler(
       const fallback = await findRandomCachedLabToolResult(
         safeWorksheetId,
         "video",
-        VIDEO_CACHE_LIMIT
+        cacheLimit,
+        context.taskId
       );
       const cacheReady =
         fallback?.cacheLimit && fallback.cacheCount >= fallback.cacheLimit;
@@ -485,6 +645,9 @@ export default async function handler(
           cacheCount: fallback.cacheCount,
           cacheLimit: fallback.cacheLimit,
           provider: "local-cache",
+          signature: readLabToolSignature(fallback.metadata),
+          reviewMetadata: fallback.metadata,
+          promptReview,
         });
       }
     }
@@ -499,7 +662,8 @@ export default async function handler(
     const fallback = await findRandomCachedLabToolResult(
       safeWorksheetId,
       "video",
-      VIDEO_CACHE_LIMIT
+      cacheLimit,
+      context.taskId
     );
     if (fallback) {
       return res.status(200).json({
@@ -514,8 +678,17 @@ export default async function handler(
         cacheCount: fallback.cacheCount,
         cacheLimit: fallback.cacheLimit,
         provider: "local-cache",
+        signature: readLabToolSignature(fallback.metadata),
+        reviewMetadata: fallback.metadata,
+        promptReview,
       });
     }
+    return res.status(503).json({
+      error:
+        "Video generation is temporarily paused after a provider error. Please try again later.",
+      provider: VEO_PROVIDER,
+      promptReview,
+    });
   }
 
   if (safeVideoId) {
@@ -536,10 +709,17 @@ export default async function handler(
       const savedVideo = await saveVeoVideoResult({
         apiKey,
         worksheetId: safeWorksheetId,
-        taskId,
-        task,
+        sessionId: context.sessionId,
+        sessionTitle: context.sessionTitle,
+        courseId: context.courseId,
+        courseTitle: context.courseTitle,
+        semester: context.semester,
+        week: context.week,
+        taskId: context.taskId,
+        task: context.task,
         prompt: safePrompt,
         duration,
+        cacheLimit,
         video: generated as {
           buffer?: Buffer;
           url?: string;
@@ -560,7 +740,8 @@ export default async function handler(
         const fallback = await findRandomCachedLabToolResult(
           safeWorksheetId,
           "video",
-          VIDEO_CACHE_LIMIT
+          cacheLimit,
+          context.taskId
         );
         if (fallback) {
           return res.status(200).json({
@@ -575,6 +756,8 @@ export default async function handler(
             cacheCount: fallback.cacheCount,
             cacheLimit: fallback.cacheLimit,
             provider: "local-cache",
+            signature: readLabToolSignature(fallback.metadata),
+            reviewMetadata: fallback.metadata,
           });
         }
       }
@@ -585,14 +768,25 @@ export default async function handler(
   }
 
   const videoPrompt = `${
-    task || "Lab Video task"
+    context.task
   }. ${safePrompt}. child-friendly classroom game UI animation, smooth motion, no text, no watermark`;
 
   try {
+    console.info("[lab-tools/video] generation-api-request", {
+      provider: VEO_PROVIDER,
+      worksheetId: safeWorksheetId,
+      taskId: context.taskId,
+      duration,
+    });
     const generated = await generateVeoVideo({
       apiKey,
       prompt: videoPrompt,
       duration,
+    });
+    console.info("[lab-tools/video] generation-api-complete", {
+      provider: VEO_PROVIDER,
+      status: generated.status || "complete",
+      operationName: generated.operationName,
     });
 
     if (generated.status === "processing") {
@@ -603,16 +797,24 @@ export default async function handler(
         videoId: generated.operationName,
         provider: "veo",
         message: "Video generation is still processing.",
+        promptReview,
       });
     }
 
     const savedVideo = await saveVeoVideoResult({
       apiKey,
       worksheetId: safeWorksheetId,
-      taskId,
-      task,
+      sessionId: context.sessionId,
+      sessionTitle: context.sessionTitle,
+      courseId: context.courseId,
+      courseTitle: context.courseTitle,
+      semester: context.semester,
+      week: context.week,
+      taskId: context.taskId,
+      task: context.task,
       prompt: safePrompt,
       duration,
+      cacheLimit,
       video: generated as {
         buffer?: Buffer;
         url?: string;
@@ -625,6 +827,7 @@ export default async function handler(
       success: true,
       kind: "video",
       ...savedVideo,
+      promptReview,
     });
   } catch (error: any) {
     console.error("lab-tools/video error:", error);
@@ -633,7 +836,8 @@ export default async function handler(
       const fallback = await findRandomCachedLabToolResult(
         safeWorksheetId,
         "video",
-        VIDEO_CACHE_LIMIT
+        cacheLimit,
+        context.taskId
       );
       if (fallback) {
         return res.status(200).json({
@@ -648,6 +852,9 @@ export default async function handler(
           cacheCount: fallback.cacheCount,
           cacheLimit: fallback.cacheLimit,
           provider: "local-cache",
+          signature: readLabToolSignature(fallback.metadata),
+          reviewMetadata: fallback.metadata,
+          promptReview,
         });
       }
     }

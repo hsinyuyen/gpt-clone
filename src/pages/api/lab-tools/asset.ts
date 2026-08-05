@@ -3,7 +3,6 @@ import {
   CacheableLabToolKind,
   readCachedAsset,
   requireLabToolWorksheetId,
-  resolveCachedAsset,
 } from "@/server/labToolCache";
 import { injectLabMusicMetadata } from "@/server/mp3Id3Metadata";
 import { injectLabVideoMetadata } from "@/server/mp4UuidMetadata";
@@ -20,20 +19,6 @@ export const config = {
     responseLimit: false,
   },
 };
-
-function withDownloadDisposition(url: string, fileName: string, shouldDownload: boolean) {
-  if (!shouldDownload) return url;
-  try {
-    const nextUrl = new URL(url);
-    nextUrl.searchParams.set(
-      "response-content-disposition",
-      `attachment; filename="${fileName}"`
-    );
-    return nextUrl.toString();
-  } catch {
-    return url;
-  }
-}
 
 function sanitizeCachedTask(value: unknown, fallback: string) {
   const task = typeof value === "string" ? value.trim() : "";
@@ -61,6 +46,9 @@ function getCachedLabMusicMetadata(
         generatedAt: record.generatedAt || asset?.createdAt || new Date().toISOString(),
         provider: record.provider || "local-cache",
         model: record.model,
+        signature: record.signature,
+        contentHash: record.contentHash,
+        signatureVersion: record.signatureVersion,
       };
     }
   }
@@ -95,6 +83,9 @@ function getCachedLabVideoMetadata(
         generatedAt: record.generatedAt || asset?.createdAt || new Date().toISOString(),
         provider: record.provider || "local-cache",
         model: record.model,
+        signature: record.signature,
+        contentHash: record.contentHash,
+        signatureVersion: record.signatureVersion,
       };
     }
   }
@@ -173,24 +164,21 @@ export default async function handler(
       return res.status(200).send(buffer);
     }
 
-    const asset = await resolveCachedAsset(worksheetId, kind, fileName);
-    if (!asset) {
+    const imageAsset = await readCachedAsset(worksheetId, kind, fileName);
+    if (!imageAsset) {
       return res.status(404).json({ error: "Cached asset not found" });
     }
 
-    if ("downloadUrl" in asset) {
-      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-      return res.redirect(
-        302,
-        withDownloadDisposition(asset.downloadUrl, asset.fileName, shouldDownload)
-      );
-    }
-
-    res.setHeader("Content-Type", asset.mimeType);
-    res.setHeader("Content-Disposition", `${shouldDownload ? "attachment" : "inline"}; filename="${asset.fileName}"`);
-    res.setHeader("Content-Length", String(asset.buffer.length));
+    // Stream cloud-backed images through this same-origin endpoint so the
+    // browser receives a real attachment response instead of a Firebase redirect.
+    res.setHeader("Content-Type", imageAsset.mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `${shouldDownload ? "attachment" : "inline"}; filename="${imageAsset.fileName}"`
+    );
+    res.setHeader("Content-Length", String(imageAsset.buffer.length));
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-    return res.status(200).send(asset.buffer);
+    return res.status(200).send(imageAsset.buffer);
   } catch (error) {
     console.error("lab-tools/asset error:", error);
     return res.status(500).json({ error: "Failed to read cached asset" });

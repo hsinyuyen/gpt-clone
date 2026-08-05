@@ -4,6 +4,12 @@ export interface LabMusicReviewMetadata {
   source: "lab-terminal";
   tool: "Lab Music";
   worksheetId?: string;
+  sessionId?: string;
+  sessionTitle?: string;
+  courseId?: string;
+  courseTitle?: string;
+  semester?: string;
+  week?: number;
   taskId?: string;
   task?: string;
   prompt: string;
@@ -11,6 +17,9 @@ export interface LabMusicReviewMetadata {
   generatedAt: string;
   provider?: string;
   model?: string;
+  signature?: string;
+  contentHash?: string;
+  signatureVersion?: number;
 }
 
 const ID3_HEADER_SIZE = 10;

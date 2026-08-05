@@ -11,7 +11,9 @@ import {
 import {
   getBuiltinGammaAnswerWorksheets,
   getGammaAnswerWorksheetConfig,
+  resolveGammaAnswerWorksheetConfig,
   gammaAnswerConfigToWorksheet,
+  LAB_TOOL_MEDIA_ACCESS_KEY,
   normalizeGammaAnswerWorksheetConfig,
   normalizeWorksheetId,
 } from "@/config/gammaAnswerWorksheets";
@@ -19,6 +21,7 @@ import type {
   GammaAnswerAiReviewMode,
   GammaAnswerExpectedKind,
   GammaAnswerQuestionConfig,
+  GammaAnswerReadCheck,
   GammaAnswerReviewBrief,
   GammaAnswerReviewCriteria,
   GammaAnswerToolId,
@@ -27,6 +30,10 @@ import type {
 import { Worksheet, Task } from "@/types/Worksheet";
 import { parseWorksheetMarkdown, extractWorksheetTitle, extractSemesterAndWeek } from "@/utils/worksheetParser";
 import { ParsedTask, ParseResult } from "@/types/Worksheet";
+import {
+  parseGammaAnswerMarkdown,
+  type ParsedGammaAnswerMarkdownTask,
+} from "@/utils/gammaAnswerMarkdownParser";
 
 import NumberField from "@/components/admin/NumberField";
 const ADMIN_USERNAMES = ["admin", "teacher", "老師"];
@@ -114,7 +121,13 @@ function parseGammaAnswerEditorJson(value: string):
     if (!parsed || !Array.isArray(parsed.questions)) {
       return { config: null, error: "JSON 需要包含 questions 陣列。" };
     }
-    return { config: parsed, error: null };
+    return {
+      config: normalizeGammaAnswerWorksheetConfig(
+        parsed,
+        getGammaAnswerWorksheetConfig(parsed.id)
+      ),
+      error: null,
+    };
   } catch (error) {
     return {
       config: null,
@@ -124,7 +137,11 @@ function parseGammaAnswerEditorJson(value: string):
 }
 
 function stringifyGammaAnswerConfig(config: GammaAnswerWorksheetConfig) {
-  return JSON.stringify(config, null, 2);
+  const normalized = normalizeGammaAnswerWorksheetConfig(
+    config,
+    getGammaAnswerWorksheetConfig(config.id)
+  );
+  return JSON.stringify(normalized, null, 2);
 }
 
 function updateQuestionInConfig(
@@ -167,11 +184,6 @@ const AUTHORING_REVIEW_PRESETS = [
   "custom",
 ] as const;
 const AUTHORING_STRICTNESS = ["loose", "normal", "strict"] as const;
-const AUTHORING_AI_REVIEW_MODES: GammaAnswerAiReviewMode[] = [
-  "local-only",
-  "after-local-rules",
-  "always",
-];
 const TEXT_STRICTNESS_RULES: Record<
   GammaAnswerAuthoringStrictness,
   { minLength: number; maxLength: number; minimumKeywordMatches: number }
@@ -198,7 +210,14 @@ type GammaAnswerAuthoringQuestion = {
   prompt?: string;
   studentPrompt?: string;
   toolPrompt?: string;
+  readCheck?: Partial<GammaAnswerReadCheck>;
+  readChecks?: Partial<GammaAnswerReadCheck>[];
+  checkpointQuiz?: Partial<GammaAnswerReadCheck>;
   reviewBrief?: Partial<GammaAnswerReviewBrief>;
+  promptReviewCriteria?: {
+    passConditions?: string[];
+    minimumCharacterMatchRatio?: number;
+  };
   reviewPreset?: GammaAnswerAuthoringReviewPreset;
   strictness?: GammaAnswerAuthoringStrictness;
   requiredConcepts?: string[];
@@ -280,6 +299,32 @@ function defaultReviewBrief(
   };
 }
 
+function defaultReadCheckForQuestion(
+  title: string,
+  expectedKind: GammaAnswerExpectedKind
+): GammaAnswerReadCheck {
+  const target = stripTaskPrefix(title) || title || "這一題";
+  const optionsByKind: Record<
+    GammaAnswerExpectedKind,
+    { options: string[]; answerIndex: number }
+  > = {
+    text: { options: ["圖片工具", "文字工具", "音樂工具"], answerIndex: 1 },
+    image: { options: ["文字工具", "音樂工具", "圖片工具"], answerIndex: 2 },
+    audio: { options: ["音樂工具", "影片工具", "圖片工具"], answerIndex: 0 },
+    video: { options: ["音樂工具", "影片工具", "文字工具"], answerIndex: 1 },
+  };
+  const picked = optionsByKind[expectedKind];
+
+  return {
+    type: "choice",
+    question: `完成「${target}」時，應該使用哪個工具？`,
+    options: picked.options,
+    answerIndex: picked.answerIndex,
+    successFeedback: "答對了，你有看懂這題要用的工具。",
+    retryFeedback: "再看一次題目，找出這題需要的工具。",
+  };
+}
+
 function normalizeBriefList(value: unknown, fallback: string[]) {
   return Array.isArray(value)
     ? value.map(cleanOneLine).filter(Boolean)
@@ -313,6 +358,88 @@ function reviewBriefFromAuthoringQuestion(
     mustInclude: normalizeBriefList(rawBrief.mustInclude, legacyMustInclude),
     rejectIf: normalizeBriefList(rawBrief.rejectIf, fallback.rejectIf),
   };
+}
+
+function promptReviewCriteriaFromAuthoringQuestion(
+  question: GammaAnswerAuthoringQuestion,
+  reviewBrief: GammaAnswerReviewBrief,
+  expectedKind: GammaAnswerExpectedKind
+) {
+  const configured = question.promptReviewCriteria;
+  const concepts = conceptsFromAuthoring(question);
+  const passConditions = Array.isArray(configured?.passConditions)
+    ? configured!.passConditions!.map(cleanOneLine).filter(Boolean)
+    : expectedKind === "text"
+      ? []
+      : concepts.length > 0
+      ? concepts
+      : reviewBrief.mustInclude.filter(
+          (condition) => !/(附件|檔案|格式|空白|錯誤|上傳|開啟|播放|下載)/u.test(condition)
+        );
+  const ratio = configured?.minimumCharacterMatchRatio;
+
+  return {
+    passConditions: passConditions.slice(0, 8),
+    minimumCharacterMatchRatio:
+      typeof ratio === "number" && Number.isFinite(ratio)
+        ? Math.max(0.1, Math.min(1, ratio))
+        : 0.5,
+  };
+}
+
+function normalizeAuthoringReadCheck(
+  raw: Partial<GammaAnswerReadCheck> | undefined
+): GammaAnswerReadCheck | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const prompt = cleanOneLine(raw.question);
+  const type = raw.type === "text" ? "text" : "choice";
+  const acceptedAnswers = Array.isArray(raw.acceptedAnswers)
+    ? raw.acceptedAnswers
+        .filter((answer): answer is string => typeof answer === "string" && answer.trim().length > 0)
+        .map(cleanOneLine)
+        .filter(Boolean)
+    : [];
+  if (type === "text") {
+    if (!prompt || acceptedAnswers.length === 0) return undefined;
+    return {
+      type,
+      question: prompt,
+      options: [],
+      answerIndex: 0,
+      acceptedAnswers: acceptedAnswers.slice(0, 8),
+      matchMode: raw.matchMode === "includes" ? "includes" : "exact",
+      successFeedback: cleanOneLine(raw.successFeedback),
+      retryFeedback: cleanOneLine(raw.retryFeedback),
+    };
+  }
+  const options = Array.isArray(raw.options)
+    ? raw.options.filter((option): option is string => typeof option === "string" && option.trim().length > 0)
+    : [];
+  const answerIndex =
+    typeof raw.answerIndex === "number" && Number.isFinite(raw.answerIndex)
+      ? Math.floor(raw.answerIndex)
+      : undefined;
+  if (!prompt || options.length < 2 || answerIndex === undefined || answerIndex < 0 || answerIndex >= options.length) {
+    return undefined;
+  }
+
+  return {
+    type,
+    question: prompt,
+    options,
+    answerIndex,
+    successFeedback: cleanOneLine(raw.successFeedback),
+    retryFeedback: cleanOneLine(raw.retryFeedback),
+  };
+}
+
+function readChecksFromAuthoringQuestion(question: GammaAnswerAuthoringQuestion) {
+  const rawChecks = Array.isArray(question.readChecks)
+    ? question.readChecks
+    : [question.readCheck || question.checkpointQuiz];
+  return rawChecks
+    .map((raw) => normalizeAuthoringReadCheck(raw))
+    .filter((check): check is GammaAnswerReadCheck => Boolean(check));
 }
 
 function cleanAuthoringJsonBlock(block: string) {
@@ -381,14 +508,10 @@ function normalizeAiReviewMode(
   needsAiReview: unknown,
   reviewPreset: GammaAnswerAuthoringReviewPreset
 ): GammaAnswerAiReviewMode {
-  const mode = cleanOneLine(value).toLowerCase();
-  if (AUTHORING_AI_REVIEW_MODES.includes(mode as GammaAnswerAiReviewMode)) {
-    return mode as GammaAnswerAiReviewMode;
-  }
-  if (typeof needsAiReview === "boolean") {
-    return needsAiReview ? "after-local-rules" : "local-only";
-  }
-  return reviewPreset === "ai-assisted" ? "after-local-rules" : "local-only";
+  void value;
+  void needsAiReview;
+  void reviewPreset;
+  return "local-only";
 }
 
 function numberFromAuthoring(value: unknown, fallback: number, min = 0) {
@@ -478,7 +601,7 @@ function createGammaAnswerQuestion(index: number, worksheetId: string): GammaAns
     accept: defaults.accept,
     uploadLabel: defaults.uploadLabel,
     reviewHint: defaults.reviewHint,
-    reviewBrief: defaultReviewBrief(`第 ${questionNumber} 題`, "請依照左側 GAMMA 目錄完成這一題。", "text"),
+    readChecks: [],
     reviewCriteria: { ...defaults.reviewCriteria },
     textMinimumLength: defaults.reviewCriteria.minLength,
     textMaximumLength: defaults.reviewCriteria.maxLength,
@@ -505,19 +628,16 @@ function inferGammaAnswerKindFromText(text: string): GammaAnswerExpectedKind {
 }
 
 function gammaAnswerQuestionFromParsedTask(
-  task: ParsedTask,
+  task: ParsedGammaAnswerMarkdownTask,
   index: number,
   worksheetId: string
 ): GammaAnswerQuestionConfig {
-  const text = `${task.label}\n${task.description}`;
-  const expectedKind = inferGammaAnswerKindFromText(text);
+  const expectedKind = task.expectedKind;
   const defaults = GAMMA_ANSWER_MODULES[expectedKind];
   const title = task.label.trim() || `第 ${index + 1} 題`;
-  const prompt = buildConciseTaskPrompt(task);
+  const prompt = truncatePrompt(task.prompt, title);
   const question = createGammaAnswerQuestion(index, worksheetId);
   const reviewCriteria = { ...defaults.reviewCriteria };
-  const reviewBrief = defaultReviewBrief(title, prompt, expectedKind);
-
   return {
     ...question,
     code: `第 ${index + 1} 題`,
@@ -532,7 +652,10 @@ function gammaAnswerQuestionFromParsedTask(
     accept: defaults.accept,
     uploadLabel: defaults.uploadLabel,
     reviewHint: defaults.reviewHint,
-    reviewBrief,
+    readCheck: undefined,
+    readChecks: [],
+    reviewBrief: undefined,
+    promptReviewCriteria: undefined,
     reviewCriteria,
     textMinimumLength: reviewCriteria.minLength,
     textMaximumLength: reviewCriteria.maxLength,
@@ -557,6 +680,13 @@ function gammaAnswerQuestionFromAuthoringQuestion(
   );
   const reviewCriteria = buildReviewCriteriaFromAuthoringQuestion(rawQuestion, expectedKind);
   const reviewBrief = reviewBriefFromAuthoringQuestion(rawQuestion, title, prompt, expectedKind);
+  const promptReviewCriteria = promptReviewCriteriaFromAuthoringQuestion(
+    rawQuestion,
+    reviewBrief,
+    expectedKind
+  );
+  const readChecks = readChecksFromAuthoringQuestion(rawQuestion);
+  const readCheck = readChecks[0] || defaultReadCheckForQuestion(title, expectedKind);
 
   return {
     ...question,
@@ -574,7 +704,10 @@ function gammaAnswerQuestionFromAuthoringQuestion(
     accept: defaults.accept,
     uploadLabel: defaults.uploadLabel,
     reviewHint: defaults.reviewHint,
+    readCheck,
+    readChecks: readChecks.length > 0 ? readChecks : [readCheck],
     reviewBrief,
+    promptReviewCriteria,
     reviewCriteria,
     textMinimumLength: reviewCriteria.minLength,
     textMaximumLength: reviewCriteria.maxLength,
@@ -674,27 +807,19 @@ function createGammaAnswerConfigFromMarkdown(
   fileName: string,
   currentConfig: GammaAnswerWorksheetConfig
 ) {
-  const authoringConfig = extractGammaAnswerAuthoringConfig(markdown);
-  if (authoringConfig) {
-    return createGammaAnswerConfigFromAuthoring(authoringConfig, markdown, fileName, currentConfig);
-  }
-
   const title = extractWorksheetTitle(markdown).trim();
   const detected = extractSemesterAndWeek(`${title} ${fileName}`);
   const semester = detected.semester || currentConfig.semester || "S3";
   const week = detected.week || currentConfig.week || 1;
   const worksheetId = buildGammaAnswerWorksheetId(semester, week);
-  const gammaUrl = detectGammaUrlFromMarkdown(markdown) || currentConfig.gammaUrl;
-  const parseResult = parseWorksheetMarkdown(markdown);
-  const questions =
-    parseResult.tasks.length > 0
-      ? parseResult.tasks.map((task, index) =>
-          gammaAnswerQuestionFromParsedTask(task, index, worksheetId)
-        )
-      : currentConfig.questions.map((question, index) => ({
-          ...question,
-          taskId: `${worksheetId}-Q${index + 1}`,
-        }));
+  const gammaUrl = detectGammaUrlFromMarkdown(markdown);
+  const parsed = parseGammaAnswerMarkdown(markdown);
+  if (parsed.tasks.length === 0) {
+    throw new Error(parsed.errors.join("\n") || "Markdown 中沒有可匯入的任務。");
+  }
+  const questions = parsed.tasks.map((task, index) =>
+    gammaAnswerQuestionFromParsedTask(task, index, worksheetId)
+  );
 
   const config = normalizeGammaAnswerWorksheetConfig(
     {
@@ -712,35 +837,33 @@ function createGammaAnswerConfigFromMarkdown(
       storageVersion: `draft-${worksheetId.toLowerCase()}-${Date.now()}`,
       questions,
     },
-    currentConfig
+    undefined
   );
 
-  return { config, worksheetId, parseResult };
+  return {
+    config,
+    worksheetId,
+    parseResult: parseResultFromGammaAnswerQuestions(config.questions, parsed.warnings),
+  };
 }
 
 function createGammaAnswerDraftConfig(): GammaAnswerWorksheetConfig {
-  const template = getGammaAnswerWorksheetConfig(DEFAULT_GAMMA_ANSWER_TEMPLATE_ID);
-  if (!template) {
-    throw new Error("Missing default gamma answer worksheet template.");
-  }
-  const worksheetId = template.id;
-  return normalizeGammaAnswerWorksheetConfig(
-    {
-      ...template,
-      schemaVersion: 2,
-      id: worksheetId,
-      courseId: `${template.semester}-W${paddedWeek(template.week)}`,
-      shortTitle: `${template.semester} W${paddedWeek(template.week)}`,
-      source: "gamma-answer-worksheet",
-      storageVersion: `draft-${worksheetId.toLowerCase()}-${Date.now()}`,
-      questions: template.questions.map((question, index) => ({
-        ...question,
-        id: question.id || `q${index + 1}`,
-        taskId: `${worksheetId}-Q${index + 1}`,
-      })),
-    },
-    template
-  );
+  return {
+    schemaVersion: 2,
+    id: "",
+    courseId: "",
+    title: "",
+    shortTitle: "",
+    semester: "S3",
+    week: 1,
+    gammaUrl: "",
+    gammaFallbackUrl: "",
+    source: "gamma-answer-worksheet",
+    storageVersion: `draft-new-${Date.now()}`,
+    draftField: "gammaAnswerDraft",
+    mediaAccessKey: LAB_TOOL_MEDIA_ACCESS_KEY,
+    questions: [],
+  };
 }
 
 function prepareGammaAnswerConfigForSave(
@@ -752,7 +875,7 @@ function prepareGammaAnswerConfigForSave(
   );
   const semester = (config.semester || "S3").trim().toUpperCase();
   const week = Number.isFinite(config.week) ? Math.max(1, Math.floor(config.week)) : 1;
-  const template = getGammaAnswerWorksheetConfig(DEFAULT_GAMMA_ANSWER_TEMPLATE_ID);
+  const fallback = getGammaAnswerWorksheetConfig(worksheetId);
   const questions = config.questions.map((question, index) => {
     const title = question.title.trim() || question.label.trim() || `第 ${index + 1} 題`;
     const criteria = {
@@ -769,7 +892,6 @@ function prepareGammaAnswerConfigForSave(
       title,
       prompt,
       toolPrompt: prompt,
-      reviewBrief: question.reviewBrief || defaultReviewBrief(title, prompt, question.expectedKind),
       reviewCriteria: criteria,
       textMinimumLength: criteria.minLength,
       textMaximumLength: criteria.maxLength,
@@ -797,7 +919,7 @@ function prepareGammaAnswerConfigForSave(
       mediaAccessKey: config.mediaAccessKey.trim(),
       questions,
     },
-    template
+    fallback
   );
 }
 
@@ -820,6 +942,7 @@ export default function WorksheetsPage() {
   const [classSel, setClassSel] = useState<string[]>([]);
   const [savingClasses, setSavingClasses] = useState(false);
   const [showGammaAnswerCreate, setShowGammaAnswerCreate] = useState(false);
+  const [assetManagerWorksheet, setAssetManagerWorksheet] = useState<Worksheet | null>(null);
 
   const isAdmin = user && ADMIN_USERNAMES.includes(user.username.toLowerCase());
 
@@ -909,6 +1032,16 @@ export default function WorksheetsPage() {
   };
 
   const togglePublish = async (ws: Worksheet) => {
+    if (
+      !ws.isPublished &&
+      isGammaAnswerWorksheet(ws) &&
+      !/^https:\/\/(?:www\.)?gamma\.app\/(?:docs|public|embed)\//i.test(
+        (ws.gammaUrl || ws.gammaAnswerConfig?.gammaUrl || "").trim()
+      )
+    ) {
+      alert("發布答題版學習單前，請先加入有效的 Gamma 網址。");
+      return;
+    }
     await saveWorksheet(
       prepareWorksheetForSave(ws, {
         isPublished: !ws.isPublished,
@@ -1260,16 +1393,24 @@ export default function WorksheetsPage() {
                       {ws.gammaUrl ? "修改 Gamma" : "加入 Gamma"}
                     </button>
                     {isGammaAnswerWorksheet(ws) && (
-                      <button
-                        onClick={() => openGammaAnswerEditor(ws)}
-                        className={`px-3 py-1.5 text-xs border ${
-                          editingGammaAnswerId === ws.id
-                            ? "border-emerald-400 bg-emerald-900/30 text-emerald-200"
-                            : "border-emerald-700 text-emerald-300 hover:bg-emerald-900/20"
-                        }`}
-                      >
-                        JSON 題目設定
-                      </button>
+                      <>
+                        <button
+                          onClick={() => openGammaAnswerEditor(ws)}
+                          className={`px-3 py-1.5 text-xs border ${
+                            editingGammaAnswerId === ws.id
+                              ? "border-emerald-400 bg-emerald-900/30 text-emerald-200"
+                              : "border-emerald-700 text-emerald-300 hover:bg-emerald-900/20"
+                          }`}
+                        >
+                          JSON 題目設定
+                        </button>
+                        <button
+                          onClick={() => setAssetManagerWorksheet(ws)}
+                          className="border border-orange-700 px-3 py-1.5 text-xs text-orange-300 hover:bg-orange-900/20"
+                        >
+                          管理生成素材
+                        </button>
+                      </>
                     )}
                     {showHtmlActions && ws.styledHtmlStatus === "ready" && ws.styledHtmlUrl ? (
                       <button
@@ -1411,7 +1552,7 @@ export default function WorksheetsPage() {
                       <div>
                         <h3 className="text-sm font-bold text-emerald-300">GAMMA 答題 JSON 設定</h3>
                         <p className="mt-1 text-xs text-[var(--terminal-primary-dim)]">
-                          可修改題目文字、工具類型、上傳格式、審核模式與 reviewBrief。學生送審時會先做基本防呆，再依設定使用系統檢查或 AI 審核。
+                          可修改題目、工具、上傳格式、prompt 生成前門檻與繳交審核條件。
                         </p>
                       </div>
                       <button
@@ -1464,7 +1605,7 @@ export default function WorksheetsPage() {
                     )}
                     <div className="flex items-center justify-between gap-3">
                       <div className="text-xs text-[var(--terminal-primary-dim)]">
-                        schemaVersion 2 使用 reviewBrief.task、expectedOutput、mustInclude、rejectIf 作為審核依據；是否呼叫 AI 由 reviewCriteria.aiReviewMode 控制。
+                        圖片、音樂與影片會先做本地防呆與 AI 題意審查；媒體繳交只驗證附件與簽章。
                       </div>
                       <button
                         onClick={() => handleSaveGammaAnswerJson(ws)}
@@ -1523,6 +1664,283 @@ export default function WorksheetsPage() {
           onSaved={() => { setShowGammaAnswerCreate(false); loadData(); }}
         />
       )}
+
+      {assetManagerWorksheet && user && (
+        <LabToolAssetManager
+          worksheet={assetManagerWorksheet}
+          adminUserId={user.id}
+          onClose={() => setAssetManagerWorksheet(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+type AdminLabToolAsset = {
+  worksheetId: string;
+  kind: "image" | "music" | "video";
+  fileName: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+  prompt: string;
+  taskId: string;
+  task: string;
+  signatureStatus: "signed" | "missing";
+  indexed: boolean;
+  assetUrl: string;
+};
+
+const ASSET_KIND_LABEL = { image: "圖片", music: "音樂", video: "影片" } as const;
+
+function formatAssetSize(size: number) {
+  if (!size) return "未知大小";
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function LabToolAssetManager({
+  worksheet,
+  adminUserId,
+  onClose,
+}: {
+  worksheet: Worksheet;
+  adminUserId: string;
+  onClose: () => void;
+}) {
+  const [assets, setAssets] = useState<AdminLabToolAsset[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState("");
+  const [message, setMessage] = useState("");
+  const [savingLimits, setSavingLimits] = useState(false);
+  const [assetCacheLimits, setAssetCacheLimits] = useState(() => ({
+    image: worksheet.gammaAnswerConfig?.assetCacheLimits?.image ?? 10,
+    music: worksheet.gammaAnswerConfig?.assetCacheLimits?.music ?? 3,
+    video: worksheet.gammaAnswerConfig?.assetCacheLimits?.video ?? 5,
+  }));
+
+  const loadAssets = useCallback(async () => {
+    setLoading(true);
+    try {
+      const query = new URLSearchParams({ worksheetId: worksheet.id, adminUserId });
+      const response = await fetch(`/api/admin/lab-tool-assets?${query.toString()}`);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "素材清單讀取失敗");
+      setAssets(Array.isArray(data.assets) ? data.assets : []);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLoading(false);
+    }
+  }, [adminUserId, worksheet.id]);
+
+  useEffect(() => {
+    void loadAssets();
+  }, [loadAssets]);
+
+  const saveAssetCacheLimits = async () => {
+    const config = resolveGammaAnswerWorksheetConfig(worksheet);
+    if (!config) {
+      setMessage("找不到這份學習單的 JSON 設定，無法儲存素材上限。");
+      return;
+    }
+    setSavingLimits(true);
+    setMessage("");
+    try {
+      await saveWorksheet({
+        ...worksheet,
+        updatedAt: new Date().toISOString(),
+        gammaAnswerConfig: {
+          ...config,
+          assetCacheLimits,
+        },
+      });
+      setMessage("素材上限已儲存。達到上限後，學生生成時會回傳已保存的同類素材。 ");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSavingLimits(false);
+    }
+  };
+
+  const deleteAssets = async (params: {
+    scope: "asset" | "kind" | "worksheet";
+    kind?: AdminLabToolAsset["kind"];
+    fileName?: string;
+  }) => {
+    const label = params.scope === "asset"
+      ? params.fileName
+      : params.scope === "kind"
+      ? `${ASSET_KIND_LABEL[params.kind!]}全部素材`
+      : `${worksheet.id} 全部生成素材`;
+    if (!confirm(`確定刪除 ${label}？這會同步刪除雲端與本機快取，無法復原。`)) return;
+    setDeleting(`${params.scope}:${params.kind || "all"}:${params.fileName || "all"}`);
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/lab-tool-assets", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminUserId,
+          worksheetId: worksheet.id,
+          ...params,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok && response.status !== 207) {
+        throw new Error(data.error || "素材刪除失敗");
+      }
+      const failedCount = Array.isArray(data.failed) ? data.failed.length : 0;
+      setMessage(
+        `刪除完成：實際刪除 ${data.deleted || 0} 筆` +
+          (failedCount
+            ? `，${data.failed
+                .slice(0, 3)
+                .map((item: { fileName?: string; error?: string }) => `${item.fileName || "項目"}：${item.error || "未完成"}`)
+                .join("；")}`
+            : "，沒有失敗項目。")
+      );
+      await loadAssets();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setDeleting("");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/80 p-4">
+      <div className="my-8 w-full max-w-6xl border-2 border-orange-600 bg-[var(--terminal-bg)] shadow-2xl">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-orange-800 p-4">
+          <div>
+            <h2 className="font-bold text-orange-200">管理生成素材 · {worksheet.id}</h2>
+            <p className="mt-1 text-xs text-[var(--terminal-primary-dim)]">{worksheet.title}</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => deleteAssets({ scope: "worksheet" })}
+              disabled={!!deleting || assets.length === 0}
+              className="border border-red-600 px-3 py-2 text-xs font-bold text-red-300 disabled:opacity-40"
+            >
+              清空整份學習單
+            </button>
+            <button type="button" onClick={onClose} className="border border-orange-700 px-3 py-2 text-xs text-orange-200">
+              關閉
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-5 p-4">
+          {message && <div className="border border-orange-800 bg-orange-950/20 p-3 text-sm text-orange-100">{message}</div>}
+          <section className="border border-cyan-800/80 bg-cyan-950/10 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-cyan-200">每種素材的保存上限</h3>
+                <p className="mt-1 text-xs text-[var(--terminal-primary-dim)]">
+                  已保存筆數大於等於上限時，不再呼叫外部生成 API，直接回傳已保存的對應素材。
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={saveAssetCacheLimits}
+                disabled={savingLimits}
+                className="border border-cyan-500 px-3 py-2 text-xs font-bold text-cyan-100 hover:bg-cyan-900/30 disabled:opacity-40"
+              >
+                {savingLimits ? "儲存中..." : "儲存上限"}
+              </button>
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              {(["image", "music", "video"] as const).map((kind) => (
+                <label key={kind} className="block">
+                  <span className="mb-1 block text-xs font-bold text-cyan-100">
+                    {ASSET_KIND_LABEL[kind]}上限（目前 {assets.filter((asset) => asset.kind === kind).length} 筆）
+                  </span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={assetCacheLimits[kind]}
+                    onChange={(event) =>
+                      setAssetCacheLimits((current) => ({
+                        ...current,
+                        [kind]: Math.max(1, Math.min(100, Number(event.target.value) || 1)),
+                      }))
+                    }
+                    className="w-full border border-cyan-800 bg-[var(--terminal-bg)] px-3 py-2 text-sm text-[var(--terminal-primary)] outline-none focus:border-cyan-400"
+                  />
+                </label>
+              ))}
+            </div>
+          </section>
+          {loading ? (
+            <div className="py-12 text-center text-[var(--terminal-primary-dim)]">正在合併索引與 Storage 清單...</div>
+          ) : assets.length === 0 ? (
+            <div className="py-12 text-center text-[var(--terminal-primary-dim)]">這份學習單目前沒有生成素材。</div>
+          ) : (
+            (["image", "music", "video"] as const).map((kind) => {
+              const kindAssets = assets.filter((asset) => asset.kind === kind);
+              return (
+                <section key={kind} className="border border-orange-900/70 bg-black/20 p-3">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h3 className="font-bold text-orange-200">{ASSET_KIND_LABEL[kind]} · {kindAssets.length} 筆</h3>
+                    <button
+                      type="button"
+                      onClick={() => deleteAssets({ scope: "kind", kind })}
+                      disabled={!!deleting || kindAssets.length === 0}
+                      className="border border-red-800 px-3 py-1.5 text-xs text-red-300 disabled:opacity-40"
+                    >
+                      清空{ASSET_KIND_LABEL[kind]}
+                    </button>
+                  </div>
+                  {kindAssets.length === 0 ? (
+                    <p className="text-sm text-[var(--terminal-primary-dim)]">沒有{ASSET_KIND_LABEL[kind]}素材。</p>
+                  ) : (
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      {kindAssets.map((asset) => (
+                        <article key={`${kind}:${asset.fileName}`} className="overflow-hidden border border-[var(--terminal-primary-dim)]/60 bg-black/30">
+                          <div className="flex h-44 items-center justify-center bg-black/60 p-2">
+                            {kind === "image" ? (
+                              <img src={asset.assetUrl} alt={asset.fileName} className="max-h-full max-w-full object-contain" />
+                            ) : kind === "music" ? (
+                              <audio src={asset.assetUrl} controls className="w-full" />
+                            ) : (
+                              <video src={asset.assetUrl} controls className="max-h-full max-w-full" />
+                            )}
+                          </div>
+                          <div className="space-y-1.5 p-3 text-xs">
+                            <div className="break-all font-mono text-orange-100">{asset.fileName}</div>
+                            <div className="text-[var(--terminal-primary-dim)]">
+                              {formatAssetSize(asset.size)} · {asset.createdAt ? new Date(asset.createdAt).toLocaleString("zh-TW") : "日期未知"}
+                            </div>
+                            <div>題目：{asset.task || asset.taskId || "索引缺失"}</div>
+                            <div className="line-clamp-3">Prompt：{asset.prompt || "索引缺失"}</div>
+                            <div className="flex flex-wrap gap-1">
+                              <span className={asset.signatureStatus === "signed" ? "text-emerald-300" : "text-yellow-300"}>
+                                簽章：{asset.signatureStatus === "signed" ? "有" : "缺少"}
+                              </span>
+                              {!asset.indexed && <span className="text-red-300">· 孤兒檔案</span>}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => deleteAssets({ scope: "asset", kind, fileName: asset.fileName })}
+                              disabled={!!deleting}
+                              className="mt-2 w-full border border-red-700 px-3 py-2 font-bold text-red-300 disabled:opacity-40"
+                            >
+                              單筆刪除
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              );
+            })
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1592,18 +2010,147 @@ function GammaAnswerVisualEditor({
     });
   };
 
-  const patchReviewBrief = (
+  const currentReadChecks = (question: GammaAnswerQuestionConfig) =>
+    Array.isArray(question.readChecks)
+      ? [...question.readChecks]
+      : question.readCheck
+      ? [question.readCheck]
+      : [];
+
+  const patchReadCheck = (
     questionIndex: number,
-    patch: Partial<GammaAnswerReviewBrief>
+    readCheckIndex: number,
+    patch: Partial<GammaAnswerReadCheck>
   ) => {
-    updateQuestion(questionIndex, (question) => ({
-      ...question,
-      reviewBrief: {
-        ...defaultReviewBrief(question.title, question.prompt, question.expectedKind),
-        ...(question.reviewBrief || {}),
-        ...patch,
-      },
-    }));
+    updateQuestion(questionIndex, (question) => {
+      const readChecks = currentReadChecks(question);
+      const base = readChecks[readCheckIndex] || defaultReadCheckForQuestion(question.title, question.expectedKind);
+      const options = patch.options || base.options;
+      const rawAnswerIndex =
+        typeof patch.answerIndex === "number" ? patch.answerIndex : base.answerIndex;
+      const answerIndex = Math.min(Math.max(rawAnswerIndex, 0), Math.max(options.length - 1, 0));
+
+      readChecks[readCheckIndex] = {
+          ...base,
+          ...patch,
+          options,
+          answerIndex,
+      };
+      return {
+        ...question,
+        readCheck: readChecks[0],
+        readChecks,
+      };
+    });
+  };
+
+  const changeReadCheckType = (
+    questionIndex: number,
+    readCheckIndex: number,
+    type: "choice" | "text"
+  ) => {
+    updateQuestion(questionIndex, (question) => {
+      const readChecks = currentReadChecks(question);
+      const base = readChecks[readCheckIndex];
+      readChecks[readCheckIndex] =
+        type === "text"
+          ? {
+              ...base,
+              type,
+              options: [],
+              answerIndex: 0,
+              acceptedAnswers:
+                base.acceptedAnswers?.length ? base.acceptedAnswers : ["請填寫可接受答案"],
+              matchMode: base.matchMode || "exact",
+            }
+          : {
+              ...base,
+              type,
+              options:
+                base.options.length >= 2
+                  ? base.options
+                  : defaultReadCheckForQuestion(question.title, question.expectedKind).options,
+              answerIndex: 0,
+            };
+      return { ...question, readCheck: readChecks[0], readChecks };
+    });
+  };
+
+  const updateReadCheckOption = (
+    questionIndex: number,
+    readCheckIndex: number,
+    optionIndex: number,
+    value: string
+  ) => {
+    updateQuestion(questionIndex, (question) => {
+      const readChecks = currentReadChecks(question);
+      const base = readChecks[readCheckIndex];
+      const options = base.options.map((option, index) =>
+        index === optionIndex ? value : option
+      );
+      readChecks[readCheckIndex] = { ...base, options };
+      return { ...question, readCheck: readChecks[0], readChecks };
+    });
+  };
+
+  const addReadCheckOption = (questionIndex: number, readCheckIndex: number) => {
+    updateQuestion(questionIndex, (question) => {
+      const readChecks = currentReadChecks(question);
+      const base = readChecks[readCheckIndex];
+      if (base.options.length >= 4) return question;
+      readChecks[readCheckIndex] = { ...base, options: [...base.options, "新的混淆選項"] };
+      return { ...question, readCheck: readChecks[0], readChecks };
+    });
+  };
+
+  const removeReadCheckOption = (questionIndex: number, readCheckIndex: number, optionIndex: number) => {
+    updateQuestion(questionIndex, (question) => {
+      const readChecks = currentReadChecks(question);
+      const base = readChecks[readCheckIndex];
+      if (base.options.length <= 2) return question;
+      const options = base.options.filter((_, index) => index !== optionIndex);
+      const answerIndex =
+        base.answerIndex === optionIndex
+          ? 0
+          : base.answerIndex > optionIndex
+            ? base.answerIndex - 1
+            : base.answerIndex;
+      readChecks[readCheckIndex] = { ...base, options, answerIndex: Math.min(answerIndex, options.length - 1) };
+      return { ...question, readCheck: readChecks[0], readChecks };
+    });
+  };
+
+  const addReadCheck = (questionIndex: number) => {
+    updateQuestion(questionIndex, (question) => {
+      const readChecks = currentReadChecks(question);
+      readChecks.push(defaultReadCheckForQuestion(question.title, question.expectedKind));
+      return { ...question, readCheck: readChecks[0], readChecks };
+    });
+  };
+
+  const removeReadCheck = (questionIndex: number, readCheckIndex: number) => {
+    updateQuestion(questionIndex, (question) => {
+      const readChecks = currentReadChecks(question);
+      readChecks.splice(readCheckIndex, 1);
+      return { ...question, readCheck: readChecks[0], readChecks };
+    });
+  };
+
+  const moveReadCheck = (
+    questionIndex: number,
+    readCheckIndex: number,
+    direction: -1 | 1
+  ) => {
+    updateQuestion(questionIndex, (question) => {
+      const readChecks = currentReadChecks(question);
+      const target = readCheckIndex + direction;
+      if (target < 0 || target >= readChecks.length) return question;
+      [readChecks[readCheckIndex], readChecks[target]] = [
+        readChecks[target],
+        readChecks[readCheckIndex],
+      ];
+      return { ...question, readCheck: readChecks[0], readChecks };
+    });
   };
 
   const changeQuestionModule = (
@@ -1624,7 +2171,6 @@ function GammaAnswerVisualEditor({
         uploadLabel: defaults.uploadLabel,
         reviewHint: defaults.reviewHint,
         placeholder: expectedKind === "text" ? question.placeholder || defaults.placeholder : "",
-        reviewBrief: defaultReviewBrief(question.title, question.prompt, expectedKind),
         reviewCriteria,
         textMinimumLength: reviewCriteria.minLength,
         textMaximumLength: reviewCriteria.maxLength,
@@ -1719,8 +2265,7 @@ function GammaAnswerVisualEditor({
         };
         const moduleLabel = GAMMA_ANSWER_MODULES[question.expectedKind]?.label || question.expectedKind;
         const isText = question.expectedKind === "text";
-        const aiReviewMode = criteria.aiReviewMode || "local-only";
-        const needsAiReview = aiReviewMode !== "local-only";
+        const readChecks = currentReadChecks(question);
         return (
           <section
             key={question.id || questionIndex}
@@ -1832,6 +2377,167 @@ function GammaAnswerVisualEditor({
               />
             </label>
 
+            <div className="space-y-3 border border-sky-700/70 bg-sky-950/10 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-xs font-bold text-sky-200">讀題小測（{readChecks.length} 題）</div>
+                  <p className="mt-1 text-xs text-[var(--terminal-primary-dim)]">
+                    本題通過後依序顯示，全部答對才會前往下一題。
+                  </p>
+                </div>
+                <button type="button" onClick={() => addReadCheck(questionIndex)} className="border border-sky-500 px-3 py-2 text-xs font-bold text-sky-200 hover:bg-sky-900/30">
+                  + 新增小測
+                </button>
+              </div>
+              {readChecks.map((readCheck, readCheckIndex) => (
+              <div key={readCheckIndex} className="grid gap-3 border border-sky-800/70 bg-sky-950/20 p-3 md:grid-cols-2">
+              <div className="flex items-center justify-between md:col-span-2">
+                <span className="text-xs font-bold text-sky-200">小測 {readCheckIndex + 1}</span>
+                <div className="flex gap-1">
+                  <button type="button" onClick={() => moveReadCheck(questionIndex, readCheckIndex, -1)} disabled={readCheckIndex === 0} className="border border-sky-700 px-2 py-1 text-xs text-sky-200 disabled:opacity-30">上移</button>
+                  <button type="button" onClick={() => moveReadCheck(questionIndex, readCheckIndex, 1)} disabled={readCheckIndex === readChecks.length - 1} className="border border-sky-700 px-2 py-1 text-xs text-sky-200 disabled:opacity-30">下移</button>
+                  <button type="button" onClick={() => removeReadCheck(questionIndex, readCheckIndex)} className="border border-red-700 px-2 py-1 text-xs text-red-300">移除小測</button>
+                </div>
+              </div>
+              <label className="block md:col-span-2">
+                <span className="mb-1 block text-xs text-[var(--terminal-primary-dim)]">小測題目</span>
+                <input
+                  value={readCheck.question}
+                  onChange={(event) =>
+                    patchReadCheck(questionIndex, readCheckIndex, { question: event.target.value })
+                  }
+                  className="w-full border border-[var(--terminal-primary-dim)] bg-[var(--terminal-bg)] px-3 py-2 text-sm text-[var(--terminal-primary)] outline-none focus:border-sky-400"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-[var(--terminal-primary-dim)]">小測題型</span>
+                <select
+                  value={readCheck.type || "choice"}
+                  onChange={(event) =>
+                    changeReadCheckType(questionIndex, readCheckIndex, event.target.value as "choice" | "text")
+                  }
+                  className="w-full border border-[var(--terminal-primary-dim)] bg-[var(--terminal-bg)] px-3 py-2 text-sm text-[var(--terminal-primary)] outline-none focus:border-sky-400"
+                >
+                  <option value="choice">選擇題</option>
+                  <option value="text">打字回答</option>
+                </select>
+              </label>
+              {readCheck.type === "text" ? (
+                <>
+                  <label className="block">
+                    <span className="mb-1 block text-xs text-[var(--terminal-primary-dim)]">比對方式</span>
+                    <select
+                      value={readCheck.matchMode || "exact"}
+                      onChange={(event) =>
+                        patchReadCheck(questionIndex, readCheckIndex, {
+                          matchMode: event.target.value as "exact" | "includes",
+                        })
+                      }
+                      className="w-full border border-[var(--terminal-primary-dim)] bg-[var(--terminal-bg)] px-3 py-2 text-sm text-[var(--terminal-primary)] outline-none focus:border-sky-400"
+                    >
+                      <option value="exact">完整相符</option>
+                      <option value="includes">答案包含關鍵詞即可</option>
+                    </select>
+                  </label>
+                  <label className="block md:col-span-2">
+                    <span className="mb-1 block text-xs text-[var(--terminal-primary-dim)]">可接受答案，一行一個</span>
+                    <textarea
+                      value={(readCheck.acceptedAnswers || []).join("\n")}
+                      onChange={(event) =>
+                        patchReadCheck(questionIndex, readCheckIndex, {
+                          acceptedAnswers: event.target.value
+                            .split(/\r?\n/)
+                            .map((answer) => answer.trim())
+                            .filter(Boolean),
+                        })
+                      }
+                      rows={3}
+                      className="w-full resize-y border border-[var(--terminal-primary-dim)] bg-[var(--terminal-bg)] px-3 py-2 text-sm leading-relaxed text-[var(--terminal-primary)] outline-none focus:border-sky-400"
+                    />
+                  </label>
+                </>
+              ) : (
+                <>
+                  <label className="block">
+                    <span className="mb-1 block text-xs text-[var(--terminal-primary-dim)]">正確答案</span>
+                    <select
+                      value={readCheck.answerIndex}
+                      onChange={(event) =>
+                        patchReadCheck(questionIndex, readCheckIndex, { answerIndex: Number(event.target.value) })
+                      }
+                      className="w-full border border-[var(--terminal-primary-dim)] bg-[var(--terminal-bg)] px-3 py-2 text-sm text-[var(--terminal-primary)] outline-none focus:border-sky-400"
+                    >
+                      {readCheck.options.map((option, optionIndex) => (
+                        <option key={`${optionIndex}:${option}`} value={optionIndex}>
+                          選項 {optionIndex + 1}：{option || "未填寫"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="flex items-end justify-end">
+                    <button
+                      type="button"
+                      onClick={() => addReadCheckOption(questionIndex, readCheckIndex)}
+                      disabled={readCheck.options.length >= 4}
+                      className="border border-sky-500 px-3 py-2 text-xs font-bold text-sky-200 hover:bg-sky-900/30 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      + 新增選項
+                    </button>
+                  </div>
+                  <div className="grid gap-2 md:col-span-2">
+                    {readCheck.options.map((option, optionIndex) => (
+                      <div key={optionIndex} className="grid gap-2 md:grid-cols-[72px_1fr_auto]">
+                        <div className={`flex items-center justify-center border px-2 text-xs font-bold ${
+                          optionIndex === readCheck.answerIndex
+                            ? "border-yellow-400 bg-yellow-950/30 text-yellow-200"
+                            : "border-sky-800 bg-black/20 text-sky-200"
+                        }`}>
+                          選項 {optionIndex + 1}
+                        </div>
+                        <input
+                          value={option}
+                          onChange={(event) =>
+                            updateReadCheckOption(questionIndex, readCheckIndex, optionIndex, event.target.value)
+                          }
+                          className="w-full border border-[var(--terminal-primary-dim)] bg-[var(--terminal-bg)] px-3 py-2 text-sm text-[var(--terminal-primary)] outline-none focus:border-sky-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeReadCheckOption(questionIndex, readCheckIndex, optionIndex)}
+                          disabled={readCheck.options.length <= 2}
+                          className="border border-red-700 px-3 py-2 text-xs text-red-300 hover:bg-red-900/30 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          移除
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              <label className="block">
+                <span className="mb-1 block text-xs text-[var(--terminal-primary-dim)]">答對回饋</span>
+                <input
+                  value={readCheck.successFeedback || ""}
+                  onChange={(event) =>
+                    patchReadCheck(questionIndex, readCheckIndex, { successFeedback: event.target.value })
+                  }
+                  className="w-full border border-[var(--terminal-primary-dim)] bg-[var(--terminal-bg)] px-3 py-2 text-sm text-[var(--terminal-primary)] outline-none focus:border-sky-400"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-[var(--terminal-primary-dim)]">答錯回饋</span>
+                <input
+                  value={readCheck.retryFeedback || ""}
+                  onChange={(event) =>
+                    patchReadCheck(questionIndex, readCheckIndex, { retryFeedback: event.target.value })
+                  }
+                  className="w-full border border-[var(--terminal-primary-dim)] bg-[var(--terminal-bg)] px-3 py-2 text-sm text-[var(--terminal-primary)] outline-none focus:border-sky-400"
+                />
+              </label>
+              </div>
+              ))}
+            </div>
+
             {isText ? (
               <div className="grid gap-3 border border-cyan-800/60 bg-cyan-950/10 p-3">
                 <label className="block">
@@ -1882,67 +2588,6 @@ function GammaAnswerVisualEditor({
               </div>
             )}
 
-            <div className="flex justify-end">
-              <label className="inline-flex cursor-pointer items-center gap-2 border border-yellow-500/70 bg-yellow-950/20 px-2.5 py-1.5 text-xs font-bold text-yellow-200">
-                <input
-                  type="checkbox"
-                  checked={needsAiReview}
-                  onChange={(event) =>
-                    patchCriteria(questionIndex, {
-                      aiReviewMode: event.target.checked ? "after-local-rules" : "local-only",
-                    })
-                  }
-                  className="h-4 w-4 accent-yellow-300"
-                />
-                <span>需要 AI 審查</span>
-              </label>
-            </div>
-
-            <div className="grid gap-3 border border-fuchsia-800/60 bg-fuchsia-950/10 p-3 md:grid-cols-2">
-              <div className="md:col-span-2 text-xs font-bold text-fuchsia-200">
-                審核依據
-              </div>
-              <label className="block">
-                <span className="mb-1 block text-xs text-[var(--terminal-primary-dim)]">實際任務</span>
-                <textarea
-                  value={question.reviewBrief?.task || ""}
-                  onChange={(event) => patchReviewBrief(questionIndex, { task: event.target.value })}
-                  rows={2}
-                  className="w-full resize-y border border-[var(--terminal-primary-dim)] bg-[var(--terminal-bg)] px-3 py-2 text-sm leading-relaxed text-[var(--terminal-primary)] outline-none focus:border-fuchsia-400"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs text-[var(--terminal-primary-dim)]">預期成果</span>
-                <textarea
-                  value={question.reviewBrief?.expectedOutput || ""}
-                  onChange={(event) => patchReviewBrief(questionIndex, { expectedOutput: event.target.value })}
-                  rows={2}
-                  className="w-full resize-y border border-[var(--terminal-primary-dim)] bg-[var(--terminal-bg)] px-3 py-2 text-sm leading-relaxed text-[var(--terminal-primary)] outline-none focus:border-fuchsia-400"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs text-[var(--terminal-primary-dim)]">通過條件，一行一個</span>
-                <textarea
-                  value={(question.reviewBrief?.mustInclude || []).join("\n")}
-                  onChange={(event) =>
-                    patchReviewBrief(questionIndex, { mustInclude: commaListToArray(event.target.value) })
-                  }
-                  rows={3}
-                  className="w-full resize-y border border-[var(--terminal-primary-dim)] bg-[var(--terminal-bg)] px-3 py-2 text-sm leading-relaxed text-[var(--terminal-primary)] outline-none focus:border-fuchsia-400"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs text-[var(--terminal-primary-dim)]">不通過情況，一行一個</span>
-                <textarea
-                  value={(question.reviewBrief?.rejectIf || []).join("\n")}
-                  onChange={(event) =>
-                    patchReviewBrief(questionIndex, { rejectIf: commaListToArray(event.target.value) })
-                  }
-                  rows={3}
-                  className="w-full resize-y border border-[var(--terminal-primary-dim)] bg-[var(--terminal-bg)] px-3 py-2 text-sm leading-relaxed text-[var(--terminal-primary)] outline-none focus:border-fuchsia-400"
-                />
-              </label>
-            </div>
           </section>
         );
       })}
@@ -1967,15 +2612,13 @@ function GammaAnswerCreateModal({
     createGammaAnswerDraftConfig()
   );
   const markdownFileRef = useRef<HTMLInputElement>(null);
-  const [worksheetId, setWorksheetId] = useState(DEFAULT_GAMMA_ANSWER_TEMPLATE_ID);
+  const [worksheetId, setWorksheetId] = useState("");
   const [idTouched, setIdTouched] = useState(false);
   const [classIds, setClassIds] = useState<string[]>(
     classrooms[0] ? [classrooms[0].id] : []
   );
   const [savingMode, setSavingMode] = useState<"draft" | "publish" | null>(null);
-  const [extractingReviewBrief, setExtractingReviewBrief] = useState(false);
   const [importedMarkdown, setImportedMarkdown] = useState("");
-  const [importedFileName, setImportedFileName] = useState("");
   const [error, setError] = useState("");
   const [importSummary, setImportSummary] = useState<{
     fileName: string;
@@ -2018,7 +2661,6 @@ function GammaAnswerCreateModal({
         const markdown = String(event.target?.result || "");
         const result = createGammaAnswerConfigFromMarkdown(markdown, file.name, config);
         setImportedMarkdown(markdown);
-        setImportedFileName(file.name);
         setConfig(result.config);
         setWorksheetId(result.worksheetId);
         setIdTouched(false);
@@ -2036,74 +2678,16 @@ function GammaAnswerCreateModal({
     reader.readAsText(file);
   };
 
-  const handleExtractReviewBrief = async () => {
-    if (!importedMarkdown.trim()) {
-      setError("請先匯入 .md，再使用 AI 萃取。");
-      return;
-    }
-    setError("");
-    setExtractingReviewBrief(true);
-    try {
-      const response = await fetch("/api/gamma-answer-extract", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          markdown: importedMarkdown,
-          fileName: importedFileName,
-          config: {
-            id: config.id,
-            title: config.title,
-            shortTitle: config.shortTitle,
-            semester: config.semester,
-            week: config.week,
-            gammaUrl: config.gammaUrl,
-            questions: config.questions.map((question) => ({
-              id: question.id,
-              title: question.title,
-              module: question.expectedKind,
-              coins: question.coins,
-              prompt: question.prompt,
-            })),
-          },
-        }),
-      });
-      const extracted = await response.json();
-      if (!response.ok) {
-        throw new Error(extracted?.error || "AI 萃取失敗");
-      }
-      const result = createGammaAnswerConfigFromAuthoring(
-        {
-          schemaVersion: 2,
-          worksheetType: "gamma-answer",
-          ...extracted,
-          id: config.id,
-          title: config.title,
-          shortTitle: config.shortTitle,
-          semester: config.semester,
-          week: config.week,
-          gammaUrl: config.gammaUrl,
-        },
-        importedMarkdown,
-        importedFileName || "ai-extracted.md",
-        config
-      );
-      setConfig(result.config);
-      setWorksheetId(result.worksheetId);
-      setImportSummary({
-        fileName: importedFileName || "已匯入內容",
-        taskCount: result.parseResult.tasks.length,
-        warnings: ["已使用 AI 低成本萃取補上審核依據。"],
-        errors: [],
-      });
-    } catch (extractError) {
-      setError(extractError instanceof Error ? extractError.message : String(extractError));
-    } finally {
-      setExtractingReviewBrief(false);
-    }
-  };
-
   const handleSave = async (publish: boolean) => {
     setError("");
+    if (!importedMarkdown.trim() || config.questions.length === 0) {
+      setError("請先匯入一份包含任務的 Markdown 學習單。");
+      return;
+    }
+    if (publish && !/^https:\/\/(?:www\.)?gamma\.app\/(?:docs|public|embed)\//i.test(config.gammaUrl.trim())) {
+      setError("發布前請填入有效的 Gamma 網址；草稿可以先留空。");
+      return;
+    }
     if (classIds.length === 0) {
       setError("至少要選擇一個可見班級。");
       return;
@@ -2133,6 +2717,7 @@ function GammaAnswerCreateModal({
       const generated = gammaAnswerConfigToWorksheet(finalConfig);
       await saveWorksheet({
         ...generated,
+        markdownContent: importedMarkdown,
         classId: classIds[0],
         classIds,
         isPublished: publish,
@@ -2173,7 +2758,15 @@ function GammaAnswerCreateModal({
         </div>
 
         <div className="space-y-5 p-4">
-          <section className="border border-dashed border-emerald-600/80 bg-emerald-950/10 p-3">
+          <section
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              const file = event.dataTransfer.files?.[0];
+              if (file) handleMarkdownFile(file);
+            }}
+            className="border border-dashed border-emerald-600/80 bg-emerald-950/10 p-6 text-center"
+          >
             <input
               ref={markdownFileRef}
               type="file"
@@ -2185,11 +2778,11 @@ function GammaAnswerCreateModal({
                 event.currentTarget.value = "";
               }}
             />
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-between sm:text-left">
               <div>
-                <div className="text-sm font-bold text-emerald-200">Markdown 初步匯入</div>
+                <div className="text-sm font-bold text-emerald-200">拖放一份 Markdown 學習單</div>
                 <p className="mt-1 text-xs text-[var(--terminal-primary-dim)]">
-                  會先抓標題、S/W、Gamma 連結、任務、金幣，並把任務轉成答題題目。
+                  或按右側按鈕選檔。匯入後才會顯示學習單與題目編輯器。
                 </p>
               </div>
               <button
@@ -2198,14 +2791,6 @@ function GammaAnswerCreateModal({
                 className="border border-emerald-500 px-4 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-900/20"
               >
                 匯入 .md
-              </button>
-              <button
-                type="button"
-                onClick={handleExtractReviewBrief}
-                disabled={!importedMarkdown || extractingReviewBrief}
-                className="border border-fuchsia-500 px-4 py-2 text-sm font-bold text-fuchsia-200 hover:bg-fuchsia-900/20 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {extractingReviewBrief ? "萃取中..." : "AI 萃取審核依據"}
               </button>
             </div>
             {importSummary && (
@@ -2231,6 +2816,8 @@ function GammaAnswerCreateModal({
             )}
           </section>
 
+          {importSummary && (
+          <>
           <section className="grid gap-3 border border-[var(--terminal-primary-dim)]/70 bg-black/20 p-3 md:grid-cols-[1fr_auto]">
             <label className="block">
               <span className="mb-1 block text-xs text-[var(--terminal-primary-dim)]">
@@ -2292,7 +2879,12 @@ function GammaAnswerCreateModal({
             )}
           </section>
 
-          <GammaAnswerVisualEditor config={config} onChange={handleConfigChange} />
+          <GammaAnswerVisualEditor
+            config={config}
+            onChange={handleConfigChange}
+          />
+          </>
+          )}
 
           {error && (
             <pre className="max-h-40 overflow-auto whitespace-pre-wrap border border-red-700 bg-red-950/40 p-3 text-xs text-red-200">
@@ -2303,7 +2895,9 @@ function GammaAnswerCreateModal({
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-emerald-800/70 p-4">
           <p className="text-xs text-[var(--terminal-primary-dim)]">
-            新版答題學習單會保存到 worksheets，並帶有 gammaAnswerConfig。
+            {importSummary
+              ? "草稿可暫時不填 Gamma 網址；發布前必須補上有效網址。"
+              : "請先匯入單一 Markdown 檔案。"}
           </p>
           <div className="flex gap-2">
             <button
@@ -2313,20 +2907,24 @@ function GammaAnswerCreateModal({
             >
               取消
             </button>
-            <button
-              onClick={() => handleSave(false)}
-              disabled={!!savingMode || classIds.length === 0}
-              className="border border-yellow-600 px-4 py-2 text-sm font-bold text-yellow-300 hover:bg-yellow-900/20 disabled:opacity-50"
-            >
-              {savingMode === "draft" ? "儲存中..." : "儲存草稿"}
-            </button>
-            <button
-              onClick={() => handleSave(true)}
-              disabled={!!savingMode || classIds.length === 0}
-              className="border border-emerald-400 bg-emerald-500/15 px-4 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-50"
-            >
-              {savingMode === "publish" ? "發布中..." : "儲存並發布"}
-            </button>
+            {importSummary && (
+              <>
+                <button
+                  onClick={() => handleSave(false)}
+                  disabled={!!savingMode || classIds.length === 0}
+                  className="border border-yellow-600 px-4 py-2 text-sm font-bold text-yellow-300 hover:bg-yellow-900/20 disabled:opacity-50"
+                >
+                  {savingMode === "draft" ? "儲存中..." : "儲存草稿"}
+                </button>
+                <button
+                  onClick={() => handleSave(true)}
+                  disabled={!!savingMode || classIds.length === 0}
+                  className="border border-emerald-400 bg-emerald-500/15 px-4 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-50"
+                >
+                  {savingMode === "publish" ? "發布中..." : "儲存並發布"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

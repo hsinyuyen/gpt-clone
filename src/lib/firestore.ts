@@ -46,6 +46,23 @@ function worksheetFromSnapshot(snapshot: { id: string; data: () => unknown }): W
   };
 }
 
+function isMissingFirestoreIndexError(error: unknown): boolean {
+  const candidate = error as { code?: string; message?: string };
+  return (
+    candidate?.code === "failed-precondition" &&
+    /requires an index/i.test(candidate.message || "")
+  );
+}
+
+function sortAuditLogsByTimestampDesc(logs: AuditLogEntry[], limitCount: number) {
+  return logs
+    .sort(
+      (a, b) =>
+        new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()
+    )
+    .slice(0, limitCount);
+}
+
 // ============ Users ============
 
 export async function getUser(userId: string): Promise<User | null> {
@@ -1105,30 +1122,52 @@ export async function getAuditLogs(opts: {
   studentId?: string;
   limitCount?: number;
 }): Promise<AuditLogEntry[]> {
+  const limitCount = opts.limitCount || 100;
   let q;
   if (opts.worksheetId) {
     q = query(
       collection(db, "auditLog"),
       where("worksheetId", "==", opts.worksheetId),
       orderBy("timestamp", "desc"),
-      firestoreLimit(opts.limitCount || 100)
+      firestoreLimit(limitCount)
     );
   } else if (opts.studentId) {
     q = query(
       collection(db, "auditLog"),
       where("studentId", "==", opts.studentId),
       orderBy("timestamp", "desc"),
-      firestoreLimit(opts.limitCount || 100)
+      firestoreLimit(limitCount)
     );
   } else {
     q = query(
       collection(db, "auditLog"),
       orderBy("timestamp", "desc"),
-      firestoreLimit(opts.limitCount || 100)
+      firestoreLimit(limitCount)
     );
   }
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => d.data() as AuditLogEntry);
+
+  try {
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => d.data() as AuditLogEntry);
+  } catch (error) {
+    if (!isMissingFirestoreIndexError(error) || (!opts.worksheetId && !opts.studentId)) {
+      throw error;
+    }
+
+    console.warn(
+      "[firestore] auditLog composite index is not ready; using client-side sorted fallback.",
+      error
+    );
+
+    const fallbackQuery = opts.worksheetId
+      ? query(collection(db, "auditLog"), where("worksheetId", "==", opts.worksheetId))
+      : query(collection(db, "auditLog"), where("studentId", "==", opts.studentId || ""));
+    const snap = await getDocs(fallbackQuery);
+    return sortAuditLogsByTimestampDesc(
+      snap.docs.map((d) => d.data() as AuditLogEntry),
+      limitCount
+    );
+  }
 }
 
 export function onStudentProgressChange(

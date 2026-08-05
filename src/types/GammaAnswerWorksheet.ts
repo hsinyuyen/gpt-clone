@@ -21,6 +21,25 @@ export interface GammaAnswerReviewBrief {
   rejectIf: string[];
 }
 
+export interface GammaAnswerPromptReviewCriteria {
+  passConditions: string[];
+  minimumCharacterMatchRatio?: number;
+}
+
+export type GammaAnswerReadCheckType = "choice" | "text";
+export type GammaAnswerReadCheckMatchMode = "exact" | "includes";
+
+export interface GammaAnswerReadCheck {
+  type?: GammaAnswerReadCheckType;
+  question: string;
+  options: string[];
+  answerIndex: number;
+  acceptedAnswers?: string[];
+  matchMode?: GammaAnswerReadCheckMatchMode;
+  successFeedback?: string;
+  retryFeedback?: string;
+}
+
 export interface GammaAnswerQuestionConfig {
   id: string;
   taskId: string;
@@ -36,7 +55,10 @@ export interface GammaAnswerQuestionConfig {
   accept: string;
   uploadLabel: string;
   reviewHint: string;
+  readCheck?: GammaAnswerReadCheck;
+  readChecks?: GammaAnswerReadCheck[];
   reviewBrief?: GammaAnswerReviewBrief;
+  promptReviewCriteria?: GammaAnswerPromptReviewCriteria;
   reviewCriteria?: GammaAnswerReviewCriteria;
   textMinimumLength?: number;
   textMaximumLength?: number;
@@ -59,5 +81,7 @@ export interface GammaAnswerWorksheetConfig {
   storageVersion: string;
   draftField: "gammaAnswerDraft";
   mediaAccessKey: string;
+  /** Per-worksheet retained asset limits. Omit a kind to use its server default. */
+  assetCacheLimits?: Partial<Record<"image" | "music" | "video", number>>;
   questions: GammaAnswerQuestionConfig[];
 }

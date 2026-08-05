@@ -1,143 +1,95 @@
-# 答題版學習單 Markdown JSON 建置標準
+# 答題版學習單 Markdown 匯入標準
 
-目前標準：`schemaVersion: 2`。
+目前版本：`schemaVersion: 2`。
 
-學習單 `.md` 尾部固定放一段 `LAB_TERMINAL_WORKSHEET_CONFIG`。這段 JSON 只做題目設計與最小審核設定，不要放整份 GAMMA 內容，也不要放 Lab Tool 的完整提示詞。
+答題版學習單改用與原版相同的單一 Markdown 匯入流程。Admin 不需要準備額外 JSON，也不需要 AI 萃取設定；匯入後可直接調整標題、系列／週次、班級、Gamma 網址、題目模組、金幣與讀題小測。
 
-## 固定格式
+## Markdown 任務格式
 
-````markdown
-<!-- LAB_TERMINAL_WORKSHEET_CONFIG_START -->
-```json
-{
-  "schemaVersion": 2,
-  "worksheetType": "gamma-answer",
-  "id": "S3W02",
-  "title": "S3 W02｜重點找出與提示詞生成",
-  "shortTitle": "S3 W02",
-  "semester": "S3",
-  "week": 2,
-  "gammaUrl": "https://gamma.app/docs/xxxxx",
-  "questions": []
-}
-```
-<!-- LAB_TERMINAL_WORKSHEET_CONFIG_END -->
-````
+每一題使用一個二級「任務」標題。系統會保留從此標題到下一個二級標題前的完整任務區塊。
 
-## Top-Level 欄位
+```markdown
+# S3 W02｜課程名稱
 
-| 欄位 | 必填 | 型別 | 說明 |
-| --- | --- | --- | --- |
-| `schemaVersion` | 是 | number | 固定 `2`。 |
-| `worksheetType` | 是 | string | 固定 `gamma-answer`。 |
-| `id` | 是 | string | 學習單 ID，例如 `S3W02`。 |
-| `title` | 是 | string | 學習單完整標題。 |
-| `shortTitle` | 建議 | string | 列表短標題，例如 `S3 W02`。 |
-| `semester` | 是 | string | 課程階段，例如 `S3`。 |
-| `week` | 是 | number | 週次，例如 `2`。 |
-| `gammaUrl` | 是 | string | GAMMA 分享或 embed 連結。 |
-| `questions` | 是 | array | 題目列表，至少 1 題。 |
+## 任務 A｜整理線索（45 金幣）
 
-## Question 欄位
+任務說明與教學內容。
 
-| 欄位 | 必填 | 型別 | 說明 |
-| --- | --- | --- | --- |
-| `id` | 是 | string | 題目 ID，例如 `q1`。 |
-| `title` | 是 | string | 題目標題。 |
-| `module` | 是 | string | `text`、`image`、`audio`、`video`。 |
-| `coins` | 是 | number | 通過後給學生的金幣數。 |
-| `prompt` | 是 | string | 學生答題區看到的短題目。 |
-| `needsAiReview` | 是 | boolean | `false` 只做資料驗證；`true` 先防呆再送 AI 審查。 |
-| `reviewBrief` | 是 | object | 單題審核摘要。 |
+### 完成這一題
 
-## 文字題資料驗證欄位
+- 將資料交給 Lab Terminal 整理。
+- 把結果貼進答題卡。
 
-只有 `module: "text"` 且 `needsAiReview: false` 時才需要。沒有填也可以，系統會使用基本字數檢查。
+### 完成條件
 
-| 欄位 | 必填 | 型別 | 說明 |
-| --- | --- | --- | --- |
-| `reviewPreset` | 選填 | string | 建議 `text-keywords`、`text-length`、`text-three-points`。 |
-| `strictness` | 選填 | string | `loose`、`normal`、`strict`。 |
-| `requiredConcepts` | 選填 | string[] | 文字答案需要命中的關鍵概念。 |
-| `minimumKeywordMatches` | 選填 | number | 至少命中幾個關鍵概念。 |
-| `minLength` | 選填 | number | 最少字數。 |
-| `maxLength` | 選填 | number | 最多字數。 |
-
-## reviewBrief 欄位
-
-| 欄位 | 必填 | 型別 | 說明 |
-| --- | --- | --- | --- |
-| `task` | 是 | string | 這題要完成的任務，一句話即可。 |
-| `expectedOutput` | 是 | string | 合格答案或檔案應具備的結果。 |
-| `mustInclude` | 是 | string[] | 必須包含的條件，建議 3-5 個。 |
-| `rejectIf` | 是 | string[] | 不通過的情況，建議 3-5 個。 |
-
-## AI 審查規則
-
-- `needsAiReview: false`：不呼叫 AI，只做資料驗證。
-- `needsAiReview: true`：先檢查基本資料，例如是否有檔案、檔案類型是否正確；通過後才送 AI。
-- 不要在 `.md` JSON 手寫 `aiReviewMode`，這是系統內部欄位。
-
-## 範例
-
-```json
-{
-  "schemaVersion": 2,
-  "worksheetType": "gamma-answer",
-  "id": "S3W02",
-  "title": "S3 W02｜重點找出與提示詞生成",
-  "shortTitle": "S3 W02",
-  "semester": "S3",
-  "week": 2,
-  "gammaUrl": "https://gamma.app/docs/xxxxx",
-  "questions": [
-    {
-      "id": "q1",
-      "title": "找出提示詞重點",
-      "module": "text",
-      "coins": 80,
-      "prompt": "請根據 GAMMA 的範例，寫出這段提示詞中最重要的 3 個要求。",
-      "needsAiReview": false,
-      "reviewPreset": "text-keywords",
-      "requiredConcepts": ["角色", "場景", "風格", "限制"],
-      "minimumKeywordMatches": 3,
-      "minLength": 30,
-      "maxLength": 220,
-      "reviewBrief": {
-        "task": "學生要列出提示詞中的重點要求。",
-        "expectedOutput": "文字答案需包含至少 3 個與題目相關的重點。",
-        "mustInclude": ["至少 3 個重點", "內容與 GAMMA 題目相關", "不可只複製題目"],
-        "rejectIf": ["答案空白", "只貼題目文字", "內容與題目無關"]
-      }
-    },
-    {
-      "id": "q2",
-      "title": "生成相識紀念音樂",
-      "module": "audio",
-      "coins": 100,
-      "prompt": "請用 Lab Music 生成一段溫暖、開心、有吉他與明亮鋼琴的音樂，並上傳音樂檔。",
-      "needsAiReview": true,
-      "reviewBrief": {
-        "task": "學生要上傳符合提示詞的相識紀念音樂。",
-        "expectedOutput": "音樂應有溫暖、開心的感覺，並包含吉他、明亮鋼琴或鈴聲等元素。",
-        "mustInclude": ["音樂檔案", "溫暖或開心風格", "吉他、鋼琴或鈴聲元素"],
-        "rejectIf": ["沒有音樂檔", "恐怖或沉重風格", "明顯有人聲歌詞"]
-      }
-    }
-  ]
-}
+- 完成文字回答。
 ```
 
-## 不要放入 `.md` JSON
+匯入規則：
 
-- `taskId`
-- `toolId`
-- `toolPrompt`
-- `accept`
-- `uploadLabel`
-- `reviewCriteria`
-- `aiReviewMode`
-- `mediaAccessKey`
-- `storageVersion`
-- `classIds`
-- `isPublished`
+- 從 `#` 標題與檔名辨認標題、系列及週次。
+- 從 `## 任務 ...（N 金幣）` 擷取題目與金幣。
+- 優先使用「完成這一題」，其次使用「完成條件」建立可編輯的題目內容。
+- 依任務區塊內的 `Lab Terminal`、`Lab Image`、`Lab Music`、`Lab Video` 預選文字、圖片、音樂、影片模組。
+- Markdown 內若有 Gamma 網址會自動帶入；沒有網址仍可儲存草稿。
+- 發布前必須填入 `https://gamma.app/docs/...`、`public/...` 或 `embed/...` 網址。
+- 匯入新檔時不會沿用其他學習單的題目或 Gamma 網址。
+
+## 讀題小測
+
+新匯入題目的 `readChecks` 預設為空陣列。讀題小測只能由 Admin 手動新增，支援：
+
+- 選擇題或文字題。
+- 同一題加入多個小測。
+- 上移、下移調整順序。
+- 刪除到 0 題。
+
+舊版單一 `readCheck` 仍會自動當成一題處理；明確設定 `readChecks: []` 是合法狀態。
+
+## 審核上下文
+
+新建題目只需要：
+
+- 題目標題 `title`
+- 題目內容 `prompt`
+- 指定工具 `toolId`
+- 預期成果種類 `expectedKind`
+
+新建流程不再產生或要求 `reviewBrief`、`promptReviewCriteria`。舊學習單的這兩個欄位仍可讀取，但只作相容提示，也不在一般 Admin 編輯介面顯示。
+
+文字答案的 AI 審查以題目標題與內容為主要依據。媒體繳交只檢查附件格式與 Lab Terminal 簽章，不再做第二次媒體內容 AI 審查。
+
+## 生成前防濫用
+
+學生送出提示詞時，瀏覽器會先阻擋空白、過短、重複、亂碼、測試字串、空泛生成要求、未完成底線模板及錯誤工具。處罰狀態只保存在瀏覽器 `localStorage`，鍵由 `worksheetId + taskId + tool` 組成，不含學生 ID。
+
+- 第 1 次無效輸入只提示。
+- 第 2 次鎖定 5 秒，後續每次增加 5 秒，最高 60 秒。
+- 重新整理後仍會恢復剩餘倒數。
+- 成功生成或 10 分鐘沒有再犯會清除連錯次數。
+- 鎖定期間不呼叫生成 API。
+
+Lab Terminal 通過本地與伺服器基本檢查後直接生成文字，不做額外 AI 初審。Lab Image、Lab Music、Lab Video 會由低成本文字模型比較學生提示詞與伺服器取得的已發布題目；通過後才查快取或呼叫高成本生成服務。初審服務失敗時採 fail-closed。
+
+## 媒體簽章與 Admin 管理
+
+媒體生成成功後，後端會將 `worksheetId`、`taskId`、媒體類型、提示詞與內容雜湊寫入簽章 metadata。簽章系統固定啟用，Admin 介面不提供關閉選項。
+
+每份答題版學習單的「管理生成素材」可：
+
+- 按圖片、音樂、影片查看預覽、檔名、大小、日期、題目、提示詞與簽章狀態。
+- 發現索引中遺失但仍存在 Storage 或本機快取的孤兒檔案。
+- 單筆刪除、清空單一媒體類型或清空整份學習單。
+- 同步更新 Firebase Storage、本機快取與 `index.json`；刪除索引項目也會移除其中的簽章 metadata。
+
+已下載到學生裝置或保存在學生 IndexedDB 的副本無法由 Admin 遠端刪除。
+
+## 舊版相容欄位
+
+下列欄位仍可存在於已儲存的 `gammaAnswerConfig`，但新匯入流程不建立：
+
+- `reviewBrief`
+- `promptReviewCriteria`
+- `readCheck`（改以 `readChecks` 為主）
+
+`taskId`、`accept`、`uploadLabel`、`reviewCriteria`、`mediaAccessKey`、`storageVersion`、`sessionId` 與簽章資料均由系統建立或保管，不需要寫入 Markdown。

@@ -4,14 +4,12 @@ import os from "os";
 import path from "path";
 import { initializeApp, getApps } from "firebase/app";
 import {
-  doc,
-  getDoc,
-  getFirestore,
-  setDoc,
-} from "firebase/firestore";
-import {
+  deleteObject,
+  getBytes,
   getDownloadURL,
+  getMetadata,
   getStorage,
+  listAll,
   ref as storageRef,
   uploadBytes,
 } from "firebase/storage";
@@ -50,7 +48,32 @@ export interface CachedAssetBuffer {
   fileName: string;
   prompt?: string;
   createdAt?: string;
+  storagePath?: string;
+  downloadUrl?: string;
   metadata?: Record<string, unknown>;
+}
+
+export interface LabToolAdminAsset {
+  worksheetId: string;
+  kind: CacheableLabToolKind;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+  prompt: string;
+  taskId: string;
+  task: string;
+  signatureStatus: "signed" | "missing";
+  indexed: boolean;
+  storagePath?: string;
+  downloadUrl?: string;
+  assetUrl: string;
+}
+
+export interface DeleteLabToolAssetsResult {
+  requested: number;
+  deleted: number;
+  failed: Array<{ kind: CacheableLabToolKind; fileName: string; error: string }>;
 }
 
 export interface CachedAssetRedirect {
@@ -59,6 +82,7 @@ export interface CachedAssetRedirect {
   fileName: string;
   prompt?: string;
   createdAt?: string;
+  storagePath?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -161,7 +185,6 @@ function firebaseServices() {
   const app =
     getApps().length === 0 ? initializeApp(getFirebaseConfig()) : getApps()[0];
   return {
-    db: getFirestore(app),
     storage: getStorage(app),
   };
 }
@@ -174,13 +197,8 @@ function cloudStoragePath(
   return `${CLOUD_CACHE_ROOT}/${normalizeWorksheetId(worksheetId)}/${kind}/${path.basename(fileName)}`;
 }
 
-function cloudIndexRefs(worksheetId: string, kind: CacheableLabToolKind) {
-  const { db } = firebaseServices();
-  const normalizedWorksheetId = normalizeWorksheetId(worksheetId);
-  return [
-    doc(db, "system", `labToolCache_${normalizedWorksheetId}_${kind}`),
-    doc(db, "labToolCache", normalizedWorksheetId, "kinds", kind),
-  ];
+function cloudIndexPath(worksheetId: string, kind: CacheableLabToolKind) {
+  return `${CLOUD_CACHE_ROOT}/${normalizeWorksheetId(worksheetId)}/${kind}/index.json`;
 }
 
 async function readLocalIndex(
@@ -200,14 +218,14 @@ async function readCloudIndex(
   worksheetId: string,
   kind: CacheableLabToolKind
 ): Promise<CacheEntry[]> {
-  for (const ref of cloudIndexRefs(worksheetId, kind)) {
-    try {
-      const snap = await getDoc(ref);
-      const entries = snap.exists() ? snap.data()?.entries : null;
-      if (Array.isArray(entries)) return entries as CacheEntry[];
-    } catch (error) {
-      console.warn("[LabToolCache] cloud index read failed:", ref.path, error);
-    }
+  const { storage } = firebaseServices();
+  const ref = storageRef(storage, cloudIndexPath(worksheetId, kind));
+  try {
+    const buffer = Buffer.from(await getBytes(ref));
+    const parsed = JSON.parse(buffer.toString("utf8"));
+    return Array.isArray(parsed?.entries) ? (parsed.entries as CacheEntry[]) : [];
+  } catch (error) {
+    console.warn("[LabToolCache] cloud index read failed:", ref.fullPath, error);
   }
   return [];
 }
@@ -235,9 +253,8 @@ async function writeCloudIndex(
   kind: CacheableLabToolKind,
   entries: CacheEntry[]
 ) {
-  const normalizedWorksheetId = normalizeWorksheetId(worksheetId);
   const payload = {
-    worksheetId: normalizedWorksheetId,
+    worksheetId: normalizeWorksheetId(worksheetId),
     kind,
     entries: entries.map((entry) =>
       Object.fromEntries(
@@ -248,20 +265,50 @@ async function writeCloudIndex(
     version: 1,
   };
 
-  let lastError: unknown = null;
-  const writtenPaths: string[] = [];
-  for (const ref of cloudIndexRefs(worksheetId, kind)) {
-    try {
-      await setDoc(ref, payload, { merge: true });
-      writtenPaths.push(ref.path);
-    } catch (error) {
-      lastError = error;
-      console.warn("[LabToolCache] cloud index write failed:", ref.path, error);
-    }
-  }
+  const { storage } = firebaseServices();
+  const ref = storageRef(storage, cloudIndexPath(worksheetId, kind));
+  await uploadBytes(ref, Buffer.from(JSON.stringify(payload), "utf8"), {
+    contentType: "application/json",
+  });
+  return ref.fullPath;
+}
 
-  if (writtenPaths.length > 0) return writtenPaths.join(",");
-  throw lastError || new Error("Cloud index write failed");
+async function readMergedIndex(
+  worksheetId: string,
+  kind: CacheableLabToolKind
+) {
+  const [localEntries, cloudEntries] = await Promise.all([
+    readLocalIndex(worksheetId, kind),
+    readCloudIndex(worksheetId, kind).catch(() => []),
+  ]);
+  const merged = new Map<string, CacheEntry>();
+  [...cloudEntries, ...localEntries].forEach((entry) => {
+    if (entry?.fileName) merged.set(path.basename(entry.fileName), entry);
+  });
+  return Array.from(merged.values());
+}
+
+async function deletePhysicalAsset(
+  worksheetId: string,
+  kind: CacheableLabToolKind,
+  fileName: string,
+  storagePath?: string
+) {
+  const safeFile = path.basename(fileName);
+  if (!safeFile || safeFile === "index.json") throw new Error("Invalid asset file name.");
+  try {
+    await fs.unlink(path.join(kindDir(worksheetId, kind), safeFile));
+  } catch (error: any) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  try {
+    const { storage } = firebaseServices();
+    await deleteObject(
+      storageRef(storage, storagePath || cloudStoragePath(worksheetId, kind, safeFile))
+    );
+  } catch (error: any) {
+    if (error?.code !== "storage/object-not-found") throw error;
+  }
 }
 
 async function uploadCloudAsset(params: {
@@ -292,11 +339,20 @@ export function cachedAssetUrl(
   return `/api/lab-tools/asset?${params.toString()}`;
 }
 
+export async function getLabToolCacheCount(
+  worksheetId: string,
+  kind: CacheableLabToolKind
+) {
+  const entries = await readIndex(worksheetId, kind);
+  return entries.length;
+}
+
 export async function findCachedLabToolResult(
   worksheetId: string,
   kind: CacheableLabToolKind,
   prompt: string,
-  limit?: number
+  limit?: number,
+  taskId?: string
 ) {
   const normalizedPrompt = normalizePrompt(prompt);
   const entries = await readIndex(worksheetId, kind);
@@ -304,12 +360,15 @@ export async function findCachedLabToolResult(
     typeof limit === "number" ? Math.max(1, Math.floor(limit)) : undefined;
   const usableEntries = requiredCount ? entries.slice(0, requiredCount) : entries;
 
-  if (requiredCount && usableEntries.length < requiredCount) {
-    return null;
-  }
-
   const matches: { entry: CacheEntry; score: number }[] = [];
   for (const entry of usableEntries) {
+    const metadata = entry.metadata || {};
+    const review = metadata.labImageReview || metadata.labMusicReview || metadata.labVideoReview;
+    const cachedTaskId =
+      review && typeof review === "object" && !Array.isArray(review)
+        ? String((review as Record<string, unknown>).taskId || "")
+        : "";
+    if (taskId && cachedTaskId !== taskId) continue;
     const entryPrompt = normalizePrompt(entry.normalizedPrompt || entry.prompt);
     const score = promptSimilarity(normalizedPrompt, entryPrompt);
     if (score >= SIMILARITY_THRESHOLD) {
@@ -341,12 +400,22 @@ export async function findCachedLabToolResult(
 export async function findRandomCachedLabToolResult(
   worksheetId: string,
   kind: CacheableLabToolKind,
-  limit?: number
+  limit?: number,
+  taskId?: string
 ) {
   const entries = await readIndex(worksheetId, kind);
   const requiredCount =
     typeof limit === "number" ? Math.max(1, Math.floor(limit)) : undefined;
-  const usableEntries = requiredCount ? entries.slice(0, requiredCount) : entries;
+  const usableEntries = (requiredCount ? entries.slice(0, requiredCount) : entries).filter((entry) => {
+    if (!taskId) return true;
+    const metadata = entry.metadata || {};
+    const review = metadata.labImageReview || metadata.labMusicReview || metadata.labVideoReview;
+    const cachedTaskId =
+      review && typeof review === "object" && !Array.isArray(review)
+        ? String((review as Record<string, unknown>).taskId || "")
+        : "";
+    return cachedTaskId === taskId;
+  });
 
   if (usableEntries.length === 0) return null;
 
@@ -366,7 +435,7 @@ export async function findRandomCachedLabToolResult(
 
 export function isRecoverableLabToolApiError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
-  return /quota|rate[- ]?limit|billing|prepay|prepayment|credits? are depleted|depleted|insufficient|too many|too many calls|too many requests|429|401|unauthorized|missing_permissions|permission|resource[_ -]?exhausted|exceeded/i.test(message);
+  return /quota|rate[- ]?limit|billing|prepay|prepayment|credits? are depleted|depleted|insufficient|too many|too many calls|too many requests|429|resource[_ -]?exhausted|exceeded/i.test(message);
 }
 
 export function startLabToolApiCooldown(
@@ -406,6 +475,7 @@ export async function saveLabToolResult(params: SaveCacheParams) {
 
   const entries = await readIndex(worksheetId, params.kind);
   let cloud: { storagePath: string; downloadUrl: string } | null = null;
+  let cloudIndexWritten = false;
   try {
     cloud = await uploadCloudAsset({
       worksheetId,
@@ -418,7 +488,9 @@ export async function saveLabToolResult(params: SaveCacheParams) {
     console.warn("[LabToolCache] cloud asset upload failed:", error);
   }
 
-  const nextEntries: CacheEntry[] = [
+  const requireCloudCache =
+    process.env.LAB_TOOL_REQUIRE_CLOUD_CACHE === "true" || process.env.VERCEL === "1";
+  const allEntries: CacheEntry[] = [
     {
       id: hash,
       prompt: params.prompt,
@@ -433,7 +505,12 @@ export async function saveLabToolResult(params: SaveCacheParams) {
       metadata: params.metadata,
     },
     ...entries,
-  ].slice(0, params.limit);
+  ];
+  const nextEntries = allEntries.slice(0, params.limit);
+  const retainedFiles = new Set(nextEntries.map((entry) => entry.fileName));
+  const evictedEntries = allEntries
+    .slice(params.limit)
+    .filter((entry) => !retainedFiles.has(entry.fileName));
 
   try {
     await writeLocalIndex(worksheetId, params.kind, nextEntries);
@@ -443,15 +520,31 @@ export async function saveLabToolResult(params: SaveCacheParams) {
 
   try {
     await writeCloudIndex(worksheetId, params.kind, nextEntries);
+    cloudIndexWritten = true;
   } catch (error) {
     console.warn("[LabToolCache] cloud index write failed:", error);
   }
+
+  if (requireCloudCache && (!cloud || !cloudIndexWritten)) {
+    throw new Error("生成內容無法完整儲存到雲端，請稍後再試。");
+  }
+
+  await Promise.all(
+    evictedEntries.map((entry) =>
+      deletePhysicalAsset(worksheetId, params.kind, entry.fileName).catch((error) => {
+        console.warn("[LabToolCache] evicted asset delete failed:", entry.fileName, error);
+      })
+    )
+  );
 
   return {
     cached: false,
     assetUrl: cachedAssetUrl(worksheetId, params.kind, fileName),
     fileName,
     mimeType: params.mimeType,
+    storagePath: cloud?.storagePath,
+    downloadUrl: cloud?.downloadUrl,
+    persisted: Boolean(cloud && cloudIndexWritten),
   };
 }
 
@@ -476,6 +569,8 @@ export async function readCachedAsset(
         fileName: resolved.fileName,
         prompt: resolved.prompt,
         createdAt: resolved.createdAt,
+        storagePath: resolved.storagePath,
+        downloadUrl: resolved.downloadUrl,
         metadata: resolved.metadata,
       };
     }
@@ -506,6 +601,8 @@ export async function resolveCachedAsset(
       fileName: entry?.fileName || safeFile,
       prompt: entry?.prompt,
       createdAt: entry?.createdAt,
+      storagePath: entry?.storagePath,
+      downloadUrl: entry?.downloadUrl,
       metadata: entry?.metadata,
     };
   } catch {
@@ -520,11 +617,207 @@ export async function resolveCachedAsset(
       fileName: entry.fileName || safeFile,
       prompt: entry.prompt,
       createdAt: entry.createdAt,
+      storagePath: entry.storagePath,
       metadata: entry.metadata,
     };
   }
 
+  try {
+    const { storage } = firebaseServices();
+    const ref = storageRef(storage, cloudStoragePath(worksheetId, kind, safeFile));
+    const [downloadUrl, metadata] = await Promise.all([getDownloadURL(ref), getMetadata(ref)]);
+    return {
+      downloadUrl,
+      mimeType: metadata.contentType || MIME_BY_EXTENSION[path.extname(safeFile).slice(1)] || "application/octet-stream",
+      fileName: safeFile,
+      createdAt: metadata.timeCreated,
+      storagePath: ref.fullPath,
+    };
+  } catch {
+    // The asset does not exist in local or cloud storage.
+  }
+
   return null;
+}
+
+function reviewMetadata(entry?: CacheEntry) {
+  const metadata = entry?.metadata || {};
+  const review = metadata.labImageReview || metadata.labMusicReview || metadata.labVideoReview;
+  return review && typeof review === "object" && !Array.isArray(review)
+    ? (review as Record<string, unknown>)
+    : {};
+}
+
+export async function listLabToolAssets(worksheetIdInput: string) {
+  const worksheetId = requireLabToolWorksheetId(worksheetIdInput);
+  const kinds: CacheableLabToolKind[] = ["image", "music", "video"];
+  const grouped = await Promise.all(
+    kinds.map(async (kind) => {
+      const entries = await readMergedIndex(worksheetId, kind);
+      const entriesByFile = new Map(entries.map((entry) => [path.basename(entry.fileName), entry]));
+      const discovered = new Map<
+        string,
+        { size?: number; createdAt?: string; mimeType?: string; storagePath?: string; downloadUrl?: string }
+      >();
+
+      try {
+        const files = await fs.readdir(kindDir(worksheetId, kind), { withFileTypes: true });
+        await Promise.all(
+          files
+            .filter((file) => file.isFile() && file.name !== "index.json")
+            .map(async (file) => {
+              const stat = await fs.stat(path.join(kindDir(worksheetId, kind), file.name));
+              discovered.set(file.name, {
+                size: stat.size,
+                createdAt: stat.birthtime.toISOString(),
+                mimeType: MIME_BY_EXTENSION[path.extname(file.name).slice(1).toLowerCase()],
+              });
+            })
+        );
+      } catch {
+        // Local cache may not exist on serverless instances.
+      }
+
+      try {
+        const { storage } = firebaseServices();
+        const result = await listAll(
+          storageRef(storage, `${CLOUD_CACHE_ROOT}/${worksheetId}/${kind}`)
+        );
+        await Promise.all(
+          result.items
+            .filter((item) => item.name !== "index.json")
+            .map(async (item) => {
+              const [metadata, downloadUrl] = await Promise.all([
+                getMetadata(item),
+                getDownloadURL(item),
+              ]);
+              const previous = discovered.get(item.name) || {};
+              discovered.set(item.name, {
+                ...previous,
+                size: Number(metadata.size) || previous.size,
+                createdAt: metadata.timeCreated || previous.createdAt,
+                mimeType: metadata.contentType || previous.mimeType,
+                storagePath: item.fullPath,
+                downloadUrl,
+              });
+            })
+        );
+      } catch (error) {
+        console.warn("[LabToolCache] cloud asset listing failed:", worksheetId, kind, error);
+      }
+
+      entries.forEach((entry) => {
+        const previous = discovered.get(entry.fileName) || {};
+        discovered.set(entry.fileName, {
+          ...previous,
+          size: entry.size ?? previous.size,
+          createdAt: entry.createdAt || previous.createdAt,
+          mimeType: entry.mimeType || previous.mimeType,
+          storagePath: entry.storagePath || previous.storagePath,
+          downloadUrl: entry.downloadUrl || previous.downloadUrl,
+        });
+      });
+
+      return Array.from(discovered.entries()).map(([fileName, actual]): LabToolAdminAsset => {
+        const entry = entriesByFile.get(fileName);
+        const review = reviewMetadata(entry);
+        return {
+          worksheetId,
+          kind,
+          fileName,
+          mimeType: actual.mimeType || entry?.mimeType || "application/octet-stream",
+          size: actual.size || entry?.size || 0,
+          createdAt: actual.createdAt || entry?.createdAt || "",
+          prompt: String(review.prompt || entry?.prompt || ""),
+          taskId: String(review.taskId || ""),
+          task: String(review.task || ""),
+          signatureStatus: review.signature ? "signed" : "missing",
+          indexed: Boolean(entry),
+          storagePath: actual.storagePath || entry?.storagePath,
+          downloadUrl: actual.downloadUrl || entry?.downloadUrl,
+          assetUrl: cachedAssetUrl(worksheetId, kind, fileName),
+        };
+      });
+    })
+  );
+
+  return grouped.flat().sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+export async function deleteLabToolAssets(params: {
+  worksheetId: string;
+  scope: "asset" | "kind" | "worksheet";
+  kind?: CacheableLabToolKind;
+  fileName?: string;
+}): Promise<DeleteLabToolAssetsResult> {
+  const worksheetId = requireLabToolWorksheetId(params.worksheetId);
+  const allKinds: CacheableLabToolKind[] = ["image", "music", "video"];
+  const kinds = params.scope === "worksheet" ? allKinds : params.kind ? [params.kind] : [];
+  if (kinds.length === 0) throw new Error("kind is required for this delete scope.");
+
+  const listed = await listLabToolAssets(worksheetId);
+  const requestedFileName = path.basename(params.fileName || "");
+  const matchedAssets = listed.filter(
+    (asset) =>
+      asset.kind === kinds[0] &&
+      asset.fileName === requestedFileName
+  );
+  const targets = params.scope === "asset"
+    ? matchedAssets.length > 0
+      ? matchedAssets.map((asset) => ({
+          kind: asset.kind,
+          fileName: asset.fileName,
+          storagePath: asset.storagePath,
+        }))
+      : [{ kind: kinds[0], fileName: requestedFileName, storagePath: undefined }]
+    : listed
+        .filter((asset) => kinds.includes(asset.kind))
+        .map((asset) => ({ kind: asset.kind, fileName: asset.fileName, storagePath: asset.storagePath }));
+  if (targets.some((target) => !target.fileName || target.fileName === "index.json")) {
+    throw new Error("A valid asset file name is required.");
+  }
+
+  const result: DeleteLabToolAssetsResult = { requested: targets.length, deleted: 0, failed: [] };
+  const deletedByKind = new Map<CacheableLabToolKind, Set<string>>();
+  for (const target of targets) {
+    try {
+      await deletePhysicalAsset(
+        worksheetId,
+        target.kind,
+        target.fileName,
+        target.storagePath
+      );
+      result.deleted += 1;
+      const deleted = deletedByKind.get(target.kind) || new Set<string>();
+      deleted.add(target.fileName);
+      deletedByKind.set(target.kind, deleted);
+    } catch (error) {
+      result.failed.push({
+        ...target,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  for (const kind of kinds) {
+    const deleted = deletedByKind.get(kind) || new Set<string>();
+    const entries = await readMergedIndex(worksheetId, kind);
+    const nextEntries = params.scope !== "asset" && result.failed.length === 0
+      ? []
+      : entries.filter((entry) => !deleted.has(entry.fileName));
+    try {
+      await writeLocalIndex(worksheetId, kind, nextEntries);
+      await writeCloudIndex(worksheetId, kind, nextEntries);
+    } catch (error) {
+      result.failed.push({
+        kind,
+        fileName: "index.json",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return result;
 }
 
 export async function downloadToBuffer(url: string) {

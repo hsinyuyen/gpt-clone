@@ -3,6 +3,8 @@ import type {
   GammaAnswerAiReviewMode,
   GammaAnswerExpectedKind,
   GammaAnswerQuestionConfig,
+  GammaAnswerPromptReviewCriteria,
+  GammaAnswerReadCheck,
   GammaAnswerReviewCriteria,
   GammaAnswerToolId,
   GammaAnswerWorksheetConfig,
@@ -12,6 +14,8 @@ export type {
   GammaAnswerAiReviewMode,
   GammaAnswerExpectedKind,
   GammaAnswerQuestionConfig,
+  GammaAnswerPromptReviewCriteria,
+  GammaAnswerReadCheck,
   GammaAnswerReviewCriteria,
   GammaAnswerToolId,
   GammaAnswerWorksheetConfig,
@@ -50,6 +54,13 @@ export const S3W01_GAMMA_ANSWER_CONFIG: GammaAnswerWorksheetConfig = {
       accept: "text/plain",
       uploadLabel: "",
       reviewHint: "需要至少 3 點清楚提醒，內容要和 AI 工具使用有關。",
+      readCheck: {
+        question: "這一題要先產出哪一種成果？",
+        options: ["一張圖片", "整理後的文字提醒", "一段音樂"],
+        answerIndex: 1,
+        successFeedback: "小測通過，這題使用文字工具整理提醒。",
+        retryFeedback: "再看一次題目，這題要整理成文字提醒。",
+      },
       reviewBrief: {
         task: "學生要整理 AI 工具使用前的注意事項。",
         expectedOutput: "一段文字或條列，能提醒同學安全、正確地使用 AI 工具。",
@@ -86,11 +97,22 @@ export const S3W01_GAMMA_ANSWER_CONFIG: GammaAnswerWorksheetConfig = {
       accept: "image/png,image/jpeg,image/webp",
       uploadLabel: "上傳圖片",
       reviewHint: "需要圖片附件，且主題要能對應小狗玩球。",
+      readCheck: {
+        question: "小狗玩球這一題最適合使用哪個工具？",
+        options: ["Lab Terminal 文字工具", "Lab Music 音樂工具", "Lab Image 圖片工具"],
+        answerIndex: 2,
+        successFeedback: "小測通過，這題使用圖片工具產生圖片。",
+        retryFeedback: "再看一次題目，這題要產出圖片。",
+      },
       reviewBrief: {
         task: "學生要用 Lab Image 產生並上傳一張小狗玩紅色球的圖片。",
         expectedOutput: "一個可正常開啟的圖片作品，主題應能看出小狗和紅色球。",
         mustInclude: ["有圖片附件", "圖片主題和小狗玩球有關", "不是空白或錯誤檔案"],
         rejectIf: ["沒有附件", "附件不是圖片", "圖片明顯與題目無關"],
+      },
+      promptReviewCriteria: {
+        passConditions: ["小狗", "草地", "紅色球"],
+        minimumCharacterMatchRatio: 0.5,
       },
       reviewCriteria: {
         minAttachments: 1,
@@ -115,11 +137,22 @@ export const S3W01_GAMMA_ANSWER_CONFIG: GammaAnswerWorksheetConfig = {
       accept: "audio/mpeg,audio/mp3,audio/wav,audio/mp4,.mp3,.wav,.m4a",
       uploadLabel: "上傳音樂",
       reviewHint: "需要音訊附件，且能對應咖啡廳爵士樂主題。",
+      readCheck: {
+        question: "咖啡廳爵士樂這一題要交什麼作品？",
+        options: ["一張圖片", "一段音樂檔", "一段滑雪影片"],
+        answerIndex: 1,
+        successFeedback: "小測通過，這題使用音樂工具產生音訊。",
+        retryFeedback: "再看一次題目，這題要交音樂檔。",
+      },
       reviewBrief: {
         task: "學生要用 Lab Music 產生並上傳一段咖啡廳爵士樂。",
         expectedOutput: "一個可播放的音訊檔，應是音樂或配樂作品。",
         mustInclude: ["有音訊附件", "音訊檔案格式正確", "不是空白或錯誤檔案"],
         rejectIf: ["沒有附件", "附件不是音訊", "檔案無法播放或明顯錯誤"],
+      },
+      promptReviewCriteria: {
+        passConditions: ["咖啡廳", "爵士樂", "溫暖放鬆", "沒有人聲"],
+        minimumCharacterMatchRatio: 0.5,
       },
       reviewCriteria: {
         minAttachments: 1,
@@ -144,11 +177,22 @@ export const S3W01_GAMMA_ANSWER_CONFIG: GammaAnswerWorksheetConfig = {
       accept: "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov",
       uploadLabel: "上傳影片",
       reviewHint: "需要影片附件，且能對應滑雪短影片主題。",
+      readCheck: {
+        question: "滑雪短影片這一題最適合使用哪個工具？",
+        options: ["Lab Image 圖片工具", "Lab Music 音樂工具", "Lab Video 影片工具"],
+        answerIndex: 2,
+        successFeedback: "小測通過，這題使用影片工具產生短影片。",
+        retryFeedback: "再看一次題目，這題要產出影片。",
+      },
       reviewBrief: {
         task: "學生要用 Lab Video 產生並上傳一段滑雪短影片。",
         expectedOutput: "一個可播放的影片檔，主題應能對應滑雪動作。",
         mustInclude: ["有影片附件", "影片檔案格式正確", "不是空白或錯誤檔案"],
         rejectIf: ["沒有附件", "附件不是影片", "檔案無法播放或明顯錯誤"],
+      },
+      promptReviewCriteria: {
+        passConditions: ["滑雪者", "藍色外套", "白色雪地", "往下滑"],
+        minimumCharacterMatchRatio: 0.5,
       },
       reviewCriteria: {
         minAttachments: 1,
@@ -175,11 +219,6 @@ function isEmbeddableGammaSourceUrl(url: string | null | undefined) {
 
 const VALID_TOOL_IDS: GammaAnswerToolId[] = ["terminal", "image", "music", "video"];
 const VALID_EXPECTED_KINDS: GammaAnswerExpectedKind[] = ["text", "image", "audio", "video"];
-const VALID_AI_REVIEW_MODES: GammaAnswerAiReviewMode[] = [
-  "local-only",
-  "after-local-rules",
-  "always",
-];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -233,10 +272,163 @@ function asStringArray(value: unknown, fallback: unknown) {
     : undefined;
 }
 
+const TOOL_READ_CHECK_LABELS: Record<GammaAnswerToolId, string> = {
+  terminal: "Lab Terminal 文字工具",
+  image: "Lab Image 圖片工具",
+  music: "Lab Music 音樂工具",
+  video: "Lab Video 影片工具",
+};
+
+function defaultReadCheck(
+  title: string,
+  toolId: GammaAnswerToolId
+): GammaAnswerReadCheck {
+  const correct = TOOL_READ_CHECK_LABELS[toolId];
+  const options = [
+    correct,
+    ...Object.entries(TOOL_READ_CHECK_LABELS)
+      .filter(([id]) => id !== toolId)
+      .map(([, label]) => label)
+      .slice(0, 3),
+  ];
+
+  return {
+    type: "choice",
+    question: `這一題「${title}」最適合先使用哪一個工具？`,
+    options,
+    answerIndex: 0,
+    successFeedback: "小測通過，前往下一題。",
+    retryFeedback: "再看一次題目，找出這題真正需要的工具。",
+  };
+}
+
+function normalizeReadCheck(
+  rawQuestion: Record<string, unknown>,
+  fallbackQuestion: GammaAnswerQuestionConfig | undefined,
+  title: string,
+  toolId: GammaAnswerToolId
+): GammaAnswerReadCheck {
+  const raw = isRecord(rawQuestion.readCheck)
+    ? rawQuestion.readCheck
+    : isRecord(rawQuestion.checkpointQuiz)
+    ? rawQuestion.checkpointQuiz
+    : {};
+  const fallback = fallbackQuestion?.readCheck;
+  const base = fallback || defaultReadCheck(title, toolId);
+  const rawType = (raw as Record<string, unknown>).type;
+  const type = rawType === "text" ? "text" : "choice";
+  const question = asString(
+    (raw as Record<string, unknown>).question,
+    base.question,
+    "readCheck.question",
+    [],
+    false
+  );
+  const successFeedback = asString(
+    (raw as Record<string, unknown>).successFeedback,
+    base.successFeedback || "小測通過，前往下一題。",
+    "readCheck.successFeedback",
+    [],
+    false
+  );
+  const retryFeedback = asString(
+    (raw as Record<string, unknown>).retryFeedback,
+    base.retryFeedback || "再看一次題目，找出正確答案。",
+    "readCheck.retryFeedback",
+    [],
+    false
+  );
+
+  if (type === "text") {
+    const fallbackAnswers = fallback?.type === "text" ? fallback.acceptedAnswers || [] : [];
+    const acceptedAnswers =
+      asStringArray((raw as Record<string, unknown>).acceptedAnswers, fallbackAnswers)
+        ?.filter((answer) => answer.trim().length > 0)
+        .slice(0, 8) || [];
+    // 文字小測採與遊戲模擬器相同的寬鬆判定：學生答案只要包含任一可接受
+    // 同義詞即可通過，例如「公開網址」可命中「網址」。需要嚴格填空時，
+    // 題目設定仍可明確指定 matchMode: "exact"。
+    const matchMode = (raw as Record<string, unknown>).matchMode === "exact" ? "exact" : "includes";
+    return {
+      type,
+      question,
+      options: [],
+      answerIndex: 0,
+      acceptedAnswers: acceptedAnswers.length > 0 ? acceptedAnswers : ["請填寫正確答案"],
+      matchMode,
+      successFeedback,
+      retryFeedback,
+    };
+  }
+
+  const rawOptions = asStringArray((raw as Record<string, unknown>).options, base.options) || base.options;
+  const options = rawOptions.length >= 2 ? rawOptions.slice(0, 4) : base.options;
+  const rawAnswerIndex = (raw as Record<string, unknown>).answerIndex;
+  const answerIndex =
+    typeof rawAnswerIndex === "number" &&
+    Number.isFinite(rawAnswerIndex) &&
+    rawAnswerIndex >= 0 &&
+    rawAnswerIndex < options.length
+      ? Math.floor(rawAnswerIndex)
+      : Math.min(base.answerIndex, options.length - 1);
+
+  return {
+    type,
+    question,
+    options,
+    answerIndex,
+    successFeedback,
+    retryFeedback,
+  };
+}
+
+function normalizeReadCheckValue(
+  rawCheck: Record<string, unknown>,
+  fallback: GammaAnswerReadCheck | undefined,
+  title: string,
+  toolId: GammaAnswerToolId
+) {
+  return normalizeReadCheck(
+    { readCheck: rawCheck },
+    fallback ? ({ readCheck: fallback } as GammaAnswerQuestionConfig) : undefined,
+    title,
+    toolId
+  );
+}
+
+function normalizeReadChecks(
+  rawQuestion: Record<string, unknown>,
+  fallbackQuestion: GammaAnswerQuestionConfig | undefined,
+  title: string,
+  toolId: GammaAnswerToolId
+) {
+  const rawChecks = Array.isArray(rawQuestion.readChecks) ? rawQuestion.readChecks : null;
+  if (rawChecks) {
+    return rawChecks
+      .filter(isRecord)
+      .slice(0, 8)
+      .map((check, index) =>
+        normalizeReadCheckValue(
+          check,
+          fallbackQuestion?.readChecks?.[index] || fallbackQuestion?.readCheck,
+          title,
+          toolId
+        )
+      );
+  }
+  if (fallbackQuestion?.readChecks?.length && !isRecord(rawQuestion.readCheck)) {
+    return fallbackQuestion.readChecks;
+  }
+  return [normalizeReadCheck(rawQuestion, fallbackQuestion, title, toolId)];
+}
+
 function normalizeReviewBrief(
   rawQuestion: Record<string, unknown>,
   fallbackQuestion: GammaAnswerQuestionConfig | undefined
 ) {
+  if (!isRecord(rawQuestion.reviewBrief) && !fallbackQuestion?.reviewBrief) {
+    return undefined;
+  }
   const rawBrief = isRecord(rawQuestion.reviewBrief) ? rawQuestion.reviewBrief : {};
   const fallbackBrief = fallbackQuestion?.reviewBrief;
   const title =
@@ -286,10 +478,7 @@ function normalizeReviewCriteria(
 ): GammaAnswerReviewCriteria {
   const rawCriteria = isRecord(rawQuestion.reviewCriteria) ? rawQuestion.reviewCriteria : {};
   const fallbackCriteria = fallbackQuestion?.reviewCriteria || {};
-  const modeSource = rawCriteria.aiReviewMode ?? fallbackCriteria.aiReviewMode ?? "local-only";
-  const aiReviewMode = VALID_AI_REVIEW_MODES.includes(modeSource as GammaAnswerAiReviewMode)
-    ? (modeSource as GammaAnswerAiReviewMode)
-    : "local-only";
+  const aiReviewMode: GammaAnswerAiReviewMode = "local-only";
 
   return {
     minLength: asOptionalNumber(
@@ -317,6 +506,52 @@ function normalizeReviewCriteria(
     allowedMimeTypes: asStringArray(rawCriteria.allowedMimeTypes, fallbackCriteria.allowedMimeTypes),
     aiReviewMode,
   };
+}
+
+function normalizePromptReviewCriteria(
+  rawQuestion: Record<string, unknown>,
+  fallbackQuestion: GammaAnswerQuestionConfig | undefined,
+  reviewBrief: GammaAnswerQuestionConfig["reviewBrief"],
+  expectedKind: GammaAnswerExpectedKind
+): GammaAnswerPromptReviewCriteria | undefined {
+  if (!isRecord(rawQuestion.promptReviewCriteria) && !fallbackQuestion?.promptReviewCriteria) {
+    return undefined;
+  }
+  const raw = isRecord(rawQuestion.promptReviewCriteria)
+    ? rawQuestion.promptReviewCriteria
+    : {};
+  const fallback = fallbackQuestion?.promptReviewCriteria;
+  const configuredConditions =
+    asStringArray(raw.passConditions, fallback?.passConditions) || [];
+  const derivedConditions = (expectedKind === "text" ? [] : reviewBrief?.mustInclude || []).filter(
+    (condition) =>
+      !/(附件|檔案|格式|空白|錯誤|上傳|開啟|播放|下載)/u.test(condition)
+  );
+  const passConditions = configuredConditions.length > 0
+    ? configuredConditions
+    : derivedConditions;
+  const configuredRatio = asOptionalNumber(
+    raw.minimumCharacterMatchRatio,
+    fallback?.minimumCharacterMatchRatio ?? 0.5
+  );
+
+  return {
+    passConditions: passConditions.slice(0, 8),
+    minimumCharacterMatchRatio: Math.max(0.1, Math.min(1, configuredRatio ?? 0.5)),
+  };
+}
+
+function normalizeAssetCacheLimits(
+  input: Record<string, unknown>,
+  fallback?: GammaAnswerWorksheetConfig | null
+) {
+  const raw = isRecord(input.assetCacheLimits) ? input.assetCacheLimits : {};
+  const limits: Partial<Record<"image" | "music" | "video", number>> = {};
+  (["image", "music", "video"] as const).forEach((kind) => {
+    const value = asOptionalNumber(raw[kind], fallback?.assetCacheLimits?.[kind]);
+    if (value !== undefined) limits[kind] = Math.max(1, Math.min(100, Math.floor(value)));
+  });
+  return Object.keys(limits).length > 0 ? limits : undefined;
 }
 
 export function normalizeGammaAnswerWorksheetConfig(
@@ -351,6 +586,22 @@ export function normalizeGammaAnswerWorksheetConfig(
     const taskId = asString(raw.taskId, fallbackQuestion?.taskId, `${path}.taskId`, errors);
     const criteria = normalizeReviewCriteria(raw, fallbackQuestion);
     const reviewBrief = normalizeReviewBrief(raw, fallbackQuestion);
+    const expectedKind = asEnum(
+      raw.expectedKind,
+      fallbackQuestion?.expectedKind,
+      VALID_EXPECTED_KINDS,
+      `${path}.expectedKind`,
+      errors
+    );
+    const promptReviewCriteria = normalizePromptReviewCriteria(
+      raw,
+      fallbackQuestion,
+      reviewBrief,
+      expectedKind
+    );
+    const title = asString(raw.title, fallbackQuestion?.title, `${path}.title`, errors);
+    const toolId = asEnum(raw.toolId, fallbackQuestion?.toolId, VALID_TOOL_IDS, `${path}.toolId`, errors);
+    const readChecks = normalizeReadChecks(raw, fallbackQuestion, title, toolId);
 
     if (id) {
       if (questionIds.has(id)) errors.push(`${path}.id is duplicated.`);
@@ -366,23 +617,20 @@ export function normalizeGammaAnswerWorksheetConfig(
       taskId,
       code: asString(raw.code, fallbackQuestion?.code, `${path}.code`, errors),
       label: asString(raw.label, fallbackQuestion?.label, `${path}.label`, errors),
-      title: asString(raw.title, fallbackQuestion?.title, `${path}.title`, errors),
+      title,
       prompt: asString(raw.prompt, fallbackQuestion?.prompt, `${path}.prompt`, errors),
       toolPrompt: asString(raw.toolPrompt, fallbackQuestion?.toolPrompt, `${path}.toolPrompt`, errors),
       placeholder: asString(raw.placeholder, fallbackQuestion?.placeholder || "", `${path}.placeholder`, errors, false),
-      toolId: asEnum(raw.toolId, fallbackQuestion?.toolId, VALID_TOOL_IDS, `${path}.toolId`, errors),
-      expectedKind: asEnum(
-        raw.expectedKind,
-        fallbackQuestion?.expectedKind,
-        VALID_EXPECTED_KINDS,
-        `${path}.expectedKind`,
-        errors
-      ),
+      toolId,
+      expectedKind,
       coins: asNumber(raw.coins, fallbackQuestion?.coins, `${path}.coins`, errors),
       accept: asString(raw.accept, fallbackQuestion?.accept || "", `${path}.accept`, errors, false),
       uploadLabel: asString(raw.uploadLabel, fallbackQuestion?.uploadLabel || "", `${path}.uploadLabel`, errors, false),
       reviewHint: asString(raw.reviewHint, fallbackQuestion?.reviewHint || "", `${path}.reviewHint`, errors, false),
+      readCheck: readChecks[0],
+      readChecks,
       reviewBrief,
+      promptReviewCriteria,
       reviewCriteria: criteria,
       textMinimumLength: criteria.minLength,
       textMaximumLength: criteria.maxLength,
@@ -392,7 +640,7 @@ export function normalizeGammaAnswerWorksheetConfig(
     };
   });
 
-  const gammaUrl = asString(input.gammaUrl, fallback?.gammaUrl, "gammaUrl", errors);
+  const gammaUrl = asString(input.gammaUrl, fallback?.gammaUrl || "", "gammaUrl", errors, false);
 
   const normalized: GammaAnswerWorksheetConfig = {
     schemaVersion: asNumber(input.schemaVersion, fallback?.schemaVersion || 2, "schemaVersion", errors, 1),
@@ -407,12 +655,14 @@ export function normalizeGammaAnswerWorksheetConfig(
       input.gammaFallbackUrl,
       fallback?.gammaFallbackUrl || gammaUrl,
       "gammaFallbackUrl",
-      errors
+      errors,
+      false
     ),
     source: asString(input.source, fallback?.source || "gamma-answer-worksheet", "source", errors),
     storageVersion: asString(input.storageVersion, fallback?.storageVersion, "storageVersion", errors),
     draftField: "gammaAnswerDraft",
     mediaAccessKey: LAB_TOOL_MEDIA_ACCESS_KEY,
+    assetCacheLimits: normalizeAssetCacheLimits(input, fallback),
     questions,
   };
 

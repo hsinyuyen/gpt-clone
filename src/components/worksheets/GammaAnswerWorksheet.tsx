@@ -3,9 +3,11 @@ import { useRouter } from "next/router";
 import {
   GammaAnswerExpectedKind,
   GammaAnswerQuestionConfig,
+  GammaAnswerReadCheck,
   GammaAnswerWorksheetConfig,
 } from "@/config/gammaAnswerWorksheets";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConversation } from "@/contexts/ConversationContext";
 import {
   approveTask,
   getStudentWorksheetProgress,
@@ -13,13 +15,21 @@ import {
 } from "@/lib/firestore";
 import { StudentWorksheetProgress, Worksheet } from "@/types/Worksheet";
 import { lessonKeys } from "@/types/LessonCompletion";
-import { validateGammaTextAnswer } from "@/utils/gammaAnswerValidation";
+import { validateBasicGammaTextAnswer } from "@/utils/gammaAnswerValidation";
+import { clearLabToolSessionCache } from "@/utils/labToolSessionCache";
+import WorksheetNotebook from "@/components/worksheets/WorksheetNotebook";
+import {
+  LabImageReviewMetadata,
+  LAB_IMAGE_REVIEW_METADATA_MARKER,
+  readLabImageMetadataFromBlob,
+} from "@/utils/labImageMetadata";
 import {
   LabMusicReviewMetadata,
   readLabMusicMetadataFromBlob,
 } from "@/utils/labMusicMetadata";
 import {
   LabVideoReviewMetadata,
+  LAB_VIDEO_REVIEW_METADATA_MARKER,
   readLabVideoMetadataFromBlob,
 } from "@/utils/labVideoMetadata";
 
@@ -34,16 +44,6 @@ interface GammaAttachment {
   downloadUrl?: string;
 }
 
-interface ReviewAttachmentPayload {
-  name: string;
-  type: string;
-  size: number;
-  kind: GammaAttachment["kind"];
-  dataUrl?: string;
-  musicMetadata?: LabMusicReviewMetadata | null;
-  videoMetadata?: LabVideoReviewMetadata | null;
-}
-
 interface GammaAnswerState {
   text: string;
   attachments: GammaAttachment[];
@@ -51,7 +51,24 @@ interface GammaAnswerState {
     passed: boolean;
     feedback: string;
     reviewedAt: string;
+    signatureDetails?: string[];
   };
+  readCheck?: {
+    passed: boolean;
+    selectedIndex?: number;
+    answeredAt?: string;
+  };
+  readChecks?: Record<
+    number,
+    {
+      passed: boolean;
+      selectedIndex?: number;
+      textAnswer?: string;
+      answeredAt?: string;
+      wrongAttempts?: number;
+      lockedUntil?: string;
+    }
+  >;
 }
 
 interface GammaAnswerWorksheetProps {
@@ -115,6 +132,24 @@ function toolHomeMode(toolId: GammaAnswerQuestionConfig["toolId"]) {
   return toolId === "terminal" ? "text" : toolId;
 }
 
+function formatWeekLabel(semester: string, week: number) {
+  return `${semester || "課程"} W${String(week || 0).padStart(2, "0")}`;
+}
+
+function labToolSessionTitle(config: GammaAnswerWorksheetConfig) {
+  const prefix = formatWeekLabel(config.semester, config.week);
+  const titleWithoutPrefix = config.title.replace(/^S\d+\s*W\d+\s*[｜|-]\s*/i, "").trim();
+  return `${prefix}｜${titleWithoutPrefix || config.title}`;
+}
+
+function sanitizeLabToolIdSegment(value: string) {
+  return value.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80);
+}
+
+function labToolConversationPrefix(userId: string, worksheetId: string) {
+  return `conv_labtool_${sanitizeLabToolIdSegment(userId)}_labtool_${sanitizeLabToolIdSegment(worksheetId)}`;
+}
+
 function localDraftKey(config: GammaAnswerWorksheetConfig, userId: string) {
   return `gamma-answer-worksheet:${config.storageVersion}:${config.id}:${userId}`;
 }
@@ -139,7 +174,18 @@ const ATTACHMENT_DB_NAME = "gamma-answer-worksheet-files";
 const ATTACHMENT_STORE_NAME = "files";
 const MAX_TEXT_REVIEW_CHARS = 1500;
 const MAX_REVIEW_FILE_BYTES = 100 * 1024 * 1024;
-const MAX_INLINE_IMAGE_REVIEW_BYTES = 4 * 1024 * 1024;
+const LAB_VIDEO_UUID_PREFIX_BYTES = 24;
+
+type LabToolSignatureKind = "image" | "music" | "video";
+type LabToolReviewMetadata =
+  | LabImageReviewMetadata
+  | LabMusicReviewMetadata
+  | LabVideoReviewMetadata;
+
+interface LabToolSignatureVerification {
+  problem: string;
+  signatureDetail?: string;
+}
 
 function openAttachmentDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -219,13 +265,174 @@ async function deleteAttachmentBlob(draftKey: string, fileId: string) {
   db.close();
 }
 
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
+function signatureKindForExpectedKind(
+  kind: GammaAnswerExpectedKind
+): LabToolSignatureKind | null {
+  if (kind === "image") return "image";
+  if (kind === "audio") return "music";
+  if (kind === "video") return "video";
+  return null;
+}
+
+function bytesToHex(bytes: ArrayBuffer) {
+  return Array.from(new Uint8Array(bytes))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function sha256Hex(bytes: Uint8Array) {
+  if (!window.crypto?.subtle) {
+    throw new Error("這個瀏覽器無法計算檔案簽章。");
+  }
+  return bytesToHex(await window.crypto.subtle.digest("SHA-256", bytes));
+}
+
+function id3SyncSafeToInt(bytes: Uint8Array, offset: number) {
+  return (
+    ((bytes[offset] & 0x7f) << 21) |
+    ((bytes[offset + 1] & 0x7f) << 14) |
+    ((bytes[offset + 2] & 0x7f) << 7) |
+    (bytes[offset + 3] & 0x7f)
+  );
+}
+
+function stripOneLeadingId3Tag(bytes: Uint8Array) {
+  if (
+    bytes.length < 10 ||
+    bytes[0] !== 0x49 ||
+    bytes[1] !== 0x44 ||
+    bytes[2] !== 0x33
+  ) {
+    return null;
+  }
+  const tagSize = id3SyncSafeToInt(bytes, 6);
+  const hasFooter = (bytes[5] & 0x10) !== 0;
+  const tagEnd = 10 + tagSize + (hasFooter ? 10 : 0);
+  if (tagEnd <= 10 || tagEnd >= bytes.length) return null;
+  return bytes.subarray(tagEnd);
+}
+
+function lastIndexOfSubarray(bytes: Uint8Array, pattern: Uint8Array) {
+  if (pattern.length === 0 || pattern.length > bytes.length) return -1;
+  for (let index = bytes.length - pattern.length; index >= 0; index -= 1) {
+    let matches = true;
+    for (let patternIndex = 0; patternIndex < pattern.length; patternIndex += 1) {
+      if (bytes[index + patternIndex] !== pattern[patternIndex]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return index;
+  }
+  return -1;
+}
+
+function stripOneTrailingLabVideoMetadataBox(bytes: Uint8Array) {
+  const marker = new TextEncoder().encode(LAB_VIDEO_REVIEW_METADATA_MARKER);
+  const markerIndex = lastIndexOfSubarray(bytes, marker);
+  const boxStart = markerIndex - LAB_VIDEO_UUID_PREFIX_BYTES;
+  if (boxStart <= 0 || boxStart + 8 >= bytes.length) return null;
+  const boxType = String.fromCharCode(
+    bytes[boxStart + 4],
+    bytes[boxStart + 5],
+    bytes[boxStart + 6],
+    bytes[boxStart + 7]
+  );
+  if (boxType !== "uuid") return null;
+  return bytes.subarray(0, boxStart);
+}
+
+function stripOneTrailingLabImageMetadata(bytes: Uint8Array) {
+  const marker = new TextEncoder().encode(LAB_IMAGE_REVIEW_METADATA_MARKER);
+  const markerIndex = lastIndexOfSubarray(bytes, marker);
+  if (markerIndex <= 0) return null;
+  return bytes.subarray(0, markerIndex);
+}
+
+async function signedContentHash(
+  kind: LabToolSignatureKind,
+  blob: Blob,
+  expectedHash = ""
+) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const candidates: Uint8Array[] = [];
+
+  if (kind === "image") {
+    const stripped = stripOneTrailingLabImageMetadata(bytes);
+    if (stripped) candidates.push(stripped);
+  } else if (kind === "music") {
+    let current: Uint8Array | null = bytes;
+    for (let attempts = 0; attempts < 4; attempts += 1) {
+      const stripped = stripOneLeadingId3Tag(current);
+      if (!stripped) break;
+      candidates.push(stripped);
+      current = stripped;
+    }
+  } else if (kind === "video") {
+    let current: Uint8Array | null = bytes;
+    for (let attempts = 0; attempts < 4; attempts += 1) {
+      const stripped = stripOneTrailingLabVideoMetadataBox(current);
+      if (!stripped) break;
+      candidates.push(stripped);
+      current = stripped;
+    }
+  }
+
+  candidates.push(bytes);
+
+  let firstHash = "";
+  for (const candidate of candidates) {
+    const hash = await sha256Hex(candidate);
+    if (!firstHash) firstHash = hash;
+    if (!expectedHash || hash === expectedHash) return hash;
+  }
+
+  return firstHash;
+}
+
+function stableHash(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function shuffledReadCheckOptions(
+  questionId: string,
+  readCheck?: GammaAnswerReadCheck,
+  shuffleRound = 0
+) {
+  const options = readCheck?.options || [];
+  const shuffled = options
+    .map((label, index) => ({
+      label,
+      originalIndex: index,
+      sortKey: stableHash(`${questionId}:${index}:${label}`),
+    }))
+    .sort((left, right) => left.sortKey - right.sortKey);
+  if (shuffled.length < 2 || shuffleRound <= 0) return shuffled;
+  const offset = shuffleRound % shuffled.length;
+  return [...shuffled.slice(offset), ...shuffled.slice(0, offset)];
+}
+
+function normalizeReadCheckText(value: string) {
+  return value
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[\s,，。！？!?、；;:："'「」『』（）()\[\]{}]/g, "");
+}
+
+function matchesTextReadCheck(answer: string, readCheck: GammaAnswerReadCheck) {
+  const normalizedAnswer = normalizeReadCheckText(answer);
+  if (!normalizedAnswer) return false;
+  const acceptedAnswers = (readCheck.acceptedAnswers || [])
+    .map(normalizeReadCheckText)
+    .filter(Boolean);
+  return readCheck.matchMode === "includes"
+    ? acceptedAnswers.some((accepted) => normalizedAnswer.includes(accepted))
+    : acceptedAnswers.includes(normalizedAnswer);
 }
 
 function sanitizeAnswers(answers: Record<string, GammaAnswerState>) {
@@ -243,6 +450,8 @@ function sanitizeAnswers(answers: Record<string, GammaAnswerState>) {
           downloadUrl?: string;
         }>;
         review?: GammaAnswerState["review"];
+        readCheck?: GammaAnswerState["readCheck"];
+        readChecks?: GammaAnswerState["readChecks"];
       } = {
         text: answer.text,
         attachments: answer.attachments.map((file) => ({
@@ -256,6 +465,8 @@ function sanitizeAnswers(answers: Record<string, GammaAnswerState>) {
         })),
       };
       if (answer.review) sanitized.review = answer.review;
+      if (answer.readCheck) sanitized.readCheck = answer.readCheck;
+      if (answer.readChecks) sanitized.readChecks = answer.readChecks;
       return [id, sanitized];
     })
   );
@@ -278,6 +489,7 @@ export default function GammaAnswerWorksheet({
 }: GammaAnswerWorksheetProps) {
   const router = useRouter();
   const { user } = useAuth();
+  const { conversations, deleteConversation } = useConversation();
   const [activeIndex, setActiveIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, GammaAnswerState>>(() =>
     buildInitialAnswers(config)
@@ -285,6 +497,7 @@ export default function GammaAnswerWorksheet({
   const [feedback, setFeedback] = useState("請看左側 GAMMA 題目，需要生成內容時可回主頁使用 Lab Terminal。");
   const [uploadMessage, setUploadMessage] = useState("");
   const [reviewing, setReviewing] = useState(false);
+  const [readCheckClock, setReadCheckClock] = useState(() => Date.now());
   const [celebration, setCelebration] = useState<"question" | "all" | null>(null);
   const loadedDraftRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -303,13 +516,45 @@ export default function GammaAnswerWorksheet({
   const allComplete = config.questions.length > 0 && completedCount >= config.questions.length;
   const activeQuestionCompleted = !!progress?.tasks?.[activeQuestion.taskId]?.completed;
   const activeAnswerPassed = activeQuestionCompleted || !!activeAnswer.review?.passed;
-  const activeReviewCriteria = useMemo(
-    () => getReviewCriteria(activeQuestion),
-    [activeQuestion]
+  const activeReadChecks = activeQuestion.readChecks?.length
+    ? activeQuestion.readChecks
+    : activeQuestion.readCheck
+    ? [activeQuestion.readCheck]
+    : [];
+  const activeReadCheckIndex = activeReadChecks.findIndex(
+    (_, index) => !activeAnswer.readChecks?.[index]?.passed && !(index === 0 && activeAnswer.readCheck?.passed)
   );
-  const activeUsesAiReview = activeReviewCriteria.aiReviewMode !== "local-only";
-  const reviewIdleLabel = activeUsesAiReview ? "AI 審核並加金幣" : "檢查並加金幣";
-  const reviewBusyLabel = activeUsesAiReview ? "AI 審核中..." : "檢查中...";
+  const activeReadCheck = activeReadChecks[activeReadCheckIndex];
+  const activeReadCheckState = activeAnswer.readChecks?.[activeReadCheckIndex];
+  const activeReadCheckText = activeReadCheckState?.textAnswer || "";
+  const readCheckLockedUntil = activeReadCheckState?.lockedUntil
+    ? Date.parse(activeReadCheckState.lockedUntil)
+    : 0;
+  const readCheckLockSeconds = Math.max(
+    0,
+    Math.ceil((readCheckLockedUntil - readCheckClock) / 1000)
+  );
+  const readCheckLocked = readCheckLockSeconds > 0;
+  const awaitingReadCheck =
+    !activeQuestionCompleted &&
+    activeReadCheckIndex >= 0 &&
+    !!activeAnswer.review?.passed;
+  const readCheckOptions = useMemo(
+    () =>
+      shuffledReadCheckOptions(
+        `${activeQuestion.id}:${activeReadCheckIndex}`,
+        activeReadCheck,
+        activeReadCheckState?.wrongAttempts || 0
+      ),
+    [
+      activeQuestion.id,
+      activeReadCheck,
+      activeReadCheckIndex,
+      activeReadCheckState?.wrongAttempts,
+    ]
+  );
+  const reviewIdleLabel = "檢查並加金幣";
+  const reviewBusyLabel = "檢查中...";
 
   const gammaUrl = useMemo(() => {
     const primary = toGammaEmbedUrl(config.gammaUrl);
@@ -336,6 +581,17 @@ export default function GammaAnswerWorksheet({
   );
 
   useEffect(() => {
+    if (!awaitingReadCheck || readCheckLockedUntil <= Date.now()) return;
+    setReadCheckClock(Date.now());
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      setReadCheckClock(now);
+      if (now >= readCheckLockedUntil) window.clearInterval(timer);
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [awaitingReadCheck, activeQuestion.id, activeReadCheckIndex, readCheckLockedUntil]);
+
+  useEffect(() => {
     if (!canOpenQuestion(activeIndex)) {
       setActiveIndex(Math.max(0, unlockedIndex));
       setFeedback("請按照題目順序完成，先通過前面的題目才能繼續。");
@@ -350,20 +606,13 @@ export default function GammaAnswerWorksheet({
         JSON.stringify({
           worksheetId: config.id,
           status: "open",
-          grantedAt: new Date().toISOString(),
-          source: config.source,
-          questionId: taskQuestion.id,
           taskId: taskQuestion.taskId,
-          task: taskQuestion.reviewBrief?.task || taskQuestion.title || taskQuestion.label,
-          toolId: taskQuestion.toolId,
-          expectedKind: taskQuestion.expectedKind,
-          toolPrompt: taskQuestion.toolPrompt,
         })
       );
     } catch {
       // Browser storage may be unavailable in restricted modes.
     }
-  }, [activeQuestion, config.id, config.mediaAccessKey, config.source]);
+  }, [activeQuestion, config]);
 
   const revokeLabMediaAccess = useCallback(() => {
     try {
@@ -373,13 +622,31 @@ export default function GammaAnswerWorksheet({
     }
   }, [config.mediaAccessKey]);
 
+  const removeLabToolSessions = useCallback(() => {
+    if (!user?.id) return;
+    const prefix = labToolConversationPrefix(user.id, config.id);
+    conversations
+      .filter((conversation) =>
+        conversation.id === prefix || conversation.id.startsWith(`${prefix}_`)
+      )
+      .forEach((conversation) => deleteConversation(conversation.id));
+    clearLabToolSessionCache(user.id, config.id);
+  }, [config.id, conversations, deleteConversation, user?.id]);
+
   useEffect(() => {
     if (allComplete) {
       revokeLabMediaAccess();
+      removeLabToolSessions();
       return;
     }
     grantLabMediaAccess(activeQuestion);
-  }, [activeQuestion, allComplete, grantLabMediaAccess, revokeLabMediaAccess]);
+  }, [
+    activeQuestion,
+    allComplete,
+    grantLabMediaAccess,
+    removeLabToolSessions,
+    revokeLabMediaAccess,
+  ]);
 
   useEffect(() => {
     if (!user || loadedDraftRef.current) return;
@@ -468,6 +735,10 @@ export default function GammaAnswerWorksheet({
   }, [activeIndex, answers, saveDraft, user]);
 
   const openLabTool = (toolId: GammaAnswerQuestionConfig["toolId"]) => {
+    if (awaitingReadCheck) {
+      setFeedback("作品已通過，先完成這題的小測，答對後會自動前往下一題。");
+      return;
+    }
     if (allComplete) {
       revokeLabMediaAccess();
       setFeedback("這張學習單已經完成，圖片、影片、音樂生成權限已關閉。");
@@ -534,9 +805,7 @@ export default function GammaAnswerWorksheet({
       attachments: [...activeAnswer.attachments, ...incoming],
       review: undefined,
     });
-    setUploadMessage(
-      `已成功上傳 ${incoming.length} 個檔案，可以按${activeUsesAiReview ? " AI 審核" : "檢查"}。`
-    );
+    setUploadMessage(`已成功上傳 ${incoming.length} 個檔案，可以按檢查。`);
   };
 
   const removeAttachment = (fileId: string) => {
@@ -551,12 +820,77 @@ export default function GammaAnswerWorksheet({
     setUploadMessage("");
   };
 
+  const answerReadCheck = async (originalIndex?: number, textAnswer?: string) => {
+    if (!activeReadCheck || reviewing || activeQuestionCompleted || readCheckLocked) return;
+    const isTextReadCheck = activeReadCheck.type === "text";
+    const submittedText = textAnswer ?? activeReadCheckText;
+    if (isTextReadCheck && !submittedText.trim()) {
+      setFeedback("請先輸入你的答案。 ");
+      return;
+    }
+    const correct = isTextReadCheck
+      ? matchesTextReadCheck(submittedText, activeReadCheck)
+      : originalIndex === activeReadCheck.answerIndex;
+    if (!correct) {
+      const wrongAttempts = (activeReadCheckState?.wrongAttempts || 0) + 1;
+      const lockSeconds = Math.min(30, wrongAttempts * 5);
+      const lockedUntil = new Date(Date.now() + lockSeconds * 1000).toISOString();
+      setAnswer(activeQuestion.id, {
+        readChecks: {
+          ...(activeAnswer.readChecks || {}),
+          [activeReadCheckIndex]: {
+            passed: false,
+            selectedIndex: originalIndex,
+            textAnswer: isTextReadCheck ? submittedText : undefined,
+            answeredAt: new Date().toISOString(),
+            wrongAttempts,
+            lockedUntil,
+          },
+        },
+      });
+      setReadCheckClock(Date.now());
+      setFeedback(
+        `${activeReadCheck.retryFeedback || "再看一次題目，找出正確答案。"} 請等待 ${lockSeconds} 秒後再回答。`
+      );
+      return;
+    }
+
+    setReviewing(true);
+    try {
+      setAnswer(activeQuestion.id, {
+        readChecks: {
+          ...(activeAnswer.readChecks || {}),
+          [activeReadCheckIndex]: {
+            passed: true,
+            selectedIndex: originalIndex,
+            textAnswer: isTextReadCheck ? submittedText : undefined,
+            answeredAt: new Date().toISOString(),
+            wrongAttempts: activeReadCheckState?.wrongAttempts || 0,
+          },
+        },
+      });
+      if (activeReadCheckIndex < activeReadChecks.length - 1) {
+        setFeedback("小測通過，請完成下一題小測。");
+        return;
+      }
+      await completeActiveQuestion(
+        activeAnswer.review?.signatureDetails || [],
+        activeAnswer.review?.feedback
+      );
+      setFeedback(activeReadCheck.successFeedback || "小測通過，前往下一題。");
+    } finally {
+      setReviewing(false);
+    }
+  };
+
   const validateAnswerBeforeAiReview = () => {
     const problems: string[] = [];
+    if (awaitingReadCheck) {
+      problems.push("請先完成這題的小測，答對後會自動前往下一題。");
+      return problems;
+    }
     if (activeQuestion.expectedKind === "text") {
-      return validateGammaTextAnswer(activeAnswer.text, activeQuestion, {
-        maxReviewChars: MAX_TEXT_REVIEW_CHARS,
-      });
+      return validateBasicGammaTextAnswer(activeAnswer.text, MAX_TEXT_REVIEW_CHARS);
     }
 
     const criteria = getReviewCriteria(activeQuestion);
@@ -590,56 +924,95 @@ export default function GammaAnswerWorksheet({
     return problems;
   };
 
-  const buildReviewAttachments = async () => {
-    if (activeQuestion.expectedKind === "text") return [];
-    const expected = expectedAttachmentKind(activeQuestion.expectedKind);
-    const draftKey = user ? localDraftKey(config, user.id) : "";
-    return Promise.all(
-      activeAnswer.attachments
-        .filter((file) => file.kind === expected)
-        .slice(0, 3)
-        .map(async (file) => {
-          let dataUrl = "";
-          let musicMetadata: LabMusicReviewMetadata | null = null;
-          let videoMetadata: LabVideoReviewMetadata | null = null;
-          const needsBlob =
-            (activeQuestion.expectedKind === "image" &&
-              file.size <= MAX_INLINE_IMAGE_REVIEW_BYTES) ||
-            activeQuestion.expectedKind === "audio" ||
-            activeQuestion.expectedKind === "video";
-          const blob = needsBlob ? await getAttachmentBlob(file, draftKey) : null;
-
-          if (activeQuestion.expectedKind === "image" && file.size <= MAX_INLINE_IMAGE_REVIEW_BYTES) {
-            if (blob) dataUrl = await blobToDataUrl(blob);
-          }
-
-          if (activeQuestion.expectedKind === "audio" && blob) {
-            musicMetadata = await readLabMusicMetadataFromBlob(blob).catch(() => null);
-          }
-
-          if (activeQuestion.expectedKind === "video" && blob) {
-            videoMetadata = await readLabVideoMetadataFromBlob(blob).catch(() => null);
-          }
-
-          const payload: ReviewAttachmentPayload = {
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            kind: file.kind,
-            ...(dataUrl ? { dataUrl } : {}),
-          };
-          if (activeQuestion.expectedKind === "audio") {
-            payload.musicMetadata = musicMetadata;
-          }
-          if (activeQuestion.expectedKind === "video") {
-            payload.videoMetadata = videoMetadata;
-          }
-          return payload;
-        })
-    );
+  const readAttachmentReviewMetadata = async (
+    kind: LabToolSignatureKind,
+    blob: Blob
+  ): Promise<LabToolReviewMetadata | null> => {
+    if (kind === "image") {
+      return readLabImageMetadataFromBlob(blob).catch(() => null);
+    }
+    if (kind === "music") {
+      return readLabMusicMetadataFromBlob(blob).catch(() => null);
+    }
+    if (kind === "video") {
+      return readLabVideoMetadataFromBlob(blob).catch(() => null);
+    }
+    return null;
   };
 
-  const completeActiveQuestion = async () => {
+  const verifyLabToolAttachment = async (
+    file: GammaAttachment,
+    kind: LabToolSignatureKind
+  ): Promise<LabToolSignatureVerification> => {
+    const draftKey = user ? localDraftKey(config, user.id) : "";
+    const blob = await getAttachmentBlob(file, draftKey);
+    if (!blob) {
+      return { problem: `${file.name} 無法讀取檔案內容，請重新上傳 Lab 作品。` };
+    }
+
+    const metadata = await readAttachmentReviewMetadata(kind, blob);
+    const expectedHash =
+      metadata && typeof metadata.contentHash === "string" ? metadata.contentHash : "";
+    const contentHash = await signedContentHash(kind, blob, expectedHash);
+
+    if (expectedHash && contentHash !== expectedHash) {
+      return { problem: `${file.name} 的檔案內容和 Lab Terminal 簽章不一致。` };
+    }
+
+    const response = await fetch("/api/lab-tools/signature", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        worksheetId: config.id,
+        taskId: activeQuestion.taskId,
+        kind,
+        fileName: file.name,
+        contentHash,
+        metadata,
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { problem: result?.error || `${file.name} 的 Lab Terminal 簽章驗證失敗。` };
+    }
+    if (!result?.valid) {
+      return { problem: result?.reason || `${file.name} 不是這一題的 Lab Terminal 作品。` };
+    }
+    const signature = typeof result?.metadata?.signature === "string" ? result.metadata.signature : "";
+    const signatureVersion = Number(result?.metadata?.signatureVersion) || 1;
+    return {
+      problem: "",
+      signatureDetail: signature
+        ? `${file.name} · 簽章 v${signatureVersion} · ${signature.slice(0, 16)}...`
+        : `${file.name} · Lab Terminal 簽章已驗證`,
+    };
+  };
+
+  const validateLabToolSignatures = async () => {
+    if (activeQuestion.expectedKind === "text") {
+      return { problems: [], signatureDetails: [] };
+    }
+    const kind = signatureKindForExpectedKind(activeQuestion.expectedKind);
+    if (!kind) return { problems: [], signatureDetails: [] };
+
+    const expected = expectedAttachmentKind(activeQuestion.expectedKind);
+    const expectedFiles = activeAnswer.attachments.filter((file) => file.kind === expected);
+    const problems: string[] = [];
+    const signatureDetails: string[] = [];
+
+    for (const file of expectedFiles) {
+      const verification = await verifyLabToolAttachment(file, kind);
+      if (verification.problem) problems.push(verification.problem);
+      if (verification.signatureDetail) signatureDetails.push(verification.signatureDetail);
+    }
+
+    return { problems, signatureDetails };
+  };
+
+  const completeActiveQuestion = async (
+    signatureDetails = activeAnswer.review?.signatureDetails || [],
+    reviewFeedback?: string
+  ) => {
     if (!user) return;
 
     await approveTask({
@@ -647,8 +1020,8 @@ export default function GammaAnswerWorksheet({
       studentName: user.displayName || user.username || "",
       worksheetId: config.id,
       taskId: activeQuestion.taskId,
-      teacherId: activeUsesAiReview ? "ai-review" : "local-review",
-      teacherName: activeUsesAiReview ? "AI 審核" : "系統檢查",
+      teacherId: "local-review",
+      teacherName: "系統檢查",
     });
 
     const latest = await getStudentWorksheetProgress(user.id, config.id);
@@ -661,8 +1034,9 @@ export default function GammaAnswerWorksheet({
 
     const review = {
       passed: true,
-      feedback: `審核通過，已加入 ${activeQuestion.coins} 金幣。`,
+      feedback: reviewFeedback || `審核通過，已加入 ${activeQuestion.coins} 金幣。`,
       reviewedAt: new Date().toISOString(),
+      signatureDetails,
     };
     setAnswer(activeQuestion.id, { review });
     setFeedback(review.feedback);
@@ -670,6 +1044,7 @@ export default function GammaAnswerWorksheet({
 
     if (nextCompletedCount >= config.questions.length) {
       revokeLabMediaAccess();
+      removeLabToolSessions();
       await markLessonCompleted(user.id, lessonKeys.worksheet(config.id), {
         type: "score",
         score: worksheet.tasks.reduce((sum, task) => sum + task.coins, 0),
@@ -681,6 +1056,22 @@ export default function GammaAnswerWorksheet({
     }
 
     setTimeout(() => setCelebration(null), 2400);
+  };
+
+  const continueAfterAnswerPassed = async (passFeedback?: string, signatureDetails: string[] = []) => {
+    if (activeReadChecks.length > 0 && activeReadCheckIndex >= 0) {
+      const review = {
+        passed: true,
+        feedback: passFeedback || "答案已通過，請完成這題的讀題小測。",
+        reviewedAt: new Date().toISOString(),
+        signatureDetails,
+      };
+      setAnswer(activeQuestion.id, { review });
+      setFeedback("這題答案已通過。請回答讀題小測，答對後會自動前往下一題。");
+      return;
+    }
+
+    await completeActiveQuestion(signatureDetails, passFeedback);
   };
 
   const reviewAnswer = async () => {
@@ -704,47 +1095,49 @@ export default function GammaAnswerWorksheet({
     }
 
     try {
-      if (!activeUsesAiReview) {
-        setFeedback("檔案檢查通過，正在加入金幣...");
-        await completeActiveQuestion();
+      if (activeQuestion.expectedKind === "text") {
+        setFeedback("AI 正在檢查你的答案...");
+        const response = await fetch("/api/gamma-answer-review", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            worksheetId: config.id,
+            taskId: activeQuestion.taskId,
+            question: { taskId: activeQuestion.taskId },
+            answer: { text: activeAnswer.text.trim() },
+          }),
+        });
+        const result = await response.json().catch(() => ({}));
+        console.info("[gamma-answer-review] client-result", {
+          worksheetId: config.id,
+          taskId: activeQuestion.taskId,
+          passed: result?.passed,
+          feedback: result?.feedback,
+          responseStatus: response.status,
+        });
+        if (!response.ok) {
+          throw new Error(result?.error || "AI 審查暫時無法使用，請稍後再試。");
+        }
+        if (!result?.passed) {
+          const review = {
+            passed: false,
+            feedback: result?.feedback || "答案還需要補充，請依建議修改後再送出。",
+            reviewedAt: new Date().toISOString(),
+          };
+          setAnswer(activeQuestion.id, { review });
+          setFeedback(review.feedback);
+          return;
+        }
+
+        await continueAfterAnswerPassed(result?.feedback);
         return;
       }
 
-      setFeedback("AI 正在審核這一題...");
-      const attachments = await buildReviewAttachments();
-      const aiResponse = await fetch("/api/gamma-answer-review", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          worksheetId: config.id,
-          question: {
-            id: activeQuestion.id,
-            title: activeQuestion.title,
-            module: activeQuestion.expectedKind,
-            prompt: activeQuestion.prompt,
-            toolPrompt: activeQuestion.toolPrompt,
-            reviewBrief: activeQuestion.reviewBrief,
-            reviewCriteria: activeQuestion.reviewCriteria,
-            textMinimumLength: activeQuestion.textMinimumLength,
-            textMaximumLength: activeQuestion.textMaximumLength,
-            textRequiresThreePoints: activeQuestion.textRequiresThreePoints,
-            textKeywords: activeQuestion.textKeywords,
-            textMinimumKeywordMatches: activeQuestion.textMinimumKeywordMatches,
-          },
-          answer: {
-            text: activeAnswer.text.trim(),
-            attachments,
-          },
-        }),
-      });
-      const aiResult = await aiResponse.json();
-      if (!aiResponse.ok) {
-        throw new Error(aiResult?.error || "AI 審核失敗");
-      }
-      if (!aiResult.passed) {
+      const { problems: signatureProblems, signatureDetails } = await validateLabToolSignatures();
+      if (signatureProblems.length > 0) {
         const review = {
           passed: false,
-          feedback: aiResult.feedback || "AI 覺得這題還需要修改。",
+          feedback: signatureProblems.join(" "),
           reviewedAt: new Date().toISOString(),
         };
         setAnswer(activeQuestion.id, { review });
@@ -752,7 +1145,9 @@ export default function GammaAnswerWorksheet({
         return;
       }
 
-      await completeActiveQuestion();
+      setFeedback("檢查通過，正在加入金幣...");
+      await continueAfterAnswerPassed(undefined, signatureDetails);
+      return;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (/already approved/i.test(message)) {
@@ -1251,6 +1646,121 @@ export default function GammaAnswerWorksheet({
           box-shadow: 0 0 0 2px var(--accent-soft-16);
         }
 
+        .gamma-answer-page .read-check-card {
+          min-height: clamp(180px, 30vh, 320px);
+          border: 2px solid color-mix(in srgb, var(--secondary-accent) 78%, transparent);
+          background:
+            linear-gradient(135deg, var(--secondary-soft-16), transparent 44%),
+            color-mix(in srgb, var(--panel) 82%, transparent);
+          padding: 14px;
+          display: grid;
+          align-content: center;
+          gap: 12px;
+          box-shadow:
+            0 0 0 3px var(--secondary-soft-12),
+            0 0 28px var(--secondary-soft-20);
+        }
+
+        .gamma-answer-page .read-check-label {
+          color: var(--terminal-accent, #9ee9ff);
+          font-size: 13px;
+          font-weight: 900;
+          letter-spacing: 0;
+        }
+
+        .gamma-answer-page .read-check-card h3 {
+          margin: 0;
+          color: var(--text);
+          font-size: clamp(18px, 2.1vw, 28px);
+          line-height: 1.28;
+          text-shadow: 0 0 18px var(--accent-soft-22);
+        }
+
+        .gamma-answer-page .read-check-options {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .gamma-answer-page .read-check-text-answer {
+          display: grid;
+          gap: 8px;
+        }
+
+        .gamma-answer-page .read-check-text-answer textarea {
+          min-height: 88px;
+          width: 100%;
+          resize: vertical;
+          border: 1px solid color-mix(in srgb, var(--accent) 72%, transparent);
+          background: color-mix(in srgb, var(--bg) 82%, transparent);
+          color: var(--text);
+          padding: 10px;
+          font: inherit;
+          line-height: 1.45;
+          outline: none;
+        }
+
+        .gamma-answer-page .read-check-text-answer textarea:focus {
+          border-color: var(--terminal-highlight, #ffe684);
+          box-shadow: 0 0 0 2px var(--accent-soft-16);
+        }
+
+        .gamma-answer-page .read-check-text-answer button {
+          justify-self: end;
+          min-height: 38px;
+          border: 1px solid var(--terminal-highlight, #ffe684);
+          background: var(--accent-soft-12);
+          color: var(--terminal-highlight, #ffe684);
+          padding: 7px 14px;
+          font-size: 14px;
+          font-weight: 900;
+        }
+
+        .gamma-answer-page .read-check-text-answer button:disabled {
+          cursor: not-allowed;
+          opacity: 0.58;
+        }
+
+        .gamma-answer-page .read-check-lock {
+          border: 1px solid color-mix(in srgb, var(--danger, #ff5c7c) 70%, transparent);
+          background: color-mix(in srgb, var(--danger, #ff5c7c) 12%, transparent);
+          color: var(--text);
+          padding: 9px 10px;
+          font-size: 14px;
+          font-weight: 800;
+          line-height: 1.35;
+        }
+
+        .gamma-answer-page .read-check-option {
+          min-height: 52px;
+          border: 1px solid color-mix(in srgb, var(--accent) 66%, transparent);
+          background: var(--accent-soft-09);
+          color: var(--text);
+          padding: 8px 10px;
+          cursor: pointer;
+          text-align: left;
+          font-size: 15px;
+          font-weight: 800;
+          line-height: 1.28;
+          overflow-wrap: anywhere;
+        }
+
+        .gamma-answer-page .read-check-option:hover {
+          border-color: var(--terminal-highlight, #ffe684);
+          background: var(--accent-soft-16);
+          box-shadow: 0 0 20px var(--accent-soft-22);
+        }
+
+        .gamma-answer-page .read-check-option.selected {
+          border-color: var(--danger, #ff5c7c);
+          background: color-mix(in srgb, var(--danger, #ff5c7c) 20%, transparent);
+        }
+
+        .gamma-answer-page .read-check-option:disabled {
+          cursor: not-allowed;
+          opacity: 0.68;
+        }
+
         .gamma-answer-page .attachment-panel {
           min-height: 0;
           border: 1px solid var(--line-soft);
@@ -1566,6 +2076,23 @@ export default function GammaAnswerWorksheet({
             0 0 18px var(--accent-soft-22);
         }
 
+        .gamma-answer-page .answer-complete-label {
+          min-height: 96px;
+          color: var(--text);
+          font: inherit;
+          font-weight: 400;
+          line-height: 1.45;
+        }
+
+        .gamma-answer-page .signature-details {
+          margin-top: 6px;
+          color: color-mix(in srgb, var(--terminal-highlight, #e4fff7) 52%, transparent);
+          font-size: 11px;
+          line-height: 1.45;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+
         .gamma-answer-page .question-confetti {
           position: fixed;
           inset: 0;
@@ -1638,6 +2165,21 @@ export default function GammaAnswerWorksheet({
             min-height: 88px;
             padding: 7px;
             font-size: 15px;
+          }
+
+          .gamma-answer-page .read-check-card {
+            min-height: 144px;
+            padding: 10px;
+            gap: 8px;
+          }
+
+          .gamma-answer-page .read-check-card h3 {
+            font-size: 16px;
+          }
+
+          .gamma-answer-page .read-check-option {
+            min-height: 42px;
+            font-size: 13px;
           }
 
           .gamma-answer-page .attachment-list {
@@ -1720,6 +2262,16 @@ export default function GammaAnswerWorksheet({
           .gamma-answer-page .answer-input {
             min-height: 72px;
             line-height: 1.35;
+          }
+
+          .gamma-answer-page .read-check-card {
+            min-height: 120px;
+            padding: 8px;
+            gap: 6px;
+          }
+
+          .gamma-answer-page .read-check-options {
+            grid-template-columns: 1fr;
           }
 
           .gamma-answer-page .attachment-list {
@@ -1824,6 +2376,7 @@ export default function GammaAnswerWorksheet({
             <span>先看任務，再用對工具｜四題生成結果回填</span>
           </div>
           <div className="topbar-actions">
+            <WorksheetNotebook userId={user?.id} worksheetId={config.id} />
             <button type="button" className="home-link" onClick={() => router.push("/")}>
               HOME
             </button>
@@ -1864,7 +2417,7 @@ export default function GammaAnswerWorksheet({
                       key={tool.id}
                       type="button"
                       onClick={() => openLabTool(tool.id)}
-                      disabled={allComplete}
+                      disabled={allComplete || awaitingReadCheck}
                       title={allComplete ? "學習單已完成，生成權限已關閉" : `回主頁並切換到 ${tool.label}`}
                       className={`tool-mode-btn${active ? " active" : ""}`}
                     >
@@ -1905,7 +2458,8 @@ export default function GammaAnswerWorksheet({
                 </div>
               </div>
 
-              <section className="question-card">
+              {!awaitingReadCheck ? (
+                <section className="question-card">
                 <div className="question-meta">
                   <span>{activeQuestion.code}</span>
                   <span className="coins">{activeQuestion.coins} 金幣</span>
@@ -1913,9 +2467,70 @@ export default function GammaAnswerWorksheet({
                 <h2>{activeQuestion.title}</h2>
                 <p>{activeQuestion.prompt}</p>
                 <div className="page-hint">請看左側 GAMMA 題目。</div>
-              </section>
+                </section>
+              ) : null}
 
-              {activeQuestion.expectedKind === "text" ? (
+              {awaitingReadCheck && activeReadCheck ? (
+                <div className="read-check-card">
+                  <div className="read-check-label">
+                    讀題小測 {activeReadCheckIndex + 1}/{activeReadChecks.length}
+                  </div>
+                  <h3>{activeReadCheck.question}</h3>
+                  {readCheckLocked ? (
+                    <div className="read-check-lock" role="status" aria-live="polite">
+                      回答錯誤，請等待 {readCheckLockSeconds} 秒。
+                      {activeReadCheck.type === "text" ? " 時間到後再修改答案。" : " 選項已重新排列。"}
+                    </div>
+                  ) : null}
+                  {activeReadCheck.type === "text" ? (
+                    <div className="read-check-text-answer">
+                      <textarea
+                        value={activeReadCheckText}
+                        onChange={(event) =>
+                          setAnswer(activeQuestion.id, {
+                            readChecks: {
+                              ...(activeAnswer.readChecks || {}),
+                              [activeReadCheckIndex]: {
+                                ...(activeReadCheckState || { passed: false }),
+                                passed: false,
+                                textAnswer: event.target.value,
+                              },
+                            },
+                          })
+                        }
+                        placeholder="輸入你的答案"
+                        disabled={reviewing || readCheckLocked}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => answerReadCheck(undefined, activeReadCheckText)}
+                        disabled={reviewing || readCheckLocked || !activeReadCheckText.trim()}
+                      >
+                        送出答案
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="read-check-options">
+                      {readCheckOptions.map((option) => {
+                        const selected =
+                          activeAnswer.readChecks?.[activeReadCheckIndex]?.selectedIndex ===
+                          option.originalIndex;
+                        return (
+                          <button
+                            key={`${option.originalIndex}:${option.label}`}
+                            type="button"
+                            className={`read-check-option${selected ? " selected" : ""}`}
+                            onClick={() => answerReadCheck(option.originalIndex)}
+                            disabled={reviewing || readCheckLocked}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : activeQuestion.expectedKind === "text" ? (
                 <textarea
                   className="answer-input"
                   wrap="soft"
@@ -1947,7 +2562,7 @@ export default function GammaAnswerWorksheet({
                         {activeAnswer.attachments.length > 0
                           ? activeQuestionCompleted
                             ? "已通過審核"
-                            : "確認作品後送 AI 審核"
+                            : "確認作品後送系統檢查"
                           : `${activeAnswer.attachments.length} 個檔案`}
                       </span>
                     </div>
@@ -2003,24 +2618,41 @@ export default function GammaAnswerWorksheet({
                 </div>
               )}
 
-              <div className="field-row">
-                <button
-                  type="button"
-                  className={`tool-btn review-action${activeQuestionCompleted ? " is-complete" : ""}`}
-                  onClick={reviewAnswer}
-                  disabled={reviewing || activeQuestionCompleted}
-                >
+              {!awaitingReadCheck ? (
+                <>
+                  <div className="field-row">
+                    <button
+                      type="button"
+                      className={`tool-btn review-action${activeQuestionCompleted ? " is-complete" : ""}`}
+                      onClick={reviewAnswer}
+                      disabled={reviewing || activeQuestionCompleted}
+                    >
                   {activeQuestionCompleted
                     ? "本題已完成"
+                    : awaitingReadCheck
+                    ? "完成讀題小測後進下一題"
                     : reviewing
                     ? reviewBusyLabel
                     : reviewIdleLabel}
-                </button>
-              </div>
+                    </button>
+                  </div>
 
-              <div className="answer-status">
-                <div className="answer-feedback">{feedback}</div>
-              </div>
+                  <div className="answer-status">
+                    <div className={activeQuestionCompleted ? "answer-complete-label" : "answer-feedback"}>
+                      {activeQuestionCompleted
+                        ? activeAnswer.review?.feedback || feedback
+                        : feedback}
+                    </div>
+                    {activeQuestionCompleted && activeAnswer.review?.signatureDetails?.length ? (
+                      <div className="signature-details">
+                        {activeAnswer.review.signatureDetails.map((detail) => (
+                          <div key={detail}>簽章資訊：{detail}</div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </>
+              ) : null}
             </div>
           </aside>
         </section>

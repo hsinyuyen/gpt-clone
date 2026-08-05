@@ -1,6 +1,8 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { resolveGammaAnswerWorksheetConfig } from "@/config/gammaAnswerWorksheets";
+import { getWorksheet } from "@/lib/firestore";
 import { isMissingOpenAIKeyError, openAIAuthHeader } from "@/server/openaiClient";
-import { validateGammaTextAnswer } from "@/utils/gammaAnswerValidation";
+import { validateBasicGammaTextAnswer } from "@/utils/gammaAnswerValidation";
 import { LabMusicReviewMetadata } from "@/utils/labMusicMetadata";
 import { LabVideoReviewMetadata } from "@/utils/labVideoMetadata";
 
@@ -85,14 +87,36 @@ function getVideoMetadata(attachments: ReviewAttachment[]) {
   return attachments.find((file) => file.kind === "video" && file.videoMetadata)?.videoMetadata || null;
 }
 
+function reviewLog(event: string, details: Record<string, unknown>) {
+  console.info(`[gamma-answer-review] ${event}`, details);
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
   const body = req.body || {};
-  const question = body.question || {};
+  let question = body.question || {};
   const answer = body.answer || {};
   const worksheetId = normalizeWorksheetId(body.worksheetId);
+  const taskId = trimText(body.taskId || question.taskId, 120);
+  if (!worksheetId || !taskId) {
+    return res.status(400).json({ error: "worksheetId and taskId are required" });
+  }
+
+  try {
+    const worksheet = await getWorksheet(worksheetId);
+    const worksheetConfig = resolveGammaAnswerWorksheetConfig(worksheet);
+    const configuredQuestion = worksheetConfig?.questions.find((item) => item.taskId === taskId);
+    if (!worksheet || !worksheet.isPublished || !configuredQuestion) {
+      return res.status(400).json({ error: "Worksheet review configuration is unavailable" });
+    }
+    question = configuredQuestion;
+  } catch (error) {
+    console.error("[gamma-answer-review] worksheet configuration error:", error);
+    return res.status(400).json({ error: "Worksheet review configuration is unavailable" });
+  }
+
   const moduleKind = trimText(question.module || question.expectedKind, 20) || "text";
   const attachments = Array.isArray(answer.attachments)
     ? (answer.attachments as ReviewAttachment[])
@@ -108,8 +132,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const compactPayload = {
     title: trimText(question.title, 90),
     module: moduleKind,
-    studentPrompt: trimText(question.prompt || question.studentPrompt, 220),
-    reviewBrief: {
+    questionContent: trimText(question.prompt || question.studentPrompt, 500),
+    legacyReviewBrief: {
       task: trimText(brief.task, 320),
       expectedOutput: trimText(brief.expectedOutput, 240),
       mustInclude: trimList(brief.mustInclude),
@@ -155,6 +179,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       : null,
     attachments: attachmentSummary(attachments),
   };
+  reviewLog("review-start", {
+    worksheetId,
+    taskId,
+    moduleKind,
+    answerLength: compactPayload.studentAnswer.length,
+    answerPreview: trimText(compactPayload.studentAnswer, 180),
+  });
 
   if (moduleKind === "audio") {
     if (!musicMetadata?.prompt) {
@@ -195,21 +226,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (moduleKind === "text") {
-    const textProblems = validateGammaTextAnswer(trimText(answer.text, 1200), {
-      title: trimText(question.title, 90),
-      label: trimText(question.label, 90),
-      prompt: trimText(question.prompt || question.studentPrompt, 320),
-      toolPrompt: trimText(question.toolPrompt, 500),
-      placeholder: trimText(question.placeholder, 240),
-      reviewBrief: brief,
-      reviewCriteria: question.reviewCriteria,
-      textMinimumLength: question.textMinimumLength,
-      textMaximumLength: question.textMaximumLength,
-      textRequiresThreePoints: question.textRequiresThreePoints,
-      textKeywords: question.textKeywords,
-      textMinimumKeywordMatches: question.textMinimumKeywordMatches,
-    });
+    const textProblems = validateBasicGammaTextAnswer(trimText(answer.text, 1200));
     if (textProblems.length > 0) {
+      reviewLog("review-blocked-locally", {
+        worksheetId,
+        taskId,
+        moduleKind,
+        problems: textProblems,
+      });
       return res.status(200).json({
         passed: false,
         feedback: trimText(textProblems.join(" "), 60),
@@ -220,17 +244,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const instruction = `你是國小 3-6 年級課堂的學習單 AI 審核助手。請只判斷這一題是否可以過關。
 
 審核原則：
-1. 以 reviewBrief.task、expectedOutput、mustInclude、rejectIf 為主要依據。
-2. 對小朋友友善，但不要放過空白、亂打、完全無關、只複製題目的答案。
-3. 先估計題目需求要素；只要學生答案高機率貼合題目方向，或約達 60% 要素，就判 passed=true。mustInclude 是要素參考，不是每一項都必須完全命中。
-4. 圖片題採寬鬆審核：只要圖片是有效作品，且高機率符合題目主要方向，就判 passed=true。不要因為顏色、數量、構圖、風格、角色細節沒有完全符合而退件。
-5. 圖片題只有在空白、錯誤圖、不是圖片、明顯完全無關、或需求要素明顯不足時才判 passed=false。
-6. 圖片題若只能看到附件資訊而沒有 image_url，附件格式已由程式先檢查，請不要因為無法檢視細節而退件。
-7. 音樂題以 musicMetadata.prompt 作為唯一內容審核依據；只要 prompt 高機率貼合題目需求就通過，不需要實際聽音檔。
-8. 音樂題若缺少 musicMetadata 或 prompt，代表不是 Lab Music 下載的 MP3，必須退件。
-9. 影片題以 videoMetadata.prompt 作為唯一內容審核依據；只要 prompt 高機率貼合題目需求就通過，不需要實際播放影片。
-10. 影片題若缺少 videoMetadata 或 prompt，代表不是 Lab Video 下載的影片，必須退件。
-11. 回饋最多 45 個繁體中文字。
+1. 以題目標題 title 與題目內容 questionContent 為主要依據。
+2. legacyReviewBrief 只供舊學習單補充參考，不得取代真正題目內容。
+3. 對小朋友友善，但不要放過空白、亂打、完全無關、只複製題目的答案。
+4. 先估計題目需求要素；只要學生答案高機率貼合題目方向，或約達 60% 要素，就判 passed=true。舊 mustInclude 是補充參考，不是每一項都必須完全命中。
+5. 文字題必須是學生已完成的最終答案，不能是要求 AI 執行工作的提示詞，也不能只是貼上等待整理的原始素材。
+6. 文字題若出現「請把下面內容整理」、「請只輸出」、「內容：」等操作指令或素材區塊，但沒有交出題目要求的最終條列答案，必須判 passed=false。
+7. 題目要求多點提醒時，答案必須是清楚可辨識的獨立條列或編號項目；不能把「要 AI 幫忙整理」的指令和來源內容當作答案。
+8. 回饋最多 45 個繁體中文字。
 
 只回傳純 JSON：
 {"passed":true或false,"feedback":"給學生看的繁體中文短回饋"}`;
@@ -244,6 +265,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     : userText;
 
   try {
+    reviewLog("ai-review-request", {
+      worksheetId,
+      taskId,
+      moduleKind,
+      model: process.env.GAMMA_ANSWER_REVIEW_MODEL || "gpt-4o-mini",
+    });
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -270,10 +297,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const raw = data?.choices?.[0]?.message?.content?.trim() || "";
     const parsed = parseReviewerJson(raw);
-    return res.status(200).json({
+    const result = {
       passed: !!parsed.passed,
       feedback: trimText(parsed.feedback || "審核完成。", 60),
+    };
+    reviewLog("ai-review-result", {
+      worksheetId,
+      taskId,
+      moduleKind,
+      ...result,
     });
+    return res.status(200).json(result);
   } catch (error: any) {
     console.error("[gamma-answer-review] error:", error.message || error);
     if (isMissingOpenAIKeyError(error)) {

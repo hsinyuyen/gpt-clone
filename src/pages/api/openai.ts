@@ -1,4 +1,4 @@
-import { DEFAULT_OPENAI_MODEL } from "@/shared/Constants";
+import { DEFAULT_OPENAI_MODEL, GPT4_OPENAI_MODEL } from "@/shared/Constants";
 import { getOpenAIClient, isMissingOpenAIKeyError } from "@/server/openaiClient";
 import { OpenAIModel } from "@/types/Model";
 import { NextApiRequest, NextApiResponse } from "next";
@@ -40,6 +40,24 @@ async function retryWithBackoff<T>(
   throw lastError;
 }
 
+function getProviderErrorStatus(error: any) {
+  return error?.response?.status;
+}
+
+function getProviderErrorMessage(error: any) {
+  return (
+    error?.response?.data?.error?.message ||
+    error?.response?.data?.message ||
+    error?.message ||
+    String(error)
+  );
+}
+
+function shouldFallbackModel(error: any) {
+  const status = getProviderErrorStatus(error);
+  return status === 400 || status === 403 || status === 404;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -72,13 +90,37 @@ export default async function handler(
         content: message.content,
       }));
 
-    const completion = await retryWithBackoff(() =>
-      openai.createChatCompletion({
-        model: model.id,
-        temperature: 0.5,
-        messages: [promptMessage, ...initialMessages, ...latestMessages],
-      })
-    );
+    const requestMessages = [promptMessage, ...initialMessages, ...latestMessages];
+    let usedModelId = model.id;
+    let completion;
+
+    try {
+      completion = await retryWithBackoff(() =>
+        openai.createChatCompletion({
+          model: usedModelId,
+          temperature: 0.5,
+          messages: requestMessages,
+        })
+      );
+    } catch (error: any) {
+      const fallbackModelId = GPT4_OPENAI_MODEL.id;
+      if (usedModelId !== fallbackModelId && shouldFallbackModel(error)) {
+        console.warn(
+          `OpenAI model ${usedModelId} failed, falling back to ${fallbackModelId}:`,
+          getProviderErrorMessage(error)
+        );
+        usedModelId = fallbackModelId;
+        completion = await retryWithBackoff(() =>
+          openai.createChatCompletion({
+            model: usedModelId,
+            temperature: 0.5,
+            messages: requestMessages,
+          })
+        );
+      } else {
+        throw error;
+      }
+    }
 
     const responseMessage = completion.data.choices[0]?.message?.content?.trim();
 
@@ -89,9 +131,13 @@ export default async function handler(
       return;
     }
 
-    res.status(200).json({ message: responseMessage });
+    res.status(200).json({ message: responseMessage, model: usedModelId });
   } catch (error: any) {
-    console.error("OpenAI API error:", error.message || error);
+    console.error(
+      "OpenAI API error:",
+      getProviderErrorStatus(error),
+      getProviderErrorMessage(error)
+    );
 
     if (isMissingOpenAIKeyError(error)) {
       res.status(500).json({ error: error.message });

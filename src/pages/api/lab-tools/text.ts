@@ -1,4 +1,6 @@
 import { getOpenAIClient, isMissingOpenAIKeyError } from "@/server/openaiClient";
+import { reviewLabToolPrompt } from "@/server/labToolPromptReview";
+import { resolveLabToolWorksheetContext } from "@/server/labToolWorksheetContext";
 import { NextApiRequest, NextApiResponse } from "next";
 import { ChatCompletionRequestMessage } from "openai";
 
@@ -10,13 +12,65 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { prompt, task } = req.body as { prompt?: string; task?: string };
+  const {
+    prompt,
+    sessionId,
+    sessionTitle,
+    courseId,
+    courseTitle,
+    semester,
+    week,
+    task,
+    taskId,
+    worksheetId,
+    toolPrompt,
+    expectedKind,
+  } = req.body as {
+    prompt?: string;
+    sessionId?: string;
+    sessionTitle?: string;
+    courseId?: string;
+    courseTitle?: string;
+    semester?: string;
+    week?: number;
+    task?: string;
+    taskId?: string;
+    worksheetId?: string;
+    toolPrompt?: string;
+    expectedKind?: string;
+  };
 
-  if (!prompt) {
-    return res.status(400).json({ error: "Prompt is required" });
+  const safePrompt = prompt?.trim() || "";
+
+  let context: Awaited<ReturnType<typeof resolveLabToolWorksheetContext>>;
+  try {
+    context = await resolveLabToolWorksheetContext({ worksheetId, taskId, mode: "text" });
+  } catch (error: any) {
+    return res.status(400).json({ error: error.message || "學習單設定無法使用" });
   }
+  const safeWorksheetId = context.worksheetId;
 
   try {
+    const promptReview = await reviewLabToolPrompt({
+      mode: "text",
+      prompt: safePrompt,
+      worksheetId: safeWorksheetId,
+      courseTitle: context.courseTitle,
+      sessionTitle: context.sessionTitle,
+      taskId: context.taskId,
+      task: context.task,
+      toolPrompt: context.toolPrompt,
+      promptReviewCriteria: context.promptReviewCriteria,
+      legacyReviewHint: context.legacyReviewHint,
+      expectedKind: context.expectedKind,
+    });
+    if (!promptReview.passed) {
+      return res.status(422).json({
+        error: promptReview.feedback,
+        promptReview,
+      });
+    }
+
     const openai = getOpenAIClient();
     const messages: ChatCompletionRequestMessage[] = [
       {
@@ -26,7 +80,7 @@ export default async function handler(
       },
       {
         role: "user",
-        content: `任務：${task || "文字整理"}\n學生 prompt：${prompt}`,
+        content: `課程：${context.sessionTitle}\n任務：${context.task}\n學生 prompt：${safePrompt}`,
       },
     ];
 
@@ -46,6 +100,14 @@ export default async function handler(
       success: true,
       kind: "text",
       text,
+      worksheetId: safeWorksheetId,
+      sessionId: context.sessionId,
+      sessionTitle: context.sessionTitle,
+      courseId: context.courseId,
+      courseTitle: context.courseTitle,
+      semester: context.semester,
+      week: context.week,
+      promptReview,
     });
   } catch (error: any) {
     console.error("lab-tools/text error:", error.response?.data || error);
