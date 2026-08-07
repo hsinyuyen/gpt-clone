@@ -96,6 +96,7 @@ const CACHE_ROOT =
 const CLOUD_CACHE_ROOT = "lab-tool-cache";
 const SIMILARITY_THRESHOLD = 0.72;
 const MAX_CACHE_LIMIT = 100;
+const ADMIN_CLOUD_TIMEOUT_MS = 8_000;
 const apiCooldownUntil = new Map<string, number>();
 const MIME_BY_EXTENSION: Record<string, string> = {
   png: "image/png",
@@ -112,6 +113,20 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 
 const sanitizeSegment = (value: string) =>
   value.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 48);
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out.`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 export const normalizeWorksheetId = (worksheetId?: string) =>
   sanitizeSegment((worksheetId || "").toUpperCase().replace(/[-_\s]/g, ""));
@@ -221,7 +236,9 @@ async function readCloudIndex(
   const { storage } = firebaseServices();
   const ref = storageRef(storage, cloudIndexPath(worksheetId, kind));
   try {
-    const buffer = Buffer.from(await getBytes(ref));
+    const buffer = Buffer.from(
+      await withTimeout(getBytes(ref), ADMIN_CLOUD_TIMEOUT_MS, "Cloud index read")
+    );
     const parsed = JSON.parse(buffer.toString("utf8"));
     return Array.isArray(parsed?.entries) ? (parsed.entries as CacheEntry[]) : [];
   } catch (error) {
@@ -292,7 +309,9 @@ async function deletePhysicalAsset(
   worksheetId: string,
   kind: CacheableLabToolKind,
   fileName: string,
-  storagePath?: string
+  storagePath?: string,
+  cloudTimeoutMs?: number,
+  skipCloud = false
 ) {
   const safeFile = path.basename(fileName);
   if (!safeFile || safeFile === "index.json") throw new Error("Invalid asset file name.");
@@ -301,14 +320,23 @@ async function deletePhysicalAsset(
   } catch (error: any) {
     if (error?.code !== "ENOENT") throw error;
   }
+  if (skipCloud) return { cloudError: "" };
   try {
     const { storage } = firebaseServices();
-    await deleteObject(
+    const deletion = deleteObject(
       storageRef(storage, storagePath || cloudStoragePath(worksheetId, kind, safeFile))
     );
+    await (cloudTimeoutMs
+      ? withTimeout(deletion, cloudTimeoutMs, "Cloud asset delete")
+      : deletion);
   } catch (error: any) {
-    if (error?.code !== "storage/object-not-found") throw error;
+    if (error?.code !== "storage/object-not-found") {
+      return {
+        cloudError: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
+  return { cloudError: "" };
 }
 
 async function uploadCloudAsset(params: {
@@ -339,12 +367,23 @@ export function cachedAssetUrl(
   return `/api/lab-tools/asset?${params.toString()}`;
 }
 
+function hasLabToolSignature(entry: CacheEntry) {
+  const metadata = entry.metadata || {};
+  const review = metadata.labImageReview || metadata.labMusicReview || metadata.labVideoReview;
+  return Boolean(
+    review &&
+      typeof review === "object" &&
+      !Array.isArray(review) &&
+      (review as Record<string, unknown>).signature
+  );
+}
+
 export async function getLabToolCacheCount(
   worksheetId: string,
   kind: CacheableLabToolKind
 ) {
   const entries = await readIndex(worksheetId, kind);
-  return entries.length;
+  return entries.filter(hasLabToolSignature).length;
 }
 
 export async function findCachedLabToolResult(
@@ -358,7 +397,8 @@ export async function findCachedLabToolResult(
   const entries = await readIndex(worksheetId, kind);
   const requiredCount =
     typeof limit === "number" ? Math.max(1, Math.floor(limit)) : undefined;
-  const usableEntries = requiredCount ? entries.slice(0, requiredCount) : entries;
+  const signedEntries = entries.filter(hasLabToolSignature);
+  const usableEntries = requiredCount ? signedEntries.slice(0, requiredCount) : signedEntries;
 
   const matches: { entry: CacheEntry; score: number }[] = [];
   for (const entry of usableEntries) {
@@ -406,7 +446,8 @@ export async function findRandomCachedLabToolResult(
   const entries = await readIndex(worksheetId, kind);
   const requiredCount =
     typeof limit === "number" ? Math.max(1, Math.floor(limit)) : undefined;
-  const usableEntries = (requiredCount ? entries.slice(0, requiredCount) : entries).filter((entry) => {
+  const signedEntries = entries.filter(hasLabToolSignature);
+  const usableEntries = (requiredCount ? signedEntries.slice(0, requiredCount) : signedEntries).filter((entry) => {
     if (!taskId) return true;
     const metadata = entry.metadata || {};
     const review = metadata.labImageReview || metadata.labMusicReview || metadata.labVideoReview;
@@ -531,9 +572,19 @@ export async function saveLabToolResult(params: SaveCacheParams) {
 
   await Promise.all(
     evictedEntries.map((entry) =>
-      deletePhysicalAsset(worksheetId, params.kind, entry.fileName).catch((error) => {
-        console.warn("[LabToolCache] evicted asset delete failed:", entry.fileName, error);
-      })
+      deletePhysicalAsset(worksheetId, params.kind, entry.fileName)
+        .then((outcome) => {
+          if (outcome.cloudError) {
+            console.warn(
+              "[LabToolCache] evicted cloud asset delete failed:",
+              entry.fileName,
+              outcome.cloudError
+            );
+          }
+        })
+        .catch((error) => {
+          console.warn("[LabToolCache] evicted asset delete failed:", entry.fileName, error);
+        })
     )
   );
 
@@ -653,8 +704,7 @@ export async function listLabToolAssets(worksheetIdInput: string) {
   const kinds: CacheableLabToolKind[] = ["image", "music", "video"];
   const grouped = await Promise.all(
     kinds.map(async (kind) => {
-      const entries = await readMergedIndex(worksheetId, kind);
-      const entriesByFile = new Map(entries.map((entry) => [path.basename(entry.fileName), entry]));
+      const entriesPromise = readMergedIndex(worksheetId, kind);
       const discovered = new Map<
         string,
         { size?: number; createdAt?: string; mimeType?: string; storagePath?: string; downloadUrl?: string }
@@ -680,32 +730,42 @@ export async function listLabToolAssets(worksheetIdInput: string) {
 
       try {
         const { storage } = firebaseServices();
-        const result = await listAll(
-          storageRef(storage, `${CLOUD_CACHE_ROOT}/${worksheetId}/${kind}`)
-        );
-        await Promise.all(
-          result.items
-            .filter((item) => item.name !== "index.json")
-            .map(async (item) => {
-              const [metadata, downloadUrl] = await Promise.all([
-                getMetadata(item),
-                getDownloadURL(item),
-              ]);
-              const previous = discovered.get(item.name) || {};
-              discovered.set(item.name, {
-                ...previous,
-                size: Number(metadata.size) || previous.size,
-                createdAt: metadata.timeCreated || previous.createdAt,
-                mimeType: metadata.contentType || previous.mimeType,
-                storagePath: item.fullPath,
-                downloadUrl,
-              });
-            })
+        await withTimeout(
+          (async () => {
+            const result = await listAll(
+              storageRef(storage, `${CLOUD_CACHE_ROOT}/${worksheetId}/${kind}`)
+            );
+            await Promise.all(
+              result.items
+                .filter((item) => item.name !== "index.json")
+                .map(async (item) => {
+                  const [metadata, downloadUrl] = await Promise.all([
+                    getMetadata(item),
+                    getDownloadURL(item),
+                  ]);
+                  const previous = discovered.get(item.name) || {};
+                  discovered.set(item.name, {
+                    ...previous,
+                    size: Number(metadata.size) || previous.size,
+                    createdAt: metadata.timeCreated || previous.createdAt,
+                    mimeType: metadata.contentType || previous.mimeType,
+                    storagePath: item.fullPath,
+                    downloadUrl,
+                  });
+                })
+            );
+          })(),
+          ADMIN_CLOUD_TIMEOUT_MS,
+          "Cloud asset listing"
         );
       } catch (error) {
         console.warn("[LabToolCache] cloud asset listing failed:", worksheetId, kind, error);
       }
 
+      const entries = await entriesPromise;
+      const entriesByFile = new Map(
+        entries.map((entry) => [path.basename(entry.fileName), entry])
+      );
       entries.forEach((entry) => {
         const previous = discovered.get(entry.fileName) || {};
         discovered.set(entry.fileName, {
@@ -755,21 +815,17 @@ export async function deleteLabToolAssets(params: {
   const kinds = params.scope === "worksheet" ? allKinds : params.kind ? [params.kind] : [];
   if (kinds.length === 0) throw new Error("kind is required for this delete scope.");
 
-  const listed = await listLabToolAssets(worksheetId);
   const requestedFileName = path.basename(params.fileName || "");
-  const matchedAssets = listed.filter(
-    (asset) =>
-      asset.kind === kinds[0] &&
-      asset.fileName === requestedFileName
-  );
+  if (params.scope === "asset" && !requestedFileName) {
+    throw new Error("A valid asset file name is required.");
+  }
+
+  // A single-item deletion already has a verified kind and file name from the
+  // management view. Do not require a fresh cloud listing before deletion:
+  // Storage listing can fail independently even when the target file is valid.
+  const listed = params.scope === "asset" ? [] : await listLabToolAssets(worksheetId);
   const targets = params.scope === "asset"
-    ? matchedAssets.length > 0
-      ? matchedAssets.map((asset) => ({
-          kind: asset.kind,
-          fileName: asset.fileName,
-          storagePath: asset.storagePath,
-        }))
-      : [{ kind: kinds[0], fileName: requestedFileName, storagePath: undefined }]
+    ? [{ kind: kinds[0], fileName: requestedFileName, storagePath: undefined }]
     : listed
         .filter((asset) => kinds.includes(asset.kind))
         .map((asset) => ({ kind: asset.kind, fileName: asset.fileName, storagePath: asset.storagePath }));
@@ -779,18 +835,29 @@ export async function deleteLabToolAssets(params: {
 
   const result: DeleteLabToolAssetsResult = { requested: targets.length, deleted: 0, failed: [] };
   const deletedByKind = new Map<CacheableLabToolKind, Set<string>>();
+  const cloudUnavailableKinds = new Set<CacheableLabToolKind>();
   for (const target of targets) {
     try {
-      await deletePhysicalAsset(
+      const outcome = await deletePhysicalAsset(
         worksheetId,
         target.kind,
         target.fileName,
-        target.storagePath
+        target.storagePath,
+        ADMIN_CLOUD_TIMEOUT_MS,
+        cloudUnavailableKinds.has(target.kind)
       );
       result.deleted += 1;
       const deleted = deletedByKind.get(target.kind) || new Set<string>();
       deleted.add(target.fileName);
       deletedByKind.set(target.kind, deleted);
+      if (outcome.cloudError) {
+        cloudUnavailableKinds.add(target.kind);
+        result.failed.push({
+          kind: target.kind,
+          fileName: target.fileName,
+          error: outcome.cloudError,
+        });
+      }
     } catch (error) {
       result.failed.push({
         ...target,
@@ -801,13 +868,22 @@ export async function deleteLabToolAssets(params: {
 
   for (const kind of kinds) {
     const deleted = deletedByKind.get(kind) || new Set<string>();
-    const entries = await readMergedIndex(worksheetId, kind);
+    const cloudUnavailable = cloudUnavailableKinds.has(kind);
+    const entries = cloudUnavailable
+      ? await readLocalIndex(worksheetId, kind)
+      : await readMergedIndex(worksheetId, kind);
     const nextEntries = params.scope !== "asset" && result.failed.length === 0
       ? []
       : entries.filter((entry) => !deleted.has(entry.fileName));
     try {
       await writeLocalIndex(worksheetId, kind, nextEntries);
-      await writeCloudIndex(worksheetId, kind, nextEntries);
+      if (!cloudUnavailable) {
+        await withTimeout(
+          writeCloudIndex(worksheetId, kind, nextEntries),
+          ADMIN_CLOUD_TIMEOUT_MS,
+          "Cloud index write"
+        );
+      }
     } catch (error) {
       result.failed.push({
         kind,

@@ -5,6 +5,7 @@ import {
   GammaAnswerQuestionConfig,
   GammaAnswerReadCheck,
   GammaAnswerWorksheetConfig,
+  isGammaAnswerQuestionCompleted,
 } from "@/config/gammaAnswerWorksheets";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConversation } from "@/contexts/ConversationContext";
@@ -483,7 +484,6 @@ function buildInitialAnswers(config: GammaAnswerWorksheetConfig) {
 
 export default function GammaAnswerWorksheet({
   config,
-  worksheet,
   progress,
   onProgressChange,
 }: GammaAnswerWorksheetProps) {
@@ -504,17 +504,22 @@ export default function GammaAnswerWorksheet({
 
   const activeQuestion = config.questions[activeIndex];
   const activeAnswer = answers[activeQuestion.id] || EMPTY_ANSWER;
+  const isQuestionCompleted = useCallback(
+    (question: GammaAnswerQuestionConfig) =>
+      isGammaAnswerQuestionCompleted(progress?.tasks, config, question),
+    [config, progress?.tasks]
+  );
   const completedCount = config.questions.filter(
-    (question) => progress?.tasks?.[question.taskId]?.completed
+    isQuestionCompleted
   ).length;
   const firstIncompleteIndex = config.questions.findIndex(
-    (question) => !progress?.tasks?.[question.taskId]?.completed
+    (question) => !isQuestionCompleted(question)
   );
   const unlockedIndex =
     firstIncompleteIndex >= 0 ? firstIncompleteIndex : config.questions.length - 1;
-  const totalCoins = worksheet.tasks.reduce((sum, task) => sum + task.coins, 0);
+  const totalCoins = config.questions.reduce((sum, question) => sum + question.coins, 0);
   const allComplete = config.questions.length > 0 && completedCount >= config.questions.length;
-  const activeQuestionCompleted = !!progress?.tasks?.[activeQuestion.taskId]?.completed;
+  const activeQuestionCompleted = isQuestionCompleted(activeQuestion);
   const activeAnswerPassed = activeQuestionCompleted || !!activeAnswer.review?.passed;
   const activeReadChecks = activeQuestion.readChecks?.length
     ? activeQuestion.readChecks
@@ -688,7 +693,7 @@ export default function GammaAnswerWorksheet({
         );
         if (nextIndex >= 0) {
           const firstOpen = config.questions.findIndex(
-            (question) => !progress?.tasks?.[question.taskId]?.completed
+            (question) => !isQuestionCompleted(question)
           );
           const maxOpen = firstOpen >= 0 ? firstOpen : config.questions.length - 1;
           setActiveIndex(Math.min(nextIndex, maxOpen));
@@ -698,7 +703,7 @@ export default function GammaAnswerWorksheet({
       // Ignore broken local drafts.
     }
     loadedDraftRef.current = true;
-  }, [config, progress?.tasks, user]);
+  }, [config, isQuestionCompleted, progress?.tasks, user]);
 
   const saveDraft = useCallback(
     (nextAnswers: Record<string, GammaAnswerState>, nextActiveIndex: number) => {
@@ -1029,7 +1034,7 @@ export default function GammaAnswerWorksheet({
 
     const nextCompletedCount = config.questions.filter((question) => {
       if (question.taskId === activeQuestion.taskId) return true;
-      return latest?.tasks?.[question.taskId]?.completed;
+      return isGammaAnswerQuestionCompleted(latest?.tasks, config, question);
     }).length;
 
     const review = {
@@ -1047,7 +1052,7 @@ export default function GammaAnswerWorksheet({
       removeLabToolSessions();
       await markLessonCompleted(user.id, lessonKeys.worksheet(config.id), {
         type: "score",
-        score: worksheet.tasks.reduce((sum, task) => sum + task.coins, 0),
+        score: config.questions.reduce((sum, question) => sum + question.coins, 0),
         label: config.title,
       });
     } else {
@@ -2434,7 +2439,7 @@ export default function GammaAnswerWorksheet({
                 </div>
                 <div className="question-tabs">
                   {config.questions.map((question, index) => {
-                    const done = !!progress?.tasks?.[question.taskId]?.completed;
+                    const done = isQuestionCompleted(question);
                     const locked = !canOpenQuestion(index);
                     return (
                       <button
@@ -2448,10 +2453,10 @@ export default function GammaAnswerWorksheet({
                           }
                           setActiveIndex(index);
                         }}
-                        title={locked ? "請先完成前面的題目" : `第 ${index + 1} 題`}
+                        title={locked ? "請先完成前面的題目" : `題目 ${String.fromCharCode(65 + index)}`}
                         className={`tab-btn${index === activeIndex ? " active" : ""}${done ? " done" : ""}${locked ? " locked" : ""}`}
                       >
-                        {index + 1}
+                        {String.fromCharCode(65 + index)}
                       </button>
                     );
                   })}

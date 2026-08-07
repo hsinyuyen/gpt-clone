@@ -583,12 +583,41 @@ function buildReviewCriteriaFromAuthoringQuestion(
   };
 }
 
+function gammaAnswerTaskLabel(index: number) {
+  let value = index;
+  let label = "";
+  do {
+    label = String.fromCharCode(65 + (value % 26)) + label;
+    value = Math.floor(value / 26) - 1;
+  } while (value >= 0);
+  return label;
+}
+
+function buildGammaAnswerTaskId(worksheetId: string, index: number) {
+  return `${normalizeWorksheetId(worksheetId)}-${gammaAnswerTaskLabel(index)}`;
+}
+
+function preserveOrBuildGammaAnswerTaskId(
+  currentTaskId: string | undefined,
+  worksheetId: string,
+  index: number
+) {
+  const candidate = currentTaskId?.trim() || "";
+  const normalizedWorksheetId = normalizeWorksheetId(worksheetId);
+  // Existing published worksheets keep their historical Q-style (or other)
+  // identifiers. New worksheets receive the A/B/C-style identifier.
+  if (candidate && normalizeWorksheetId(candidate).startsWith(normalizedWorksheetId)) {
+    return candidate;
+  }
+  return buildGammaAnswerTaskId(worksheetId, index);
+}
+
 function createGammaAnswerQuestion(index: number, worksheetId: string): GammaAnswerQuestionConfig {
   const questionNumber = index + 1;
   const defaults = GAMMA_ANSWER_MODULES.text;
   return {
     id: `q${questionNumber}`,
-    taskId: `${normalizeWorksheetId(worksheetId)}-Q${questionNumber}`,
+    taskId: buildGammaAnswerTaskId(worksheetId, index),
     code: `第 ${questionNumber} 題`,
     label: `第 ${questionNumber} 題`,
     title: `第 ${questionNumber} 題`,
@@ -691,7 +720,7 @@ function gammaAnswerQuestionFromAuthoringQuestion(
   return {
     ...question,
     id: cleanOneLine(rawQuestion.id) || `q${index + 1}`,
-    taskId: `${worksheetId}-Q${index + 1}`,
+    taskId: buildGammaAnswerTaskId(worksheetId, index),
     code: `第 ${index + 1} 題`,
     label: title,
     title,
@@ -886,7 +915,7 @@ function prepareGammaAnswerConfigForSave(
     return {
       ...question,
       id: question.id.trim() || `q${index + 1}`,
-      taskId: `${worksheetId}-Q${index + 1}`,
+      taskId: preserveOrBuildGammaAnswerTaskId(question.taskId, worksheetId, index),
       code: question.code.trim() || `第 ${index + 1} 題`,
       label: question.label.trim() || title,
       title,
@@ -1669,6 +1698,7 @@ export default function WorksheetsPage() {
         <LabToolAssetManager
           worksheet={assetManagerWorksheet}
           adminUserId={user.id}
+          adminUsername={user.username}
           onClose={() => setAssetManagerWorksheet(null)}
         />
       )}
@@ -1693,6 +1723,14 @@ type AdminLabToolAsset = {
 
 const ASSET_KIND_LABEL = { image: "圖片", music: "音樂", video: "影片" } as const;
 
+type AdminAssetKind = AdminLabToolAsset["kind"];
+
+const ADMIN_ASSET_TOOL_LABEL: Record<AdminAssetKind, string> = {
+  image: "圖片",
+  music: "音樂",
+  video: "影片",
+};
+
 function formatAssetSize(size: number) {
   if (!size) return "未知大小";
   if (size < 1024) return `${size} B`;
@@ -1703,10 +1741,12 @@ function formatAssetSize(size: number) {
 function LabToolAssetManager({
   worksheet,
   adminUserId,
+  adminUsername,
   onClose,
 }: {
   worksheet: Worksheet;
   adminUserId: string;
+  adminUsername: string;
   onClose: () => void;
 }) {
   const [assets, setAssets] = useState<AdminLabToolAsset[]>([]);
@@ -1719,11 +1759,47 @@ function LabToolAssetManager({
     music: worksheet.gammaAnswerConfig?.assetCacheLimits?.music ?? 3,
     video: worksheet.gammaAnswerConfig?.assetCacheLimits?.video ?? 5,
   }));
+  const [showGenerator, setShowGenerator] = useState(false);
+  const [generatorKind, setGeneratorKind] = useState<AdminAssetKind>("image");
+  const [generatorTaskId, setGeneratorTaskId] = useState("");
+  const [generatorPrompt, setGeneratorPrompt] = useState("");
+  const [generating, setGenerating] = useState(false);
+
+  const worksheetConfig = resolveGammaAnswerWorksheetConfig(worksheet);
+  const generatorQuestions = (worksheetConfig?.questions || []).filter(
+    (question) => question.toolId === generatorKind
+  );
+  const availableGeneratorKinds = (["image", "music", "video"] as const).filter((kind) =>
+    (worksheetConfig?.questions || []).some((question) => question.toolId === kind)
+  );
+
+  const selectGeneratorKind = (kind: AdminAssetKind) => {
+    setGeneratorKind(kind);
+    const firstQuestion = (worksheetConfig?.questions || []).find(
+      (question) => question.toolId === kind
+    );
+    setGeneratorTaskId(firstQuestion?.taskId || "");
+  };
+
+  const openGenerator = () => {
+    const initialKind = availableGeneratorKinds[0];
+    if (!initialKind) {
+      setMessage("這份學習單沒有圖片、音樂或影片題目，無法建立帶題目簽章的素材。");
+      return;
+    }
+    selectGeneratorKind(initialKind);
+    setGeneratorPrompt("");
+    setShowGenerator(true);
+  };
 
   const loadAssets = useCallback(async () => {
     setLoading(true);
     try {
-      const query = new URLSearchParams({ worksheetId: worksheet.id, adminUserId });
+      const query = new URLSearchParams({
+        worksheetId: worksheet.id,
+        adminUserId,
+        adminUsername,
+      });
       const response = await fetch(`/api/admin/lab-tool-assets?${query.toString()}`);
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "素材清單讀取失敗");
@@ -1733,7 +1809,7 @@ function LabToolAssetManager({
     } finally {
       setLoading(false);
     }
-  }, [adminUserId, worksheet.id]);
+  }, [adminUserId, adminUsername, worksheet.id]);
 
   useEffect(() => {
     void loadAssets();
@@ -1779,10 +1855,14 @@ function LabToolAssetManager({
     setMessage("");
     try {
       const response = await fetch("/api/admin/lab-tool-assets", {
-        method: "DELETE",
+        // Next 13.3 can reject DELETE requests with a JSON body before the API
+        // handler runs. Use an explicit action over POST for reliable parsing.
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          action: "delete",
           adminUserId,
+          adminUsername,
           worksheetId: worksheet.id,
           ...params,
         }),
@@ -1809,6 +1889,70 @@ function LabToolAssetManager({
     }
   };
 
+  const generateAsset = async () => {
+    const prompt = generatorPrompt.trim();
+    if (!generatorTaskId) {
+      setMessage("請先選擇要對應的題目，素材才會取得正確簽章。");
+      return;
+    }
+    if (!prompt) {
+      setMessage("請輸入完整的生成描述。");
+      return;
+    }
+
+    setGenerating(true);
+    setMessage("");
+    try {
+      const requestAsset = async (videoId?: string) => {
+        const response = await fetch(`/api/lab-tools/${generatorKind}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            worksheetId: worksheet.id,
+            taskId: generatorTaskId,
+            prompt,
+            forceGenerate: true,
+            adminUserId,
+            adminUsername,
+            ...(generatorKind === "music" ? { durationMs: 30000 } : {}),
+            ...(generatorKind === "video" ? { duration: 4 } : {}),
+            ...(videoId ? { videoId } : {}),
+          }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "素材生成失敗");
+        return data;
+      };
+
+      let result = await requestAsset();
+      if (generatorKind === "video" && result.status === "processing" && result.videoId) {
+        // Give normal short video jobs a chance to finish in this dialog. The
+        // server continues saving the signed result if it takes longer.
+        for (let attempt = 0; attempt < 12 && result.status === "processing"; attempt += 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 5000));
+          result = await requestAsset(result.videoId);
+        }
+      }
+
+      if (result.status === "processing") {
+        setMessage("影片正在背景生成；完成後會自動存入管理庫並附上簽章，稍後重新整理即可查看。");
+        setShowGenerator(false);
+        return;
+      }
+
+      if (!result.signature && !result.reviewMetadata) {
+        throw new Error("素材未取得簽章，已停止加入管理庫。");
+      }
+      setMessage(result.cached ? "已使用符合題目的既有簽章素材。" : "素材已生成、簽章並存入管理庫。");
+      setShowGenerator(false);
+      await loadAssets();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/80 p-4">
       <div className="my-8 w-full max-w-6xl border-2 border-orange-600 bg-[var(--terminal-bg)] shadow-2xl">
@@ -1818,6 +1962,14 @@ function LabToolAssetManager({
             <p className="mt-1 text-xs text-[var(--terminal-primary-dim)]">{worksheet.title}</p>
           </div>
           <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={openGenerator}
+              disabled={generating || availableGeneratorKinds.length === 0}
+              className="border border-emerald-500 px-3 py-2 text-xs font-bold text-emerald-100 hover:bg-emerald-900/30 disabled:opacity-40"
+            >
+              生成
+            </button>
             <button
               type="button"
               onClick={() => deleteAssets({ scope: "worksheet" })}
@@ -1833,6 +1985,102 @@ function LabToolAssetManager({
         </div>
 
         <div className="space-y-5 p-4">
+          {showGenerator && (
+            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4">
+              <div className="w-full max-w-2xl border-2 border-emerald-500 bg-[var(--terminal-bg)] p-5 shadow-2xl">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="font-bold text-emerald-200">生成素材</h3>
+                    <p className="mt-1 text-xs text-[var(--terminal-primary-dim)]">
+                      素材會依所選題目生成、儲存，並自動附上簽章。
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={generating}
+                    onClick={() => setShowGenerator(false)}
+                    className="text-sm text-[var(--terminal-primary-dim)] hover:text-[var(--terminal-primary)] disabled:opacity-40"
+                  >
+                    關閉
+                  </button>
+                </div>
+
+                <div className="mt-5">
+                  <span className="mb-2 block text-xs font-bold text-emerald-100">選擇生成類型</span>
+                  <div className="flex flex-wrap gap-2">
+                    {(["image", "music", "video"] as const).map((kind) => {
+                      const enabled = availableGeneratorKinds.includes(kind);
+                      return (
+                        <button
+                          key={kind}
+                          type="button"
+                          disabled={!enabled || generating}
+                          onClick={() => selectGeneratorKind(kind)}
+                          className={`border px-3 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-35 ${
+                            generatorKind === kind
+                              ? "border-emerald-300 bg-emerald-900/40 text-emerald-100"
+                              : "border-emerald-800 text-emerald-300 hover:bg-emerald-900/20"
+                          }`}
+                        >
+                          {ADMIN_ASSET_TOOL_LABEL[kind]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <label className="mt-4 block">
+                  <span className="mb-1 block text-xs font-bold text-emerald-100">對應題目</span>
+                  <select
+                    value={generatorTaskId}
+                    disabled={generating || generatorQuestions.length === 0}
+                    onChange={(event) => setGeneratorTaskId(event.target.value)}
+                    className="w-full border border-emerald-800 bg-[var(--terminal-bg)] px-3 py-2 text-sm text-[var(--terminal-primary)] outline-none focus:border-emerald-400 disabled:opacity-40"
+                  >
+                    <option value="">請選擇題目</option>
+                    {generatorQuestions.map((question, index) => (
+                      <option key={question.id} value={question.taskId}>
+                        第 {index + 1} 題：{question.title || question.id}（{question.taskId}）
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="mt-4 block">
+                  <span className="mb-1 block text-xs font-bold text-emerald-100">生成描述</span>
+                  <textarea
+                    value={generatorPrompt}
+                    disabled={generating}
+                    onChange={(event) => setGeneratorPrompt(event.target.value)}
+                    rows={5}
+                    placeholder="請寫出符合這一題的主題、動作或畫面。"
+                    className="w-full resize-y border border-emerald-800 bg-[var(--terminal-bg)] px-3 py-2 text-sm text-[var(--terminal-primary)] outline-none placeholder:text-[var(--terminal-primary-dim)] focus:border-emerald-400 disabled:opacity-40"
+                  />
+                </label>
+                <p className="mt-2 text-xs text-[var(--terminal-primary-dim)]">
+                  送出前仍會以 OPENAI_API_KEY 依題目內容審查；不相符時會回傳修改建議。
+                </p>
+                <div className="mt-5 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    disabled={generating}
+                    onClick={() => setShowGenerator(false)}
+                    className="border border-[var(--terminal-primary-dim)] px-3 py-2 text-sm disabled:opacity-40"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    disabled={generating || !generatorTaskId || !generatorPrompt.trim()}
+                    onClick={() => void generateAsset()}
+                    className="border border-emerald-400 bg-emerald-900/30 px-4 py-2 text-sm font-bold text-emerald-100 disabled:opacity-40"
+                  >
+                    {generating ? "生成中..." : "生成並存入管理庫"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {message && <div className="border border-orange-800 bg-orange-950/20 p-3 text-sm text-orange-100">{message}</div>}
           <section className="border border-cyan-800/80 bg-cyan-950/10 p-3">
             <div className="flex flex-wrap items-center justify-between gap-3">

@@ -1,4 +1,7 @@
-import { resolveGammaAnswerWorksheetConfig } from "@/config/gammaAnswerWorksheets";
+import {
+  findGammaAnswerQuestion,
+  resolveGammaAnswerWorksheetConfig,
+} from "@/config/gammaAnswerWorksheets";
 import { getWorksheet } from "@/lib/firestore";
 import { requireLabToolWorksheetId } from "@/server/labToolCache";
 import type { GammaAnswerPromptReviewCriteria } from "@/types/GammaAnswerWorksheet";
@@ -54,7 +57,7 @@ export async function resolveLabToolWorksheetContext(params: {
     throw new Error("找不到可使用的學習單設定。");
   }
 
-  const question = config.questions.find((item) => item.taskId === taskId);
+  const question = findGammaAnswerQuestion(config, taskId);
   if (!question) throw new Error("這個題目不屬於目前的學習單。");
 
   if (TOOL_MODE_BY_ID[question.toolId] !== params.mode) {

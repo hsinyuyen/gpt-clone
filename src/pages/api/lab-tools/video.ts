@@ -14,6 +14,7 @@ import { injectLabVideoMetadata } from "@/server/mp4UuidMetadata";
 import { reviewLabToolPrompt } from "@/server/labToolPromptReview";
 import { resolveLabToolWorksheetContext } from "@/server/labToolWorksheetContext";
 import { createLabToolSignature, readLabToolSignature } from "@/server/labToolSignatures";
+import { requireAdminUser } from "@/server/adminAccess";
 import { LabVideoReviewMetadata } from "@/utils/labVideoMetadata";
 
 const GOOGLE_GENERATIVE_LANGUAGE_BASE =
@@ -425,6 +426,9 @@ export default async function handler(
     worksheetId,
     videoId,
     fallbackOnly,
+    forceGenerate,
+    adminUserId,
+    adminUsername,
   } = req.body as {
     prompt?: string;
     sessionId?: string;
@@ -441,9 +445,23 @@ export default async function handler(
     worksheetId?: string;
     videoId?: string;
     fallbackOnly?: boolean;
+    forceGenerate?: boolean;
+    adminUserId?: string;
+    adminUsername?: string;
   };
 
   const safePrompt = prompt?.trim() || "";
+  let isAdminForceGeneration = false;
+  if (forceGenerate) {
+    try {
+      await requireAdminUser(adminUserId, adminUsername);
+      isAdminForceGeneration = true;
+    } catch (error) {
+      return res.status(403).json({
+        error: error instanceof Error ? error.message : "Admin permission is required.",
+      });
+    }
+  }
   console.info("[lab-tools/video] request-received", {
     worksheetId,
     taskId,
@@ -470,7 +488,10 @@ export default async function handler(
   const safeVideoId = videoId?.trim();
   let promptReview: Awaited<ReturnType<typeof reviewLabToolPrompt>> | null = null;
 
-  if (!fallbackOnly && !safeVideoId) {
+  // A timeout fallback can return a cached video, so it must be reviewed just
+  // like a fresh generation. Polling a known provider operation is the only
+  // follow-up request that may skip this extra review.
+  if (!safeVideoId || fallbackOnly) {
     promptReview = await reviewLabToolPrompt({
       mode: "video",
       prompt: safePrompt,
@@ -570,7 +591,7 @@ export default async function handler(
       cacheLimit,
       context.taskId
     );
-    if (cached) {
+    if (cached && !isAdminForceGeneration) {
       return res.status(200).json({
         success: true,
         kind: "video",
@@ -589,7 +610,7 @@ export default async function handler(
     }
 
     const cacheCount = await getLabToolCacheCount(safeWorksheetId, "video");
-    if (cacheCount >= cacheLimit) {
+    if (cacheCount >= cacheLimit && !isAdminForceGeneration) {
       const fallback = await findRandomCachedLabToolResult(
         safeWorksheetId,
         "video",
@@ -622,7 +643,7 @@ export default async function handler(
       });
     }
 
-    if (VIDEO_SKIP_API_WHEN_CACHE_READY) {
+    if (VIDEO_SKIP_API_WHEN_CACHE_READY && !isAdminForceGeneration) {
       const fallback = await findRandomCachedLabToolResult(
         safeWorksheetId,
         "video",
@@ -659,6 +680,13 @@ export default async function handler(
   }
 
   if (!safeVideoId && isLabToolApiCoolingDown(VEO_PROVIDER)) {
+    if (isAdminForceGeneration) {
+      return res.status(503).json({
+        error: "影片生成服務暫時冷卻中，無法建立新的管理素材。",
+        provider: VEO_PROVIDER,
+        promptReview,
+      });
+    }
     const fallback = await findRandomCachedLabToolResult(
       safeWorksheetId,
       "video",
@@ -737,29 +765,6 @@ export default async function handler(
       console.error("lab-tools/video poll error:", error);
       if (isRecoverableLabToolApiError(error)) {
         startLabToolApiCooldown(VEO_PROVIDER);
-        const fallback = await findRandomCachedLabToolResult(
-          safeWorksheetId,
-          "video",
-          cacheLimit,
-          context.taskId
-        );
-        if (fallback) {
-          return res.status(200).json({
-            success: true,
-            kind: "video",
-            cached: true,
-            fallback: true,
-            fallbackReason: "api-error",
-            videoUrl: fallback.assetUrl,
-            downloadUrl: fallback.assetUrl,
-            fileName: fallback.fileName,
-            cacheCount: fallback.cacheCount,
-            cacheLimit: fallback.cacheLimit,
-            provider: "local-cache",
-            signature: readLabToolSignature(fallback.metadata),
-            reviewMetadata: fallback.metadata,
-          });
-        }
       }
       return res
         .status(500)
@@ -833,6 +838,13 @@ export default async function handler(
     console.error("lab-tools/video error:", error);
     if (isRecoverableLabToolApiError(error)) {
       startLabToolApiCooldown(VEO_PROVIDER);
+      if (isAdminForceGeneration) {
+        return res.status(503).json({
+          error: "影片生成服務暫時無法使用，未建立新的管理素材。",
+          provider: VEO_PROVIDER,
+          promptReview,
+        });
+      }
       const fallback = await findRandomCachedLabToolResult(
         safeWorksheetId,
         "video",

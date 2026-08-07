@@ -23,7 +23,7 @@ export type {
 
 export const LAB_TOOL_MEDIA_ACCESS_KEY = "lab-terminal:worksheet-media-access";
 
-export const S3W01_GAMMA_ANSWER_CONFIG: GammaAnswerWorksheetConfig = {
+const LEGACY_S3W01_GAMMA_ANSWER_CONFIG: GammaAnswerWorksheetConfig = {
   schemaVersion: 2,
   id: "S3W01",
   courseId: "S3-W01",
@@ -204,12 +204,322 @@ export const S3W01_GAMMA_ANSWER_CONFIG: GammaAnswerWorksheetConfig = {
   ],
 };
 
+const S3W01_IMPORTED_CONFIG: GammaAnswerWorksheetConfig = {
+  schemaVersion: 2,
+  id: "S3W01",
+  courseId: "S3-W01",
+  title: "S3 W01｜工具選擇與初次使用",
+  shortTitle: "S3 W01",
+  semester: "S3",
+  week: 1,
+  gammaUrl: "https://gamma.app/docs/S3-W01-hixa52whtzl6aas",
+  gammaFallbackUrl: "https://gamma.app/embed/S3-W01-hixa52whtzl6aas",
+  source: "gamma-answer-worksheet",
+  storageVersion: "v23-s3w01-worksheet-20260805",
+  draftField: "gammaAnswerDraft",
+  mediaAccessKey: LAB_TOOL_MEDIA_ACCESS_KEY,
+  questions: [
+    {
+      id: "A",
+      taskId: "S3-W01-A-1",
+      code: "題目 A",
+      label: "任務 A｜AI 工具使用提醒",
+      title: "AI 工具使用提醒",
+      prompt: "請使用 Lab Terminal，把使用 AI 工具的注意事項整理成 3 點提醒，讓同學一看就懂。",
+      toolPrompt: "請把下面內容整理成 3 點提醒，對象是小四學生。每一點要短、清楚、容易懂。請只輸出 3 個條列。\n\n內容：使用 AI 工具前要先看清楚任務，不要亂輸入無關內容。如果不知道怎麼寫提示詞，可以先找出任務中的關鍵字。生成結果後要自己檢查，不能直接交出去。如果結果不符合需求，要修改提示詞再試一次。生成的關鍵詞很重要請善用你的複製貼上快捷鍵。",
+      placeholder: "請貼上 Lab Terminal 產生的 3 點提醒",
+      toolId: "terminal",
+      expectedKind: "text",
+      coins: 40,
+      accept: "text/plain",
+      uploadLabel: "",
+      reviewHint: "請確認答案有 3 點、每點短而清楚，並提醒如何使用 AI 工具。",
+      readChecks: [
+        {
+          question: "題目要你整理成 3 點提醒，最後要交什麼？",
+          options: ["文字", "圖片", "音樂"],
+          answerIndex: 0,
+          successFeedback: "答對了！這題最後要交文字。",
+          retryFeedback: "再看一次題目：要整理成 3 點提醒。",
+        },
+        {
+          question: "任務 A 應該打開哪一個工具？",
+          options: ["Lab Image", "Lab Terminal", "Lab Video"],
+          answerIndex: 1,
+          successFeedback: "答對了！要做文字就選 Lab Terminal。",
+          retryFeedback: "要交文字提醒，請找文字工具。",
+        },
+      ],
+      textMinimumLength: 18,
+      textMaximumLength: 260,
+      textRequiresThreePoints: true,
+      textKeywords: ["AI", "任務", "提示詞", "檢查", "生成", "修改", "複製"],
+      textMinimumKeywordMatches: 2,
+      reviewCriteria: {
+        minLength: 18,
+        maxLength: 260,
+        requiresThreePoints: true,
+        keywords: ["AI", "任務", "提示詞", "檢查", "生成", "修改", "複製"],
+        minimumKeywordMatches: 2,
+        aiReviewMode: "local-only",
+      },
+    },
+    {
+      id: "B",
+      taskId: "S3-W01-A-2",
+      code: "題目 B",
+      label: "任務 B｜小狗玩球圖片",
+      title: "小狗玩球圖片",
+      prompt: "請使用 Lab Image 生成一張清楚可愛的小狗玩球圖片。",
+      toolPrompt: "一張可愛插畫風圖片：一隻小狗在綠色草地上開心玩紅色球。畫面明亮、乾淨、可愛，適合小四學生的學習單。請讓小狗和球都很清楚，不要出現文字。",
+      placeholder: "",
+      toolId: "image",
+      expectedKind: "image",
+      coins: 40,
+      accept: "image/png,image/jpeg,image/webp",
+      uploadLabel: "上傳圖片",
+      reviewHint: "請確認圖片看得出小狗正在玩球，畫面清楚可愛。",
+      readChecks: [
+        {
+          question: "題目最後要看到小狗玩球的畫面，你要交什麼？",
+          options: ["圖片", "文字", "影片"],
+          answerIndex: 0,
+          successFeedback: "答對了！這題要交圖片。",
+          retryFeedback: "想想看，畫面成果是哪一種檔案？",
+        },
+        {
+          question: "要生成一張小狗玩球圖片，應該選哪個工具？",
+          options: ["Lab Music", "Lab Image", "Lab Terminal"],
+          answerIndex: 1,
+          successFeedback: "答對了！圖片要使用 Lab Image。",
+          retryFeedback: "再想想看：哪個工具是做圖片的？",
+        },
+      ],
+      promptReviewCriteria: { passConditions: ["小狗", "球", "草地"], minimumCharacterMatchRatio: 0.5 },
+      reviewCriteria: {
+        minAttachments: 1,
+        maxAttachments: 1,
+        allowedMimeTypes: ["image/png", "image/jpeg", "image/webp"],
+        aiReviewMode: "local-only",
+      },
+    },
+    {
+      id: "C",
+      taskId: "S3-W01-A-3",
+      code: "題目 C",
+      label: "任務 C｜咖啡廳爵士樂",
+      title: "咖啡廳爵士樂",
+      prompt: "請使用 Lab Music 生成一段 30 秒、適合在咖啡廳聽的溫暖放鬆爵士樂。",
+      toolPrompt: "請生成一段 30 秒的咖啡廳爵士樂。風格溫暖、放鬆、輕快，有鋼琴、低音提琴和輕柔鼓刷。適合下午在咖啡廳閱讀或聊天時播放。不要太吵，不要恐怖，不要有人聲。",
+      placeholder: "",
+      toolId: "music",
+      expectedKind: "audio",
+      coins: 40,
+      accept: "audio/mpeg,audio/mp3,audio/wav,audio/mp4,.mp3,.wav,.m4a",
+      uploadLabel: "上傳音樂",
+      reviewHint: "請確認音訊約 30 秒，聽起來溫暖放鬆，像咖啡廳爵士樂。",
+      readChecks: [
+        {
+          question: "30 秒咖啡廳爵士樂最後要交什麼？",
+          options: ["音樂", "圖片", "文字"],
+          answerIndex: 0,
+          successFeedback: "答對了！這題要交音樂。",
+          retryFeedback: "想想看，咖啡廳爵士樂是哪一種成果？",
+        },
+        {
+          question: "要生成一段背景音樂，應該選哪個工具？",
+          options: ["Lab Video", "Lab Music", "Lab Image"],
+          answerIndex: 1,
+          successFeedback: "答對了！音樂要使用 Lab Music。",
+          retryFeedback: "再想想看：哪個工具是做音樂的？",
+        },
+      ],
+      promptReviewCriteria: { passConditions: ["咖啡廳", "爵士", "30 秒"], minimumCharacterMatchRatio: 0.5 },
+      reviewCriteria: {
+        minAttachments: 1,
+        maxAttachments: 1,
+        allowedMimeTypes: ["audio/mpeg", "audio/mp3", "audio/wav", "audio/mp4"],
+        aiReviewMode: "local-only",
+      },
+    },
+    {
+      id: "D",
+      taskId: "S3-W01-A-4",
+      code: "題目 D",
+      label: "任務 D｜滑雪短影片",
+      title: "滑雪短影片",
+      prompt: "請使用 Lab Video 生成一段 5 秒滑雪影片，畫面要看得出雪地、滑雪者和往下滑的動作。",
+      toolPrompt: "請生成一段 5 秒滑雪影片：一位滑雪者穿著藍色外套，在白色雪地山坡上往下滑，滑雪時有雪花飛起來。白天陽光、畫面清楚、動作流暢、有速度感。不要出現文字。",
+      placeholder: "",
+      toolId: "video",
+      expectedKind: "video",
+      coins: 50,
+      accept: "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov",
+      uploadLabel: "上傳影片",
+      reviewHint: "請確認影片約 5 秒，看得出雪地、滑雪者和往下滑的動作。",
+      readChecks: [
+        {
+          question: "題目說看得出滑雪者往下滑，最後要交什麼？",
+          options: ["影片", "圖片", "音樂"],
+          answerIndex: 0,
+          successFeedback: "答對了！這題要交影片。",
+          retryFeedback: "有動作的畫面要用哪一種成果？",
+        },
+        {
+          question: "要生成會動的滑雪畫面，應該選哪個工具？",
+          options: ["Lab Terminal", "Lab Video", "Lab Music"],
+          answerIndex: 1,
+          successFeedback: "答對了！影片要使用 Lab Video。",
+          retryFeedback: "再想想看：哪個工具是做影片的？",
+        },
+      ],
+      promptReviewCriteria: { passConditions: ["滑雪", "雪地", "往下滑"], minimumCharacterMatchRatio: 0.5 },
+      reviewCriteria: {
+        minAttachments: 1,
+        maxAttachments: 1,
+        allowedMimeTypes: ["video/mp4", "video/webm", "video/quicktime"],
+        aiReviewMode: "local-only",
+      },
+    },
+    {
+      id: "E",
+      taskId: "S3-W01-A-5",
+      code: "題目 E",
+      label: "任務 E｜校園環保海報圖片",
+      title: "校園環保海報圖片",
+      prompt: "請使用 Lab Image 生成一張校園環保日海報風插圖，畫面有學生做垃圾分類，並且看得出校園很乾淨。",
+      toolPrompt: "一張明亮可愛的校園環保日海報風插圖：兩位小學生在校園裡把寶特瓶和紙類放進不同的回收桶，旁邊有乾淨的草地和樹木。畫面清楚、色彩明亮、適合小四學生，不要出現文字。",
+      placeholder: "",
+      toolId: "image",
+      expectedKind: "image",
+      coins: 40,
+      accept: "image/png,image/jpeg,image/webp",
+      uploadLabel: "上傳圖片",
+      reviewHint: "請確認是圖片，看得出學生做垃圾分類，也看得出乾淨校園。",
+      readChecks: [
+        {
+          question: "題目出現海報風插圖，最後最需要的是什麼？",
+          options: ["圖片", "音樂", "文字"],
+          answerIndex: 0,
+          successFeedback: "答對了！海報風插圖要交圖片。",
+          retryFeedback: "海報風插圖最後會看到什麼？",
+        },
+        {
+          question: "即使題目換成環保主題，想做出圖片還是要選哪個工具？",
+          options: ["Lab Image", "Lab Video", "Lab Terminal"],
+          answerIndex: 0,
+          successFeedback: "答對了！要做圖片就選 Lab Image。",
+          retryFeedback: "先看最後成果：這題要交的是圖片。",
+        },
+      ],
+      promptReviewCriteria: { passConditions: ["學生", "垃圾分類", "校園"], minimumCharacterMatchRatio: 0.5 },
+      reviewCriteria: {
+        minAttachments: 1,
+        maxAttachments: 1,
+        allowedMimeTypes: ["image/png", "image/jpeg", "image/webp"],
+        aiReviewMode: "local-only",
+      },
+    },
+    {
+      id: "F",
+      taskId: "S3-W01-A-6",
+      code: "題目 F",
+      label: "任務 F｜圖片任務小幫手",
+      title: "圖片任務小幫手",
+      prompt: "請使用 Lab Terminal，把做圖片前要先想清楚的事情整理成 3 點短提醒。這題最後要交的是文字。",
+      toolPrompt: "請把下面內容整理成給小四學生看的 3 點短提醒，每一點不超過 18 個字，只輸出條列文字。\n\n做圖片前，先想清楚主角是誰、在哪裡、正在做什麼。再加上想要的顏色或風格。生成後要檢查圖片有沒有符合題目。",
+      placeholder: "請貼上 Lab Terminal 產生的 3 點短提醒",
+      toolId: "terminal",
+      expectedKind: "text",
+      coins: 40,
+      accept: "text/plain",
+      uploadLabel: "",
+      reviewHint: "請確認有 3 點短文字，提到主角、場景或動作，並提醒生成後要檢查。",
+      readChecks: [
+        {
+          question: "本題在教你怎麼描述圖片，但最後要交 3 點提醒，應該選什麼？",
+          options: ["Lab Terminal", "Lab Image", "Lab Music"],
+          answerIndex: 0,
+          successFeedback: "答對了！這題最後要交文字，所以選 Lab Terminal。",
+          retryFeedback: "不要只看題目談圖片；先看最後要交的成果。",
+        },
+        {
+          question: "選工具時最先看的是什麼？",
+          options: ["題目字數最多的詞", "最後要交的成果類型", "同學剛剛用的工具"],
+          answerIndex: 1,
+          successFeedback: "答對了！先看最後要交的成果類型。",
+          retryFeedback: "口訣是：先看任務，再選工具。",
+        },
+      ],
+      textMinimumLength: 18,
+      textMaximumLength: 180,
+      textRequiresThreePoints: true,
+      textKeywords: ["主角", "場景", "動作", "顏色", "風格", "檢查", "圖片"],
+      textMinimumKeywordMatches: 2,
+      reviewCriteria: {
+        minLength: 18,
+        maxLength: 180,
+        requiresThreePoints: true,
+        keywords: ["主角", "場景", "動作", "顏色", "風格", "檢查", "圖片"],
+        minimumKeywordMatches: 2,
+        aiReviewMode: "local-only",
+      },
+    },
+  ],
+};
+
+export const S3W01_GAMMA_ANSWER_CONFIG = S3W01_IMPORTED_CONFIG;
+
 const GAMMA_ANSWER_CONFIGS: Record<string, GammaAnswerWorksheetConfig> = {
-  [S3W01_GAMMA_ANSWER_CONFIG.id]: S3W01_GAMMA_ANSWER_CONFIG,
+  [S3W01_IMPORTED_CONFIG.id]: S3W01_IMPORTED_CONFIG,
 };
 
 export function normalizeWorksheetId(id: string) {
   return id.toUpperCase().replace(/[-_\s]/g, "");
+}
+
+export function normalizeGammaAnswerTaskId(taskId: string) {
+  return taskId.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function gammaAnswerTaskOrdinal(taskId: string) {
+  const match = taskId.trim().match(/(?:^|[-_\s])(?:A|Q)[-_\s]?(\d+)$/i);
+  if (!match) return null;
+  const ordinal = Number(match[1]);
+  return Number.isInteger(ordinal) && ordinal > 0 ? ordinal : null;
+}
+
+/** Resolves equivalent task IDs such as `S3-W01-A-1` and legacy `S3W01-Q1`. */
+export function findGammaAnswerQuestion(
+  config: GammaAnswerWorksheetConfig | null | undefined,
+  taskId: string | null | undefined
+): GammaAnswerQuestionConfig | undefined {
+  if (!config || !taskId) return undefined;
+  const normalizedTaskId = normalizeGammaAnswerTaskId(taskId);
+  const exactOrNormalized = config.questions.find(
+    (question) =>
+      question.taskId === taskId ||
+      normalizeGammaAnswerTaskId(question.taskId) === normalizedTaskId
+  );
+  if (exactOrNormalized) return exactOrNormalized;
+
+  const ordinal = gammaAnswerTaskOrdinal(taskId);
+  return ordinal ? config.questions[ordinal - 1] : undefined;
+}
+
+/**
+ * Progress may contain task IDs written by an older worksheet configuration.
+ * Match by resolved question ID instead of trusting the denormalized counter.
+ */
+export function isGammaAnswerQuestionCompleted(
+  tasks: Record<string, { completed?: boolean } | undefined> | null | undefined,
+  config: GammaAnswerWorksheetConfig,
+  question: GammaAnswerQuestionConfig
+) {
+  return Object.entries(tasks || {}).some(([taskId, progress]) => {
+    if (!progress?.completed) return false;
+    return findGammaAnswerQuestion(config, taskId)?.id === question.id;
+  });
 }
 
 function isEmbeddableGammaSourceUrl(url: string | null | undefined) {

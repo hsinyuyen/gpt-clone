@@ -13,6 +13,7 @@ import { injectLabMusicMetadata } from "@/server/mp3Id3Metadata";
 import { reviewLabToolPrompt } from "@/server/labToolPromptReview";
 import { createLabToolSignature, readLabToolSignature } from "@/server/labToolSignatures";
 import { resolveLabToolWorksheetContext } from "@/server/labToolWorksheetContext";
+import { requireAdminUser } from "@/server/adminAccess";
 import { LabMusicReviewMetadata } from "@/utils/labMusicMetadata";
 
 const MUSIC_CACHE_LIMIT = readLabToolCacheLimit("LAB_MUSIC_CACHE_LIMIT", 3);
@@ -141,6 +142,9 @@ export default async function handler(
     expectedKind,
     durationMs,
     worksheetId,
+    forceGenerate,
+    adminUserId,
+    adminUsername,
   } = req.body as {
     prompt?: string;
     sessionId?: string;
@@ -155,9 +159,23 @@ export default async function handler(
     expectedKind?: string;
     durationMs?: number;
     worksheetId?: string;
+    forceGenerate?: boolean;
+    adminUserId?: string;
+    adminUsername?: string;
   };
 
   const safePrompt = prompt?.trim() || "";
+  let isAdminForceGeneration = false;
+  if (forceGenerate) {
+    try {
+      await requireAdminUser(adminUserId, adminUsername);
+      isAdminForceGeneration = true;
+    } catch (error) {
+      return res.status(403).json({
+        error: error instanceof Error ? error.message : "Admin permission is required.",
+      });
+    }
+  }
   console.info("[lab-tools/music] request-received", {
     worksheetId,
     taskId,
@@ -213,7 +231,7 @@ export default async function handler(
     cacheLimit,
     context.taskId
   );
-  if (cached && cachedMusicDurationMatches(cached.metadata, safeDuration)) {
+  if (!isAdminForceGeneration && cached && cachedMusicDurationMatches(cached.metadata, safeDuration)) {
     return res.status(200).json({
       success: true,
       kind: "music",
@@ -260,7 +278,7 @@ export default async function handler(
   };
 
   const cacheCount = await getLabToolCacheCount(safeWorksheetId, "music");
-  if (cacheCount >= cacheLimit) {
+  if (cacheCount >= cacheLimit && !isAdminForceGeneration) {
     const fallback = await randomFallback("cache-limit");
     if (fallback) return res.status(200).json(fallback);
     return res.status(429).json({
@@ -273,9 +291,11 @@ export default async function handler(
 
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
   if (!apiKey) {
-    const fallback = await randomFallback("api-key-missing");
-    if (fallback) {
-      return res.status(200).json(fallback);
+    if (!isAdminForceGeneration) {
+      const fallback = await randomFallback("api-key-missing");
+      if (fallback) {
+        return res.status(200).json(fallback);
+      }
     }
     return res.status(500).json({
       error: "ELEVENLABS_API_KEY not configured",
@@ -284,6 +304,13 @@ export default async function handler(
   }
 
   if (isLabToolApiCoolingDown(ELEVENLABS_PROVIDER)) {
+    if (isAdminForceGeneration) {
+      return res.status(503).json({
+        error: "音樂生成服務暫時冷卻中，無法建立新的管理素材。",
+        provider: ELEVENLABS_PROVIDER,
+        promptReview,
+      });
+    }
     const fallback = await randomFallback("api-cooldown");
     if (fallback) {
       return res.status(200).json(fallback);
@@ -432,6 +459,13 @@ export default async function handler(
     console.error("lab-tools/music error:", error);
     if (isRecoverableLabToolApiError(error)) {
       startLabToolApiCooldown(ELEVENLABS_PROVIDER);
+      if (isAdminForceGeneration) {
+        return res.status(503).json({
+          error: "音樂生成服務暫時無法使用，未建立新的管理素材。",
+          provider: ELEVENLABS_PROVIDER,
+          promptReview,
+        });
+      }
       const fallback = await randomFallback("api-error");
       if (fallback) {
         return res.status(200).json(fallback);

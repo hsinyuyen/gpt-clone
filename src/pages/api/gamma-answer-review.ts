@@ -1,5 +1,9 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { resolveGammaAnswerWorksheetConfig } from "@/config/gammaAnswerWorksheets";
+import {
+  findGammaAnswerQuestion,
+  getGammaAnswerWorksheetConfig,
+  resolveGammaAnswerWorksheetConfig,
+} from "@/config/gammaAnswerWorksheets";
 import { getWorksheet } from "@/lib/firestore";
 import { isMissingOpenAIKeyError, openAIAuthHeader } from "@/server/openaiClient";
 import { validateBasicGammaTextAnswer } from "@/utils/gammaAnswerValidation";
@@ -107,8 +111,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const worksheet = await getWorksheet(worksheetId);
     const worksheetConfig = resolveGammaAnswerWorksheetConfig(worksheet);
-    const configuredQuestion = worksheetConfig?.questions.find((item) => item.taskId === taskId);
+    const builtinConfig = getGammaAnswerWorksheetConfig(worksheetId);
+    const configuredQuestion =
+      findGammaAnswerQuestion(worksheetConfig, taskId) ||
+      findGammaAnswerQuestion(builtinConfig, taskId);
     if (!worksheet || !worksheet.isPublished || !configuredQuestion) {
+      reviewLog("configuration-unavailable", {
+        worksheetId,
+        taskId,
+        worksheetFound: !!worksheet,
+        isPublished: !!worksheet?.isPublished,
+        configuredTaskIds: worksheetConfig?.questions.map((item) => item.taskId) || [],
+        builtinTaskIds: builtinConfig?.questions.map((item) => item.taskId) || [],
+      });
       return res.status(400).json({ error: "Worksheet review configuration is unavailable" });
     }
     question = configuredQuestion;

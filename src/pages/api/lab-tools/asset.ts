@@ -14,6 +14,17 @@ const CACHEABLE_KINDS: CacheableLabToolKind[] = ["image", "music", "video"];
 const getSingleQueryValue = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
 
+function hasCachedLabToolSignature(asset: Awaited<ReturnType<typeof readCachedAsset>>) {
+  const metadata = asset?.metadata || {};
+  const review = metadata.labImageReview || metadata.labMusicReview || metadata.labVideoReview;
+  return Boolean(
+    review &&
+      typeof review === "object" &&
+      !Array.isArray(review) &&
+      (review as Record<string, unknown>).signature
+  );
+}
+
 export const config = {
   api: {
     responseLimit: false,
@@ -131,6 +142,9 @@ export default async function handler(
       if (!musicAsset) {
         return res.status(404).json({ error: "Cached asset not found" });
       }
+      if (!hasCachedLabToolSignature(musicAsset)) {
+        return res.status(410).json({ error: "Cached asset is missing its required signature" });
+      }
 
       const buffer = injectLabMusicMetadata(
         musicAsset.buffer,
@@ -148,6 +162,9 @@ export default async function handler(
       const videoAsset = await readCachedAsset(worksheetId, kind, fileName);
       if (!videoAsset) {
         return res.status(404).json({ error: "Cached asset not found" });
+      }
+      if (!hasCachedLabToolSignature(videoAsset)) {
+        return res.status(410).json({ error: "Cached asset is missing its required signature" });
       }
 
       const buffer = /mp4|quicktime/i.test(videoAsset.mimeType)
@@ -167,6 +184,9 @@ export default async function handler(
     const imageAsset = await readCachedAsset(worksheetId, kind, fileName);
     if (!imageAsset) {
       return res.status(404).json({ error: "Cached asset not found" });
+    }
+    if (!hasCachedLabToolSignature(imageAsset)) {
+      return res.status(410).json({ error: "Cached asset is missing its required signature" });
     }
 
     // Stream cloud-backed images through this same-origin endpoint so the

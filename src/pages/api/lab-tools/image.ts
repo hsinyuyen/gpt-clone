@@ -13,6 +13,7 @@ import { reviewLabToolPrompt } from "@/server/labToolPromptReview";
 import { injectLabImageMetadata } from "@/server/imageTrailerMetadata";
 import { createLabToolSignature, readLabToolSignature } from "@/server/labToolSignatures";
 import { resolveLabToolWorksheetContext } from "@/server/labToolWorksheetContext";
+import { requireAdminUser } from "@/server/adminAccess";
 import type { LabImageReviewMetadata } from "@/utils/labImageMetadata";
 
 const IMAGE_CACHE_LIMIT = readLabToolCacheLimit("LAB_IMAGE_CACHE_LIMIT", 10);
@@ -100,6 +101,9 @@ export default async function handler(
     toolPrompt,
     expectedKind,
     worksheetId,
+    forceGenerate,
+    adminUserId,
+    adminUsername,
   } = req.body as {
     prompt?: string;
     sessionId?: string;
@@ -113,9 +117,23 @@ export default async function handler(
     toolPrompt?: string;
     expectedKind?: string;
     worksheetId?: string;
+    forceGenerate?: boolean;
+    adminUserId?: string;
+    adminUsername?: string;
   };
 
   const safePrompt = prompt?.trim() || "";
+  let isAdminForceGeneration = false;
+  if (forceGenerate) {
+    try {
+      await requireAdminUser(adminUserId, adminUsername);
+      isAdminForceGeneration = true;
+    } catch (error) {
+      return res.status(403).json({
+        error: error instanceof Error ? error.message : "Admin permission is required.",
+      });
+    }
+  }
   console.info("[lab-tools/image] request-received", {
     worksheetId,
     taskId,
@@ -170,7 +188,7 @@ export default async function handler(
     cacheLimit,
     context.taskId
   );
-  if (cached) {
+  if (cached && !isAdminForceGeneration) {
     return res.status(200).json({
       success: true,
       kind: "image",
@@ -191,7 +209,7 @@ export default async function handler(
   // The image pool is a hard API budget. When full, reuse a signed result
   // instead of spending another Nano Banana generation request.
   const cacheCount = await getLabToolCacheCount(safeWorksheetId, "image");
-  if (cacheCount >= cacheLimit) {
+  if (cacheCount >= cacheLimit && !isAdminForceGeneration) {
     const fallback = await findRandomCachedLabToolResult(
       safeWorksheetId,
       "image",
@@ -227,6 +245,13 @@ export default async function handler(
   }
 
   if (isLabToolApiCoolingDown(NANO_BANANA_PROVIDER)) {
+    if (isAdminForceGeneration) {
+      return res.status(503).json({
+        error: "圖片生成服務暫時冷卻中，無法建立新的管理素材。",
+        provider: NANO_BANANA_PROVIDER,
+        promptReview,
+      });
+    }
     const fallback = await findRandomCachedLabToolResult(
       safeWorksheetId,
       "image",
@@ -346,6 +371,13 @@ Do not include any UI, buttons, toolbars, panels, controls, icons, download arro
     console.error("lab-tools/image error:", error);
     if (isRecoverableLabToolApiError(error)) {
       startLabToolApiCooldown(NANO_BANANA_PROVIDER);
+      if (isAdminForceGeneration) {
+        return res.status(503).json({
+          error: "圖片生成服務暫時無法使用，未建立新的管理素材。",
+          provider: NANO_BANANA_PROVIDER,
+          promptReview,
+        });
+      }
       const fallback = await findRandomCachedLabToolResult(
         safeWorksheetId,
         "image",

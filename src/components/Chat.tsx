@@ -30,7 +30,12 @@ import type { StoryPhase } from "@/hooks/useStoryHelper";
 import { useStoryHelper } from "@/hooks/useStoryHelper";
 import type { StudentWorksheetProgress, Worksheet } from "@/types/Worksheet";
 import StorySlideshow from "./StorySlideshow";
-import { LAB_TOOL_MEDIA_ACCESS_KEY, resolveGammaAnswerWorksheetConfig } from "@/config/gammaAnswerWorksheets";
+import {
+  findGammaAnswerQuestion,
+  isGammaAnswerQuestionCompleted,
+  LAB_TOOL_MEDIA_ACCESS_KEY,
+  resolveGammaAnswerWorksheetConfig,
+} from "@/config/gammaAnswerWorksheets";
 import { readLabToolSessionCache, writeLabToolSessionCache } from "@/utils/labToolSessionCache";
 import {
   clearLabToolPromptPenalty,
@@ -345,12 +350,18 @@ const isWorksheetProgressComplete = (
   worksheet: Worksheet | null,
   progress: StudentWorksheetProgress | null
 ) => {
-  if (!worksheet || worksheet.tasks.length === 0) return false;
-  const completedTaskCount = progress?.completedTaskCount || 0;
+  if (!worksheet) return false;
+  const gammaConfig = resolveGammaAnswerWorksheetConfig(worksheet);
+  if (gammaConfig) {
+    return gammaConfig.questions.length > 0 && gammaConfig.questions.every((question) =>
+      isGammaAnswerQuestionCompleted(progress?.tasks, gammaConfig, question)
+    );
+  }
+  if (worksheet.tasks.length === 0) return false;
   const allTaskFlagsComplete = worksheet.tasks.every(
     (task) => !!progress?.tasks?.[task.taskId]?.completed
   );
-  return allTaskFlagsComplete || completedTaskCount >= worksheet.tasks.length;
+  return allTaskFlagsComplete;
 };
 
 const buildDownloadHref = (href: string) => {
@@ -1158,7 +1169,7 @@ const Chat = (props: ChatProps) => {
       }
 
       const config = resolveGammaAnswerWorksheetConfig(worksheet);
-      const question = config?.questions.find((item) => item.taskId === state.taskId);
+      const question = findGammaAnswerQuestion(config, state.taskId);
       if (!config || !question) {
         revokeStoredLabToolMediaAccess();
         setLabToolMediaAccess(false);
