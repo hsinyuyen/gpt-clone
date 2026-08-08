@@ -2,9 +2,9 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  getPublishedWorksheetsForClass,
+  getPublishedWorksheetsForClasses,
   getAllProgressForStudent,
-  getStudentClassId,
+  getStudentClassIds,
   getGameProgress,
   getLessonCompletions,
 } from "@/lib/firestore";
@@ -14,6 +14,10 @@ import {
   lessonKeys,
   isLockedByDerived,
 } from "@/types/LessonCompletion";
+import {
+  isGammaAnswerQuestionCompleted,
+  resolveGammaAnswerWorksheetConfig,
+} from "@/config/gammaAnswerWorksheets";
 
 export default function WorksheetBrowsePage() {
   const { user, isLoading } = useAuth();
@@ -25,22 +29,22 @@ export default function WorksheetBrowsePage() {
   const [loading, setLoading] = useState(true);
   const [semesters, setSemesters] = useState<string[]>([]);
   const [activeSemester, setActiveSemester] = useState<string | null>(null);
-  const [classId, setClassId] = useState<string | null>(null);
+  const [classIds, setClassIds] = useState<string[]>([]);
 
   const loadData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
 
-    const cid = await getStudentClassId(user.id);
-    setClassId(cid);
+    const cids = await getStudentClassIds(user.id);
+    setClassIds(cids);
 
-    if (!cid) {
+    if (cids.length === 0) {
       setLoading(false);
       return;
     }
 
     const [ws, allProgress, gp, comp] = await Promise.all([
-      getPublishedWorksheetsForClass(cid),
+      getPublishedWorksheetsForClasses(cids),
       getAllProgressForStudent(user.id),
       getGameProgress(user.id),
       getLessonCompletions(user.id),
@@ -76,6 +80,28 @@ export default function WorksheetBrowsePage() {
   const gameState = (ws: Worksheet) =>
     ws.externalGameUrl && ws.gameKey && gameProgress ? gameProgress[ws.gameKey] : null;
 
+  const expectedTasks = (ws: Worksheet) => {
+    const config = resolveGammaAnswerWorksheetConfig(ws);
+    return config
+      ? config.questions.map((question) => ({ taskId: question.taskId, coins: question.coins }))
+      : ws.tasks;
+  };
+
+  const completedTasks = (ws: Worksheet, progress: StudentWorksheetProgress | undefined) => {
+    const config = resolveGammaAnswerWorksheetConfig(ws);
+    if (config) {
+      return config.questions.filter((question) =>
+        isGammaAnswerQuestionCompleted(progress?.tasks, config, question)
+      ).length;
+    }
+    return ws.tasks.filter((task) => !!progress?.tasks?.[task.taskId]?.completed).length;
+  };
+
+  const isWorksheetComplete = (ws: Worksheet, progress: StudentWorksheetProgress | undefined) => {
+    const tasks = expectedTasks(ws);
+    return tasks.length > 0 && completedTasks(ws, progress) >= tasks.length;
+  };
+
   const getStatus = (ws: Worksheet) => {
     if (ws.externalGameUrl) {
       const g = gameState(ws);
@@ -84,8 +110,9 @@ export default function WorksheetBrowsePage() {
       return "not_started";
     }
     const progress = progressMap[ws.id];
-    if (!progress || progress.completedTaskCount === 0) return "not_started";
-    if (progress.completedTaskCount >= ws.tasks.length) return "completed";
+    const completed = completedTasks(ws, progress);
+    if (!progress || completed === 0) return "not_started";
+    if (isWorksheetComplete(ws, progress)) return "completed";
     return "in_progress";
   };
 
@@ -96,12 +123,12 @@ export default function WorksheetBrowsePage() {
       return isLockedByDerived(completions, lessonKeys.game(ws.gameKey), !!gameState(ws)?.done);
     }
     const p = progressMap[ws.id];
-    const allDone = ws.tasks.length > 0 && (p?.completedTaskCount || 0) >= ws.tasks.length;
+    const allDone = isWorksheetComplete(ws, p);
     return isLockedByDerived(completions, lessonKeys.worksheet(ws.id), allDone);
   };
 
   const getCoinsInfo = (ws: Worksheet) => {
-    const totalPossible = ws.tasks.reduce((s, t) => s + t.coins, 0);
+    const totalPossible = expectedTasks(ws).reduce((s, t) => s + t.coins, 0);
     if (ws.externalGameUrl) {
       const g = gameState(ws);
       return { earned: g?.coins || 0, total: totalPossible };
@@ -118,12 +145,13 @@ export default function WorksheetBrowsePage() {
       if (!g) return 0;
       if (g.done) return 1;
       if (typeof g.pct === "number") return Math.min(1, g.pct);
-      const total = ws.tasks.reduce((s, t) => s + t.coins, 0) || 1;
+      const total = expectedTasks(ws).reduce((s, t) => s + t.coins, 0) || 1;
       return Math.min(1, (g.coins || 0) / total);
     }
-    if (ws.tasks.length === 0) return 0;
+    const tasks = expectedTasks(ws);
+    if (tasks.length === 0) return 0;
     const progress = progressMap[ws.id];
-    return (progress?.completedTaskCount || 0) / ws.tasks.length;
+    return completedTasks(ws, progress) / tasks.length;
   };
 
   const filtered = worksheets.filter(
@@ -138,10 +166,10 @@ export default function WorksheetBrowsePage() {
     );
   }
 
-  if (!classId) {
+  if (classIds.length === 0) {
     return (
-      <div className="min-h-screen bg-[var(--terminal-bg)] flex items-center justify-center text-[var(--terminal-primary-dim)] p-4 text-center">
-        <div>
+      <div className="min-h-screen bg-[var(--terminal-bg)] flex items-center justify-center text-[var(--terminal-primary-dim)] p-4">
+        <div className="w-full max-w-2xl text-center">
           <p className="text-lg mb-2">尚未加入班級</p>
           <p className="text-sm">請聯絡老師將你加入班級</p>
           <button
@@ -205,7 +233,8 @@ export default function WorksheetBrowsePage() {
               const status = getStatus(ws);
               const { earned, total } = getCoinsInfo(ws);
               const progress = progressMap[ws.id];
-              const completedCount = progress?.completedTaskCount || 0;
+              const tasks = expectedTasks(ws);
+              const completedCount = completedTasks(ws, progress);
               const isGame = !!ws.externalGameUrl;
               const ratio = getRatio(ws);
               const locked = isLocked(ws);
@@ -258,8 +287,8 @@ export default function WorksheetBrowsePage() {
                           "🔒 已完成 · 點我看成果"
                         ) : (
                           <>
-                            {ws.tasks.length} 個任務
-                            {status === "in_progress" && ` · ${completedCount}/${ws.tasks.length} 完成`}
+                            {tasks.length} 個任務
+                            {status === "in_progress" && ` · ${completedCount}/${tasks.length} 完成`}
                           </>
                         )}
                       </div>
@@ -285,7 +314,7 @@ export default function WorksheetBrowsePage() {
                   </div>
 
                   {/* Progress bar */}
-                  {(ws.tasks.length > 0 || isGame) && (
+                  {(tasks.length > 0 || isGame) && (
                     <div className="mt-3 h-1.5 bg-[var(--terminal-primary-dim)]/20 overflow-hidden">
                       <div
                         className={`h-full transition-all ${

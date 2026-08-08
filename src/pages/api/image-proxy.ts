@@ -32,7 +32,8 @@ export default async function handler(
       headers,
     });
 
-    const contentType = response.headers["content-type"] || "image/jpeg";
+    const rawContentType = response.headers["content-type"];
+    const contentType = typeof rawContentType === "string" ? rawContentType : "image/jpeg";
     res.setHeader("Content-Type", contentType);
     res.setHeader("Cache-Control", "public, max-age=86400"); // cache 24h
     res.status(200).send(Buffer.from(response.data));

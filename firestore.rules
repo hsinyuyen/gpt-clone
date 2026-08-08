@@ -59,6 +59,14 @@ service cloud.firestore {
     match /settings/{id}        { allow read, create, update: if true; allow delete: if false; }   // activity
     match /themes/{id}          { allow read, create, update: if true; allow delete: if false; }
     match /cardAnimations/{id}  { allow read, create, update: if true; allow delete: if false; }
+    match /labToolCache/{worksheetId} {
+      allow read, create, update: if true;
+      allow delete: if false;
+      match /{sub=**} {
+        allow read, create, update: if true;
+        allow delete: if false;
+      }
+    }
 
     // ── 稽核紀錄：只能新增（append-only），不可竄改 ────────────────
     match /auditLog/{id} {

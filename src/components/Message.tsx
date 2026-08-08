@@ -100,6 +100,16 @@ const mdComponents = {
       </a>
     );
   },
+  img({ src, alt }: any) {
+    return (
+      <img
+        src={src}
+        alt={alt || ""}
+        loading="lazy"
+        className="my-2 w-full max-w-sm border border-[var(--terminal-primary-dim)] bg-black/40 object-cover"
+      />
+    );
+  },
   blockquote({ children }: any) {
     return (
       <blockquote className="border-l-2 border-[var(--terminal-primary-dim)] pl-3 my-2 text-[var(--terminal-primary-dim)] italic">

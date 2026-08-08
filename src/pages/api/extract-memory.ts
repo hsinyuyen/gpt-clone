@@ -1,21 +1,12 @@
 import { DEFAULT_OPENAI_MODEL } from "@/shared/Constants";
+import { getOpenAIClient, isMissingOpenAIKeyError } from "@/server/openaiClient";
 import {
   MEMORY_EXTRACTION_SYSTEM_PROMPT,
   createMemoryExtractionPrompt,
   parseExtractedMemory,
   ExtractedMemory,
 } from "@/utils/memoryPrompts";
-import * as dotenv from "dotenv";
 import { NextApiRequest, NextApiResponse } from "next";
-import { ChatCompletionRequestMessage, Configuration, OpenAIApi } from "openai";
-
-dotenv.config();
-
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-const openai = new OpenAIApi(configuration);
 
 interface ExtractMemoryRequest {
   messages: Array<{ role: string; content: string }>;
@@ -44,6 +35,7 @@ export default async function handler(
   }
 
   try {
+    const openai = getOpenAIClient();
     // Format messages for extraction
     const formattedMessages = messages.map((m) => {
       const role = m.role === "user" ? "用戶" : "AI";
@@ -88,8 +80,15 @@ export default async function handler(
     }
 
     res.status(200).json({ memory: extractedMemory });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Memory extraction error:", error);
+    if (isMissingOpenAIKeyError(error)) {
+      res.status(500).json({
+        memory: null,
+        error: error.message,
+      });
+      return;
+    }
     res.status(500).json({
       memory: null,
       error: "An error occurred during memory extraction",

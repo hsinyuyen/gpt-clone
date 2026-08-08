@@ -6,13 +6,16 @@ import {
   saveConversation as saveFirestoreConversation,
   deleteConversationDoc,
 } from "@/lib/firestore";
+import { clearLabToolSessionCacheByConversationId } from "@/utils/labToolSessionCache";
 
 interface ConversationContextType {
   conversations: Conversation[];
   currentConversation: Conversation | null;
-  createNewConversation: () => Conversation;
+  createNewConversation: (initialMessages?: ConversationMessage[], title?: string, id?: string, activate?: boolean) => Conversation;
+  upsertConversationSession: (id: string, title: string, initialMessages?: ConversationMessage[], activate?: boolean) => Conversation;
   selectConversation: (id: string) => void;
   updateConversationMessages: (messages: ConversationMessage[]) => void;
+  updateConversationMessagesById: (id: string, messages: ConversationMessage[], title?: string) => void;
   deleteConversation: (id: string) => void;
   updateConversationTitle: (id: string, title: string) => void;
   archiveConversation: (title: string, messages: ConversationMessage[]) => void;
@@ -52,15 +55,24 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
     }
   }, [user]);
 
-  const createNewConversation = useCallback((): Conversation => {
+  const createNewConversation = useCallback((
+    initialMessages: ConversationMessage[] = [],
+    title?: string,
+    id?: string,
+    activate = true
+  ): Conversation => {
     if (!user) throw new Error("User not logged in");
 
     const now = new Date().toISOString();
+    const firstUserMessage = initialMessages.find((message) => message.role === "user");
     const newConversation: Conversation = {
-      id: `conv_${Date.now()}`,
+      id: id || `conv_${Date.now()}`,
       userId: user.id,
-      title: `對話 ${conversations.length + 1}`,
-      messages: [],
+      title: title || (firstUserMessage
+        ? firstUserMessage.content.slice(0, 30) +
+          (firstUserMessage.content.length > 30 ? "..." : "")
+        : `對話 ${conversations.length + 1}`),
+      messages: initialMessages,
       createdAt: now,
       updatedAt: now,
       isActive: true,
@@ -68,11 +80,34 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
 
     const updated = [newConversation, ...conversations];
     setConversations(updated);
-    setCurrentConversationId(newConversation.id);
+    if (activate) setCurrentConversationId(newConversation.id);
     saveFirestoreConversation(newConversation); // fire and forget
 
     return newConversation;
   }, [user, conversations]);
+
+  const upsertConversationSession = useCallback(
+    (id: string, title: string, initialMessages: ConversationMessage[] = [], activate = true): Conversation => {
+      if (!user) throw new Error("User not logged in");
+
+      const existing = conversations.find((conv) => conv.id === id);
+      if (existing) {
+        if (activate) setCurrentConversationId(existing.id);
+        if (existing.title !== title) {
+          const updatedConv = { ...existing, title, updatedAt: new Date().toISOString() };
+          setConversations((prev) =>
+            prev.map((conv) => (conv.id === existing.id ? updatedConv : conv))
+          );
+          saveFirestoreConversation(updatedConv);
+          return updatedConv;
+        }
+        return existing;
+      }
+
+      return createNewConversation(initialMessages, title, id, activate);
+    },
+    [conversations, createNewConversation, user]
+  );
 
   const selectConversation = useCallback((id: string) => {
     setCurrentConversationId(id);
@@ -111,9 +146,46 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
     [currentConversationId]
   );
 
+  const updateConversationMessagesById = useCallback(
+    (id: string, messages: ConversationMessage[], title?: string) => {
+      if (!user) return;
+
+      setConversations((prev) => {
+        const existing = prev.find((conv) => conv.id === id);
+        const now = new Date().toISOString();
+
+        if (!existing) {
+          const newConversation: Conversation = {
+            id,
+            userId: user.id,
+            title: title || `對話 ${prev.length + 1}`,
+            messages,
+            createdAt: now,
+            updatedAt: now,
+            isActive: true,
+          };
+          saveFirestoreConversation(newConversation);
+          setCurrentConversationId(id);
+          return [newConversation, ...prev];
+        }
+
+        const updatedConv: Conversation = {
+          ...existing,
+          title: title || existing.title,
+          messages,
+          updatedAt: now,
+        };
+        saveFirestoreConversation(updatedConv);
+        return prev.map((conv) => (conv.id === id ? updatedConv : conv));
+      });
+    },
+    [user]
+  );
+
   const deleteConversation = useCallback(
     (id: string) => {
       deleteConversationDoc(id); // fire and forget
+      clearLabToolSessionCacheByConversationId(id);
       setConversations((prev) => {
         const updated = prev.filter((conv) => conv.id !== id);
         if (id === currentConversationId && updated.length > 0) {
@@ -171,8 +243,10 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
         conversations,
         currentConversation,
         createNewConversation,
+        upsertConversationSession,
         selectConversation,
         updateConversationMessages,
+        updateConversationMessagesById,
         deleteConversation,
         updateConversationTitle,
         archiveConversation,

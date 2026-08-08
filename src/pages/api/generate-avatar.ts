@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { isMissingOpenAIKeyError, openAIAuthHeader } from "@/server/openaiClient";
 
 export default async function handler(
   req: NextApiRequest,
@@ -44,7 +45,7 @@ Each frame should be identical except for subtle breathing/movement animation.`;
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Authorization": openAIAuthHeader(),
       },
       body: JSON.stringify({
         model: "dall-e-3",
@@ -106,6 +107,9 @@ Each frame should be identical except for subtle breathing/movement animation.`;
     });
   } catch (error: any) {
     console.error("Image generation error:", error);
+    if (isMissingOpenAIKeyError(error)) {
+      return res.status(500).json({ error: error.message });
+    }
     return res.status(500).json({
       error: error.message || "圖片生成失敗",
     });

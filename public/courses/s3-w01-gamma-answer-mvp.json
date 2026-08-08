@@ -1,0 +1,347 @@
+{
+  "version": 3,
+  "worksheetKind": "gamma_answer",
+  "id": "S3W01",
+  "title": "S3 W01｜工具選擇與初次使用",
+  "semester": "S3",
+  "week": 1,
+  "gammaUrl": "https://gamma.app/docs/S3-W01-hixa52whtzl6aas",
+  "pageUrl": "/worksheets/S3W01",
+  "management": {
+    "mode": "builtin_gamma_answer_worksheet",
+    "configSource": "src/config/gammaAnswerWorksheets.ts",
+    "worksheetListSource": "getPublishedWorksheetsForClass(classId)",
+    "adminVisibilityPath": "/admin/worksheets/visibility",
+    "seriesVisibilityKey": "S3",
+    "rules": [
+      "S3W01 is a worksheet, not a one-off MVP card.",
+      "The worksheet list must receive S3W01 through the same published worksheet flow as other worksheets.",
+      "Teachers manage classroom access by toggling the S3 series visibility.",
+      "Do not hard-code S3W01 entry cards in /worksheets."
+    ]
+  },
+  "layoutRequirement": {
+    "pageScroll": false,
+    "viewport": "h-screen",
+    "desktop": "GAMMA left, answer workspace right, both constrained to the visible browser height.",
+    "smallViewport": "GAMMA top, answer workspace bottom, both constrained to the visible browser height.",
+    "answerWorkspace": "Use flex/min-h-0 so text inputs, uploads, previews, review button, and feedback do not push the page taller than the viewport."
+  },
+  "entryFlow": {
+    "required": true,
+    "steps": [
+      "從主頁 / 進入",
+      "進入 /worksheets",
+      "點選 S3W01 學習單入口",
+      "開啟 GAMMA + 答題區學習單",
+      "需要生成內容時回到主頁 Lab Terminal"
+    ]
+  },
+  "mediaAccess": {
+    "localStorageKey": "lab-terminal:s3w01-media-access",
+    "worksheetId": "S3W01",
+    "grantedWhen": "S3W01 學習單開啟且尚未全部完成",
+    "revokedWhen": "S3W01 全部題目完成",
+    "textModeAlwaysAvailable": true
+  },
+  "autosave": {
+    "mode": "localStorage_with_firestore_sync",
+    "firestorePath": "studentProgress/{studentId}/worksheets/S3W01",
+    "draftField": "gammaAnswerDraft",
+    "localStorageKeyPattern": "gamma-answer-worksheet:{storageVersion}:{WORKSHEET_ID}:{studentId}",
+    "storageVersion": "v22-gamma-answer-worksheet-20260729",
+    "firestoreLoadTimeoutMs": 2200,
+    "firestoreSaveTimeoutMs": 5000,
+    "storesBinaryFilesInFirestore": false,
+    "storesAttachmentMetadata": true
+  },
+  "cache": {
+    "root": ".lab-tool-cache/{WORKSHEET_ID}/{image|music|video}",
+    "normalizedPromptRules": [
+      "Unicode NFKC",
+      "lowercase",
+      "remove punctuation, spaces, and non-letter/non-number symbols"
+    ],
+    "similarityThreshold": 0.72,
+    "limits": {
+      "image": {
+        "default": 10,
+        "env": "LAB_IMAGE_CACHE_LIMIT"
+      },
+      "music": {
+        "default": 3,
+        "env": "LAB_MUSIC_CACHE_LIMIT"
+      },
+      "video": {
+        "default": 5,
+        "env": "LAB_VIDEO_CACHE_LIMIT"
+      }
+    },
+    "rules": [
+      "cache count below limit: call API and save generated result",
+      "cache count reaches limit and prompt is similar: randomly return a matching saved result",
+      "recoverable API error or provider cooldown: return random saved result if available",
+      "text mode does not use media cache"
+    ],
+    "localRoot": ".lab-tool-cache/{WORKSHEET_ID}/{image|music|video}",
+    "cloudStorageRoot": "lab-tool-cache/{WORKSHEET_ID}/{image|music|video}/{fileName}",
+    "firestoreIndex": {
+      "primary": "labToolCache/{WORKSHEET_ID}/kinds/{kind}",
+      "fallback": "system/labToolCache_{WORKSHEET_ID}_{kind}"
+    },
+    "assetReadOrder": [
+      "local LAB_TOOL_CACHE_ROOT/.lab-tool-cache",
+      "Firestore index",
+      "Firebase Storage downloadUrl"
+    ],
+    "deploymentRequirement": "Do not rely on local filesystem after deployment; sync cache files to Firebase Storage and metadata to Firestore index.",
+    "cloudAssetDelivery": "asset API redirects to Firebase Storage downloadUrl when the local cache file is missing"
+  },
+  "toolTabs": [
+    {
+      "id": "terminal",
+      "label": "Lab Terminal",
+      "endpoint": "/api/lab-tools/text",
+      "outputKind": "text",
+      "provider": "openai",
+      "env": [
+        "OPENAI_API_KEY",
+        "LAB_TEXT_MODEL"
+      ],
+      "cached": false
+    },
+    {
+      "id": "image",
+      "label": "Lab Image",
+      "endpoint": "/api/lab-tools/image",
+      "outputKind": "image",
+      "provider": "nano-banana",
+      "env": [
+        "NANO_BANANA_API_KEY",
+        "LAB_NANO_BANANA_IMAGE_MODEL",
+        "LAB_IMAGE_CACHE_LIMIT"
+      ],
+      "cached": true,
+      "download": true,
+      "playback": false
+    },
+    {
+      "id": "music",
+      "label": "Lab Music",
+      "endpoint": "/api/lab-tools/music",
+      "outputKind": "audio",
+      "provider": "elevenlabs",
+      "env": [
+        "ELEVENLABS_API_KEY",
+        "ELEVENLABS_MUSIC_MODEL",
+        "LAB_MUSIC_CACHE_LIMIT"
+      ],
+      "cached": true,
+      "download": true,
+      "playback": true
+    },
+    {
+      "id": "video",
+      "label": "Lab Video",
+      "endpoint": "/api/lab-tools/video",
+      "outputKind": "video",
+      "provider": "veo",
+      "env": [
+        "NANO_BANANA_API_KEY",
+        "LAB_VEO_MODEL",
+        "LAB_VIDEO_CACHE_LIMIT",
+        "LAB_VIDEO_SKIP_API_WHEN_CACHE_READY",
+        "LAB_VIDEO_BACKGROUND_POLL_ATTEMPTS",
+        "LAB_VIDEO_BACKGROUND_POLL_INTERVAL_MS"
+      ],
+      "cached": true,
+      "download": true,
+      "playback": true,
+      "supportsProcessingState": true,
+      "supportsFallbackOnly": true
+    }
+  ],
+  "questions": [
+    {
+      "questionId": "q1",
+      "taskId": "S3-W01-A-Q1",
+      "label": "第 1 題",
+      "coins": 60,
+      "requiredTools": [
+        "terminal"
+      ],
+      "title": "AI 工具使用提醒",
+      "prompt": "請把題目中的 AI 工具使用規則整理成 3 點文字提醒，讓同學上課前快速看懂。",
+      "answerType": "text",
+      "expectedOutputKind": "text",
+      "ui": {
+        "showTextInput": true,
+        "showFileUpload": false
+      },
+      "allowedAttachments": [],
+      "review": {
+        "mode": "local_ai_with_coin_transaction",
+        "rubric": [
+          "有 3 點文字提醒",
+          "內容跟 AI 工具使用有關",
+          "每一點短且清楚"
+        ],
+        "passCriteria": "至少符合 2 項，且內容能讓學生看懂"
+      },
+      "skillTags": [
+        "task-reading",
+        "text-tool"
+      ],
+      "unlocksQuizTags": [
+        "s3-tool-map"
+      ]
+    },
+    {
+      "questionId": "q2",
+      "taskId": "S3-W01-A-Q2",
+      "label": "第 2 題",
+      "coins": 60,
+      "requiredTools": [
+        "image"
+      ],
+      "title": "小狗玩球圖片",
+      "prompt": "請用 Lab Image 產出一張小狗在草地上玩紅色球的圖片，畫面明亮、乾淨、可愛，且不要出現文字。",
+      "answerType": "attachment",
+      "expectedOutputKind": "image",
+      "ui": {
+        "showTextInput": false,
+        "showFileUpload": true
+      },
+      "allowedAttachments": [
+        "image/png",
+        "image/jpeg",
+        "image/webp"
+      ],
+      "review": {
+        "mode": "local_ai_with_coin_transaction",
+        "rubric": [
+          "有圖片附件",
+          "看得出小狗",
+          "看得出紅色球或玩球動作"
+        ],
+        "passCriteria": "至少有圖片附件，並能對應小狗玩球主題"
+      },
+      "skillTags": [
+        "task-reading",
+        "image-tool"
+      ],
+      "unlocksQuizTags": [
+        "s3-tool-map"
+      ]
+    },
+    {
+      "questionId": "q3",
+      "taskId": "S3-W01-A-Q3",
+      "label": "第 3 題",
+      "coins": 60,
+      "requiredTools": [
+        "music"
+      ],
+      "title": "咖啡廳爵士樂",
+      "prompt": "請用 Lab Music 產出一段 30 秒咖啡廳爵士樂，風格溫暖、放鬆、輕快，適合下午在咖啡廳閱讀或聊天。",
+      "answerType": "attachment",
+      "expectedOutputKind": "audio",
+      "ui": {
+        "showTextInput": false,
+        "showFileUpload": true
+      },
+      "allowedAttachments": [
+        "audio/mpeg",
+        "audio/mp3",
+        "audio/wav",
+        "audio/mp4"
+      ],
+      "review": {
+        "mode": "local_ai_with_coin_transaction",
+        "rubric": [
+          "有音訊附件",
+          "符合咖啡廳或爵士風格",
+          "符合溫暖、放鬆、無人聲等要求"
+        ],
+        "passCriteria": "至少有音訊附件，並能對應咖啡廳爵士樂主題"
+      },
+      "skillTags": [
+        "task-reading",
+        "music-tool"
+      ],
+      "unlocksQuizTags": [
+        "s3-tool-map"
+      ]
+    },
+    {
+      "questionId": "q4",
+      "taskId": "S3-W01-A-Q4",
+      "label": "第 4 題",
+      "coins": 70,
+      "requiredTools": [
+        "video"
+      ],
+      "title": "滑雪短影片",
+      "prompt": "請用 Lab Video 產出一段 5 秒滑雪影片：滑雪者穿藍色外套，在白色雪地山坡往下滑，畫面清楚、有速度感，且不要出現文字。",
+      "answerType": "attachment",
+      "expectedOutputKind": "video",
+      "ui": {
+        "showTextInput": false,
+        "showFileUpload": true
+      },
+      "allowedAttachments": [
+        "video/mp4",
+        "video/webm",
+        "video/quicktime"
+      ],
+      "review": {
+        "mode": "local_ai_with_coin_transaction",
+        "rubric": [
+          "有影片附件",
+          "看得出滑雪或雪地",
+          "看得出滑雪者往下滑或有速度感"
+        ],
+        "passCriteria": "至少有影片附件，並能對應滑雪短影片主題"
+      },
+      "skillTags": [
+        "task-reading",
+        "video-tool"
+      ],
+      "unlocksQuizTags": [
+        "s3-tool-map"
+      ]
+    }
+  ],
+  "events": [
+    "ready",
+    "questionChange",
+    "toolChange",
+    "toolHome",
+    "attachment:add",
+    "attachment:upload",
+    "attachment:remove",
+    "demoResult",
+    "apiResult",
+    "review",
+    "save",
+    "firestoreSave",
+    "complete"
+  ],
+  "coinAwarding": {
+    "mode": "firestore_transaction",
+    "function": "approveTask",
+    "writes": [
+      "studentProgress/{studentId}/worksheets/S3W01.tasks.{taskId}",
+      "coins/{studentId}",
+      "auditLog/{autoId}",
+      "users/{studentId}/progress/lessons.worksheet:S3W01 when all questions complete"
+    ],
+    "idempotency": "completed task will not be awarded twice"
+  },
+  "componentization": {
+    "config": "src/config/gammaAnswerWorksheets.ts",
+    "component": "src/components/worksheets/GammaAnswerWorksheet.tsx",
+    "entry": "/worksheets/S3W01",
+    "legacyPage": "/courses/gamma-mixed-worksheet-demo.html redirects to /worksheets/S3W01"
+  }
+}

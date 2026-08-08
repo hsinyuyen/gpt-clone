@@ -19,10 +19,18 @@
 .DS_Store
 *.pem
 
+# generated Lab Terminal worksheet assets
+.lab-tool-cache/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.next-dev.*.log
+
+# local launch helpers
+start-localhost.cmd
+start-localhost.ps1
 
 # local env files
 .env*.local

@@ -15,6 +15,8 @@ import {
   lessonKeys,
   isLockedByDerived,
 } from "@/types/LessonCompletion";
+import GammaAnswerWorksheet from "@/components/worksheets/GammaAnswerWorksheet";
+import { resolveGammaAnswerWorksheetConfig } from "@/config/gammaAnswerWorksheets";
 
 // Convert any gamma.app URL to the embed format
 // e.g. https://gamma.app/docs/S5-W13--nrrfbs7svs8h2el → https://gamma.app/embed/S5-W13--nrrfbs7svs8h2el
@@ -109,6 +111,18 @@ export default function WorksheetViewPage() {
 
   const completedCount = progress?.completedTaskCount || 0;
   const totalTasks = worksheet.tasks.length;
+  const gammaAnswerConfig = resolveGammaAnswerWorksheetConfig(worksheet);
+
+  if (gammaAnswerConfig) {
+    return (
+      <GammaAnswerWorksheet
+        config={gammaAnswerConfig}
+        worksheet={worksheet}
+        progress={progress}
+        onProgressChange={setProgress}
+      />
+    );
+  }
 
   // 全部任務完成 → 鎖成成果展示，不再顯示學習單內容（老師開放重做時才解開）
   const allDone = totalTasks > 0 && completedCount >= totalTasks;
@@ -183,12 +197,20 @@ export default function WorksheetViewPage() {
       <div className="max-w-3xl mx-auto p-4">
         {/* Header */}
         <div className="mb-6">
-          <button
-            onClick={() => router.push("/worksheets")}
-            className="text-sm text-[var(--terminal-primary-dim)] hover:text-[var(--terminal-primary)] mb-2 block"
-          >
-            ← 返回學習單列表
-          </button>
+          <div className="flex items-center gap-3 mb-2">
+            <button
+              onClick={() => router.push("/")}
+              className="text-sm text-[var(--terminal-highlight)] hover:text-[var(--terminal-primary)]"
+            >
+              HOME
+            </button>
+            <button
+              onClick={() => router.push("/worksheets")}
+              className="text-sm text-[var(--terminal-primary-dim)] hover:text-[var(--terminal-primary)]"
+            >
+              ← 返回學習單列表
+            </button>
+          </div>
           <h1 className="text-xl font-bold">{worksheet.title}</h1>
           <div className="text-sm text-[var(--terminal-primary-dim)] mt-1">
             {worksheet.semester} W{String(worksheet.week).padStart(2, "0")} ·
@@ -275,6 +297,12 @@ export default function WorksheetViewPage() {
                   className="text-xs text-[var(--terminal-primary-dim)] hover:text-[var(--terminal-primary)] shrink-0"
                 >
                   ← 返回
+                </button>
+                <button
+                  onClick={() => router.push("/")}
+                  className="text-xs text-[var(--terminal-highlight)] hover:text-[var(--terminal-primary)] shrink-0"
+                >
+                  HOME
                 </button>
                 <span className="text-xs text-[var(--terminal-primary)] truncate">
                   {worksheet.title}

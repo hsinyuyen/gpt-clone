@@ -2,11 +2,8 @@
 // Judges whether a student's sentence genuinely uses the target term in the
 // context of "the game they are building" — not just contains the keyword.
 // Returns { passed: boolean, feedback: string }.
+import { getOpenAIClient, isMissingOpenAIKeyError } from "@/server/openaiClient";
 import { NextApiRequest, NextApiResponse } from "next";
-import { Configuration, OpenAIApi } from "openai";
-
-const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY });
-const openai = new OpenAIApi(configuration);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -54,6 +51,7 @@ ${sentence}
 只有在亂打、或空泛到看不出他想要什麼、或方向明顯跑題時，才判 false。對小朋友友善一點。`;
 
   try {
+    const openai = getOpenAIClient();
     const completion = await openai.createChatCompletion({
       model: "gpt-5.4",
       messages: [{ role: "system", content: systemMessage }],
@@ -74,6 +72,9 @@ ${sentence}
     });
   } catch (err: any) {
     console.error("[review-sentence] error:", err.message || err);
+    if (isMissingOpenAIKeyError(err)) {
+      return res.status(500).json({ error: err.message });
+    }
     return res.status(500).json({ error: err.message || "Review failed" });
   }
 }
